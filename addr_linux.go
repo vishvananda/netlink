@@ -133,7 +133,7 @@ func AddrList(link *Link, family int) ([]Addr, error) {
 		for _, attr := range attrs {
 			switch attr.Attr.Type {
 			case syscall.IFA_ADDRESS:
-				addr.IPNet = net.IPNet{
+				addr.IPNet = &net.IPNet{
 					IP:   attr.Value,
 					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
 				}

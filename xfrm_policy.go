@@ -38,8 +38,8 @@ type XfrmPolicyTmpl struct {
 // and has a list of XfrmPolicyTmpls representing the base addresses of
 // the policy.
 type XfrmPolicy struct {
-	Dst      net.IPNet
-	Src      net.IPNet
+	Dst      *net.IPNet
+	Src      *net.IPNet
 	Dir      Dir
 	Priority int
 	Index    int

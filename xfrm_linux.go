@@ -94,12 +94,12 @@ func (x *XfrmAddress) ToIP() net.IP {
 	return ip
 }
 
-func (x *XfrmAddress) ToIPNet(prefixlen uint8) net.IPNet {
+func (x *XfrmAddress) ToIPNet(prefixlen uint8) *net.IPNet {
 	ip := x.ToIP()
 	if GetIPFamily(ip) == FAMILY_V4 {
-		return net.IPNet{ip, net.CIDRMask(int(prefixlen), 32)}
+		return &net.IPNet{ip, net.CIDRMask(int(prefixlen), 32)}
 	} else {
-		return net.IPNet{ip, net.CIDRMask(int(prefixlen), 128)}
+		return &net.IPNet{ip, net.CIDRMask(int(prefixlen), 128)}
 	}
 }
 

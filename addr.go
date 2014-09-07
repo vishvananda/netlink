@@ -9,7 +9,7 @@ import (
 // Addr represents an IP address from netlink. Netlink ip addresses
 // include a mask, so it stores the address as a net.IPNet.
 type Addr struct {
-	net.IPNet
+	*net.IPNet
 	Label string
 }
 
