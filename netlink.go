@@ -35,10 +35,15 @@ func GetIPFamily(ip net.IP) int {
 // This is valuable because addresses in netlink are often IPNets and
 // ParseCIDR returns an IPNet with the IP part set to the base IP of the
 // range.
-func ParseIPNet(s string) (net.IPNet, error) {
+func ParseIPNet(s string) (*net.IPNet, error) {
 	ip, ipNet, err := net.ParseCIDR(s)
 	if err != nil {
-		return net.IPNet{}, err
+		return nil, err
 	}
-	return net.IPNet{ip, ipNet.Mask}, nil
+	return &net.IPNet{ip, ipNet.Mask}, nil
+}
+
+// NewIPNet generates an IPNet from an ip address using a netmask of 32.
+func NewIPNet(ip net.IP) (*net.IPNet) {
+	return &net.IPNet{ip, net.CIDRMask(32, 32)}
 }
