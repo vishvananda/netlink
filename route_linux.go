@@ -164,7 +164,7 @@ func RouteList(link *Link, family int) ([]Route, error) {
 			case syscall.RTA_PREFSRC:
 				route.Src = net.IP(attr.Value)
 			case syscall.RTA_DST:
-				route.Dst = net.IPNet{
+				route.Dst = &net.IPNet{
 					IP:   attr.Value,
 					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
 				}
@@ -175,7 +175,7 @@ func RouteList(link *Link, family int) ([]Route, error) {
 					continue
 				}
 				resLink, _ := LinkByIndex(index)
-				route.Link = *resLink
+				route.Link = resLink
 			}
 		}
 		res = append(res, route)

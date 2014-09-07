@@ -10,8 +10,8 @@ import (
 // gateway. Advanced route parameters and non-main routing tables are
 // currently not supported.
 type Route struct {
-	Link Link
-	Dst  net.IPNet
+	Link *Link
+	Dst  *net.IPNet
 	Src  net.IP
 	Gw   net.IP
 }

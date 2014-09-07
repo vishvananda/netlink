@@ -24,7 +24,7 @@ func TestRouteAddDel(t *testing.T) {
 	_, dst, err := net.ParseCIDR("192.168.0.0/24")
 
 	ip := net.ParseIP("127.1.1.1")
-	route := Route{Link: *link, Dst: *dst, Src: ip}
+	route := Route{Link: link, Dst: dst, Src: ip}
 	err = RouteAdd(&route)
 	if err != nil {
 		t.Fatal(err)
