@@ -245,6 +245,10 @@ func XfrmStateAdd(state *XfrmState) error {
 	msg.Mode = uint8(state.Mode)
 	msg.Id.Spi = swap32(uint32(state.Spi))
 	msg.Reqid = uint32(state.Reqid)
+	msg.Lft.SoftByteLimit = XFRM_INF
+	msg.Lft.HardByteLimit = XFRM_INF
+	msg.Lft.SoftPacketLimit = XFRM_INF
+	msg.Lft.HardPacketLimit = XFRM_INF
 	req.AddData(msg)
 
 	if state.Auth != nil {

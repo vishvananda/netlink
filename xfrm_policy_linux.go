@@ -129,6 +129,10 @@ func XfrmPolicyAdd(policy *XfrmPolicy) error {
 	msg.Priority = uint32(policy.Priority)
 	msg.Index = uint32(policy.Index)
 	msg.Dir = uint8(policy.Dir)
+	msg.Lft.SoftByteLimit = XFRM_INF
+	msg.Lft.HardByteLimit = XFRM_INF
+	msg.Lft.SoftPacketLimit = XFRM_INF
+	msg.Lft.HardPacketLimit = XFRM_INF
 	req.AddData(msg)
 
 	tmplData := make([]byte, SizeofXfrmUserTmpl*len(policy.Tmpls))

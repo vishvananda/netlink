@@ -6,6 +6,12 @@ import (
 	"unsafe"
 )
 
+// Infinity for packet and byte counts
+const (
+	XFRM_INF = ^uint64(0)
+)
+
+// Message Types
 const (
 	XFRM_MSG_BASE        = 0x10
 	XFRM_MSG_NEWSA       = 0x10
