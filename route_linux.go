@@ -56,6 +56,7 @@ func routeHandle(route *Route, req *NetlinkRequest) error {
 	}
 
 	msg := newRtMsg()
+	msg.Scope = uint8(route.Scope)
 	family := -1
 	var rtAttrs []*RtAttr
 
@@ -156,7 +157,7 @@ func RouteList(link *Link, family int) ([]Route, error) {
 			return nil, err
 		}
 
-		var route Route
+		route := Route{Scope: Scope(msg.Scope)}
 		for _, attr := range attrs {
 			switch attr.Attr.Type {
 			case syscall.RTA_GATEWAY:
