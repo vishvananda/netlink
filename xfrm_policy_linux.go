@@ -144,6 +144,9 @@ func XfrmPolicyAdd(policy *XfrmPolicy) error {
 		userTmpl.XfrmId.Proto = uint8(tmpl.Proto)
 		userTmpl.Mode = uint8(tmpl.Mode)
 		userTmpl.Reqid = uint32(tmpl.Reqid)
+		userTmpl.Aalgos = ^uint32(0)
+		userTmpl.Ealgos = ^uint32(0)
+		userTmpl.Calgos = ^uint32(0)
 	}
 	if len(tmplData) > 0 {
 		tmpls := newRtAttr(XFRMA_TMPL, tmplData)
