@@ -245,6 +245,7 @@ func XfrmStateAdd(state *XfrmState) error {
 	msg.Mode = uint8(state.Mode)
 	msg.Id.Spi = swap32(uint32(state.Spi))
 	msg.Reqid = uint32(state.Reqid)
+	msg.ReplayWindow = uint8(state.ReplayWindow)
 	msg.Lft.SoftByteLimit = XFRM_INF
 	msg.Lft.HardByteLimit = XFRM_INF
 	msg.Lft.SoftPacketLimit = XFRM_INF
@@ -317,6 +318,7 @@ func XfrmStateList(family int) ([]XfrmState, error) {
 		state.Mode = Mode(msg.Mode)
 		state.Spi = int(swap32(msg.Id.Spi))
 		state.Reqid = int(msg.Reqid)
+		state.ReplayWindow = int(msg.ReplayWindow)
 
 		attrs, err := parseRouteAttr(m[msg.Len():])
 		if err != nil {

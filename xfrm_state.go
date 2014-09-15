@@ -20,6 +20,7 @@ type XfrmState struct {
 	Mode  Mode
 	Spi   int
 	Reqid int
+	ReplayWindow int
 	Auth  *XfrmStateAlgo
 	Crypt *XfrmStateAlgo
 }
