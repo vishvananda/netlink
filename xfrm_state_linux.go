@@ -12,6 +12,7 @@ const (
 	SizeofXfrmUsersaInfo = 0xe0
 	SizeofXfrmAlgo       = 0x44
 	SizeofXfrmAlgoAuth   = 0x48
+	SizeofXfrmEncapTmpl  = 0x18
 )
 
 // struct xfrm_usersa_id {
@@ -201,6 +202,26 @@ func (msg *XfrmAlgoAuth) Serialize() []byte {
 //   xfrm_address_t  encap_oa;
 // };
 
+type XfrmEncapTmpl struct {
+	EncapType  uint16
+	EncapSport uint16 // big endian
+	EncapDport uint16 // big endian
+	Pad        [2]byte
+	EncapOa    XfrmAddress
+}
+
+func (msg *XfrmEncapTmpl) Len() int {
+	return SizeofXfrmEncapTmpl
+}
+
+func DeserializeXfrmEncapTmpl(b []byte) *XfrmEncapTmpl {
+	return (*XfrmEncapTmpl)(unsafe.Pointer(&b[0:SizeofXfrmEncapTmpl][0]))
+}
+
+func (msg *XfrmEncapTmpl) Serialize() []byte {
+	return (*(*[SizeofXfrmEncapTmpl]byte)(unsafe.Pointer(msg)))[:]
+}
+
 func writeStateAlgo(a *XfrmStateAlgo) []byte {
 	algo := XfrmAlgo{
 		AlgKeyLen: uint32(len(a.Key) * 8),
@@ -258,6 +279,16 @@ func XfrmStateAdd(state *XfrmState) error {
 	}
 	if state.Crypt != nil {
 		out := newRtAttr(XFRMA_ALG_CRYPT, writeStateAlgo(state.Crypt))
+		req.AddData(out)
+	}
+	if state.Encap != nil {
+		encapData := make([]byte, SizeofXfrmEncapTmpl)
+		encap := DeserializeXfrmEncapTmpl(encapData)
+		encap.EncapType = uint16(state.Encap.Type)
+		encap.EncapSport = swap16(uint16(state.Encap.SrcPort))
+		encap.EncapDport = swap16(uint16(state.Encap.DstPort))
+		encap.EncapOa.FromIP(state.Encap.OriginalAddress)
+		out := newRtAttr(XFRMA_ENCAP, encapData)
 		req.AddData(out)
 	}
 
@@ -349,6 +380,13 @@ func XfrmStateList(family int) ([]XfrmState, error) {
 				state.Auth.Name = bytesToString(algo.AlgName[:])
 				state.Auth.Key = algo.AlgKey
 				state.Auth.TruncateLen = int(algo.AlgTruncLen)
+			case XFRMA_ENCAP:
+				encap := DeserializeXfrmEncapTmpl(attr.Value[:])
+				state.Encap = new(XfrmStateEncap)
+				state.Encap.Type = EncapType(encap.EncapType)
+				state.Encap.SrcPort = int(swap16(encap.EncapSport))
+				state.Encap.DstPort = int(swap16(encap.EncapDport))
+				state.Encap.OriginalAddress = encap.EncapOa.ToIP()
 			}
 
 		}

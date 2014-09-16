@@ -176,3 +176,32 @@ func TestXfrmAlgoAuthDeserializeSerialize(t *testing.T) {
 	msg := DeserializeXfrmAlgoAuth(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
+
+func (msg *XfrmEncapTmpl) write(b []byte) {
+	native := nativeEndian()
+	native.PutUint16(b[0:2], msg.EncapType)
+	native.PutUint16(b[2:4], msg.EncapSport)
+	native.PutUint16(b[4:6], msg.EncapDport)
+	copy(b[6:8], msg.Pad[:])
+	msg.EncapOa.write(b[8:SizeofXfrmAddress])
+}
+
+func (msg *XfrmEncapTmpl) serializeSafe() []byte {
+	b := make([]byte, SizeofXfrmEncapTmpl)
+	msg.write(b)
+	return b
+}
+
+func deserializeXfrmEncapTmplSafe(b []byte) *XfrmEncapTmpl {
+	var msg = XfrmEncapTmpl{}
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmEncapTmpl]), nativeEndian(), &msg)
+	return &msg
+}
+
+func TestXfrmEncapTmplDeserializeSerialize(t *testing.T) {
+	var orig = make([]byte, SizeofXfrmEncapTmpl)
+	rand.Read(orig)
+	safemsg := deserializeXfrmEncapTmplSafe(orig)
+	msg := DeserializeXfrmEncapTmpl(orig)
+	testDeserializeSerialize(t, orig, safemsg, msg)
+}
