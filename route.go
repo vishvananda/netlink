@@ -22,11 +22,11 @@ const (
 // gateway. Advanced route parameters and non-main routing tables are
 // currently not supported.
 type Route struct {
-	Link *Link
+	Link  *Link
 	Scope Scope
-	Dst  *net.IPNet
-	Src  net.IP
-	Gw   net.IP
+	Dst   *net.IPNet
+	Src   net.IP
+	Gw    net.IP
 }
 
 func (r Route) String() string {

@@ -112,7 +112,7 @@ func AddrList(link *Link, family int) ([]Addr, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	ensureIndex(link)
 
 	res := make([]Addr, 0)

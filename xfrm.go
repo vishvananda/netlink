@@ -62,4 +62,3 @@ func (m Mode) String() string {
 	}
 	return fmt.Sprintf("%d", m)
 }
-

@@ -44,6 +44,6 @@ func ParseIPNet(s string) (*net.IPNet, error) {
 }
 
 // NewIPNet generates an IPNet from an ip address using a netmask of 32.
-func NewIPNet(ip net.IP) (*net.IPNet) {
+func NewIPNet(ip net.IP) *net.IPNet {
 	return &net.IPNet{ip, net.CIDRMask(32, 32)}
 }

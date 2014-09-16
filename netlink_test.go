@@ -34,7 +34,6 @@ func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
 	}
 }
 
-
 type testSerializer interface {
 	serializeSafe() []byte
 	Serialize() []byte
