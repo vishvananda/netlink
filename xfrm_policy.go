@@ -9,18 +9,30 @@ import (
 type Dir uint8
 
 const (
-	XFRM_DIR_IN  = iota
-	XFRM_DIR_OUT = iota
+	XFRM_DIR_IN     Dir = iota
+	XFRM_DIR_OUT    Dir = iota
+	XFRM_DIR_FWD    Dir = iota
+	XFRM_SOCKET_IN  Dir = iota
+	XFRM_SOCKET_OUT Dir = iota
+	XFRM_SOCKET_FWD Dir = iota
 )
 
 func (d Dir) String() string {
 	switch d {
 	case XFRM_DIR_IN:
-		return "in"
+		return "dir in"
 	case XFRM_DIR_OUT:
-		return "out"
+		return "dir out"
+	case XFRM_DIR_FWD:
+		return "dir fwd"
+	case XFRM_SOCKET_IN:
+		return "socket in"
+	case XFRM_SOCKET_OUT:
+		return "socket out"
+	case XFRM_SOCKET_FWD:
+		return "socket fwd"
 	}
-	return fmt.Sprintf("%d", d)
+	return fmt.Sprintf("socket %d", d-XFRM_SOCKET_IN)
 }
 
 // XfrmPolicyTmpl encapsulates a rule for the base addresses of an ipsec
