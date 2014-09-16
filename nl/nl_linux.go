@@ -134,7 +134,7 @@ func (a *RtAttr) Len() int {
 
 	l := 0
 	for _, child := range a.children {
-		l += child.Len()
+		l += rtaAlignOf(child.Len())
 	}
 	l += syscall.SizeofRtAttr
 	return rtaAlignOf(l + len(a.Data))
@@ -289,6 +289,32 @@ func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 	return s, nil
 }
 
+// Create a netlink socket with a given protocol (e.g. NETLINK_ROUTE)
+// and subscribe it to multicast groups passed in variable argument list.
+// Returns the netlink socket on whic hReceive() method can be called
+// to retrieve the messages from the kernel.
+func Subscribe(protocol int, groups ...uint) (*NetlinkSocket, error) {
+	fd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW, protocol)
+	if err != nil {
+		return nil, err
+	}
+	s := &NetlinkSocket{
+		fd: fd,
+	}
+	s.lsa.Family = syscall.AF_NETLINK
+
+	for _, g := range groups {
+		s.lsa.Groups |= (1 << (g-1))
+	}
+
+	if err := syscall.Bind(fd, &s.lsa); err != nil {
+		syscall.Close(fd)
+		return nil, err
+	}
+
+	return s, nil
+}
+
 func (s *NetlinkSocket) Close() {
 	syscall.Close(s.fd)
 }
@@ -345,6 +371,24 @@ func NonZeroTerminated(s string) []byte {
 func BytesToString(b []byte) string {
 	n := bytes.Index(b, []byte{0})
 	return string(b[:n])
+}
+
+func Uint8Attr(v uint8) []byte {
+	return []byte{byte(v)}
+}
+
+func Uint16Attr(v uint16) []byte {
+	native := NativeEndian()
+	bytes := make([]byte, 2)
+	native.PutUint16(bytes, v)
+	return bytes
+}
+
+func Uint32Attr(v uint32) []byte {
+	native := NativeEndian()
+	bytes := make([]byte, 4)
+	native.PutUint32(bytes, v)
+	return bytes
 }
 
 func ParseRouteAttr(b []byte) ([]syscall.NetlinkRouteAttr, error) {

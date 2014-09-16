@@ -29,6 +29,28 @@ const (
 )
 
 const (
+	IFLA_VXLAN_UNSPEC     = iota
+	IFLA_VXLAN_ID         = iota
+	IFLA_VXLAN_GROUP      = iota
+	IFLA_VXLAN_LINK       = iota
+	IFLA_VXLAN_LOCAL      = iota
+	IFLA_VXLAN_TTL        = iota
+	IFLA_VXLAN_TOS        = iota
+	IFLA_VXLAN_LEARNING   = iota
+	IFLA_VXLAN_AGEING     = iota
+	IFLA_VXLAN_LIMIT      = iota
+	IFLA_VXLAN_PORT_RANGE = iota
+	IFLA_VXLAN_PROXY      = iota
+	IFLA_VXLAN_RSC        = iota
+	IFLA_VXLAN_L2MISS     = iota
+	IFLA_VXLAN_L3MISS     = iota
+	IFLA_VXLAN_PORT       = iota
+	IFLA_VXLAN_GROUP6     = iota
+	IFLA_VXLAN_LOCAL6     = iota
+	IFLA_VXLAN_MAX        = IFLA_VXLAN_LOCAL6
+)
+
+const (
 	// not defined in syscall
 	IFLA_NET_NS_FD = 28
 )

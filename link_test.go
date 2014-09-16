@@ -57,6 +57,14 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if vxlan, ok := link.(*Vxlan); ok {
+		other, ok := result.(*Vxlan)
+		if !ok {
+			t.Fatal("Result of create is not a vxlan")
+		}
+		compareVxlan(t, vxlan, other)
+	}
+
 	if err = LinkDel(link); err != nil {
 		t.Fatal(err)
 	}
@@ -68,6 +76,61 @@ func testLinkAddDel(t *testing.T, link Link) {
 
 	if len(links) != num {
 		t.Fatal("Link not removed properly")
+	}
+}
+
+func compareVxlan(t *testing.T, expected, actual *Vxlan) {
+
+	if actual.VxlanId != expected.VxlanId {
+		t.Fatalf("Vxlan.VxlanId doesn't match")
+	}
+	if expected.SrcAddr != nil && !actual.SrcAddr.Equal(expected.SrcAddr) {
+		t.Fatalf("Vxlan.SrcAddr doesn't match")
+	}
+	if expected.Group != nil && !actual.Group.Equal(expected.Group) {
+		t.Fatalf("Vxlan.Group doesn't match")
+	}
+	if expected.TTL != -1 && actual.TTL != expected.TTL {
+		t.Fatalf("Vxlan.TTL doesn't match")
+	}
+	if expected.TOS != -1 && actual.TOS != expected.TOS {
+		t.Fatalf("Vxlan.TOS doesn't match")
+	}
+	if actual.Learning != expected.Learning {
+		t.Fatalf("Vxlan.Learning doesn't match")
+	}
+	if actual.Proxy != expected.Proxy {
+		t.Fatalf("Vxlan.Proxy doesn't match")
+	}
+	if actual.RSC != expected.RSC {
+		t.Fatalf("Vxlan.RSC doesn't match", actual, expected)
+	}
+	if actual.L2miss != expected.L2miss {
+		t.Fatalf("Vxlan.L2miss doesn't match")
+	}
+	if actual.L3miss != expected.L3miss {
+		t.Fatalf("Vxlan.L3miss doesn't match")
+	}
+	if expected.NoAge {
+		if !actual.NoAge {
+			t.Fatalf("Vxlan.NoAge doesn't match")
+		}
+	} else if expected.Age > 0 && actual.Age != expected.Age {
+		t.Fatalf("Vxlan.Age doesn't match")
+	}
+	if expected.Limit > 0 && actual.Limit != expected.Limit {
+		t.Fatalf("Vxlan.Limit doesn't match")
+	}
+	if expected.Port > 0 && actual.Port != expected.Port {
+		t.Fatalf("Vxlan.Port doesn't match")
+	}
+	if expected.PortLow > 0 || expected.PortHigh > 0 {
+		if actual.PortLow != expected.PortLow {
+			t.Fatalf("Vxlan.PortLow doesn't match")
+		}
+		if actual.PortHigh != expected.PortHigh {
+			t.Fatalf("Vxlan.PortHigh doesn't match")
+		}
 	}
 }
 
@@ -269,4 +332,32 @@ func TestLinkSetNs(t *testing.T) {
 		t.Fatal("Other half of veth pair not deleted")
 	}
 
+}
+
+func TestLinkAddDelVxlan(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	parent := &Dummy{
+		LinkAttrs{Name: "foo"},
+	}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	vxlan := Vxlan{
+		LinkAttrs: LinkAttrs{
+			Name: "bar",
+		},
+		VxlanId: 10,
+		VtepDevIndex: parent.Index,
+		Learning:     true,
+		L2miss:       true,
+		L3miss:       true,
+	}
+
+	testLinkAddDel(t, &vxlan)
+	if err := LinkDel(parent); err != nil {
+		t.Fatal(err)
+	}
 }

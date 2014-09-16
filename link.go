@@ -119,6 +119,35 @@ func (generic *Generic) Type() string {
 	return generic.LinkType
 }
 
+type Vxlan struct {
+	LinkAttrs
+	VxlanId      int
+	VtepDevIndex int
+	SrcAddr      net.IP
+	Group        net.IP
+	TTL          int
+	TOS          int
+	Learning     bool
+	Proxy        bool
+	RSC          bool
+	L2miss       bool
+	L3miss       bool
+	NoAge        bool
+	Age          int
+	Limit        int
+	Port         int
+	PortLow      int
+	PortHigh     int
+}
+
+func (vxlan *Vxlan) Attrs() *LinkAttrs {
+	return &vxlan.LinkAttrs
+}
+
+func (vxlan *Vxlan) Type() string {
+	return "vxlan"
+}
+
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
 // can | bridge | bond | ipoib | ip6tnl | ipip | sit |

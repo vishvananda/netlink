@@ -93,3 +93,27 @@ func XfrmStateDel(policy *XfrmState) error {
 func XfrmStateList(family int) ([]XfrmState, error) {
 	return nil, ErrNotImplemented
 }
+
+func NeighAdd(neigh *Neigh) error {
+	return ErrNotImplemented
+}
+
+func NeighSet(neigh *Neigh) error {
+	return ErrNotImplemented
+}
+
+func NeighAppend(neigh *Neigh) error {
+	return ErrNotImplemented
+}
+
+func NeighDel(neigh *Neigh) error {
+	return ErrNotImplemented
+}
+
+func NeighList(linkIndex, family int) ([]Neigh, error) {
+	return nil, ErrNotImplemented
+}
+
+func NeighDeserialize(m []byte) (*Ndmsg, *Neigh, error) {
+	return nil, nil, ErrNotImplemented
+}

@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"net"
@@ -175,6 +176,76 @@ func LinkSetNsFd(link Link, fd int) error {
 	return err
 }
 
+func boolAttr(val bool) []byte {
+	var v uint8
+	if val {
+		v = 1
+	}
+	return nl.Uint8Attr(v)
+}
+
+type vxlanPortRange struct {
+	 Lo, Hi uint16
+ }
+
+func addVxlanAttrs(vxlan* Vxlan, linkInfo *nl.RtAttr) {
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_ID, nl.Uint32Attr(uint32(vxlan.VxlanId)))
+	if vxlan.ParentIndex != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LINK, nl.Uint32Attr(uint32(vxlan.VtepDevIndex)))
+	}
+	if vxlan.SrcAddr != nil {
+		ip := vxlan.SrcAddr.To4()
+		if ip != nil {
+			nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LOCAL, []byte(ip))
+		} else {
+			ip = vxlan.SrcAddr.To16()
+			if ip != nil {
+				nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LOCAL6, []byte(ip))
+			}
+		}
+	}
+	if vxlan.Group != nil {
+		group := vxlan.Group.To4()
+		if group != nil {
+			nl.NewRtAttrChild(data, nl.IFLA_VXLAN_GROUP, []byte(group))
+		} else {
+			group = vxlan.Group.To16()
+			if group != nil {
+				nl.NewRtAttrChild(data, nl.IFLA_VXLAN_GROUP6, []byte(group))
+			}
+		}
+	}
+
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_TTL, nl.Uint8Attr(uint8(vxlan.TTL)))
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_TOS, nl.Uint8Attr(uint8(vxlan.TOS)))
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LEARNING, boolAttr(vxlan.Learning))
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_PROXY, boolAttr(vxlan.Proxy))
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_RSC, boolAttr(vxlan.RSC))
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_L2MISS, boolAttr(vxlan.L2miss))
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_L3MISS, boolAttr(vxlan.L3miss))
+
+	if vxlan.NoAge {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_AGEING, nl.Uint32Attr(0))
+	} else if vxlan.Age > 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_AGEING, nl.Uint32Attr(uint32(vxlan.Age)))
+	}
+	if vxlan.Limit > 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LIMIT, nl.Uint32Attr(uint32(vxlan.Limit)))
+	}
+	if vxlan.Port > 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_PORT, nl.Uint16Attr(uint16(vxlan.Port)))
+	}
+	if vxlan.PortLow > 0 || vxlan.PortHigh > 0 {
+		pr := vxlanPortRange{ uint16(vxlan.PortLow), uint16(vxlan.PortHigh) }
+
+		buf := new(bytes.Buffer)
+		binary.Write(buf, binary.BigEndian, &pr)
+
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_PORT_RANGE, buf.Bytes())
+	}
+}
+
 // LinkAdd adds a new link device. The type and features of the device
 // are taken fromt the parameters in the link object.
 // Equivalent to: `ip link add $link`
@@ -217,6 +288,8 @@ func LinkAdd(link Link) error {
 		peer := nl.NewRtAttrChild(data, nl.VETH_INFO_PEER, nil)
 		nl.NewIfInfomsgChild(peer, syscall.AF_UNSPEC)
 		nl.NewRtAttrChild(peer, syscall.IFLA_IFNAME, nl.ZeroTerminated(veth.PeerName))
+	} else if vxlan, ok := link.(*Vxlan); ok {
+		addVxlanAttrs(vxlan, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -333,6 +406,8 @@ func LinkList() ([]Link, error) {
 							link = &Vlan{}
 						case "veth":
 							link = &Veth{}
+						case "vxlan":
+							link = &Vxlan{}
 						default:
 							link = &Generic{LinkType: linkType}
 						}
@@ -344,6 +419,8 @@ func LinkList() ([]Link, error) {
 						switch linkType {
 						case "vlan":
 							parseVlanData(link, data, native)
+						case "vxlan":
+							parseVxlanData(link, data, native)
 						}
 					}
 				}
@@ -379,11 +456,59 @@ func LinkList() ([]Link, error) {
 }
 
 func parseVlanData(link Link, data []syscall.NetlinkRouteAttr, native binary.ByteOrder) {
-	vlan, _ := link.(*Vlan)
+	vlan := link.(*Vlan)
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.IFLA_VLAN_ID:
 			vlan.VlanId = int(native.Uint16(datum.Value[0:2]))
+		}
+	}
+}
+
+func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr, native binary.ByteOrder) {
+	vxlan := link.(*Vxlan)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_VXLAN_ID:
+			vxlan.VxlanId = int(native.Uint32(datum.Value[0:4]))
+		case nl.IFLA_VXLAN_LINK:
+			vxlan.VtepDevIndex = int(native.Uint32(datum.Value[0:4]))
+		case nl.IFLA_VXLAN_LOCAL:
+			vxlan.SrcAddr = net.IP(datum.Value[0:4])
+		case nl.IFLA_VXLAN_LOCAL6:
+			vxlan.SrcAddr = net.IP(datum.Value[0:16])
+		case nl.IFLA_VXLAN_GROUP:
+			vxlan.Group = net.IP(datum.Value[0:4])
+		case nl.IFLA_VXLAN_GROUP6:
+			vxlan.Group = net.IP(datum.Value[0:16])
+		case nl.IFLA_VXLAN_TTL:
+			vxlan.TTL = int(datum.Value[0])
+		case nl.IFLA_VXLAN_TOS:
+			vxlan.TOS = int(datum.Value[0])
+		case nl.IFLA_VXLAN_LEARNING:
+			vxlan.Learning = int8(datum.Value[0]) != 0
+		case nl.IFLA_VXLAN_PROXY:
+			vxlan.Proxy = int8(datum.Value[0]) != 0
+		case nl.IFLA_VXLAN_RSC:
+			vxlan.RSC = int8(datum.Value[0]) != 0
+		case nl.IFLA_VXLAN_L2MISS:
+			vxlan.L2miss = int8(datum.Value[0]) != 0
+		case nl.IFLA_VXLAN_L3MISS:
+			vxlan.L3miss = int8(datum.Value[0]) != 0
+		case nl.IFLA_VXLAN_AGEING:
+			vxlan.Age = int(native.Uint32(datum.Value[0:4]))
+			vxlan.NoAge = vxlan.Age == 0
+		case nl.IFLA_VXLAN_LIMIT:
+			vxlan.Limit = int(native.Uint32(datum.Value[0:4]))
+		case nl.IFLA_VXLAN_PORT:
+			vxlan.Port = int(native.Uint16(datum.Value[0:2]))
+		case nl.IFLA_VXLAN_PORT_RANGE:
+			buf := bytes.NewBuffer(datum.Value[0:4])
+			var pr vxlanPortRange
+			if binary.Read(buf, binary.BigEndian, &pr) != nil {
+				vxlan.PortLow = int(pr.Lo)
+				vxlan.PortHigh = int(pr.Hi)
+			}
 		}
 	}
 }
