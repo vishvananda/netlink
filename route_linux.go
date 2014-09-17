@@ -66,7 +66,7 @@ func routeHandle(route *Route, req *NetlinkRequest) error {
 		dstFamily := GetIPFamily(route.Dst.IP)
 		family = dstFamily
 		var dstData []byte
-		if dstFamily == syscall.AF_INET {
+		if dstFamily == FAMILY_V4 {
 			dstData = route.Dst.IP.To4()
 		} else {
 			dstData = route.Dst.IP.To16()
@@ -81,7 +81,7 @@ func routeHandle(route *Route, req *NetlinkRequest) error {
 		}
 		family = srcFamily
 		var srcData []byte
-		if srcFamily == syscall.AF_INET {
+		if srcFamily == FAMILY_V4 {
 			srcData = route.Src.To4()
 		} else {
 			srcData = route.Src.To16()
@@ -97,7 +97,7 @@ func routeHandle(route *Route, req *NetlinkRequest) error {
 		}
 		family = gwFamily
 		var gwData []byte
-		if gwFamily == syscall.AF_INET {
+		if gwFamily == FAMILY_V4 {
 			gwData = route.Gw.To4()
 		} else {
 			gwData = route.Gw.To16()

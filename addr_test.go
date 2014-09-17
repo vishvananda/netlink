@@ -1,7 +1,6 @@
 package netlink
 
 import (
-	"syscall"
 	"testing"
 )
 
@@ -23,7 +22,7 @@ func TestAddrAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	addrs, err := AddrList(link, syscall.AF_INET)
+	addrs, err := AddrList(link, FAMILY_ALL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +34,7 @@ func TestAddrAddDel(t *testing.T) {
 	if err = AddrDel(link, addr); err != nil {
 		t.Fatal(err)
 	}
-	addrs, err = AddrList(link, syscall.AF_INET)
+	addrs, err = AddrList(link, FAMILY_ALL)
 	if err != nil {
 		t.Fatal(err)
 	}
