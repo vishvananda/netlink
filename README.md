@@ -70,9 +70,9 @@ func main() {
 ## Future Work ##
 
 Many pieces of netlink are not yet fully supported in the high-level
-interface. Aspects of virtually all of the primitives don't exist yet.
-Many of the  underlying primitives are there, so its a matter of putting
-the right fields into the high level objects and making sure that they
+interface. Aspects of virtually all of the high-level objects don't exist.
+Many of the underlying primitives are there, so its a matter of putting
+the right fields into the high-level objects and making sure that they
 are serialized and deserialized correctly in the Add and List methods.
 
 There are also a few pieces of low level netlink functionality that still
