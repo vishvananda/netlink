@@ -1,4 +1,4 @@
-package netlink
+package nl
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 )
 
 func (msg *XfrmUsersaId) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	msg.Daddr.write(b[0:SizeofXfrmAddress])
 	native.PutUint32(b[SizeofXfrmAddress:SizeofXfrmAddress+4], msg.Spi)
 	native.PutUint16(b[SizeofXfrmAddress+4:SizeofXfrmAddress+6], msg.Family)
@@ -24,7 +24,7 @@ func (msg *XfrmUsersaId) serializeSafe() []byte {
 
 func deserializeXfrmUsersaIdSafe(b []byte) *XfrmUsersaId {
 	var msg = XfrmUsersaId{}
-	binary.Read(bytes.NewReader(b[0:SizeofXfrmUsersaId]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmUsersaId]), NativeEndian(), &msg)
 	return &msg
 }
 
@@ -37,7 +37,7 @@ func TestXfrmUsersaIdDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *XfrmStats) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	native.PutUint32(b[0:4], msg.ReplayWindow)
 	native.PutUint32(b[4:8], msg.Replay)
 	native.PutUint32(b[8:12], msg.IntegrityFailed)
@@ -51,7 +51,7 @@ func (msg *XfrmStats) serializeSafe() []byte {
 
 func deserializeXfrmStatsSafe(b []byte) *XfrmStats {
 	var msg = XfrmStats{}
-	binary.Read(bytes.NewReader(b[0:SizeofXfrmStats]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmStats]), NativeEndian(), &msg)
 	return &msg
 }
 
@@ -69,7 +69,7 @@ func (msg *XfrmUsersaInfo) write(b []byte) {
 	const CfgEnd = AddressEnd + SizeofXfrmLifetimeCfg
 	const CurEnd = CfgEnd + SizeofXfrmLifetimeCur
 	const StatsEnd = CurEnd + SizeofXfrmStats
-	native := nativeEndian()
+	native := NativeEndian()
 	msg.Sel.write(b[0:SizeofXfrmSelector])
 	msg.Id.write(b[SizeofXfrmSelector:IdEnd])
 	msg.Saddr.write(b[IdEnd:AddressEnd])
@@ -93,7 +93,7 @@ func (msg *XfrmUsersaInfo) serializeSafe() []byte {
 
 func deserializeXfrmUsersaInfoSafe(b []byte) *XfrmUsersaInfo {
 	var msg = XfrmUsersaInfo{}
-	binary.Read(bytes.NewReader(b[0:SizeofXfrmUsersaInfo]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmUsersaInfo]), NativeEndian(), &msg)
 	return &msg
 }
 
@@ -106,7 +106,7 @@ func TestXfrmUsersaInfoDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *XfrmAlgo) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	copy(b[0:64], msg.AlgName[:])
 	native.PutUint32(b[64:68], msg.AlgKeyLen)
 	copy(b[68:msg.Len()], msg.AlgKey[:])
@@ -121,7 +121,7 @@ func (msg *XfrmAlgo) serializeSafe() []byte {
 func deserializeXfrmAlgoSafe(b []byte) *XfrmAlgo {
 	var msg = XfrmAlgo{}
 	copy(msg.AlgName[:], b[0:64])
-	binary.Read(bytes.NewReader(b[64:68]), nativeEndian(), &msg.AlgKeyLen)
+	binary.Read(bytes.NewReader(b[64:68]), NativeEndian(), &msg.AlgKeyLen)
 	msg.AlgKey = b[68:msg.Len()]
 	return &msg
 }
@@ -141,7 +141,7 @@ func TestXfrmAlgoDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *XfrmAlgoAuth) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	copy(b[0:64], msg.AlgName[:])
 	native.PutUint32(b[64:68], msg.AlgKeyLen)
 	native.PutUint32(b[68:72], msg.AlgTruncLen)
@@ -157,8 +157,8 @@ func (msg *XfrmAlgoAuth) serializeSafe() []byte {
 func deserializeXfrmAlgoAuthSafe(b []byte) *XfrmAlgoAuth {
 	var msg = XfrmAlgoAuth{}
 	copy(msg.AlgName[:], b[0:64])
-	binary.Read(bytes.NewReader(b[64:68]), nativeEndian(), &msg.AlgKeyLen)
-	binary.Read(bytes.NewReader(b[68:72]), nativeEndian(), &msg.AlgTruncLen)
+	binary.Read(bytes.NewReader(b[64:68]), NativeEndian(), &msg.AlgKeyLen)
+	binary.Read(bytes.NewReader(b[68:72]), NativeEndian(), &msg.AlgTruncLen)
 	msg.AlgKey = b[72:msg.Len()]
 	return &msg
 }
@@ -178,7 +178,7 @@ func TestXfrmAlgoAuthDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *XfrmEncapTmpl) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	native.PutUint16(b[0:2], msg.EncapType)
 	native.PutUint16(b[2:4], msg.EncapSport)
 	native.PutUint16(b[4:6], msg.EncapDport)
@@ -194,7 +194,7 @@ func (msg *XfrmEncapTmpl) serializeSafe() []byte {
 
 func deserializeXfrmEncapTmplSafe(b []byte) *XfrmEncapTmpl {
 	var msg = XfrmEncapTmpl{}
-	binary.Read(bytes.NewReader(b[0:SizeofXfrmEncapTmpl]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmEncapTmpl]), NativeEndian(), &msg)
 	return &msg
 }
 

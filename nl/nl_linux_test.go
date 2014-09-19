@@ -1,15 +1,35 @@
-package netlink
+package nl
 
 import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"reflect"
 	"syscall"
 	"testing"
 )
 
+type testSerializer interface {
+	serializeSafe() []byte
+	Serialize() []byte
+}
+
+func testDeserializeSerialize(t *testing.T, orig []byte, safemsg testSerializer, msg testSerializer) {
+	if !reflect.DeepEqual(safemsg, msg) {
+		t.Fatal("Deserialization failed.\n", safemsg, "\n", msg)
+	}
+	safe := msg.serializeSafe()
+	if !bytes.Equal(safe, orig) {
+		t.Fatal("Safe serialization failed.\n", safe, "\n", orig)
+	}
+	b := msg.Serialize()
+	if !bytes.Equal(b, safe) {
+		t.Fatal("Serialization failed.\n", b, "\n", safe)
+	}
+}
+
 func (msg *IfInfomsg) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	b[0] = msg.Family
 	b[1] = msg.X__ifi_pad
 	native.PutUint16(b[2:4], msg.Type)
@@ -27,7 +47,7 @@ func (msg *IfInfomsg) serializeSafe() []byte {
 
 func deserializeIfInfomsgSafe(b []byte) *IfInfomsg {
 	var msg = IfInfomsg{}
-	binary.Read(bytes.NewReader(b[0:syscall.SizeofIfInfomsg]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:syscall.SizeofIfInfomsg]), NativeEndian(), &msg)
 	return &msg
 }
 

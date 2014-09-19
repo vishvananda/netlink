@@ -1,4 +1,4 @@
-package netlink
+package nl
 
 import (
 	"bytes"
@@ -170,26 +170,6 @@ func DeserializeXfrmSelector(b []byte) *XfrmSelector {
 
 func (msg *XfrmSelector) Serialize() []byte {
 	return (*(*[SizeofXfrmSelector]byte)(unsafe.Pointer(msg)))[:]
-}
-
-func (sel *XfrmSelector) FromPolicy(policy *XfrmPolicy) {
-	sel.Family = uint16(GetIPFamily(policy.Dst.IP))
-	sel.Daddr.FromIP(policy.Dst.IP)
-	sel.Saddr.FromIP(policy.Src.IP)
-	prefixlenD, _ := policy.Dst.Mask.Size()
-	sel.PrefixlenD = uint8(prefixlenD)
-	prefixlenS, _ := policy.Src.Mask.Size()
-	sel.PrefixlenS = uint8(prefixlenS)
-}
-
-func (sel *XfrmSelector) FromState(state *XfrmPolicy) {
-	sel.Family = uint16(GetIPFamily(state.Dst.IP))
-	sel.Daddr.FromIP(state.Dst.IP)
-	sel.Saddr.FromIP(state.Src.IP)
-	prefixlenD, _ := state.Dst.Mask.Size()
-	sel.PrefixlenD = uint8(prefixlenD)
-	prefixlenS, _ := state.Src.Mask.Size()
-	sel.PrefixlenS = uint8(prefixlenS)
 }
 
 // struct xfrm_lifetime_cfg {

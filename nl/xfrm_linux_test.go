@@ -1,4 +1,4 @@
-package netlink
+package nl
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ func (msg *XfrmAddress) serializeSafe() []byte {
 
 func deserializeXfrmAddressSafe(b []byte) *XfrmAddress {
 	var msg = XfrmAddress{}
-	binary.Read(bytes.NewReader(b[0:SizeofXfrmAddress]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmAddress]), NativeEndian(), &msg)
 	return &msg
 }
 
@@ -33,7 +33,7 @@ func TestXfrmAddressDeserializeSerialize(t *testing.T) {
 
 func (msg *XfrmSelector) write(b []byte) {
 	const AddrEnd = SizeofXfrmAddress * 2
-	native := nativeEndian()
+	native := NativeEndian()
 	msg.Daddr.write(b[0:SizeofXfrmAddress])
 	msg.Saddr.write(b[SizeofXfrmAddress:AddrEnd])
 	native.PutUint16(b[AddrEnd:AddrEnd+2], msg.Dport)
@@ -58,7 +58,7 @@ func (msg *XfrmSelector) serializeSafe() []byte {
 
 func deserializeXfrmSelectorSafe(b []byte) *XfrmSelector {
 	var msg = XfrmSelector{}
-	binary.Read(bytes.NewReader(b[0:SizeofXfrmSelector]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmSelector]), NativeEndian(), &msg)
 	return &msg
 }
 
@@ -71,7 +71,7 @@ func TestXfrmSelectorDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *XfrmLifetimeCfg) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	native.PutUint64(b[0:8], msg.SoftByteLimit)
 	native.PutUint64(b[8:16], msg.HardByteLimit)
 	native.PutUint64(b[16:24], msg.SoftPacketLimit)
@@ -91,7 +91,7 @@ func (msg *XfrmLifetimeCfg) serializeSafe() []byte {
 
 func deserializeXfrmLifetimeCfgSafe(b []byte) *XfrmLifetimeCfg {
 	var msg = XfrmLifetimeCfg{}
-	binary.Read(bytes.NewReader(b[0:SizeofXfrmLifetimeCfg]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmLifetimeCfg]), NativeEndian(), &msg)
 	return &msg
 }
 
@@ -104,7 +104,7 @@ func TestXfrmLifetimeCfgDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *XfrmLifetimeCur) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	native.PutUint64(b[0:8], msg.Bytes)
 	native.PutUint64(b[8:16], msg.Packets)
 	native.PutUint64(b[16:24], msg.AddTime)
@@ -120,7 +120,7 @@ func (msg *XfrmLifetimeCur) serializeSafe() []byte {
 
 func deserializeXfrmLifetimeCurSafe(b []byte) *XfrmLifetimeCur {
 	var msg = XfrmLifetimeCur{}
-	binary.Read(bytes.NewReader(b[0:SizeofXfrmLifetimeCur]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmLifetimeCur]), NativeEndian(), &msg)
 	return &msg
 }
 
@@ -133,7 +133,7 @@ func TestXfrmLifetimeCurDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *XfrmId) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	msg.Daddr.write(b[0:SizeofXfrmAddress])
 	native.PutUint32(b[SizeofXfrmAddress:SizeofXfrmAddress+4], msg.Spi)
 	b[SizeofXfrmAddress+4] = msg.Proto
@@ -148,7 +148,7 @@ func (msg *XfrmId) serializeSafe() []byte {
 
 func deserializeXfrmIdSafe(b []byte) *XfrmId {
 	var msg = XfrmId{}
-	binary.Read(bytes.NewReader(b[0:SizeofXfrmId]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmId]), NativeEndian(), &msg)
 	return &msg
 }
 

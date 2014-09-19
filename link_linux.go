@@ -5,39 +5,8 @@ import (
 	"fmt"
 	"net"
 	"syscall"
-)
 
-const (
-	DEFAULT_CHANGE = 0xFFFFFFFF
-)
-
-const (
-	IFLA_INFO_UNSPEC = iota
-	IFLA_INFO_KIND   = iota
-	IFLA_INFO_DATA   = iota
-	IFLA_INFO_XSTATS = iota
-	IFLA_INFO_MAX    = IFLA_INFO_XSTATS
-)
-
-const (
-	IFLA_VLAN_UNSPEC      = iota
-	IFLA_VLAN_ID          = iota
-	IFLA_VLAN_FLAGS       = iota
-	IFLA_VLAN_EGRESS_QOS  = iota
-	IFLA_VLAN_INGRESS_QOS = iota
-	IFLA_VLAN_PROTOCOL    = iota
-	IFLA_VLAN_MAX         = IFLA_VLAN_PROTOCOL
-)
-
-const (
-	VETH_INFO_UNSPEC = iota
-	VETH_INFO_PEER   = iota
-	VETH_INFO_MAX    = VETH_INFO_PEER
-)
-
-const (
-	// not defined in syscall
-	IFLA_NET_NS_FD = 28
+	"github.com/vishvananda/netlink/nl"
 )
 
 func ensureIndex(link *Link) {
@@ -53,9 +22,9 @@ func ensureIndex(link *Link) {
 // Equivalent to: `ip link set $link up`
 func LinkSetUp(link *Link) error {
 	ensureIndex(link)
-	req := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_ACK)
 
-	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Change = syscall.IFF_UP
 	msg.Flags = syscall.IFF_UP
 	msg.Index = int32(link.Index)
@@ -69,9 +38,9 @@ func LinkSetUp(link *Link) error {
 // Equivalent to: `ip link set $link down`
 func LinkSetDown(link *Link) error {
 	ensureIndex(link)
-	req := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_ACK)
 
-	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Change = syscall.IFF_UP
 	msg.Flags = 0 & ^syscall.IFF_UP
 	msg.Index = int32(link.Index)
@@ -85,22 +54,22 @@ func LinkSetDown(link *Link) error {
 // Equivalent to: `ip link set $link mtu $mtu`
 func LinkSetMTU(link *Link, mtu int) error {
 	ensureIndex(link)
-	req := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
-	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(link.Index)
-	msg.Change = DEFAULT_CHANGE
+	msg.Change = nl.DEFAULT_CHANGE
 	req.AddData(msg)
 
 	var (
 		b      = make([]byte, 4)
-		native = nativeEndian()
+		native = nl.NativeEndian()
 	)
 	native.PutUint32(b, uint32(mtu))
 
-	data := newRtAttr(syscall.IFLA_MTU, b)
+	data := nl.NewRtAttr(syscall.IFLA_MTU, b)
 	req.AddData(data)
 
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
@@ -113,18 +82,18 @@ func LinkSetMTU(link *Link, mtu int) error {
 func LinkSetMaster(link *Link, master *Link) error {
 	ensureIndex(link)
 	ensureIndex(master)
-	req := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
-	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(link.Index)
-	msg.Change = DEFAULT_CHANGE
+	msg.Change = nl.DEFAULT_CHANGE
 	req.AddData(msg)
 
 	var (
 		b      = make([]byte, 4)
-		native = nativeEndian()
+		native = nl.NativeEndian()
 		index  = 0
 	)
 
@@ -134,7 +103,7 @@ func LinkSetMaster(link *Link, master *Link) error {
 
 	native.PutUint32(b, uint32(index))
 
-	data := newRtAttr(syscall.IFLA_MASTER, b)
+	data := nl.NewRtAttr(syscall.IFLA_MASTER, b)
 	req.AddData(data)
 
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
@@ -145,22 +114,22 @@ func LinkSetMaster(link *Link, master *Link) error {
 // pid must be a pid of a running process.
 // Equivalent to: `ip link set $link netns $pid`
 func LinkSetNsPid(link *Link, nspid int) error {
-	req := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
-	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(link.Index)
-	msg.Change = DEFAULT_CHANGE
+	msg.Change = nl.DEFAULT_CHANGE
 	req.AddData(msg)
 
 	var (
 		b      = make([]byte, 4)
-		native = nativeEndian()
+		native = nl.NativeEndian()
 	)
 	native.PutUint32(b, uint32(nspid))
 
-	data := newRtAttr(syscall.IFLA_NET_NS_PID, b)
+	data := nl.NewRtAttr(syscall.IFLA_NET_NS_PID, b)
 	req.AddData(data)
 
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
@@ -171,32 +140,26 @@ func LinkSetNsPid(link *Link, nspid int) error {
 // fd must be an open file descriptor to a network namespace.
 // Similar to: `ip link set $link netns $ns`
 func LinkSetNsFd(link *Link, fd int) error {
-	req := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
-	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(link.Index)
-	msg.Change = DEFAULT_CHANGE
+	msg.Change = nl.DEFAULT_CHANGE
 	req.AddData(msg)
 
 	var (
 		b      = make([]byte, 4)
-		native = nativeEndian()
+		native = nl.NativeEndian()
 	)
 	native.PutUint32(b, uint32(fd))
 
-	data := newRtAttr(IFLA_NET_NS_FD, b)
+	data := nl.NewRtAttr(nl.IFLA_NET_NS_FD, b)
 	req.AddData(data)
 
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
 	return err
-}
-
-func newIfInfomsgChild(parent *RtAttr, family int) *IfInfomsg {
-	msg := newIfInfomsg(family)
-	parent.children = append(parent.children, msg)
-	return msg
 }
 
 // LinkAdd adds a new link device. The type and features of the device
@@ -210,37 +173,37 @@ func LinkAdd(link *Link) error {
 		return fmt.Errorf("Neither link.Name nor link.Type can be empty!")
 	}
 
-	req := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
-	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	req.AddData(msg)
 
-	native := nativeEndian()
+	native := nl.NativeEndian()
 
 	if link.Parent != nil {
 		ensureIndex(link.Parent)
 		b := make([]byte, 4)
 		native.PutUint32(b, uint32(link.Parent.Index))
-		data := newRtAttr(syscall.IFLA_LINK, b)
+		data := nl.NewRtAttr(syscall.IFLA_LINK, b)
 		req.AddData(data)
 	}
 
-	nameData := newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(link.Name))
+	nameData := nl.NewRtAttr(syscall.IFLA_IFNAME, nl.ZeroTerminated(link.Name))
 	req.AddData(nameData)
 
-	linkInfo := newRtAttr(syscall.IFLA_LINKINFO, nil)
-	newRtAttrChild(linkInfo, IFLA_INFO_KIND, nonZeroTerminated(link.Type))
+	linkInfo := nl.NewRtAttr(syscall.IFLA_LINKINFO, nil)
+	nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_KIND, nl.NonZeroTerminated(link.Type))
 
 	if link.Type == "vlan" {
 		b := make([]byte, 2)
 		native.PutUint16(b, uint16(link.VlanId))
-		data := newRtAttrChild(linkInfo, IFLA_INFO_DATA, nil)
-		newRtAttrChild(data, IFLA_VLAN_ID, b)
+		data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+		nl.NewRtAttrChild(data, nl.IFLA_VLAN_ID, b)
 	} else if link.Type == "veth" {
-		data := newRtAttrChild(linkInfo, IFLA_INFO_DATA, nil)
-		peer := newRtAttrChild(data, VETH_INFO_PEER, nil)
-		newIfInfomsgChild(peer, syscall.AF_UNSPEC)
-		newRtAttrChild(peer, syscall.IFLA_IFNAME, zeroTerminated(link.PeerName))
+		data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+		peer := nl.NewRtAttrChild(data, nl.VETH_INFO_PEER, nil)
+		nl.NewIfInfomsgChild(peer, syscall.AF_UNSPEC)
+		nl.NewRtAttrChild(peer, syscall.IFLA_IFNAME, nl.ZeroTerminated(link.PeerName))
 	}
 
 	req.AddData(linkInfo)
@@ -263,9 +226,9 @@ func LinkAdd(link *Link) error {
 func LinkDel(link *Link) error {
 	ensureIndex(link)
 
-	req := newNetlinkRequest(syscall.RTM_DELLINK, syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(syscall.RTM_DELLINK, syscall.NLM_F_ACK)
 
-	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Index = int32(link.Index)
 	req.AddData(msg)
 
@@ -306,9 +269,9 @@ func LinkByIndex(index int) (*Link, error) {
 func LinkList() ([]Link, error) {
 	// NOTE(vish): This duplicates functionality in net/iface_linux.go, but we need
 	//             to get the message ourselves to parse link type.
-	req := newNetlinkRequest(syscall.RTM_GETLINK, syscall.NLM_F_DUMP)
+	req := nl.NewNetlinkRequest(syscall.RTM_GETLINK, syscall.NLM_F_DUMP)
 
-	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	req.AddData(msg)
 
 	msgs, err := req.Execute(syscall.NETLINK_ROUTE, syscall.RTM_NEWLINK)
@@ -316,13 +279,13 @@ func LinkList() ([]Link, error) {
 		return nil, err
 	}
 
-	native := nativeEndian()
+	native := nl.NativeEndian()
 	res := make([]Link, 0)
 
 	for _, m := range msgs {
-		msg := DeserializeIfInfomsg(m)
+		msg := nl.DeserializeIfInfomsg(m)
 
-		attrs, err := parseRouteAttr(m[msg.Len():])
+		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
 		if err != nil {
 			return nil, err
 		}
@@ -331,16 +294,16 @@ func LinkList() ([]Link, error) {
 		for _, attr := range attrs {
 			switch attr.Attr.Type {
 			case syscall.IFLA_LINKINFO:
-				infos, err := parseRouteAttr(attr.Value)
+				infos, err := nl.ParseRouteAttr(attr.Value)
 				if err != nil {
 					return nil, err
 				}
 				for _, info := range infos {
 					switch info.Attr.Type {
-					case IFLA_INFO_KIND:
+					case nl.IFLA_INFO_KIND:
 						link.Type = string(info.Value[:len(info.Value)-1])
-					case IFLA_INFO_DATA:
-						data, err := parseRouteAttr(info.Value)
+					case nl.IFLA_INFO_DATA:
+						data, err := nl.ParseRouteAttr(info.Value)
 						if err != nil {
 							return nil, err
 						}
@@ -379,7 +342,7 @@ func LinkList() ([]Link, error) {
 func parseVlanData(link *Link, data []syscall.NetlinkRouteAttr, native binary.ByteOrder) {
 	for _, datum := range data {
 		switch datum.Attr.Type {
-		case IFLA_VLAN_ID:
+		case nl.IFLA_VLAN_ID:
 			link.VlanId = int(native.Uint16(datum.Value[0:2]))
 		}
 	}

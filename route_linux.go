@@ -4,66 +4,40 @@ import (
 	"fmt"
 	"net"
 	"syscall"
-	"unsafe"
+
+	"github.com/vishvananda/netlink/nl"
 )
-
-type RtMsg struct {
-	syscall.RtMsg
-}
-
-func newRtMsg() *RtMsg {
-	return &RtMsg{
-		RtMsg: syscall.RtMsg{
-			Table:    syscall.RT_TABLE_MAIN,
-			Scope:    syscall.RT_SCOPE_UNIVERSE,
-			Protocol: syscall.RTPROT_BOOT,
-			Type:     syscall.RTN_UNICAST,
-		},
-	}
-}
-
-func (msg *RtMsg) Len() int {
-	return syscall.SizeofRtMsg
-}
-
-func DeserializeRtMsg(b []byte) *RtMsg {
-	return (*RtMsg)(unsafe.Pointer(&b[0:syscall.SizeofRtMsg][0]))
-}
-
-func (msg *RtMsg) Serialize() []byte {
-	return (*(*[syscall.SizeofRtMsg]byte)(unsafe.Pointer(msg)))[:]
-}
 
 // RtAttr is shared so it is in netlink_linux.go
 
 // RouteAdd will add a route to the system.
 // Equivalent to: `ip route add $route`
 func RouteAdd(route *Route) error {
-	req := newNetlinkRequest(syscall.RTM_NEWROUTE, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(syscall.RTM_NEWROUTE, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 	return routeHandle(route, req)
 }
 
 // RouteAdd will delete a route from the system.
 // Equivalent to: `ip route del $route`
 func RouteDel(route *Route) error {
-	req := newNetlinkRequest(syscall.RTM_DELROUTE, syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(syscall.RTM_DELROUTE, syscall.NLM_F_ACK)
 	return routeHandle(route, req)
 }
 
-func routeHandle(route *Route, req *NetlinkRequest) error {
+func routeHandle(route *Route, req *nl.NetlinkRequest) error {
 	if route.Dst.IP == nil && route.Src == nil && route.Gw == nil {
 		return fmt.Errorf("one of Dst.IP, Src, or Gw must not be nil")
 	}
 
-	msg := newRtMsg()
+	msg := nl.NewRtMsg()
 	msg.Scope = uint8(route.Scope)
 	family := -1
-	var rtAttrs []*RtAttr
+	var rtAttrs []*nl.RtAttr
 
 	if route.Dst.IP != nil {
 		dstLen, _ := route.Dst.Mask.Size()
 		msg.Dst_len = uint8(dstLen)
-		dstFamily := GetIPFamily(route.Dst.IP)
+		dstFamily := nl.GetIPFamily(route.Dst.IP)
 		family = dstFamily
 		var dstData []byte
 		if dstFamily == FAMILY_V4 {
@@ -71,11 +45,11 @@ func routeHandle(route *Route, req *NetlinkRequest) error {
 		} else {
 			dstData = route.Dst.IP.To16()
 		}
-		rtAttrs = append(rtAttrs, newRtAttr(syscall.RTA_DST, dstData))
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_DST, dstData))
 	}
 
 	if route.Src != nil {
-		srcFamily := GetIPFamily(route.Src)
+		srcFamily := nl.GetIPFamily(route.Src)
 		if family != -1 && family != srcFamily {
 			return fmt.Errorf("source and destination ip are not the same IP family")
 		}
@@ -87,11 +61,11 @@ func routeHandle(route *Route, req *NetlinkRequest) error {
 			srcData = route.Src.To16()
 		}
 		// The commonly used src ip for routes is actually PREFSRC
-		rtAttrs = append(rtAttrs, newRtAttr(syscall.RTA_PREFSRC, srcData))
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_PREFSRC, srcData))
 	}
 
 	if route.Gw != nil {
-		gwFamily := GetIPFamily(route.Gw)
+		gwFamily := nl.GetIPFamily(route.Gw)
 		if family != -1 && family != gwFamily {
 			return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
 		}
@@ -102,7 +76,7 @@ func routeHandle(route *Route, req *NetlinkRequest) error {
 		} else {
 			gwData = route.Gw.To16()
 		}
-		rtAttrs = append(rtAttrs, newRtAttr(syscall.RTA_GATEWAY, gwData))
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_GATEWAY, gwData))
 	}
 
 	msg.Family = uint8(family)
@@ -114,11 +88,11 @@ func routeHandle(route *Route, req *NetlinkRequest) error {
 
 	var (
 		b      = make([]byte, 4)
-		native = nativeEndian()
+		native = nl.NativeEndian()
 	)
 	native.PutUint32(b, uint32(route.Link.Index))
 
-	req.AddData(newRtAttr(syscall.RTA_OIF, b))
+	req.AddData(nl.NewRtAttr(syscall.RTA_OIF, b))
 
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
 	return err
@@ -128,8 +102,8 @@ func routeHandle(route *Route, req *NetlinkRequest) error {
 // Equivalent to: `ip route show`.
 // The list can be filtered by link and ip family.
 func RouteList(link *Link, family int) ([]Route, error) {
-	req := newNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_DUMP)
-	msg := newIfInfomsg(family)
+	req := nl.NewNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_DUMP)
+	msg := nl.NewIfInfomsg(family)
 	req.AddData(msg)
 
 	msgs, err := req.Execute(syscall.NETLINK_ROUTE, syscall.RTM_NEWROUTE)
@@ -137,10 +111,10 @@ func RouteList(link *Link, family int) ([]Route, error) {
 		return nil, err
 	}
 
-	native := nativeEndian()
+	native := nl.NativeEndian()
 	res := make([]Route, 0)
 	for _, m := range msgs {
-		msg := DeserializeRtMsg(m)
+		msg := nl.DeserializeRtMsg(m)
 
 		if msg.Flags&syscall.RTM_F_CLONED != 0 {
 			// Ignore cloned routes
@@ -152,7 +126,7 @@ func RouteList(link *Link, family int) ([]Route, error) {
 			continue
 		}
 
-		attrs, err := parseRouteAttr(m[msg.Len():])
+		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
 		if err != nil {
 			return nil, err
 		}

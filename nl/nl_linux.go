@@ -1,18 +1,37 @@
-package netlink
+// Package nl has low level primitives for making Netlink calls.
+package nl
 
 import (
 	"bytes"
 	"encoding/binary"
+	"net"
 	"fmt"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
 
+const (
+	// Family type definitions
+	FAMILY_ALL = syscall.AF_UNSPEC
+	FAMILY_V4  = syscall.AF_INET
+	FAMILY_V6  = syscall.AF_INET6
+)
+
 var nextSeqNr uint32
 
+// GetIPFamily returns the family type of a net.IP.
+func GetIPFamily(ip net.IP) int {
+	if len(ip) <= net.IPv4len {
+		return FAMILY_V4
+	}
+	if ip.To4() != nil {
+		return FAMILY_V4
+	}
+	return FAMILY_V6
+}
 // Get native endianness for the system
-func nativeEndian() binary.ByteOrder {
+func NativeEndian() binary.ByteOrder {
 	var x uint32 = 0x01020304
 	if *(*byte)(unsafe.Pointer(&x)) == 0x01 {
 		return binary.BigEndian
@@ -21,12 +40,12 @@ func nativeEndian() binary.ByteOrder {
 }
 
 // Byte swap a 16 bit value in place
-func swap16(i uint16) uint16 {
+func Swap16(i uint16) uint16 {
 	return (i&0xff00)>>8 | (i&0xff)<<8
 }
 
 // Byte swap a 32 bit value in place
-func swap32(i uint32) uint32 {
+func Swap32(i uint32) uint32 {
 	return (i&0xff000000)>>24 | (i&0xff0000)>>8 | (i&0xff00)<<8 | (i&0xff)<<24
 }
 
@@ -41,7 +60,7 @@ type IfInfomsg struct {
 }
 
 // Create an IfInfomsg with family specified
-func newIfInfomsg(family int) *IfInfomsg {
+func NewIfInfomsg(family int) *IfInfomsg {
 	return &IfInfomsg{
 		IfInfomsg: syscall.IfInfomsg{
 			Family: uint8(family),
@@ -65,6 +84,12 @@ func rtaAlignOf(attrlen int) int {
 	return (attrlen + syscall.RTA_ALIGNTO - 1) & ^(syscall.RTA_ALIGNTO - 1)
 }
 
+func NewIfInfomsgChild(parent *RtAttr, family int) *IfInfomsg {
+	msg := NewIfInfomsg(family)
+	parent.children = append(parent.children, msg)
+	return msg
+}
+
 // Extend RtAttr to handle data and children
 type RtAttr struct {
 	syscall.RtAttr
@@ -73,7 +98,7 @@ type RtAttr struct {
 }
 
 // Create a new Extended RtAttr object
-func newRtAttr(attrType int, data []byte) *RtAttr {
+func NewRtAttr(attrType int, data []byte) *RtAttr {
 	return &RtAttr{
 		RtAttr: syscall.RtAttr{
 			Type: uint16(attrType),
@@ -84,8 +109,8 @@ func newRtAttr(attrType int, data []byte) *RtAttr {
 }
 
 // Create a new RtAttr obj anc add it as a child of an existing object
-func newRtAttrChild(parent *RtAttr, attrType int, data []byte) *RtAttr {
-	attr := newRtAttr(attrType, data)
+func NewRtAttrChild(parent *RtAttr, attrType int, data []byte) *RtAttr {
+	attr := NewRtAttr(attrType, data)
 	parent.children = append(parent.children, attr)
 	return attr
 }
@@ -106,7 +131,7 @@ func (a *RtAttr) Len() int {
 // Serialize the RtAttr into a byte array
 // This can't ust unsafe.cast because it must iterate through children.
 func (a *RtAttr) Serialize() []byte {
-	native := nativeEndian()
+	native := NativeEndian()
 
 	length := a.Len()
 	buf := make([]byte, rtaAlignOf(length))
@@ -200,7 +225,7 @@ done:
 				break done
 			}
 			if m.Header.Type == syscall.NLMSG_ERROR {
-				native := nativeEndian()
+				native := NativeEndian()
 				error := int32(native.Uint32(m.Data[0:4]))
 				if error == 0 {
 					break done
@@ -219,7 +244,7 @@ done:
 // Create a new netlink request from proto and flags
 // Note the Len value will be inaccurate once data is added until
 // the message is serialized
-func newNetlinkRequest(proto, flags int) *NetlinkRequest {
+func NewNetlinkRequest(proto, flags int) *NetlinkRequest {
 	return &NetlinkRequest{
 		NlMsghdr: syscall.NlMsghdr{
 			Len:   uint32(syscall.SizeofNlMsghdr),
@@ -288,7 +313,7 @@ func (s *NetlinkSocket) GetPid() (uint32, error) {
 	return 0, fmt.Errorf("Wrong socket type")
 }
 
-func zeroTerminated(s string) []byte {
+func ZeroTerminated(s string) []byte {
 	bytes := make([]byte, len(s)+1)
 	for i := 0; i < len(s); i++ {
 		bytes[i] = s[i]
@@ -297,7 +322,7 @@ func zeroTerminated(s string) []byte {
 	return bytes
 }
 
-func nonZeroTerminated(s string) []byte {
+func NonZeroTerminated(s string) []byte {
 	bytes := make([]byte, len(s))
 	for i := 0; i < len(s); i++ {
 		bytes[i] = s[i]
@@ -305,12 +330,12 @@ func nonZeroTerminated(s string) []byte {
 	return bytes
 }
 
-func bytesToString(b []byte) string {
+func BytesToString(b []byte) string {
 	n := bytes.Index(b, []byte{0})
 	return string(b[:n])
 }
 
-func parseRouteAttr(b []byte) ([]syscall.NetlinkRouteAttr, error) {
+func ParseRouteAttr(b []byte) ([]syscall.NetlinkRouteAttr, error) {
 	var attrs []syscall.NetlinkRouteAttr
 	for len(b) >= syscall.SizeofRtAttr {
 		a, vbuf, alen, err := netlinkRouteAttrAndValue(b)

@@ -1,4 +1,4 @@
-package netlink
+package nl
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 )
 
 func (msg *IfAddrmsg) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	b[0] = msg.Family
 	b[1] = msg.Prefixlen
 	b[2] = msg.Flags
@@ -26,7 +26,7 @@ func (msg *IfAddrmsg) serializeSafe() []byte {
 
 func deserializeIfAddrmsgSafe(b []byte) *IfAddrmsg {
 	var msg = IfAddrmsg{}
-	binary.Read(bytes.NewReader(b[0:syscall.SizeofIfAddrmsg]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:syscall.SizeofIfAddrmsg]), NativeEndian(), &msg)
 	return &msg
 }
 

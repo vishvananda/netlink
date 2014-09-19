@@ -1,11 +1,9 @@
 package netlink
 
 import (
-	"bytes"
 	"github.com/vishvananda/netns"
 	"log"
 	"os"
-	"reflect"
 	"runtime"
 	"testing"
 )
@@ -32,24 +30,4 @@ func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
 		ns.Close()
 		runtime.UnlockOSThread()
 	}
-}
-
-type testSerializer interface {
-	serializeSafe() []byte
-	Serialize() []byte
-}
-
-func testDeserializeSerialize(t *testing.T, orig []byte, safemsg testSerializer, msg testSerializer) {
-	if !reflect.DeepEqual(safemsg, msg) {
-		t.Fatal("Deserialization failed.\n", safemsg, "\n", msg)
-	}
-	safe := msg.serializeSafe()
-	if !bytes.Equal(safe, orig) {
-		t.Fatal("Safe serialization failed.\n", safe, "\n", orig)
-	}
-	b := msg.Serialize()
-	if !bytes.Equal(b, safe) {
-		t.Fatal("Serialization failed.\n", b, "\n", safe)
-	}
-
 }

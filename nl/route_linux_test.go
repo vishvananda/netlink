@@ -1,4 +1,4 @@
-package netlink
+package nl
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 )
 
 func (msg *RtMsg) write(b []byte) {
-	native := nativeEndian()
+	native := NativeEndian()
 	b[0] = msg.Family
 	b[1] = msg.Dst_len
 	b[2] = msg.Src_len
@@ -30,7 +30,7 @@ func (msg *RtMsg) serializeSafe() []byte {
 
 func deserializeRtMsgSafe(b []byte) *RtMsg {
 	var msg = RtMsg{}
-	binary.Read(bytes.NewReader(b[0:syscall.SizeofRtMsg]), nativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:syscall.SizeofRtMsg]), NativeEndian(), &msg)
 	return &msg
 }
 

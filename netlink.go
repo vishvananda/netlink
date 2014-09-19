@@ -3,33 +3,23 @@
 // the kernel. It can be used to add and remove interfaces, set up ip
 // addresses and routes, and confiugre ipsec. Netlink communication
 // requires elevated privileges, so in most cases this code needs to
-// be run as root. In addition to dealing with netlink primitives, the
-// library attempts to provide an high-level interface that is loosly
-// modeled on the iproute2 command line interface.
+// be run as root. The low level primitives for netlink are contained
+// in the nl subpackage. This package attempts to provide a high-level
+// interface that is loosly modeled on the iproute2 cli.
 package netlink
 
 import (
 	"net"
-	"syscall"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 const (
 	// Family type definitions
-	FAMILY_ALL = syscall.AF_UNSPEC
-	FAMILY_V4  = syscall.AF_INET
-	FAMILY_V6  = syscall.AF_INET6
+	FAMILY_ALL = nl.FAMILY_ALL
+	FAMILY_V4  = nl.FAMILY_V4
+	FAMILY_V6  = nl.FAMILY_V6
 )
-
-// GetIPFamily returns the family type of a net.IP.
-func GetIPFamily(ip net.IP) int {
-	if len(ip) <= net.IPv4len {
-		return FAMILY_V4
-	}
-	if ip.To4() != nil {
-		return FAMILY_V4
-	}
-	return FAMILY_V6
-}
 
 // ParseIPNet parses a string in ip/net format and returns a net.IPNet.
 // This is valuable because addresses in netlink are often IPNets and
