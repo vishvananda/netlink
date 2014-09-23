@@ -1,4 +1,4 @@
-# nelink - netlink library for go #
+# netlink - netlink library for go #
 
 The netlink package provides a simple netlink library for go. Netlink
 is the interface a user-space program in linux uses to communicate with
