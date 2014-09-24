@@ -90,7 +90,8 @@ func routeHandle(route *Route, req *nl.NetlinkRequest) error {
 		b      = make([]byte, 4)
 		native = nl.NativeEndian()
 	)
-	native.PutUint32(b, uint32(route.Link.Index))
+	base := route.Link.Attrs()
+	native.PutUint32(b, uint32(base.Index))
 
 	req.AddData(nl.NewRtAttr(syscall.RTA_OIF, b))
 
@@ -101,7 +102,7 @@ func routeHandle(route *Route, req *nl.NetlinkRequest) error {
 // RouteList gets a list of routes in the system.
 // Equivalent to: `ip route show`.
 // The list can be filtered by link and ip family.
-func RouteList(link *Link, family int) ([]Route, error) {
+func RouteList(link Link, family int) ([]Route, error) {
 	req := nl.NewNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_DUMP)
 	msg := nl.NewIfInfomsg(family)
 	req.AddData(msg)
@@ -109,6 +110,13 @@ func RouteList(link *Link, family int) ([]Route, error) {
 	msgs, err := req.Execute(syscall.NETLINK_ROUTE, syscall.RTM_NEWROUTE)
 	if err != nil {
 		return nil, err
+	}
+
+	index := 0
+	if link != nil {
+		base := link.Attrs()
+		ensureIndex(base)
+		index = base.Index
 	}
 
 	native := nl.NativeEndian()
@@ -144,12 +152,12 @@ func RouteList(link *Link, family int) ([]Route, error) {
 					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
 				}
 			case syscall.RTA_OIF:
-				index := int(native.Uint32(attr.Value[0:4]))
-				if link != nil && index != link.Index {
+				routeIndex := int(native.Uint32(attr.Value[0:4]))
+				if link != nil && routeIndex != index {
 					// Ignore routes from other interfaces
 					continue
 				}
-				resLink, _ := LinkByIndex(index)
+				resLink, _ := LinkByIndex(routeIndex)
 				route.Link = resLink
 			}
 		}

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func testLinkAddDel(t *testing.T, link *Link) {
+func testLinkAddDel(t *testing.T, link Link) {
 	links, err := LinkList()
 	if err != nil {
 		t.Fatal(err)
@@ -16,34 +16,44 @@ func testLinkAddDel(t *testing.T, link *Link) {
 		t.Fatal(err)
 	}
 
-	l, err := LinkByName(link.Name)
+	base := link.Attrs()
 
+	result, err := LinkByName(base.Name)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if l.Type != link.Type {
-		t.Fatal("Link.Type doesn't match")
-	}
+	rBase := result.Attrs()
 
-	if l.VlanId != link.VlanId {
-		t.Fatal("Link.VlanId id doesn't match")
-	}
-
-	if l.Parent == nil && link.Parent != nil {
-		t.Fatal("Created link doesn't have a Parent but it should")
-	} else if l.Parent != nil && link.Parent == nil {
-		t.Fatal("Created link has a Parent but it shouldn't")
-	} else if l.Parent != nil && link.Parent != nil {
-		if l.Parent.Index != link.Parent.Index {
-			t.Fatal("Link.Parent.Index doesn't match")
+	if vlan, ok := link.(*Vlan); ok {
+		other, ok := result.(*Vlan)
+		if !ok {
+			t.Fatal("Result of create is not a vlan")
+		}
+		if vlan.VlanId != other.VlanId {
+			t.Fatal("Link.VlanId id doesn't match")
 		}
 	}
 
-	if link.PeerName != "" {
-		_, err := LinkByName(link.PeerName)
-		if err != nil {
-			t.Fatal("Peer %s not created", link.PeerName)
+	if rBase.ParentIndex == 0 && base.ParentIndex != 0 {
+		t.Fatal("Created link doesn't have a Parent but it should")
+	} else if rBase.ParentIndex != 0 && base.ParentIndex == 0 {
+		t.Fatal("Created link has a Parent but it shouldn't")
+	} else if rBase.ParentIndex != 0 && base.ParentIndex != 0 {
+		if rBase.ParentIndex != base.ParentIndex {
+			t.Fatal("Link.ParentIndex doesn't match")
+		}
+	}
+
+	if veth, ok := link.(*Veth); ok {
+		if veth.PeerName != "" {
+			other, err := LinkByName(veth.PeerName)
+			if err != nil {
+				t.Fatal("Peer %s not created", veth.PeerName)
+			}
+			if _, ok = other.(*Veth); !ok {
+				t.Fatal("Peer %s is incorrect type", veth.PeerName)
+			}
 		}
 	}
 
@@ -65,25 +75,26 @@ func TestLinkAddDelDummy(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Link{Name: "foo", Type: "dummy"})
+	testLinkAddDel(t, &Dummy{LinkAttrs{Name: "foo"}})
 }
 
 func TestLinkAddDelBridge(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Link{Name: "foo", Type: "bridge"})
+	testLinkAddDel(t, &Bridge{LinkAttrs{Name: "foo"}})
 }
 
 func TestLinkAddDelVlan(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	parent := &Link{Name: "foo", Type: "dummy"}
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
 	if err := LinkAdd(parent); err != nil {
 		t.Fatal(err)
 	}
-	testLinkAddDel(t, &Link{Name: "bar", Type: "vlan", Parent: parent, VlanId: 900})
+
+	testLinkAddDel(t, &Vlan{LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index}, 900})
 
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)
@@ -94,11 +105,12 @@ func TestLinkAddDelMacvlan(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	parent := &Link{Name: "foo", Type: "dummy"}
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
 	if err := LinkAdd(parent); err != nil {
 		t.Fatal(err)
 	}
-	testLinkAddDel(t, &Link{Name: "bar", Type: "macvlan", Parent: parent})
+
+	testLinkAddDel(t, &Macvlan{LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index}})
 
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)
@@ -109,18 +121,18 @@ func TestLinkAddDelVeth(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Link{Name: "foo", Type: "veth", PeerName: "bar"})
+	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo"}, "bar"})
 }
 
 func TestLinkAddDelBridgeMaster(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	master := &Link{Name: "foo", Type: "bridge"}
+	master := &Bridge{LinkAttrs{Name: "foo"}}
 	if err := LinkAdd(master); err != nil {
 		t.Fatal(err)
 	}
-	testLinkAddDel(t, &Link{Name: "bar", Type: "dummy", Master: master})
+	testLinkAddDel(t, &Dummy{LinkAttrs{Name: "bar", MasterIndex: master.Attrs().Index}})
 
 	if err := LinkDel(master); err != nil {
 		t.Fatal(err)
@@ -131,17 +143,17 @@ func TestLinkSetUnsetResetMaster(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	master := &Link{Name: "foo", Type: "bridge"}
+	master := &Bridge{LinkAttrs{Name: "foo"}}
 	if err := LinkAdd(master); err != nil {
 		t.Fatal(err)
 	}
 
-	newmaster := &Link{Name: "bar", Type: "bridge"}
+	newmaster := &Bridge{LinkAttrs{Name: "bar"}}
 	if err := LinkAdd(newmaster); err != nil {
 		t.Fatal(err)
 	}
 
-	slave := &Link{Name: "baz", Type: "dummy"}
+	slave := &Dummy{LinkAttrs{Name: "baz"}}
 	if err := LinkAdd(slave); err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +167,7 @@ func TestLinkSetUnsetResetMaster(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if link.Master == nil || link.Master.Index != master.Index {
+	if link.Attrs().MasterIndex != master.Attrs().Index {
 		t.Fatal("Master not set properly")
 	}
 
@@ -168,7 +180,7 @@ func TestLinkSetUnsetResetMaster(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if link.Master == nil || link.Master.Index != newmaster.Index {
+	if link.Attrs().MasterIndex != newmaster.Attrs().Index {
 		t.Fatal("Master not reset properly")
 	}
 
@@ -181,7 +193,7 @@ func TestLinkSetUnsetResetMaster(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if link.Master != nil {
+	if link.Attrs().MasterIndex != 0 {
 		t.Fatal("Master not unset properly")
 	}
 	if err := LinkDel(slave); err != nil {
@@ -213,7 +225,7 @@ func TestLinkSetNs(t *testing.T) {
 	}
 	defer newns.Close()
 
-	link := &Link{Name: "foo", Type: "veth", PeerName: "bar"}
+	link := &Veth{LinkAttrs{Name: "foo"}, "bar"}
 	if err := LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}
