@@ -90,8 +90,7 @@ func routeHandle(route *Route, req *nl.NetlinkRequest) error {
 		b      = make([]byte, 4)
 		native = nl.NativeEndian()
 	)
-	base := route.Link.Attrs()
-	native.PutUint32(b, uint32(base.Index))
+	native.PutUint32(b, uint32(route.LinkIndex))
 
 	req.AddData(nl.NewRtAttr(syscall.RTA_OIF, b))
 
@@ -157,8 +156,7 @@ func RouteList(link Link, family int) ([]Route, error) {
 					// Ignore routes from other interfaces
 					continue
 				}
-				resLink, _ := LinkByIndex(routeIndex)
-				route.Link = resLink
+				route.LinkIndex = routeIndex
 			}
 		}
 		res = append(res, route)

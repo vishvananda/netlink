@@ -46,7 +46,7 @@ func TestNeighAddDel(t *testing.T) {
 	// Add the arpTable
 	for _, entry := range arpTable {
 		err := NeighAdd(&Neigh{
-			Link:         &dummy,
+			LinkIndex:    dummy.Index,
 			State:        NUD_REACHABLE,
 			IP:           entry.ip,
 			HardwareAddr: entry.mac,
@@ -74,7 +74,7 @@ func TestNeighAddDel(t *testing.T) {
 	// Delete the arpTable
 	for _, entry := range arpTable {
 		err := NeighDel(&Neigh{
-			Link:         &dummy,
+			LinkIndex:    dummy.Index,
 			IP:           entry.ip,
 			HardwareAddr: entry.mac,
 		})

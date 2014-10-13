@@ -104,7 +104,7 @@ func neighHandle(neigh *Neigh, req *nl.NetlinkRequest) error {
 
 	msg := Ndmsg{
 		Family: uint8(family),
-		Index:  uint32(neigh.Link.Attrs().Index),
+		Index:  uint32(neigh.LinkIndex),
 		State:  uint16(neigh.State),
 		Type:   uint8(neigh.Type),
 		Flags:  uint8(neigh.Flags),
@@ -163,17 +163,12 @@ func NeighList(linkIndex, family int) ([]Neigh, error) {
 func NeighDeserialize(m []byte) (*Neigh, error) {
 	msg := deserializeNdmsg(m)
 
-	link, err := LinkByIndex(int(msg.Index))
-	if err != nil {
-		return nil, err
-	}
-
 	neigh := Neigh{
-		Family: int(msg.Family),
-		State:  int(msg.State),
-		Type:   int(msg.Type),
-		Flags:  int(msg.Flags),
-		Link:   link,
+		LinkIndex: int(msg.Index),
+		Family:    int(msg.Family),
+		State:     int(msg.State),
+		Type:      int(msg.Type),
+		Flags:     int(msg.Flags),
 	}
 
 

@@ -22,15 +22,14 @@ const (
 // gateway. Advanced route parameters and non-main routing tables are
 // currently not supported.
 type Route struct {
-	Link  Link
-	Scope Scope
-	Dst   *net.IPNet
-	Src   net.IP
-	Gw    net.IP
+	LinkIndex int
+	Scope     Scope
+	Dst       *net.IPNet
+	Src       net.IP
+	Gw        net.IP
 }
 
 func (r Route) String() string {
-	base := r.Link.Attrs()
-	return fmt.Sprintf("{%s Dst: %s Src: %s Gw: %s}", base.Name, r.Dst.String(),
+	return fmt.Sprintf("{Ifindex: %d Dst: %s Src: %s Gw: %s}", r.LinkIndex, r.Dst.String(),
 		r.Src, r.Gw)
 }

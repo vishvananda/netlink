@@ -7,7 +7,7 @@ import (
 
 // Neigh represents a link layer neighbor from netlink.
 type Neigh struct {
-	Link         Link
+	LinkIndex    int
 	Family       int
 	State        int
 	Type         int
