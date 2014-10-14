@@ -314,7 +314,7 @@ func LinkDel(link Link) error {
 	return err
 }
 
-// LikByName finds a link by name and returns a pointer to the object.
+// LinkByName finds a link by name and returns a pointer to the object.
 func LinkByName(name string) (Link, error) {
 	req := nl.NewNetlinkRequest(syscall.RTM_GETLINK, syscall.NLM_F_ACK)
 
@@ -327,7 +327,7 @@ func LinkByName(name string) (Link, error) {
 	return execGetLink(req)
 }
 
-// LikByName finds a link by index and returns a pointer to the object.
+// LinkByIndex finds a link by index and returns a pointer to the object.
 func LinkByIndex(index int) (Link, error) {
 	req := nl.NewNetlinkRequest(syscall.RTM_GETLINK, syscall.NLM_F_ACK)
 
@@ -354,15 +354,16 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 		return nil, fmt.Errorf("Link not found")
 
 	case len(msgs) == 1:
-		return LinkDeserialize(msgs[0])
+		return linkDeserialize(msgs[0])
 
 	default:
 		return nil, fmt.Errorf("More than one link found")
 	}
 }
 
-// Deserialize raw message received from netlink into link object.
-func LinkDeserialize(m []byte) (Link, error) {
+// linkDeserialize deserializes a raw message received from netlink into
+// a link object.
+func linkDeserialize(m []byte) (Link, error) {
 	msg := nl.DeserializeIfInfomsg(m)
 
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
@@ -458,7 +459,7 @@ func LinkList() ([]Link, error) {
 	res := make([]Link, 0)
 
 	for _, m := range msgs {
-		link, err := LinkDeserialize(m)
+		link, err := linkDeserialize(m)
 		if err != nil {
 			return nil, err
 		}
