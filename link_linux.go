@@ -10,6 +10,8 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+var native = nl.NativeEndian()
+
 func ensureIndex(link *LinkAttrs) {
 	if link != nil && link.Index == 0 {
 		newlink, _ := LinkByName(link.Name)
@@ -67,10 +69,7 @@ func LinkSetMTU(link Link, mtu int) error {
 	msg.Change = nl.DEFAULT_CHANGE
 	req.AddData(msg)
 
-	var (
-		b      = make([]byte, 4)
-		native = nl.NativeEndian()
-	)
+	b := make([]byte, 4)
 	native.PutUint32(b, uint32(mtu))
 
 	data := nl.NewRtAttr(syscall.IFLA_MTU, b)
@@ -106,11 +105,7 @@ func LinkSetMasterByIndex(link Link, masterIndex int) error {
 	msg.Change = nl.DEFAULT_CHANGE
 	req.AddData(msg)
 
-	var (
-		b      = make([]byte, 4)
-		native = nl.NativeEndian()
-	)
-
+	b := make([]byte, 4)
 	native.PutUint32(b, uint32(masterIndex))
 
 	data := nl.NewRtAttr(syscall.IFLA_MASTER, b)
@@ -135,10 +130,7 @@ func LinkSetNsPid(link Link, nspid int) error {
 	msg.Change = nl.DEFAULT_CHANGE
 	req.AddData(msg)
 
-	var (
-		b      = make([]byte, 4)
-		native = nl.NativeEndian()
-	)
+	b := make([]byte, 4)
 	native.PutUint32(b, uint32(nspid))
 
 	data := nl.NewRtAttr(syscall.IFLA_NET_NS_PID, b)
@@ -163,10 +155,7 @@ func LinkSetNsFd(link Link, fd int) error {
 	msg.Change = nl.DEFAULT_CHANGE
 	req.AddData(msg)
 
-	var (
-		b      = make([]byte, 4)
-		native = nl.NativeEndian()
-	)
+	b := make([]byte, 4)
 	native.PutUint32(b, uint32(fd))
 
 	data := nl.NewRtAttr(nl.IFLA_NET_NS_FD, b)
@@ -263,8 +252,6 @@ func LinkAdd(link Link) error {
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	req.AddData(msg)
 
-	native := nl.NativeEndian()
-
 	if base.ParentIndex != 0 {
 		b := make([]byte, 4)
 		native.PutUint32(b, uint32(base.ParentIndex))
@@ -329,32 +316,128 @@ func LinkDel(link Link) error {
 
 // LikByName finds a link by name and returns a pointer to the object.
 func LinkByName(name string) (Link, error) {
-	links, err := LinkList()
-	if err != nil {
-		return nil, err
-	}
-	for _, link := range links {
-		base := link.Attrs()
-		if base.Name == name {
-			return link, nil
-		}
-	}
-	return nil, fmt.Errorf("Link %s not found", name)
+	req := nl.NewNetlinkRequest(syscall.RTM_GETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	req.AddData(msg)
+
+	nameData := nl.NewRtAttr(syscall.IFLA_IFNAME, nl.ZeroTerminated(name))
+	req.AddData(nameData)
+
+	return execGetLink(req)
 }
 
 // LikByName finds a link by index and returns a pointer to the object.
 func LinkByIndex(index int) (Link, error) {
-	links, err := LinkList()
+	req := nl.NewNetlinkRequest(syscall.RTM_GETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(index)
+	req.AddData(msg)
+
+	return execGetLink(req)
+}
+
+func execGetLink(req *nl.NetlinkRequest) (Link, error) {
+	msgs, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	if err != nil {
+		if errno, ok := err.(syscall.Errno); ok {
+			if errno == syscall.ENODEV {
+				return nil, fmt.Errorf("Link not found")
+			}
+		}
+		return nil, err
+	}
+
+	switch {
+	case len(msgs) == 0:
+		return nil, fmt.Errorf("Link not found")
+
+	case len(msgs) == 1:
+		return LinkDeserialize(msgs[0])
+
+	default:
+		return nil, fmt.Errorf("More than one link found")
+	}
+}
+
+// Deserialize raw message received from netlink into link object.
+func LinkDeserialize(m []byte) (Link, error) {
+	msg := nl.DeserializeIfInfomsg(m)
+
+	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
 	if err != nil {
 		return nil, err
 	}
-	for _, link := range links {
-		base := link.Attrs()
-		if base.Index == index {
-			return link, nil
+
+	base := LinkAttrs{Index: int(msg.Index), Flags: linkFlags(msg.Flags)}
+	var link Link
+	linkType := ""
+	for _, attr := range attrs {
+		switch attr.Attr.Type {
+		case syscall.IFLA_LINKINFO:
+			infos, err := nl.ParseRouteAttr(attr.Value)
+			if err != nil {
+				return nil, err
+			}
+			for _, info := range infos {
+				switch info.Attr.Type {
+				case nl.IFLA_INFO_KIND:
+					linkType = string(info.Value[:len(info.Value)-1])
+					switch linkType {
+					case "dummy":
+						link = &Dummy{}
+					case "bridge":
+						link = &Bridge{}
+					case "vlan":
+						link = &Vlan{}
+					case "veth":
+						link = &Veth{}
+					case "vxlan":
+						link = &Vxlan{}
+					default:
+						link = &Generic{LinkType: linkType}
+					}
+				case nl.IFLA_INFO_DATA:
+					data, err := nl.ParseRouteAttr(info.Value)
+					if err != nil {
+						return nil, err
+					}
+					switch linkType {
+					case "vlan":
+						parseVlanData(link, data)
+					case "vxlan":
+						parseVxlanData(link, data)
+					}
+				}
+			}
+		case syscall.IFLA_ADDRESS:
+			var nonzero bool
+			for _, b := range attr.Value {
+				if b != 0 {
+					nonzero = true
+				}
+			}
+			if nonzero {
+				base.HardwareAddr = attr.Value[:]
+			}
+		case syscall.IFLA_IFNAME:
+			base.Name = string(attr.Value[:len(attr.Value)-1])
+		case syscall.IFLA_MTU:
+			base.MTU = int(native.Uint32(attr.Value[0:4]))
+		case syscall.IFLA_LINK:
+			base.ParentIndex = int(native.Uint32(attr.Value[0:4]))
+		case syscall.IFLA_MASTER:
+			base.MasterIndex = int(native.Uint32(attr.Value[0:4]))
 		}
 	}
-	return nil, fmt.Errorf("Link with index %d not found", index)
+	// Links that don't have IFLA_INFO_KIND are hardware devices
+	if link == nil {
+		link = &Device{}
+	}
+	*link.Attrs() = base
+
+	return link, nil
 }
 
 // LinkList gets a list of link devices.
@@ -372,90 +455,20 @@ func LinkList() ([]Link, error) {
 		return nil, err
 	}
 
-	native := nl.NativeEndian()
 	res := make([]Link, 0)
 
 	for _, m := range msgs {
-		msg := nl.DeserializeIfInfomsg(m)
-
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+		link, err := LinkDeserialize(m)
 		if err != nil {
 			return nil, err
 		}
-
-		base := LinkAttrs{Index: int(msg.Index), Flags: linkFlags(msg.Flags)}
-		var link Link
-		linkType := ""
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
-			case syscall.IFLA_LINKINFO:
-				infos, err := nl.ParseRouteAttr(attr.Value)
-				if err != nil {
-					return nil, err
-				}
-				for _, info := range infos {
-					switch info.Attr.Type {
-					case nl.IFLA_INFO_KIND:
-						linkType = string(info.Value[:len(info.Value)-1])
-						switch linkType {
-						case "dummy":
-							link = &Dummy{}
-						case "bridge":
-							link = &Bridge{}
-						case "vlan":
-							link = &Vlan{}
-						case "veth":
-							link = &Veth{}
-						case "vxlan":
-							link = &Vxlan{}
-						default:
-							link = &Generic{LinkType: linkType}
-						}
-					case nl.IFLA_INFO_DATA:
-						data, err := nl.ParseRouteAttr(info.Value)
-						if err != nil {
-							return nil, err
-						}
-						switch linkType {
-						case "vlan":
-							parseVlanData(link, data, native)
-						case "vxlan":
-							parseVxlanData(link, data, native)
-						}
-					}
-				}
-			case syscall.IFLA_ADDRESS:
-				var nonzero bool
-				for _, b := range attr.Value {
-					if b != 0 {
-						nonzero = true
-					}
-				}
-				if nonzero {
-					base.HardwareAddr = attr.Value[:]
-				}
-			case syscall.IFLA_IFNAME:
-				base.Name = string(attr.Value[:len(attr.Value)-1])
-			case syscall.IFLA_MTU:
-				base.MTU = int(native.Uint32(attr.Value[0:4]))
-			case syscall.IFLA_LINK:
-				base.ParentIndex = int(native.Uint32(attr.Value[0:4]))
-			case syscall.IFLA_MASTER:
-				base.MasterIndex = int(native.Uint32(attr.Value[0:4]))
-			}
-		}
-		// Links that don't have IFLA_INFO_KIND are hardware devices
-		if link == nil {
-			link = &Device{}
-		}
-		*link.Attrs() = base
 		res = append(res, link)
 	}
 
 	return res, nil
 }
 
-func parseVlanData(link Link, data []syscall.NetlinkRouteAttr, native binary.ByteOrder) {
+func parseVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	vlan := link.(*Vlan)
 	for _, datum := range data {
 		switch datum.Attr.Type {
@@ -465,7 +478,7 @@ func parseVlanData(link Link, data []syscall.NetlinkRouteAttr, native binary.Byt
 	}
 }
 
-func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr, native binary.ByteOrder) {
+func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	vxlan := link.(*Vxlan)
 	for _, datum := range data {
 		switch datum.Attr.Type {

@@ -361,3 +361,27 @@ func TestLinkAddDelVxlan(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestLinkByIndex(t *testing.T) {
+	dummy := &Dummy{LinkAttrs{Name: "dummy"}}
+	if err := LinkAdd(dummy); err != nil {
+		t.Fatal(err)
+	}
+
+	found, err := LinkByIndex(dummy.Index)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if found.Attrs().Index != dummy.Attrs().Index {
+		t.Fatalf("Indices don't match: %v != %v", found.Attrs().Index, dummy.Attrs().Index)
+	}
+
+	LinkDel(dummy)
+
+	// test not found
+	_, err = LinkByIndex(dummy.Attrs().Index)
+	if err == nil {
+		t.Fatalf("LinkByIndex(%v) found deleted link", err)
+	}
+}
