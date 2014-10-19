@@ -180,7 +180,7 @@ type vxlanPortRange struct {
 func addVxlanAttrs(vxlan* Vxlan, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_ID, nl.Uint32Attr(uint32(vxlan.VxlanId)))
-	if vxlan.ParentIndex != 0 {
+	if vxlan.VtepDevIndex != 0 {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LINK, nl.Uint32Attr(uint32(vxlan.VtepDevIndex)))
 	}
 	if vxlan.SrcAddr != nil {
