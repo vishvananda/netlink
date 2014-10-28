@@ -11,6 +11,7 @@ import (
 )
 
 var native = nl.NativeEndian()
+var lookupByDump = false
 
 func ensureIndex(link *LinkAttrs) {
 	if link != nil && link.Index == 0 {
@@ -314,8 +315,26 @@ func LinkDel(link Link) error {
 	return err
 }
 
+func linkByNameDump(name string) (Link, error) {
+	links, err := LinkList()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, link := range links {
+		if link.Attrs().Name == name {
+			return link, nil
+		}
+	}
+	return nil, fmt.Errorf("Link %s not found", name)
+}
+
 // LinkByName finds a link by name and returns a pointer to the object.
 func LinkByName(name string) (Link, error) {
+	if lookupByDump {
+		return linkByNameDump(name)
+	}
+
 	req := nl.NewNetlinkRequest(syscall.RTM_GETLINK, syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
@@ -324,7 +343,15 @@ func LinkByName(name string) (Link, error) {
 	nameData := nl.NewRtAttr(syscall.IFLA_IFNAME, nl.ZeroTerminated(name))
 	req.AddData(nameData)
 
-	return execGetLink(req)
+	link, err := execGetLink(req)
+	if err == syscall.EINVAL {
+		// older kernels don't support looking up via IFLA_IFNAME
+		// so fall back to dumping all links
+		lookupByDump = true
+		return linkByNameDump(name)
+	}
+
+	return link, err
 }
 
 // LinkByIndex finds a link by index and returns a pointer to the object.
