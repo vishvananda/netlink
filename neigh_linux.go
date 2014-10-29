@@ -47,7 +47,7 @@ type Ndmsg struct {
 	Family uint8
 	Index  uint32
 	State  uint16
-    Flags  uint8
+	Flags  uint8
 	Type   uint8
 }
 
@@ -170,7 +170,6 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 		Type:      int(msg.Type),
 		Flags:     int(msg.Flags),
 	}
-
 
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
 	if err != nil {

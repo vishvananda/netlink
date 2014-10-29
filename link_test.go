@@ -349,7 +349,7 @@ func TestLinkAddDelVxlan(t *testing.T) {
 		LinkAttrs: LinkAttrs{
 			Name: "bar",
 		},
-		VxlanId: 10,
+		VxlanId:      10,
 		VtepDevIndex: parent.Index,
 		Learning:     true,
 		L2miss:       true,

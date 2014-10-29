@@ -175,10 +175,10 @@ func boolAttr(val bool) []byte {
 }
 
 type vxlanPortRange struct {
-	 Lo, Hi uint16
- }
+	Lo, Hi uint16
+}
 
-func addVxlanAttrs(vxlan* Vxlan, linkInfo *nl.RtAttr) {
+func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_ID, nl.Uint32Attr(uint32(vxlan.VxlanId)))
 	if vxlan.VtepDevIndex != 0 {
@@ -227,7 +227,7 @@ func addVxlanAttrs(vxlan* Vxlan, linkInfo *nl.RtAttr) {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_PORT, nl.Uint16Attr(uint16(vxlan.Port)))
 	}
 	if vxlan.PortLow > 0 || vxlan.PortHigh > 0 {
-		pr := vxlanPortRange{ uint16(vxlan.PortLow), uint16(vxlan.PortHigh) }
+		pr := vxlanPortRange{uint16(vxlan.PortLow), uint16(vxlan.PortHigh)}
 
 		buf := new(bytes.Buffer)
 		binary.Write(buf, binary.BigEndian, &pr)
