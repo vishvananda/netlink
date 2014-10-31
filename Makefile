@@ -9,6 +9,7 @@ all: test
 
 .PHONY: $(call testdirs,$(DIRS))
 $(call testdirs,$(DIRS)):
-	sudo -E go test -v github.com/vishvananda/netlink/$@
+	! gofmt -l $@*.go | grep ''
+	go test -v github.com/vishvananda/netlink/$@
 
 test: $(call testdirs,$(DIRS))

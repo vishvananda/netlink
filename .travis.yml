@@ -1,2 +1,1 @@
 language: go
-script: sudo -E go test -v github.com/vishvananda/netlink && sudo -E go test -v github.com/vishvananda/netlink/nl
