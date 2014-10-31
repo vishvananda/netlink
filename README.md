@@ -43,8 +43,8 @@ import (
 )
 
 func main() {
-    mybridge := &netlink.Link{Name: "mybridge", Type: "bridge"}
-    netlink, _ := netlink.LinkAdd(mybridge)
+    mybridge := &netlink.Bridge{netlink.LinkAttrs{Name: "foo"}}
+    _ := netlink.LinkAdd(mybridge)
     eth1, _ := netlink.LinkByName("eth1")
     netlink.LinkSetMaster(eth1, mybridge)
 }
