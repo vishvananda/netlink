@@ -28,6 +28,9 @@ func dumpContains(dump []Neigh, e arpEntry) bool {
 }
 
 func TestNeighAddDel(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
 	dummy := Dummy{LinkAttrs{Name: "neigh0"}}
 	if err := LinkAdd(&dummy); err != nil {
 		t.Fatal(err)

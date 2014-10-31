@@ -363,6 +363,9 @@ func TestLinkAddDelVxlan(t *testing.T) {
 }
 
 func TestLinkByIndex(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
 	dummy := &Dummy{LinkAttrs{Name: "dummy"}}
 	if err := LinkAdd(dummy); err != nil {
 		t.Fatal(err)
