@@ -39,7 +39,7 @@ package main
 
 import (
     "net"
-    "github.com/vishvananada/netlink"
+    "github.com/vishvananda/netlink"
 )
 
 func main() {
@@ -58,7 +58,7 @@ package main
 
 import (
     "net"
-    "github.com/vishvananada/netlink"
+    "github.com/vishvananda/netlink"
 )
 
 func main() {
