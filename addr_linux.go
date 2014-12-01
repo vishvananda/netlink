@@ -10,7 +10,7 @@ import (
 )
 
 // AddrAdd will add an IP address to a link device.
-// Equivalent to: `ip addr del $addr dev $link`
+// Equivalent to: `ip addr add $addr dev $link`
 func AddrAdd(link Link, addr *Addr) error {
 
 	req := nl.NewNetlinkRequest(syscall.RTM_NEWADDR, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
