@@ -1,9 +1,12 @@
 package netlink
 
 import (
-	"github.com/vishvananda/netns"
 	"testing"
+
+	"github.com/vishvananda/netns"
 )
+
+const testTxQLen uint32 = 100
 
 func testLinkAddDel(t *testing.T, link Link) {
 	links, err := LinkList()
@@ -46,13 +49,21 @@ func testLinkAddDel(t *testing.T, link Link) {
 	}
 
 	if veth, ok := link.(*Veth); ok {
+		if veth.TxQLen != testTxQLen {
+			t.Fatalf("TxQLen is %d, should be %d", veth.TxQLen, testTxQLen)
+		}
+
 		if veth.PeerName != "" {
+			var peer *Veth
 			other, err := LinkByName(veth.PeerName)
 			if err != nil {
 				t.Fatal("Peer %s not created", veth.PeerName)
 			}
-			if _, ok = other.(*Veth); !ok {
+			if peer, ok = other.(*Veth); !ok {
 				t.Fatal("Peer %s is incorrect type", veth.PeerName)
+			}
+			if peer.TxQLen != testTxQLen {
+				t.Fatalf("TxQLen of peer is %d, should be %d", peer.TxQLen, testTxQLen)
 			}
 		}
 	}
@@ -184,7 +195,7 @@ func TestLinkAddDelVeth(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo"}, "bar"})
+	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen}, "bar"})
 }
 
 func TestLinkAddDelBridgeMaster(t *testing.T) {
