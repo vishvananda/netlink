@@ -266,6 +266,8 @@ func LinkAdd(link Link) error {
 	linkInfo := nl.NewRtAttr(syscall.IFLA_LINKINFO, nil)
 	nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_KIND, nl.NonZeroTerminated(link.Type()))
 
+	nl.NewRtAttrChild(linkInfo, syscall.IFLA_TXQLEN, nl.Uint32Attr(base.TxQLen))
+
 	if vlan, ok := link.(*Vlan); ok {
 		b := make([]byte, 2)
 		native.PutUint16(b, uint16(vlan.VlanId))
@@ -276,6 +278,7 @@ func LinkAdd(link Link) error {
 		peer := nl.NewRtAttrChild(data, nl.VETH_INFO_PEER, nil)
 		nl.NewIfInfomsgChild(peer, syscall.AF_UNSPEC)
 		nl.NewRtAttrChild(peer, syscall.IFLA_IFNAME, nl.ZeroTerminated(veth.PeerName))
+		nl.NewRtAttrChild(peer, syscall.IFLA_TXQLEN, nl.Uint32Attr(base.TxQLen))
 	} else if vxlan, ok := link.(*Vxlan); ok {
 		addVxlanAttrs(vxlan, linkInfo)
 	}
@@ -457,6 +460,8 @@ func linkDeserialize(m []byte) (Link, error) {
 			base.ParentIndex = int(native.Uint32(attr.Value[0:4]))
 		case syscall.IFLA_MASTER:
 			base.MasterIndex = int(native.Uint32(attr.Value[0:4]))
+		case syscall.IFLA_TXQLEN:
+			base.TxQLen = native.Uint32(attr.Value[0:4])
 		}
 	}
 	// Links that don't have IFLA_INFO_KIND are hardware devices
