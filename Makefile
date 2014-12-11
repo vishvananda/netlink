@@ -18,6 +18,6 @@ $(call goroot,$(DEPS)):
 .PHONY: $(call testdirs,$(DIRS))
 $(call testdirs,$(DIRS)):
 	! gofmt -l $@*.go | grep ''
-	go test -v github.com/vishvananda/netlink/$@
+	sudo -E go test -v github.com/vishvananda/netlink/$@
 
 test: $(call goroot,$(DEPS)) $(call testdirs,$(DIRS))
