@@ -1,6 +1,8 @@
 package netlink
 
 import (
+	"bytes"
+	"net"
 	"testing"
 
 	"github.com/vishvananda/netns"
@@ -436,5 +438,24 @@ func TestLinkSet(t *testing.T) {
 
 	if link.Attrs().MTU != 1400 {
 		t.Fatal("MTU not changed!")
+	}
+
+	addr, err := net.ParseMAC("00:12:34:56:78:AB")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkSetHardwareAddr(link, addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(link.Attrs().HardwareAddr, addr) {
+		t.Fatalf("hardware address not changed!")
 	}
 }

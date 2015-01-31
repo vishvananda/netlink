@@ -101,6 +101,27 @@ func LinkSetName(link Link, name string) error {
 	return err
 }
 
+// LinkSetHardwareAddr sets the hardware address of the link device.
+// Equivalent to: `ip link set $link address $hwaddr`
+func LinkSetHardwareAddr(link Link, hwaddr net.HardwareAddr) error {
+	base := link.Attrs()
+	ensureIndex(base)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Type = syscall.RTM_SETLINK
+	msg.Flags = syscall.NLM_F_REQUEST
+	msg.Index = int32(base.Index)
+	msg.Change = nl.DEFAULT_CHANGE
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(syscall.IFLA_ADDRESS, []byte(hwaddr))
+	req.AddData(data)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetMaster sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
 func LinkSetMaster(link Link, master *Bridge) error {
