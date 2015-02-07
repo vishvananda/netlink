@@ -305,6 +305,11 @@ func LinkAdd(link Link) error {
 	nameData := nl.NewRtAttr(syscall.IFLA_IFNAME, nl.ZeroTerminated(base.Name))
 	req.AddData(nameData)
 
+	if base.MTU > 0 {
+		mtu := nl.NewRtAttr(syscall.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
+		req.AddData(mtu)
+	}
+
 	linkInfo := nl.NewRtAttr(syscall.IFLA_LINKINFO, nil)
 	nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_KIND, nl.NonZeroTerminated(link.Type()))
 
@@ -321,6 +326,9 @@ func LinkAdd(link Link) error {
 		nl.NewIfInfomsgChild(peer, syscall.AF_UNSPEC)
 		nl.NewRtAttrChild(peer, syscall.IFLA_IFNAME, nl.ZeroTerminated(veth.PeerName))
 		nl.NewRtAttrChild(peer, syscall.IFLA_TXQLEN, nl.Uint32Attr(base.TxQLen))
+		if base.MTU > 0 {
+			nl.NewRtAttrChild(peer, syscall.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
+		}
 	} else if vxlan, ok := link.(*Vxlan); ok {
 		addVxlanAttrs(vxlan, linkInfo)
 	}

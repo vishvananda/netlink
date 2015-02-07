@@ -54,6 +54,9 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if veth.TxQLen != testTxQLen {
 			t.Fatalf("TxQLen is %d, should be %d", veth.TxQLen, testTxQLen)
 		}
+		if rBase.MTU != base.MTU {
+			t.Fatalf("MTU is %d, should be %d", rBase.MTU, base.MTU)
+		}
 
 		if veth.PeerName != "" {
 			var peer *Veth
@@ -158,7 +161,7 @@ func TestLinkAddDelBridge(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Bridge{LinkAttrs{Name: "foo"}})
+	testLinkAddDel(t, &Bridge{LinkAttrs{Name: "foo", MTU: 1400}})
 }
 
 func TestLinkAddDelVlan(t *testing.T) {
@@ -197,7 +200,7 @@ func TestLinkAddDelVeth(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen}, "bar"})
+	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar"})
 }
 
 func TestLinkAddDelBridgeMaster(t *testing.T) {
