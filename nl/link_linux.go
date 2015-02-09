@@ -51,6 +51,25 @@ const (
 )
 
 const (
+	BRIDGE_MODE_UNSPEC  = iota
+	BRIDGE_MODE_HAIRPIN = iota
+)
+
+const (
+	IFLA_BRPORT_UNSPEC        = iota
+	IFLA_BRPORT_STATE         = iota
+	IFLA_BRPORT_PRIORITY      = iota
+	IFLA_BRPORT_COST          = iota
+	IFLA_BRPORT_MODE          = iota
+	IFLA_BRPORT_GUARD         = iota
+	IFLA_BRPORT_PROTECT       = iota
+	IFLA_BRPORT_FAST_LEAVE    = iota
+	IFLA_BRPORT_LEARNING      = iota
+	IFLA_BRPORT_UNICAST_FLOOD = iota
+	IFLA_BRPORT_MAX           = IFLA_BRPORT_UNICAST_FLOOD
+)
+
+const (
 	// not defined in syscall
 	IFLA_NET_NS_FD = 28
 )
