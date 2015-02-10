@@ -70,6 +70,12 @@ const (
 )
 
 const (
+	IFLA_IPVLAN_UNSPEC = iota
+	IFLA_IPVLAN_MODE   = iota
+	IFLA_IPVLAN_MAX    = IFLA_IPVLAN_MODE
+)
+
+const (
 	// not defined in syscall
 	IFLA_NET_NS_FD = 28
 )

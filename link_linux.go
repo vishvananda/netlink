@@ -300,6 +300,8 @@ func LinkAdd(link Link) error {
 		native.PutUint32(b, uint32(base.ParentIndex))
 		data := nl.NewRtAttr(syscall.IFLA_LINK, b)
 		req.AddData(data)
+	} else if link.Type() == "ipvlan" {
+		return fmt.Errorf("Can't create ipvlan link without ParentIndex")
 	}
 
 	nameData := nl.NewRtAttr(syscall.IFLA_IFNAME, nl.ZeroTerminated(base.Name))
@@ -331,6 +333,9 @@ func LinkAdd(link Link) error {
 		}
 	} else if vxlan, ok := link.(*Vxlan); ok {
 		addVxlanAttrs(vxlan, linkInfo)
+	} else if ipv, ok := link.(*IPVlan); ok {
+		data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+		nl.NewRtAttrChild(data, nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(ipv.Mode)))
 	}
 
 	req.AddData(linkInfo)
@@ -476,6 +481,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &Veth{}
 					case "vxlan":
 						link = &Vxlan{}
+					case "ipvlan":
+						link = &IPVlan{}
 					default:
 						link = &Generic{LinkType: linkType}
 					}
@@ -489,6 +496,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						parseVlanData(link, data)
 					case "vxlan":
 						parseVxlanData(link, data)
+					case "ipvlan":
+						parseIPVlanData(link, data)
 					}
 				}
 			}
@@ -605,6 +614,16 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 				vxlan.PortLow = int(pr.Lo)
 				vxlan.PortHigh = int(pr.Hi)
 			}
+		}
+	}
+}
+
+func parseIPVlanData(link Link, data []syscall.NetlinkRouteAttr) {
+	ipv := link.(*IPVlan)
+	for _, datum := range data {
+		if datum.Attr.Type == nl.IFLA_IPVLAN_MODE {
+			ipv.Mode = IPVlanMode(native.Uint32(datum.Value[0:4]))
+			return
 		}
 	}
 }

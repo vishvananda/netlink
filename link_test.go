@@ -81,6 +81,16 @@ func testLinkAddDel(t *testing.T, link Link) {
 		compareVxlan(t, vxlan, other)
 	}
 
+	if ipv, ok := link.(*IPVlan); ok {
+		other, ok := result.(*IPVlan)
+		if !ok {
+			t.Fatal("Result of create is not a vxlan")
+		}
+		if ipv.Mode != other.Mode {
+			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, ipv.Mode)
+		}
+	}
+
 	if err = LinkDel(link); err != nil {
 		t.Fatal(err)
 	}
@@ -375,6 +385,63 @@ func TestLinkAddDelVxlan(t *testing.T) {
 	testLinkAddDel(t, &vxlan)
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLinkAddDelIPVlanL2(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	ipv := IPVlan{
+		LinkAttrs: LinkAttrs{
+			Name:        "bar",
+			ParentIndex: parent.Index,
+		},
+		Mode: IPVLAN_MODE_L2,
+	}
+
+	testLinkAddDel(t, &ipv)
+}
+
+func TestLinkAddDelIPVlanL3(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	ipv := IPVlan{
+		LinkAttrs: LinkAttrs{
+			Name:        "bar",
+			ParentIndex: parent.Index,
+		},
+		Mode: IPVLAN_MODE_L3,
+	}
+
+	testLinkAddDel(t, &ipv)
+}
+
+func TestLinkAddDelIPVlanNoParent(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	ipv := IPVlan{
+		LinkAttrs: LinkAttrs{
+			Name: "bar",
+		},
+		Mode: IPVLAN_MODE_L3,
+	}
+	err := LinkAdd(&ipv)
+	if err == nil {
+		t.Fatal("Add should fail if ipvlan creating without ParentIndex")
+	}
+	if err.Error() != "Can't create ipvlan link without ParentIndex" {
+		t.Fatalf("Error should be about missing ParentIndex, got %q", err)
 	}
 }
 

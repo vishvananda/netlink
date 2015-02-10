@@ -1,8 +1,6 @@
 package netlink
 
-import (
-	"net"
-)
+import "net"
 
 // Link represents a link device from netlink. Shared link attributes
 // like name may be retrieved using the Attrs() method. Unique data
@@ -149,7 +147,29 @@ func (vxlan *Vxlan) Type() string {
 	return "vxlan"
 }
 
+type IPVlanMode uint16
+
+const (
+	IPVLAN_MODE_L2  IPVlanMode = iota
+	IPVLAN_MODE_L3             = iota
+	IPVLAN_MODE_MAX            = iota
+)
+
+type IPVlan struct {
+	LinkAttrs
+	Mode IPVlanMode
+}
+
+func (ipvlan *IPVlan) Attrs() *LinkAttrs {
+	return &ipvlan.LinkAttrs
+}
+
+func (ipvlan *IPVlan) Type() string {
+	return "ipvlan"
+}
+
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
-// can | bridge | bond | ipoib | ip6tnl | ipip | sit |
-// vxlan | gre | gretap | ip6gre | ip6gretap | vti
+// bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |
+// gre | gretap | ip6gre | ip6gretap | vti | nlmon |
+// bond_slave | ipvlan
