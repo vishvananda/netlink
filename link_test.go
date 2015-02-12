@@ -62,10 +62,10 @@ func testLinkAddDel(t *testing.T, link Link) {
 			var peer *Veth
 			other, err := LinkByName(veth.PeerName)
 			if err != nil {
-				t.Fatal("Peer %s not created", veth.PeerName)
+				t.Fatalf("Peer %s not created", veth.PeerName)
 			}
 			if peer, ok = other.(*Veth); !ok {
-				t.Fatal("Peer %s is incorrect type", veth.PeerName)
+				t.Fatalf("Peer %s is incorrect type", veth.PeerName)
 			}
 			if peer.TxQLen != testTxQLen {
 				t.Fatalf("TxQLen of peer is %d, should be %d", peer.TxQLen, testTxQLen)
@@ -108,54 +108,54 @@ func testLinkAddDel(t *testing.T, link Link) {
 func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 
 	if actual.VxlanId != expected.VxlanId {
-		t.Fatalf("Vxlan.VxlanId doesn't match")
+		t.Fatal("Vxlan.VxlanId doesn't match")
 	}
 	if expected.SrcAddr != nil && !actual.SrcAddr.Equal(expected.SrcAddr) {
-		t.Fatalf("Vxlan.SrcAddr doesn't match")
+		t.Fatal("Vxlan.SrcAddr doesn't match")
 	}
 	if expected.Group != nil && !actual.Group.Equal(expected.Group) {
-		t.Fatalf("Vxlan.Group doesn't match")
+		t.Fatal("Vxlan.Group doesn't match")
 	}
 	if expected.TTL != -1 && actual.TTL != expected.TTL {
-		t.Fatalf("Vxlan.TTL doesn't match")
+		t.Fatal("Vxlan.TTL doesn't match")
 	}
 	if expected.TOS != -1 && actual.TOS != expected.TOS {
-		t.Fatalf("Vxlan.TOS doesn't match")
+		t.Fatal("Vxlan.TOS doesn't match")
 	}
 	if actual.Learning != expected.Learning {
-		t.Fatalf("Vxlan.Learning doesn't match")
+		t.Fatal("Vxlan.Learning doesn't match")
 	}
 	if actual.Proxy != expected.Proxy {
-		t.Fatalf("Vxlan.Proxy doesn't match")
+		t.Fatal("Vxlan.Proxy doesn't match")
 	}
 	if actual.RSC != expected.RSC {
-		t.Fatalf("Vxlan.RSC doesn't match", actual, expected)
+		t.Fatal("Vxlan.RSC doesn't match")
 	}
 	if actual.L2miss != expected.L2miss {
-		t.Fatalf("Vxlan.L2miss doesn't match")
+		t.Fatal("Vxlan.L2miss doesn't match")
 	}
 	if actual.L3miss != expected.L3miss {
-		t.Fatalf("Vxlan.L3miss doesn't match")
+		t.Fatal("Vxlan.L3miss doesn't match")
 	}
 	if expected.NoAge {
 		if !actual.NoAge {
-			t.Fatalf("Vxlan.NoAge doesn't match")
+			t.Fatal("Vxlan.NoAge doesn't match")
 		}
 	} else if expected.Age > 0 && actual.Age != expected.Age {
-		t.Fatalf("Vxlan.Age doesn't match")
+		t.Fatal("Vxlan.Age doesn't match")
 	}
 	if expected.Limit > 0 && actual.Limit != expected.Limit {
-		t.Fatalf("Vxlan.Limit doesn't match")
+		t.Fatal("Vxlan.Limit doesn't match")
 	}
 	if expected.Port > 0 && actual.Port != expected.Port {
-		t.Fatalf("Vxlan.Port doesn't match")
+		t.Fatal("Vxlan.Port doesn't match")
 	}
 	if expected.PortLow > 0 || expected.PortHigh > 0 {
 		if actual.PortLow != expected.PortLow {
-			t.Fatalf("Vxlan.PortLow doesn't match")
+			t.Fatal("Vxlan.PortLow doesn't match")
 		}
 		if actual.PortHigh != expected.PortHigh {
-			t.Fatalf("Vxlan.PortHigh doesn't match")
+			t.Fatal("Vxlan.PortHigh doesn't match")
 		}
 	}
 }

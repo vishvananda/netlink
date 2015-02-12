@@ -71,6 +71,6 @@ func TestProtinfo(t *testing.T) {
 	}
 
 	if err := LinkSetProtinfo(iface3, pi3); err == nil || err.Error() != "operation not supported" {
-		t.Fatal("Set protinfo for link without master is not supported, but err: %s", err)
+		t.Fatalf("Set protinfo for link without master is not supported, but err: %s", err)
 	}
 }
