@@ -84,7 +84,7 @@ func testLinkAddDel(t *testing.T, link Link) {
 	if ipv, ok := link.(*IPVlan); ok {
 		other, ok := result.(*IPVlan)
 		if !ok {
-			t.Fatal("Result of create is not a vxlan")
+			t.Fatal("Result of create is not a ipvlan")
 		}
 		if ipv.Mode != other.Mode {
 			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, ipv.Mode)

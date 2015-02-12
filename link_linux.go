@@ -355,7 +355,7 @@ func LinkAdd(link Link) error {
 	return nil
 }
 
-// LinkAdd adds a new link device. Either Index or Name must be set in
+// LinkDel deletes link device. Either Index or Name must be set in
 // the link object for it to be deleted. The other values are ignored.
 // Equivalent to: `ip link del $link`
 func LinkDel(link Link) error {
