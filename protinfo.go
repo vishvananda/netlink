@@ -7,27 +7,45 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+// Protinfo is abstraction under IFLA_PROTINFO.
+// Negative fields is treated as "unset" and won't be sent to netlink.
 type Protinfo struct {
-	Hairpin   bool
-	Guard     bool
-	FastLeave bool
-	RootBlock bool
-	Learning  bool
-	Flood     bool
+	Hairpin   int
+	Guard     int
+	FastLeave int
+	RootBlock int
+	Learning  int
+	Flood     int
 }
 
-func boolToByte(x bool) []byte {
-	if x {
+// NewProtinfo returns Protinfo with all fields unset
+// Example of usage(enables hairpin, disables learning):
+// pi := NewProtinfo()
+// pi.Hairpin = 1
+// pi.Learning = 0
+func NewProtinfo() Protinfo {
+	return Protinfo{
+		Hairpin:   -1,
+		Guard:     -1,
+		FastLeave: -1,
+		RootBlock: -1,
+		Learning:  -1,
+		Flood:     -1,
+	}
+}
+
+func intToByte(x int) []byte {
+	if x > 0 {
 		return []byte{1}
 	}
 	return []byte{0}
 }
 
-func byteToBool(x byte) bool {
-	if uint8(x) != 0 {
-		return true
+func byteToInt(x []byte) int {
+	if uint8(x[0]) != 0 {
+		return 1
 	}
-	return false
+	return 0
 }
 
 func LinkGetProtinfo(link Link) (Protinfo, error) {
@@ -63,17 +81,17 @@ func LinkGetProtinfo(link Link) (Protinfo, error) {
 			for _, info := range infos {
 				switch info.Attr.Type {
 				case nl.IFLA_BRPORT_MODE:
-					pi.Hairpin = byteToBool(info.Value[0])
+					pi.Hairpin = byteToInt(info.Value)
 				case nl.IFLA_BRPORT_GUARD:
-					pi.Guard = byteToBool(info.Value[0])
+					pi.Guard = byteToInt(info.Value)
 				case nl.IFLA_BRPORT_FAST_LEAVE:
-					pi.FastLeave = byteToBool(info.Value[0])
+					pi.FastLeave = byteToInt(info.Value)
 				case nl.IFLA_BRPORT_PROTECT:
-					pi.RootBlock = byteToBool(info.Value[0])
+					pi.RootBlock = byteToInt(info.Value)
 				case nl.IFLA_BRPORT_LEARNING:
-					pi.Learning = byteToBool(info.Value[0])
+					pi.Learning = byteToInt(info.Value)
 				case nl.IFLA_BRPORT_UNICAST_FLOOD:
-					pi.Flood = byteToBool(info.Value[0])
+					pi.Flood = byteToInt(info.Value)
 				}
 			}
 			return pi, nil
@@ -95,12 +113,24 @@ func LinkSetProtinfo(link Link, p Protinfo) error {
 	req.AddData(msg)
 
 	br := nl.NewRtAttr(syscall.IFLA_PROTINFO|syscall.NLA_F_NESTED, nil)
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_MODE, boolToByte(p.Hairpin))
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_GUARD, boolToByte(p.Guard))
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_FAST_LEAVE, boolToByte(p.FastLeave))
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_PROTECT, boolToByte(p.RootBlock))
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_LEARNING, boolToByte(p.Learning))
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_UNICAST_FLOOD, boolToByte(p.Flood))
+	if p.Hairpin >= 0 {
+		nl.NewRtAttrChild(br, nl.IFLA_BRPORT_MODE, intToByte(p.Hairpin))
+	}
+	if p.Guard >= 0 {
+		nl.NewRtAttrChild(br, nl.IFLA_BRPORT_GUARD, intToByte(p.Guard))
+	}
+	if p.FastLeave >= 0 {
+		nl.NewRtAttrChild(br, nl.IFLA_BRPORT_FAST_LEAVE, intToByte(p.FastLeave))
+	}
+	if p.RootBlock >= 0 {
+		nl.NewRtAttrChild(br, nl.IFLA_BRPORT_PROTECT, intToByte(p.RootBlock))
+	}
+	if p.Learning >= 0 {
+		nl.NewRtAttrChild(br, nl.IFLA_BRPORT_LEARNING, intToByte(p.Learning))
+	}
+	if p.Flood >= 0 {
+		nl.NewRtAttrChild(br, nl.IFLA_BRPORT_UNICAST_FLOOD, intToByte(p.Flood))
+	}
 	req.AddData(br)
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
 	if err != nil {
