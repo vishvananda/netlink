@@ -560,6 +560,52 @@ func LinkList() ([]Link, error) {
 	return res, nil
 }
 
+func LinkSetHairpin(link Link, mode bool) error {
+	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_MODE)
+}
+
+func LinkSetGuard(link Link, mode bool) error {
+	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_GUARD)
+}
+
+func LinkSetFastLeave(link Link, mode bool) error {
+	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_FAST_LEAVE)
+}
+
+func LinkSetLearning(link Link, mode bool) error {
+	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_LEARNING)
+}
+
+func LinkSetRootBlock(link Link, mode bool) error {
+	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_PROTECT)
+}
+
+func LinkSetFlood(link Link, mode bool) error {
+	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_UNICAST_FLOOD)
+}
+
+func setProtinfoAttr(link Link, mode bool, attr int) error {
+	base := link.Attrs()
+	ensureIndex(base)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_BRIDGE)
+	msg.Type = syscall.RTM_SETLINK
+	msg.Flags = syscall.NLM_F_REQUEST
+	msg.Index = int32(base.Index)
+	msg.Change = nl.DEFAULT_CHANGE
+	req.AddData(msg)
+
+	br := nl.NewRtAttr(syscall.IFLA_PROTINFO|syscall.NLA_F_NESTED, nil)
+	nl.NewRtAttrChild(br, attr, boolToByte(mode))
+	req.AddData(br)
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func parseVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	vlan := link.(*Vlan)
 	for _, datum := range data {

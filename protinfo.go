@@ -81,30 +81,3 @@ func LinkGetProtinfo(link Link) (Protinfo, error) {
 	}
 	return pi, fmt.Errorf("Device with index %d not found", base.Index)
 }
-
-func LinkSetProtinfo(link Link, p Protinfo) error {
-	base := link.Attrs()
-	ensureIndex(base)
-	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
-
-	msg := nl.NewIfInfomsg(syscall.AF_BRIDGE)
-	msg.Type = syscall.RTM_SETLINK
-	msg.Flags = syscall.NLM_F_REQUEST
-	msg.Index = int32(base.Index)
-	msg.Change = nl.DEFAULT_CHANGE
-	req.AddData(msg)
-
-	br := nl.NewRtAttr(syscall.IFLA_PROTINFO|syscall.NLA_F_NESTED, nil)
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_MODE, boolToByte(p.Hairpin))
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_GUARD, boolToByte(p.Guard))
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_FAST_LEAVE, boolToByte(p.FastLeave))
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_PROTECT, boolToByte(p.RootBlock))
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_LEARNING, boolToByte(p.Learning))
-	nl.NewRtAttrChild(br, nl.IFLA_BRPORT_UNICAST_FLOOD, boolToByte(p.Flood))
-	req.AddData(br)
-	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
-	if err != nil {
-		return err
-	}
-	return nil
-}
