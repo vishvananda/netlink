@@ -10,6 +10,11 @@ type Link interface {
 	Type() string
 }
 
+type (
+	NsPid int
+	NsFd  int
+)
+
 // LinkAttrs represents data shared by most link types
 type LinkAttrs struct {
 	Index        int
@@ -18,8 +23,9 @@ type LinkAttrs struct {
 	Name         string
 	HardwareAddr net.HardwareAddr
 	Flags        net.Flags
-	ParentIndex  int // index of the parent link device
-	MasterIndex  int // must be the index of a bridge
+	ParentIndex  int         // index of the parent link device
+	MasterIndex  int         // must be the index of a bridge
+	Namespace    interface{} // nil | NsPid | NsFd
 }
 
 // Device links cannot be created via netlink. These links
