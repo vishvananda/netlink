@@ -312,6 +312,20 @@ func LinkAdd(link Link) error {
 		req.AddData(mtu)
 	}
 
+	if base.Namespace != nil {
+		var attr *nl.RtAttr
+		switch base.Namespace.(type) {
+		case NsPid:
+			val := nl.Uint32Attr(uint32(base.Namespace.(NsPid)))
+			attr = nl.NewRtAttr(syscall.IFLA_NET_NS_PID, val)
+		case NsFd:
+			val := nl.Uint32Attr(uint32(base.Namespace.(NsFd)))
+			attr = nl.NewRtAttr(nl.IFLA_NET_NS_FD, val)
+		}
+
+		req.AddData(attr)
+	}
+
 	linkInfo := nl.NewRtAttr(syscall.IFLA_LINKINFO, nil)
 	nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_KIND, nl.NonZeroTerminated(link.Type()))
 
