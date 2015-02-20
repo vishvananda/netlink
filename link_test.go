@@ -91,6 +91,16 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if macv, ok := link.(*Macvlan); ok {
+		other, ok := result.(*Macvlan)
+		if !ok {
+			t.Fatal("Result of create is not a macvlan")
+		}
+		if macv.Mode != other.Mode {
+			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, macv.Mode)
+		}
+	}
+
 	if err = LinkDel(link); err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +209,10 @@ func TestLinkAddDelMacvlan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testLinkAddDel(t, &Macvlan{LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index}})
+	testLinkAddDel(t, &Macvlan{
+		LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+		Mode:      MACVLAN_MODE_PRIVATE,
+	})
 
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)

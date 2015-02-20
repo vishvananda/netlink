@@ -13,6 +13,15 @@ import (
 var native = nl.NativeEndian()
 var lookupByDump = false
 
+var macvlanModes = [...]uint32{
+	0,
+	nl.MACVLAN_MODE_PRIVATE,
+	nl.MACVLAN_MODE_VEPA,
+	nl.MACVLAN_MODE_BRIDGE,
+	nl.MACVLAN_MODE_PASSTHRU,
+	nl.MACVLAN_MODE_SOURCE,
+}
+
 func ensureIndex(link *LinkAttrs) {
 	if link != nil && link.Index == 0 {
 		newlink, _ := LinkByName(link.Name)
@@ -350,6 +359,11 @@ func LinkAdd(link Link) error {
 	} else if ipv, ok := link.(*IPVlan); ok {
 		data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 		nl.NewRtAttrChild(data, nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(ipv.Mode)))
+	} else if macv, ok := link.(*Macvlan); ok {
+		if macv.Mode != MACVLAN_MODE_DEFAULT {
+			data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+			nl.NewRtAttrChild(data, nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[macv.Mode]))
+		}
 	}
 
 	req.AddData(linkInfo)
@@ -497,6 +511,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &Vxlan{}
 					case "ipvlan":
 						link = &IPVlan{}
+					case "macvlan":
+						link = &Macvlan{}
 					default:
 						link = &Generic{LinkType: linkType}
 					}
@@ -512,6 +528,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						parseVxlanData(link, data)
 					case "ipvlan":
 						parseIPVlanData(link, data)
+					case "macvlan":
+						parseMacvlanData(link, data)
 					}
 				}
 			}
@@ -683,6 +701,27 @@ func parseIPVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	for _, datum := range data {
 		if datum.Attr.Type == nl.IFLA_IPVLAN_MODE {
 			ipv.Mode = IPVlanMode(native.Uint32(datum.Value[0:4]))
+			return
+		}
+	}
+}
+
+func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {
+	macv := link.(*Macvlan)
+	for _, datum := range data {
+		if datum.Attr.Type == nl.IFLA_MACVLAN_MODE {
+			switch native.Uint32(datum.Value[0:4]) {
+			case nl.MACVLAN_MODE_PRIVATE:
+				macv.Mode = MACVLAN_MODE_PRIVATE
+			case nl.MACVLAN_MODE_VEPA:
+				macv.Mode = MACVLAN_MODE_VEPA
+			case nl.MACVLAN_MODE_BRIDGE:
+				macv.Mode = MACVLAN_MODE_BRIDGE
+			case nl.MACVLAN_MODE_PASSTHRU:
+				macv.Mode = MACVLAN_MODE_PASSTHRU
+			case nl.MACVLAN_MODE_SOURCE:
+				macv.Mode = MACVLAN_MODE_SOURCE
+			}
 			return
 		}
 	}

@@ -82,9 +82,21 @@ func (vlan *Vlan) Type() string {
 	return "vlan"
 }
 
+type MacvlanMode uint16
+
+const (
+	MACVLAN_MODE_DEFAULT MacvlanMode = iota
+	MACVLAN_MODE_PRIVATE
+	MACVLAN_MODE_VEPA
+	MACVLAN_MODE_BRIDGE
+	MACVLAN_MODE_PASSTHRU
+	MACVLAN_MODE_SOURCE
+)
+
 // Macvlan links have ParentIndex set in their Attrs()
 type Macvlan struct {
 	LinkAttrs
+	Mode MacvlanMode
 }
 
 func (macvlan *Macvlan) Attrs() *LinkAttrs {
