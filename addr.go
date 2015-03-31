@@ -34,6 +34,11 @@ func ParseAddr(s string) (*Addr, error) {
 	return &Addr{IPNet: m, Label: label}, nil
 }
 
+// NewAddr returns new Addr with no label.
+func NewAddr(ipnet *net.IPNet) *Addr {
+	return &Addr{IPNet: ipnet}
+}
+
 // Equal returns true if both Addrs have the same net.IPNet value.
 func (a Addr) Equal(x Addr) bool {
 	sizea, _ := a.Mask.Size()
