@@ -19,7 +19,7 @@ type (
 type LinkAttrs struct {
 	Index        int
 	MTU          int
-	TxQLen       int // Transmit Queue Length
+	TxQLen       uint32 // Transmit Queue Length
 	Name         string
 	HardwareAddr net.HardwareAddr
 	Flags        net.Flags
