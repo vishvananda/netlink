@@ -138,7 +138,13 @@ func RouteList(link Link, family int) ([]Route, error) {
 			return nil, err
 		}
 
-		route := Route{Scope: Scope(msg.Scope)}
+		route := Route{
+			Scope:    int(msg.Scope),
+			Table:    int(msg.Table),
+			Protocol: int(msg.Protocol),
+			Type:     int(msg.Type),
+		}
+
 		for _, attr := range attrs {
 			switch attr.Attr.Type {
 			case syscall.RTA_GATEWAY:
