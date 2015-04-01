@@ -17,7 +17,7 @@ func RouteAdd(route *Route) error {
 	return routeHandle(route, req)
 }
 
-// RouteAdd will delete a route from the system.
+// RouteDel will delete a route from the system.
 // Equivalent to: `ip route del $route`
 func RouteDel(route *Route) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_DELROUTE, syscall.NLM_F_ACK)
