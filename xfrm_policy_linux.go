@@ -85,8 +85,8 @@ func XfrmPolicyList(family int) ([]XfrmPolicy, error) {
 	}
 
 	var res []XfrmPolicy
-	for _, m := range msgs {
-		msg := nl.DeserializeXfrmUserpolicyInfo(m)
+	for i := range msgs {
+		msg := nl.DeserializeXfrmUserpolicyInfo(msgs[i])
 
 		if family != FAMILY_ALL && family != int(msg.Sel.Family) {
 			continue
@@ -100,18 +100,18 @@ func XfrmPolicyList(family int) ([]XfrmPolicy, error) {
 		policy.Index = int(msg.Index)
 		policy.Dir = Dir(msg.Dir)
 
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+		attrs, err := nl.ParseRouteAttr(msgs[i][msg.Len():])
 		if err != nil {
 			return nil, err
 		}
 
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
+		for j := range attrs {
+			switch attrs[j].Attr.Type {
 			case nl.XFRMA_TMPL:
-				max := len(attr.Value)
+				max := len(attrs[j].Value)
 				for i := 0; i < max; i += nl.SizeofXfrmUserTmpl {
 					var resTmpl XfrmPolicyTmpl
-					tmpl := nl.DeserializeXfrmUserTmpl(attr.Value[i : i+nl.SizeofXfrmUserTmpl])
+					tmpl := nl.DeserializeXfrmUserTmpl(attrs[j].Value[i : i+nl.SizeofXfrmUserTmpl])
 					resTmpl.Dst = tmpl.XfrmId.Daddr.ToIP()
 					resTmpl.Src = tmpl.Saddr.ToIP()
 					resTmpl.Proto = Proto(tmpl.XfrmId.Proto)

@@ -82,8 +82,8 @@ func routeHandle(route *Route, req *nl.NetlinkRequest) error {
 	msg.Family = uint8(family)
 
 	req.AddData(msg)
-	for _, attr := range rtAttrs {
-		req.AddData(attr)
+	for i := range rtAttrs {
+		req.AddData(rtAttrs[i])
 	}
 
 	var (
@@ -120,9 +120,8 @@ func RouteList(link Link, family int) ([]Route, error) {
 
 	native := nl.NativeEndian()
 	var res []Route
-	for _, m := range msgs {
-		msg := nl.DeserializeRtMsg(m)
-
+	for i := range msgs {
+		msg := nl.DeserializeRtMsg(msgs[i])
 		if msg.Flags&syscall.RTM_F_CLONED != 0 {
 			// Ignore cloned routes
 			continue
@@ -133,7 +132,7 @@ func RouteList(link Link, family int) ([]Route, error) {
 			continue
 		}
 
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+		attrs, err := nl.ParseRouteAttr(msgs[i][msg.Len():])
 		if err != nil {
 			return nil, err
 		}
@@ -145,19 +144,19 @@ func RouteList(link Link, family int) ([]Route, error) {
 			Type:     int(msg.Type),
 		}
 
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
+		for j := range attrs {
+			switch attrs[j].Attr.Type {
 			case syscall.RTA_GATEWAY:
-				route.Gw = net.IP(attr.Value)
+				route.Gw = net.IP(attrs[j].Value)
 			case syscall.RTA_PREFSRC:
-				route.Src = net.IP(attr.Value)
+				route.Src = net.IP(attrs[j].Value)
 			case syscall.RTA_DST:
 				route.Dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attrs[j].Value)),
 				}
 			case syscall.RTA_OIF:
-				routeIndex := int(native.Uint32(attr.Value[0:4]))
+				routeIndex := int(native.Uint32(attrs[j].Value[0:4]))
 				if link != nil && routeIndex != index {
 					// Ignore routes from other interfaces
 					continue
@@ -200,27 +199,27 @@ func RouteGet(destination net.IP) ([]Route, error) {
 
 	native := nl.NativeEndian()
 	var res []Route
-	for _, m := range msgs {
-		msg := nl.DeserializeRtMsg(m)
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+	for i := range msgs {
+		msg := nl.DeserializeRtMsg(msgs[i])
+		attrs, err := nl.ParseRouteAttr(msgs[i][msg.Len():])
 		if err != nil {
 			return nil, err
 		}
 
 		route := Route{}
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
+		for j := range attrs {
+			switch attrs[j].Attr.Type {
 			case syscall.RTA_GATEWAY:
-				route.Gw = net.IP(attr.Value)
+				route.Gw = net.IP(attrs[j].Value)
 			case syscall.RTA_PREFSRC:
-				route.Src = net.IP(attr.Value)
+				route.Src = net.IP(attrs[j].Value)
 			case syscall.RTA_DST:
 				route.Dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attrs[j].Value)),
 				}
 			case syscall.RTA_OIF:
-				routeIndex := int(native.Uint32(attr.Value[0:4]))
+				routeIndex := int(native.Uint32(attrs[j].Value[0:4]))
 				route.LinkIndex = routeIndex
 			}
 		}

@@ -82,35 +82,35 @@ func AddrList(link Link, family int) ([]Addr, error) {
 	}
 
 	var res []Addr
-	for _, m := range msgs {
-		msg := nl.DeserializeIfAddrmsg(m)
+	for i := range msgs {
+		msg := nl.DeserializeIfAddrmsg(msgs[i])
 
 		if link != nil && msg.Index != uint32(index) {
 			// Ignore messages from other interfaces
 			continue
 		}
 
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+		attrs, err := nl.ParseRouteAttr(msgs[i][msg.Len():])
 		if err != nil {
 			return nil, err
 		}
 
 		var local, dst *net.IPNet
 		var addr Addr
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
+		for j := range attrs {
+			switch attrs[j].Attr.Type {
 			case syscall.IFA_ADDRESS:
 				dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
 				}
 			case syscall.IFA_LOCAL:
 				local = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
 				}
 			case syscall.IFA_LABEL:
-				addr.Label = string(attr.Value[:len(attr.Value)-1])
+				addr.Label = string(attrs[j].Value[:len(attrs[j].Value)-1])
 			}
 		}
 

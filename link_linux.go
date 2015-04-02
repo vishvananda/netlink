@@ -413,9 +413,9 @@ func linkByNameDump(name string) (Link, error) {
 		return nil, err
 	}
 
-	for _, link := range links {
-		if link.Attrs().Name == name {
-			return link, nil
+	for i := range links {
+		if links[i].Attrs().Name == name {
+			return links[i], nil
 		}
 	}
 	return nil, fmt.Errorf("Link %s not found", name)
@@ -493,17 +493,17 @@ func linkDeserialize(m []byte) (Link, error) {
 	base := LinkAttrs{Index: int(msg.Index), Flags: linkFlags(msg.Flags)}
 	var link Link
 	linkType := ""
-	for _, attr := range attrs {
-		switch attr.Attr.Type {
+	for i := range attrs {
+		switch attrs[i].Attr.Type {
 		case syscall.IFLA_LINKINFO:
-			infos, err := nl.ParseRouteAttr(attr.Value)
+			infos, err := nl.ParseRouteAttr(attrs[i].Value)
 			if err != nil {
 				return nil, err
 			}
-			for _, info := range infos {
-				switch info.Attr.Type {
+			for n := range infos {
+				switch infos[n].Attr.Type {
 				case nl.IFLA_INFO_KIND:
-					linkType = string(info.Value[:len(info.Value)-1])
+					linkType = string(infos[n].Value[:len(infos[n].Value)-1])
 					switch linkType {
 					case "dummy":
 						link = &Dummy{}
@@ -523,7 +523,7 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &Generic{LinkType: linkType}
 					}
 				case nl.IFLA_INFO_DATA:
-					data, err := nl.ParseRouteAttr(info.Value)
+					data, err := nl.ParseRouteAttr(infos[n].Value)
 					if err != nil {
 						return nil, err
 					}
@@ -541,24 +541,24 @@ func linkDeserialize(m []byte) (Link, error) {
 			}
 		case syscall.IFLA_ADDRESS:
 			var nonzero bool
-			for _, b := range attr.Value {
-				if b != 0 {
+			for k := range attrs[i].Value {
+				if attrs[i].Value[k] != 0 {
 					nonzero = true
 				}
 			}
 			if nonzero {
-				base.HardwareAddr = attr.Value[:]
+				base.HardwareAddr = attrs[i].Value[:]
 			}
 		case syscall.IFLA_IFNAME:
-			base.Name = string(attr.Value[:len(attr.Value)-1])
+			base.Name = string(attrs[i].Value[:len(attrs[i].Value)-1])
 		case syscall.IFLA_MTU:
-			base.MTU = int(native.Uint32(attr.Value[0:4]))
+			base.MTU = int(native.Uint32(attrs[i].Value[0:4]))
 		case syscall.IFLA_LINK:
-			base.ParentIndex = int(native.Uint32(attr.Value[0:4]))
+			base.ParentIndex = int(native.Uint32(attrs[i].Value[0:4]))
 		case syscall.IFLA_MASTER:
-			base.MasterIndex = int(native.Uint32(attr.Value[0:4]))
+			base.MasterIndex = int(native.Uint32(attrs[i].Value[0:4]))
 		case syscall.IFLA_TXQLEN:
-			base.TxQLen = int(native.Uint32(attr.Value[0:4]))
+			base.TxQLen = int64(native.Uint32(attrs[i].Value[0:4]))
 		}
 	}
 	// Links that don't have IFLA_INFO_KIND are hardware devices
@@ -586,8 +586,8 @@ func LinkList() ([]Link, error) {
 	}
 
 	var res []Link
-	for _, m := range msgs {
-		link, err := linkDeserialize(m)
+	for i := range msgs {
+		link, err := linkDeserialize(msgs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -645,53 +645,53 @@ func setProtinfoAttr(link Link, mode bool, attr int) error {
 
 func parseVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	vlan := link.(*Vlan)
-	for _, datum := range data {
-		switch datum.Attr.Type {
+	for i := range data {
+		switch data[i].Attr.Type {
 		case nl.IFLA_VLAN_ID:
-			vlan.VlanId = int(native.Uint16(datum.Value[0:2]))
+			vlan.VlanId = int(native.Uint16(data[i].Value[0:2]))
 		}
 	}
 }
 
 func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	vxlan := link.(*Vxlan)
-	for _, datum := range data {
-		switch datum.Attr.Type {
+	for i := range data {
+		switch data[i].Attr.Type {
 		case nl.IFLA_VXLAN_ID:
-			vxlan.VxlanId = int(native.Uint32(datum.Value[0:4]))
+			vxlan.VxlanId = int(native.Uint32(data[i].Value[0:4]))
 		case nl.IFLA_VXLAN_LINK:
-			vxlan.VtepDevIndex = int(native.Uint32(datum.Value[0:4]))
+			vxlan.VtepDevIndex = int(native.Uint32(data[i].Value[0:4]))
 		case nl.IFLA_VXLAN_LOCAL:
-			vxlan.SrcAddr = net.IP(datum.Value[0:4])
+			vxlan.SrcAddr = net.IP(data[i].Value[0:4])
 		case nl.IFLA_VXLAN_LOCAL6:
-			vxlan.SrcAddr = net.IP(datum.Value[0:16])
+			vxlan.SrcAddr = net.IP(data[i].Value[0:16])
 		case nl.IFLA_VXLAN_GROUP:
-			vxlan.Group = net.IP(datum.Value[0:4])
+			vxlan.Group = net.IP(data[i].Value[0:4])
 		case nl.IFLA_VXLAN_GROUP6:
-			vxlan.Group = net.IP(datum.Value[0:16])
+			vxlan.Group = net.IP(data[i].Value[0:16])
 		case nl.IFLA_VXLAN_TTL:
-			vxlan.TTL = int(datum.Value[0])
+			vxlan.TTL = int(data[i].Value[0])
 		case nl.IFLA_VXLAN_TOS:
-			vxlan.TOS = int(datum.Value[0])
+			vxlan.TOS = int(data[i].Value[0])
 		case nl.IFLA_VXLAN_LEARNING:
-			vxlan.Learning = int8(datum.Value[0]) != 0
+			vxlan.Learning = int8(data[i].Value[0]) != 0
 		case nl.IFLA_VXLAN_PROXY:
-			vxlan.Proxy = int8(datum.Value[0]) != 0
+			vxlan.Proxy = int8(data[i].Value[0]) != 0
 		case nl.IFLA_VXLAN_RSC:
-			vxlan.RSC = int8(datum.Value[0]) != 0
+			vxlan.RSC = int8(data[i].Value[0]) != 0
 		case nl.IFLA_VXLAN_L2MISS:
-			vxlan.L2miss = int8(datum.Value[0]) != 0
+			vxlan.L2miss = int8(data[i].Value[0]) != 0
 		case nl.IFLA_VXLAN_L3MISS:
-			vxlan.L3miss = int8(datum.Value[0]) != 0
+			vxlan.L3miss = int8(data[i].Value[0]) != 0
 		case nl.IFLA_VXLAN_AGEING:
-			vxlan.Age = int(native.Uint32(datum.Value[0:4]))
+			vxlan.Age = int(native.Uint32(data[i].Value[0:4]))
 			vxlan.NoAge = vxlan.Age == 0
 		case nl.IFLA_VXLAN_LIMIT:
-			vxlan.Limit = int(native.Uint32(datum.Value[0:4]))
+			vxlan.Limit = int(native.Uint32(data[i].Value[0:4]))
 		case nl.IFLA_VXLAN_PORT:
-			vxlan.Port = int(native.Uint16(datum.Value[0:2]))
+			vxlan.Port = int(native.Uint16(data[i].Value[0:2]))
 		case nl.IFLA_VXLAN_PORT_RANGE:
-			buf := bytes.NewBuffer(datum.Value[0:4])
+			buf := bytes.NewBuffer(data[i].Value[0:4])
 			var pr vxlanPortRange
 			if binary.Read(buf, binary.BigEndian, &pr) != nil {
 				vxlan.PortLow = int(pr.Lo)
@@ -703,9 +703,9 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 
 func parseIPVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	ipv := link.(*IPVlan)
-	for _, datum := range data {
-		if datum.Attr.Type == nl.IFLA_IPVLAN_MODE {
-			ipv.Mode = IPVlanMode(native.Uint32(datum.Value[0:4]))
+	for i := range data {
+		if data[i].Attr.Type == nl.IFLA_IPVLAN_MODE {
+			ipv.Mode = IPVlanMode(native.Uint32(data[i].Value[0:4]))
 			return
 		}
 	}
@@ -713,9 +713,9 @@ func parseIPVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 
 func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	macv := link.(*Macvlan)
-	for _, datum := range data {
-		if datum.Attr.Type == nl.IFLA_MACVLAN_MODE {
-			switch native.Uint32(datum.Value[0:4]) {
+	for i := range data {
+		if data[i].Attr.Type == nl.IFLA_MACVLAN_MODE {
+			switch native.Uint32(data[i].Value[0:4]) {
 			case nl.MACVLAN_MODE_PRIVATE:
 				macv.Mode = MACVLAN_MODE_PRIVATE
 			case nl.MACVLAN_MODE_VEPA:

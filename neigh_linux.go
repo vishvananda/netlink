@@ -142,14 +142,14 @@ func NeighList(linkIndex, family int) ([]Neigh, error) {
 	}
 
 	var res []Neigh
-	for _, m := range msgs {
-		ndm := deserializeNdmsg(m)
+	for i := range msgs {
+		ndm := deserializeNdmsg(msgs[i])
 		if linkIndex != 0 && int(ndm.Index) != linkIndex {
 			// Ignore messages from other interfaces
 			continue
 		}
 
-		neigh, err := NeighDeserialize(m)
+		neigh, err := NeighDeserialize(msgs[i])
 		if err != nil {
 			continue
 		}
@@ -176,12 +176,12 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 		return nil, err
 	}
 
-	for _, attr := range attrs {
-		switch attr.Attr.Type {
+	for i := range attrs {
+		switch attrs[i].Attr.Type {
 		case NDA_DST:
-			neigh.IP = net.IP(attr.Value)
+			neigh.IP = net.IP(attrs[i].Value)
 		case NDA_LLADDR:
-			neigh.HardwareAddr = net.HardwareAddr(attr.Value)
+			neigh.HardwareAddr = net.HardwareAddr(attrs[i].Value)
 		}
 	}
 

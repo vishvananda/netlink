@@ -19,38 +19,38 @@ func LinkGetProtinfo(link Link) (Protinfo, error) {
 		return pi, err
 	}
 
-	for _, m := range msgs {
-		ans := nl.DeserializeIfInfomsg(m)
+	for i := range msgs {
+		ans := nl.DeserializeIfInfomsg(msgs[i])
 		if int(ans.Index) != base.Index {
 			continue
 		}
-		attrs, err := nl.ParseRouteAttr(m[ans.Len():])
+		attrs, err := nl.ParseRouteAttr(msgs[i][ans.Len():])
 		if err != nil {
 			return pi, err
 		}
-		for _, attr := range attrs {
-			if attr.Attr.Type != syscall.IFLA_PROTINFO|syscall.NLA_F_NESTED {
+		for j := range attrs {
+			if attrs[j].Attr.Type != syscall.IFLA_PROTINFO|syscall.NLA_F_NESTED {
 				continue
 			}
-			infos, err := nl.ParseRouteAttr(attr.Value)
+			infos, err := nl.ParseRouteAttr(attrs[j].Value)
 			if err != nil {
 				return pi, err
 			}
 			var pi Protinfo
-			for _, info := range infos {
-				switch info.Attr.Type {
+			for k := range infos {
+				switch infos[k].Attr.Type {
 				case nl.IFLA_BRPORT_MODE:
-					pi.Hairpin = byteToBool(info.Value[0])
+					pi.Hairpin = byteToBool(infos[k].Value[0])
 				case nl.IFLA_BRPORT_GUARD:
-					pi.Guard = byteToBool(info.Value[0])
+					pi.Guard = byteToBool(infos[k].Value[0])
 				case nl.IFLA_BRPORT_FAST_LEAVE:
-					pi.FastLeave = byteToBool(info.Value[0])
+					pi.FastLeave = byteToBool(infos[k].Value[0])
 				case nl.IFLA_BRPORT_PROTECT:
-					pi.RootBlock = byteToBool(info.Value[0])
+					pi.RootBlock = byteToBool(infos[k].Value[0])
 				case nl.IFLA_BRPORT_LEARNING:
-					pi.Learning = byteToBool(info.Value[0])
+					pi.Learning = byteToBool(infos[k].Value[0])
 				case nl.IFLA_BRPORT_UNICAST_FLOOD:
-					pi.Flood = byteToBool(info.Value[0])
+					pi.Flood = byteToBool(infos[k].Value[0])
 				}
 			}
 			return pi, nil
