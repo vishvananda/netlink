@@ -175,7 +175,7 @@ func RouteList(family int, filter *RouteFilter) ([]Route, error) {
 		}
 
 		if filter != nil {
-			if msg.Table != uint8(filter.Table) {
+			if filter.Table != 0 && msg.Table != uint8(filter.Table) {
 				continue
 			}
 			f := filter.Flagmask
