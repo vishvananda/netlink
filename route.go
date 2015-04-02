@@ -28,9 +28,9 @@ type Route struct {
 }
 
 func (r Route) String() string {
-	return fmt.Sprintf("ip route scope %s protocol %s table %s %s via %s",
+	return fmt.Sprintf("ip route scope %s protocol %s table %s %s dev index %d via %s",
 		scopeToString(r.Scope), protocolToString(r.Protocol), tableToString(r.Table),
-		dstAndSrcToString(r.Dst, r.Src), r.Gateway)
+		dstAndSrcToString(r.Dst, r.Src), r.Oif, r.Gateway)
 }
 
 func dstAndSrcToString(dst *net.IPNet, src net.IP) string {
