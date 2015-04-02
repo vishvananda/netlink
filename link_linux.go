@@ -597,26 +597,32 @@ func LinkList() ([]Link, error) {
 	return res, nil
 }
 
+// LinkSetHairpin sets bridge hairpin to on/off.
 func LinkSetHairpin(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_MODE)
 }
 
+// LinkSetGuard sets bridge guard to on/off.
 func LinkSetGuard(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_GUARD)
 }
 
+// LinkSetFastLeave sets bridge fastleave to on/off.
 func LinkSetFastLeave(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_FAST_LEAVE)
 }
 
+// LinkSetLearning sets bridge learing to on/off.
 func LinkSetLearning(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_LEARNING)
 }
 
+// LinkSetRootBlock sets bridge root_block to on/off.
 func LinkSetRootBlock(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_PROTECT)
 }
 
+// LinkSetFlood sets bridge flood to on/off.
 func LinkSetFlood(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_UNICAST_FLOOD)
 }
