@@ -2,6 +2,7 @@ package netlink
 
 import (
 	"net"
+	"syscall"
 	"testing"
 )
 
@@ -24,12 +25,13 @@ func TestRouteAddDel(t *testing.T) {
 	_, dst, err := net.ParseCIDR("192.168.0.0/24")
 
 	ip := net.ParseIP("127.1.1.1")
-	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
+	route := Route{Oif: link.Attrs().Index, Dst: dst, Src: ip}
 	err = RouteAdd(&route)
 	if err != nil {
 		t.Fatal(err)
 	}
-	routes, err := RouteList(link, FAMILY_V4)
+
+	routes, err := RouteList(FAMILY_V4, &RouteFilter{Table: syscall.RT_TABLE_MAIN, Oif: link.Attrs().Index})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +54,7 @@ func TestRouteAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	routes, err = RouteList(link, FAMILY_V4)
+	routes, err = RouteList(FAMILY_V4, &RouteFilter{Oif: link.Attrs().Index})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +79,7 @@ func TestRouteAddIncomplete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	route := Route{LinkIndex: link.Attrs().Index}
+	route := Route{Oif: link.Attrs().Index}
 	if err := RouteAdd(&route); err == nil {
 		t.Fatal("Adding incomplete route should fail")
 	}
