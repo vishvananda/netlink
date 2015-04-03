@@ -20,6 +20,10 @@ func TestRouteAddDel(t *testing.T) {
 	if err = LinkSetUp(link); err != nil {
 		t.Fatal(err)
 	}
+	routes_begin, err := RouteList(FAMILY_V4, &RouteFilter{Table: syscall.RT_TABLE_MAIN, Oif: link.Attrs().Index})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// add a gateway route
 	_, dst, err := net.ParseCIDR("192.168.0.0/24")
@@ -35,8 +39,8 @@ func TestRouteAddDel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 1 {
-		t.Fatal("Link not added properly")
+	if len(routes) != len(routes_begin)+1 {
+		t.Fatal("Route not added properly")
 	}
 
 	dstIP := net.ParseIP("192.168.0.42")
@@ -54,12 +58,13 @@ func TestRouteAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	routes, err = RouteList(FAMILY_V4, &RouteFilter{Oif: link.Attrs().Index})
+	routes_end, err := RouteList(FAMILY_V4, &RouteFilter{Table: syscall.RT_TABLE_MAIN, Oif: link.Attrs().Index})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 0 {
-		t.Fatal("Route not removed properly")
+
+	if len(routes_end) != len(routes_begin) {
+		t.Fatalf("Route not removed properly")
 	}
 
 }
