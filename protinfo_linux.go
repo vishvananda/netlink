@@ -7,6 +7,7 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+// LinkGetProtinfo gets Protinfo, see Protinfo for more details.
 func LinkGetProtinfo(link Link) (Protinfo, error) {
 	base := link.Attrs()
 	ensureIndex(base)

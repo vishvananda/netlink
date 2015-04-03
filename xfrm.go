@@ -8,6 +8,7 @@ import (
 // Proto is an enum representing an ipsec protocol.
 type Proto uint8
 
+// Possible xfrm proto values.
 const (
 	XFRM_PROTO_ROUTE2    Proto = syscall.IPPROTO_ROUTING
 	XFRM_PROTO_ESP       Proto = syscall.IPPROTO_ESP
@@ -38,6 +39,7 @@ func (p Proto) String() string {
 // Mode is an enum representing an ipsec transport.
 type Mode uint8
 
+// Possible xfrm mode values.
 const (
 	XFRM_MODE_TRANSPORT Mode = iota
 	XFRM_MODE_TUNNEL

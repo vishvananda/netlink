@@ -14,6 +14,7 @@ type XfrmStateAlgo struct {
 // EncapType is an enum representing an ipsec template direction.
 type EncapType uint8
 
+// Possible xfrm encap values
 const (
 	XFRM_ENCAP_ESPINUDP_NONIKE EncapType = iota + 1
 	XFRM_ENCAP_ESPINUDP
@@ -29,7 +30,7 @@ func (e EncapType) String() string {
 	return "unknown"
 }
 
-// XfrmEncap represents the encapsulation to use for the ipsec encryption.
+// XfrmStateEncap represents the encapsulation to use for the ipsec encryption.
 type XfrmStateEncap struct {
 	Type            EncapType
 	SrcPort         int
