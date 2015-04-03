@@ -291,7 +291,15 @@ func RouteGet(destination net.IP) ([]Route, error) {
 			return nil, err
 		}
 
-		route := Route{}
+		route := Route{
+			Scope:    int(msg.Scope),
+			Table:    int(msg.Table),
+			Protocol: int(msg.Protocol),
+			Type:     int(msg.Type),
+			Tos:      int(msg.Tos),
+			Family:   int(msg.Family),
+			Flags:    int(msg.Flags),
+		}
 		for j := range attrs {
 			switch attrs[j].Attr.Type {
 			case syscall.RTA_GATEWAY:
