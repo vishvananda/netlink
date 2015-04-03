@@ -1,6 +1,10 @@
 package netlink
 
-import "net"
+import (
+	"net"
+
+	"git.spinoff.ovh.net/librouter/netlink/nl"
+)
 
 // Link represents a link device from netlink. Shared link attributes
 // like name may be retrieved using the Attrs() method. Unique data
@@ -192,6 +196,163 @@ func (vxlan *Vxlan) Attrs() *LinkAttrs {
 // Type implementation fro Vxlan.
 func (vxlan *Vxlan) Type() string {
 	return "vxlan"
+}
+
+// BondMode type
+type BondMode int
+
+// Possible BondMode
+const (
+	BOND_MODE_BALANCE_RR BondMode = iota
+	BOND_MODE_ACTIVE_BACKUP
+	BOND_MODE_BALANCE_XOR
+	BOND_MODE_BROADCAST
+	BOND_MODE_802_3AD
+	BOND_MODE_BALANCE_TLB
+	BOND_MODE_BALANCE_ALB
+)
+
+// BondArpValidate type
+type BondArpValidate int
+
+// Possible BondArpValidate value
+const (
+	BOND_ARP_VALIDATE_NONE BondArpValidate = iota
+	BOND_ARP_VALIDATE_ACTIVE
+	BOND_ARP_VALIDATE_BACKUP
+	BOND_ARP_VALIDATE_ALL
+)
+
+// BondPrimaryReselect type
+type BondPrimaryReselect int
+
+// Possible BondPrimaryReselect value
+const (
+	BOND_PRIMARY_RESELECT_ALWAYS BondPrimaryReselect = iota
+	BOND_PRIMARY_RESELECT_BETTER
+	BOND_PRIMARY_RESELECT_FAILURE
+)
+
+// BondArpAllTargets type
+type BondArpAllTargets int
+
+// Possible BondArpAllTargets value
+const (
+	BOND_ARP_ALL_TARGETS_ANY BondArpAllTargets = iota
+	BOND_ARP_ALL_TARGETS_ALL
+)
+
+// BondFailOverMac type
+type BondFailOverMac int
+
+// Possible BondFailOverMac value
+const (
+	BOND_FAIL_OVER_MAC_NONE BondFailOverMac = iota
+	BOND_FAIL_OVER_MAC_ACTIVE
+	BOND_FAIL_OVER_MAC_FOLLOW
+)
+
+// BondXmitHashPolicy type
+type BondXmitHashPolicy int
+
+// Possible BondXmitHashPolicy value
+const (
+	BOND_XMIT_HASH_POLICY_LAYER2 BondXmitHashPolicy = iota
+	BOND_XMIT_HASH_POLICY_LAYER3_4
+	BOND_XMIT_HASH_POLICY_LAYER2_3
+	BOND_XMIT_HASH_POLICY_ENCAP2_3
+	BOND_XMIT_HASH_POLICY_ENCAP3_4
+)
+
+// BondLacpRate type
+type BondLacpRate int
+
+// Possible BondLacpRate value
+const (
+	BOND_LACP_RATE_SLOW BondLacpRate = iota
+	BOND_LACP_RATE_FAST
+)
+
+// BondAdSelect type
+type BondAdSelect int
+
+// Possible BondAdSelect value
+const (
+	BOND_AD_SELECT_STABLE BondAdSelect = iota
+	BOND_AD_SELECT_BANDWIDTH
+	BOND_AD_SELECT_COUNT
+)
+
+// Bond representation
+type Bond struct {
+	LinkAttrs
+	Mode            BondMode
+	ActiveSlave     int
+	Miimon          int
+	UpDelay         int
+	DownDelay       int
+	UseCarrier      int
+	ArpInterval     int
+	ArpIpTargets    []net.IP
+	ArpValidate     BondArpValidate
+	ArpAllTargets   BondArpAllTargets
+	Primary         int
+	PrimaryReselect BondPrimaryReselect
+	FailOverMac     BondFailOverMac
+	XmitHashPolicy  BondXmitHashPolicy
+	ResendIgmp      int
+	NumPeerNotif    int
+	AllSlavesActive int
+	MinLinks        int
+	LpInterval      int
+	PackersPerSlave int
+	LacpRate        BondLacpRate
+	AdSelect        BondAdSelect
+	// looking at iproute tool AdInfo can only be retrived. It can't be set.
+	AdInfo struct {
+		AggregatorId int
+		NumPorts     int
+		ActorKey     int
+		PartnerKey   int
+		PartnerMac   [nl.ETH_ALEN]int
+	}
+
+	FlagMask uint64
+}
+
+// Flag mask for bond options. Bond.Flagmask must be set to on for option to work.
+const (
+	BOND_MODE_MASK uint64 = 1 << (1 + iota)
+	BOND_ACTIVE_SLAVE_MASK
+	BOND_MIIMON_MASK
+	BOND_UPDELAY_MASK
+	BOND_DOWNDELAY_MASK
+	BOND_USE_CARRIER_MASK
+	BOND_ARP_INTERVAL_MASK
+	BOND_ARP_VALIDATE_MASK
+	BOND_ARP_ALL_TARGETS_MASK
+	BOND_PRIMARY_MASK
+	BOND_PRIMARY_RESELECT_MASK
+	BOND_FAIL_OVER_MAC_MASK
+	BOND_XMIT_HASH_POLICY_MASK
+	BOND_RESEND_IGMP_MASK
+	BOND_NUM_PEER_NOTIF_MASK
+	BOND_ALL_SLAVES_ACTIVE_MASK
+	BOND_MIN_LINKS_MASK
+	BOND_LP_INTERVAL_MASK
+	BOND_PACKETS_PER_SLAVE_MASK
+	BOND_LACP_RATE_MASK
+	BOND_AD_SELECT_MASK
+)
+
+// Attrs implementation.
+func (bond *Bond) Attrs() *LinkAttrs {
+	return &bond.LinkAttrs
+}
+
+// Type implementation fro Vxlan.
+func (bond *Bond) Type() string {
+	return "bond"
 }
 
 // IPVlanMode type

@@ -287,6 +287,88 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	}
 }
 
+func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	if bond.FlagMask&BOND_MODE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_MODE, nl.Uint8Attr(uint8(bond.Mode)))
+	}
+	if bond.FlagMask&BOND_ACTIVE_SLAVE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_ACTIVE_SLAVE, nl.Uint32Attr(uint32(bond.ActiveSlave)))
+	}
+	if bond.FlagMask&BOND_MIIMON_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_MIIMON, nl.Uint32Attr(uint32(bond.Miimon)))
+	}
+	if bond.FlagMask&BOND_UPDELAY_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_UPDELAY, nl.Uint32Attr(uint32(bond.UpDelay)))
+	}
+	if bond.FlagMask&BOND_DOWNDELAY_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_DOWNDELAY, nl.Uint32Attr(uint32(bond.DownDelay)))
+	}
+	if bond.FlagMask&BOND_USE_CARRIER_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_USE_CARRIER, nl.Uint8Attr(uint8(bond.UseCarrier)))
+	}
+	if bond.FlagMask&BOND_ARP_INTERVAL_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_ARP_INTERVAL, nl.Uint32Attr(uint32(bond.ArpInterval)))
+	}
+	if bond.ArpIpTargets != nil {
+		msg := nl.NewRtAttrChild(data, nl.IFLA_BOND_ARP_IP_TARGET, nil)
+		for i := range bond.ArpIpTargets {
+			ip := bond.ArpIpTargets[i].To4()
+			if ip != nil {
+				nl.NewRtAttrChild(msg, i, []byte(ip))
+				continue
+			}
+			ip = bond.ArpIpTargets[i].To16()
+			if ip != nil {
+				nl.NewRtAttrChild(msg, i, []byte(ip))
+			}
+		}
+	}
+	if bond.FlagMask&BOND_ARP_VALIDATE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_ARP_VALIDATE, nl.Uint32Attr(uint32(bond.ArpValidate)))
+	}
+	if bond.FlagMask&BOND_ARP_ALL_TARGETS_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_ARP_ALL_TARGETS, nl.Uint32Attr(uint32(bond.ArpAllTargets)))
+	}
+	if bond.FlagMask&BOND_PRIMARY_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_PRIMARY, nl.Uint32Attr(uint32(bond.Primary)))
+	}
+	if bond.FlagMask&BOND_PRIMARY_RESELECT_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_PRIMARY_RESELECT, nl.Uint8Attr(uint8(bond.PrimaryReselect)))
+	}
+	if bond.FlagMask&BOND_FAIL_OVER_MAC_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_XMIT_HASH_POLICY, nl.Uint8Attr(uint8(bond.FailOverMac)))
+	}
+	if bond.FlagMask&BOND_XMIT_HASH_POLICY_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_XMIT_HASH_POLICY, nl.Uint8Attr(uint8(bond.XmitHashPolicy)))
+	}
+	if bond.FlagMask&BOND_RESEND_IGMP_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_RESEND_IGMP, nl.Uint32Attr(uint32(bond.ResendIgmp)))
+	}
+	if bond.FlagMask&BOND_NUM_PEER_NOTIF_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_NUM_PEER_NOTIF, nl.Uint8Attr(uint8(bond.NumPeerNotif)))
+	}
+	if bond.FlagMask&BOND_ALL_SLAVES_ACTIVE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_ALL_SLAVES_ACTIVE, nl.Uint8Attr(uint8(bond.AllSlavesActive)))
+	}
+	if bond.FlagMask&BOND_MIN_LINKS_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_MIN_LINKS, nl.Uint32Attr(uint32(bond.MinLinks)))
+	}
+	if bond.FlagMask&BOND_LP_INTERVAL_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_LP_INTERVAL, nl.Uint32Attr(uint32(bond.LpInterval)))
+	}
+	if bond.FlagMask&BOND_PACKETS_PER_SLAVE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_PACKETS_PER_SLAVE, nl.Uint32Attr(uint32(bond.PackersPerSlave)))
+	}
+	if bond.FlagMask&BOND_LACP_RATE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_LACP_RATE, nl.Uint8Attr(uint8(bond.LacpRate)))
+	}
+	if bond.FlagMask&BOND_AD_SELECT_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_SELECT, nl.Uint8Attr(uint8(bond.AdSelect)))
+	}
+}
+
 // LinkAdd adds a new link device. The type and features of the device
 // are taken fromt the parameters in the link object.
 // Equivalent to: `ip link add $link`
@@ -362,6 +444,8 @@ func LinkAdd(link Link) error {
 
 	} else if vxlan, ok := link.(*Vxlan); ok {
 		addVxlanAttrs(vxlan, linkInfo)
+	} else if bond, ok := link.(*Bond); ok {
+		addBondAttrs(bond, linkInfo)
 	} else if ipv, ok := link.(*IPVlan); ok {
 		data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 		nl.NewRtAttrChild(data, nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(ipv.Mode)))
@@ -515,6 +599,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &Veth{}
 					case "vxlan":
 						link = &Vxlan{}
+					case "bond":
+						link = &Bond{}
 					case "ipvlan":
 						link = &IPVlan{}
 					case "macvlan":
@@ -532,6 +618,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						parseVlanData(link, data)
 					case "vxlan":
 						parseVxlanData(link, data)
+					case "bond":
+						parseBondData(link, data)
 					case "ipvlan":
 						parseIPVlanData(link, data)
 					case "macvlan":
@@ -703,6 +791,60 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 				vxlan.PortLow = int(pr.Lo)
 				vxlan.PortHigh = int(pr.Hi)
 			}
+		}
+	}
+}
+
+func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
+	bond := link.(*Bond)
+	for i := range data {
+		switch data[i].Attr.Type {
+		case nl.IFLA_BOND_MODE:
+			bond.Mode = BondMode(data[i].Value[0])
+		case nl.IFLA_BOND_ACTIVE_SLAVE:
+			bond.ActiveSlave = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_MIIMON:
+			bond.Miimon = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_UPDELAY:
+			bond.UpDelay = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_DOWNDELAY:
+			bond.DownDelay = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_USE_CARRIER:
+			bond.UseCarrier = int(data[i].Value[0])
+		case nl.IFLA_BOND_ARP_INTERVAL:
+			bond.ArpInterval = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_ARP_IP_TARGET:
+			// TODO: implement
+		case nl.IFLA_BOND_ARP_VALIDATE:
+			bond.ArpValidate = BondArpValidate(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_ARP_ALL_TARGETS:
+			bond.ArpAllTargets = BondArpAllTargets(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_PRIMARY:
+			bond.Primary = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_PRIMARY_RESELECT:
+			bond.PrimaryReselect = BondPrimaryReselect(data[i].Value[0])
+		case nl.IFLA_BOND_FAIL_OVER_MAC:
+			bond.FailOverMac = BondFailOverMac(data[i].Value[0])
+		case nl.IFLA_BOND_XMIT_HASH_POLICY:
+			bond.XmitHashPolicy = BondXmitHashPolicy(data[i].Value[0])
+		case nl.IFLA_BOND_RESEND_IGMP:
+			bond.ResendIgmp = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_NUM_PEER_NOTIF:
+			bond.NumPeerNotif = int(data[i].Value[0])
+		case nl.IFLA_BOND_ALL_SLAVES_ACTIVE:
+			bond.AllSlavesActive = int(data[i].Value[0])
+		case nl.IFLA_BOND_MIN_LINKS:
+			bond.MinLinks = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_LP_INTERVAL:
+			bond.LpInterval = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_PACKETS_PER_SLAVE:
+			bond.PackersPerSlave = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_AD_LACP_RATE:
+			bond.LacpRate = BondLacpRate(data[i].Value[0])
+		case nl.IFLA_BOND_AD_SELECT:
+			bond.AdSelect = BondAdSelect(data[i].Value[0])
+		case nl.IFLA_BOND_AD_INFO:
+			// TODO: implement
 		}
 	}
 }
