@@ -37,7 +37,7 @@ type Rule struct {
 	SuppressIfgroup   int
 	SuppressPrefixlen int
 
-	FlagsMask uint64
+	FlagMask uint64
 }
 
 //func (r Rule) String() string {

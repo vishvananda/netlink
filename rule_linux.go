@@ -62,10 +62,10 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 	if rule.Type != 0 {
 		msg.Type = uint8(rule.Type)
 	}
-	if rule.FlagsMask&RULE_GOTO_MASK != 0 {
+	if rule.FlagMask&RULE_GOTO_MASK != 0 {
 		msg.Type = nl.FR_ACT_NOP
 	}
-	if rule.FlagsMask&RULE_TABLE_MASK != 0 {
+	if rule.FlagMask&RULE_TABLE_MASK != 0 {
 		if rule.Table < 256 {
 			msg.Table = uint8(rule.Table)
 		} else {
@@ -83,32 +83,32 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 		native = nl.NativeEndian()
 	)
 
-	if rule.FlagsMask&RULE_PRIORITY_MASK != 0 {
+	if rule.FlagMask&RULE_PRIORITY_MASK != 0 {
 		native.PutUint32(b, uint32(rule.Priority))
 		req.AddData(nl.NewRtAttr(nl.FRA_PRIORITY, b))
 	}
-	if rule.FlagsMask&RULE_FWMARK_MASK != 0 {
+	if rule.FlagMask&RULE_FWMARK_MASK != 0 {
 		native.PutUint32(b, uint32(rule.Mark))
 		req.AddData(nl.NewRtAttr(nl.FRA_FWMARK, b))
 	}
-	if rule.FlagsMask&RULE_FWMASK_MASK != 0 {
+	if rule.FlagMask&RULE_FWMASK_MASK != 0 {
 		native.PutUint32(b, uint32(rule.Mask))
 		req.AddData(nl.NewRtAttr(nl.FRA_FWMASK, b))
 	}
-	if rule.FlagsMask&RULE_FLOW_MASK != 0 {
+	if rule.FlagMask&RULE_FLOW_MASK != 0 {
 		native.PutUint32(b, uint32(rule.Flow))
 		req.AddData(nl.NewRtAttr(nl.FRA_FLOW, b))
 	}
-	if rule.FlagsMask&RULE_TABLE_MASK != 0 && rule.Table >= 256 {
+	if rule.FlagMask&RULE_TABLE_MASK != 0 && rule.Table >= 256 {
 		native.PutUint32(b, uint32(rule.Table))
 		req.AddData(nl.NewRtAttr(nl.FRA_TABLE, b))
 	}
 	if msg.Table != 0 {
-		if rule.FlagsMask&RULE_SUPPRESS_PREFIXLEN_MASK != 0 {
+		if rule.FlagMask&RULE_SUPPRESS_PREFIXLEN_MASK != 0 {
 			native.PutUint32(b, uint32(rule.SuppressPrefixlen))
 			req.AddData(nl.NewRtAttr(nl.FRA_SUPPRESS_PREFIXLEN, b))
 		}
-		if rule.FlagsMask&RULE_SUPPRESS_IFGROUP_MASK != 0 {
+		if rule.FlagMask&RULE_SUPPRESS_IFGROUP_MASK != 0 {
 			native.PutUint32(b, uint32(rule.SuppressIfgroup))
 			req.AddData(nl.NewRtAttr(nl.FRA_SUPPRESS_IFGROUP, b))
 		}
@@ -119,7 +119,7 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 	if rule.OifName != "" {
 		req.AddData(nl.NewRtAttr(nl.FRA_OIFNAME, []byte(rule.OifName)))
 	}
-	if rule.FlagsMask&RULE_GOTO_MASK != 0 {
+	if rule.FlagMask&RULE_GOTO_MASK != 0 {
 		native.PutUint32(b, uint32(rule.Goto))
 		req.AddData(nl.NewRtAttr(nl.FRA_GOTO, b))
 	}
@@ -165,7 +165,7 @@ func RuleList(family int) ([]Rule, error) {
 			switch attrs[j].Attr.Type {
 			case syscall.RTA_TABLE:
 				rule.Table = int(native.Uint32(attrs[j].Value[0:4]))
-				rule.FlagsMask |= RULE_TABLE_MASK
+				rule.FlagMask |= RULE_TABLE_MASK
 			case nl.FRA_SRC:
 				rule.Src = &net.IPNet{
 					IP:   attrs[j].Value,
@@ -178,10 +178,10 @@ func RuleList(family int) ([]Rule, error) {
 				}
 			case nl.FRA_FWMARK:
 				rule.Mark = int(native.Uint32(attrs[j].Value[0:4]))
-				rule.FlagsMask |= RULE_FWMARK_MASK
+				rule.FlagMask |= RULE_FWMARK_MASK
 			case nl.FRA_FWMASK:
 				rule.Mask = int(native.Uint32(attrs[j].Value[0:4]))
-				rule.FlagsMask |= RULE_FWMASK_MASK
+				rule.FlagMask |= RULE_FWMASK_MASK
 			case nl.FRA_IIFNAME:
 				rule.IifName = string(attrs[j].Value[:len(attrs[j].Value)-1])
 			case nl.FRA_OIFNAME:
@@ -190,23 +190,23 @@ func RuleList(family int) ([]Rule, error) {
 				i := native.Uint32(attrs[j].Value[0:4])
 				if i != 0xffffffff {
 					rule.SuppressPrefixlen = int(i)
-					rule.FlagsMask |= RULE_SUPPRESS_PREFIXLEN_MASK
+					rule.FlagMask |= RULE_SUPPRESS_PREFIXLEN_MASK
 				}
 			case nl.FRA_SUPPRESS_IFGROUP:
 				i := native.Uint32(attrs[j].Value[0:4])
 				if i != 0xffffffff {
 					rule.SuppressIfgroup = int(i)
-					rule.FlagsMask |= RULE_SUPPRESS_IFGROUP_MASK
+					rule.FlagMask |= RULE_SUPPRESS_IFGROUP_MASK
 				}
 			case nl.FRA_FLOW:
 				rule.Flow = int(native.Uint32(attrs[j].Value[0:4]))
-				rule.FlagsMask |= RULE_FLOW_MASK
+				rule.FlagMask |= RULE_FLOW_MASK
 			case nl.FRA_GOTO:
 				rule.Goto = int(native.Uint32(attrs[j].Value[0:4]))
-				rule.FlagsMask |= RULE_GOTO_MASK
+				rule.FlagMask |= RULE_GOTO_MASK
 			case nl.FRA_PRIORITY:
 				rule.Priority = int(native.Uint32(attrs[j].Value[0:4]))
-				rule.FlagsMask |= RULE_PRIORITY_MASK
+				rule.FlagMask |= RULE_PRIORITY_MASK
 			}
 		}
 		res = append(res, rule)

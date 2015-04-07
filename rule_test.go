@@ -35,7 +35,7 @@ func TestRuleAddDel(t *testing.T) {
 		Priority: 5,
 		OifName:  "lo",
 		IifName:  "lo",
-		FlagsMask: RULE_TABLE_MASK |
+		FlagMask: RULE_TABLE_MASK |
 			RULE_IIFNAME_MASK |
 			RULE_PRIORITY_MASK |
 			RULE_OIFNAME_MASK,
