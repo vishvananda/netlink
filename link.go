@@ -169,23 +169,23 @@ func (generic *Generic) Type() string {
 // Vxlan representation
 type Vxlan struct {
 	LinkAttrs
-	VxlanId      int
-	VtepDevIndex int
-	SrcAddr      net.IP
-	Group        net.IP
-	TTL          int
-	TOS          int
-	Learning     bool
-	Proxy        bool
-	RSC          bool
-	L2miss       bool
-	L3miss       bool
-	NoAge        bool
-	Age          int
-	Limit        int
-	Port         int
-	PortLow      int
-	PortHigh     int
+	Id       int
+	Link     int
+	Local    net.IP
+	Group    net.IP
+	TTL      int
+	TOS      int
+	Learning bool
+	Proxy    bool
+	RSC      bool
+	L2miss   bool
+	L3miss   bool
+	NoAge    bool
+	Age      int
+	Limit    int
+	Port     int
+	PortLow  int
+	PortHigh int
 }
 
 // Attrs implementation.

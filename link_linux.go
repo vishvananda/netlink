@@ -231,16 +231,16 @@ type vxlanPortRange struct {
 
 func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
-	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_ID, nl.Uint32Attr(uint32(vxlan.VxlanId)))
-	if vxlan.VtepDevIndex != 0 {
-		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LINK, nl.Uint32Attr(uint32(vxlan.VtepDevIndex)))
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_ID, nl.Uint32Attr(uint32(vxlan.Id)))
+	if vxlan.Link != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LINK, nl.Uint32Attr(uint32(vxlan.Link)))
 	}
-	if vxlan.SrcAddr != nil {
-		ip := vxlan.SrcAddr.To4()
+	if vxlan.Local != nil {
+		ip := vxlan.Local.To4()
 		if ip != nil {
 			nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LOCAL, []byte(ip))
 		} else {
-			ip = vxlan.SrcAddr.To16()
+			ip = vxlan.Local.To16()
 			if ip != nil {
 				nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LOCAL6, []byte(ip))
 			}
@@ -752,13 +752,13 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	for i := range data {
 		switch data[i].Attr.Type {
 		case nl.IFLA_VXLAN_ID:
-			vxlan.VxlanId = int(native.Uint32(data[i].Value[0:4]))
+			vxlan.Id = int(native.Uint32(data[i].Value[0:4]))
 		case nl.IFLA_VXLAN_LINK:
-			vxlan.VtepDevIndex = int(native.Uint32(data[i].Value[0:4]))
+			vxlan.Link = int(native.Uint32(data[i].Value[0:4]))
 		case nl.IFLA_VXLAN_LOCAL:
-			vxlan.SrcAddr = net.IP(data[i].Value[0:4])
+			vxlan.Local = net.IP(data[i].Value[0:4])
 		case nl.IFLA_VXLAN_LOCAL6:
-			vxlan.SrcAddr = net.IP(data[i].Value[0:16])
+			vxlan.Local = net.IP(data[i].Value[0:16])
 		case nl.IFLA_VXLAN_GROUP:
 			vxlan.Group = net.IP(data[i].Value[0:4])
 		case nl.IFLA_VXLAN_GROUP6:

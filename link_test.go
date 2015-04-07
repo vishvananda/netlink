@@ -120,11 +120,11 @@ func testLinkAddDel(t *testing.T, link Link) {
 
 func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 
-	if actual.VxlanId != expected.VxlanId {
-		t.Fatal("Vxlan.VxlanId doesn't match")
+	if actual.Id != expected.Id {
+		t.Fatal("Vxlan.Id doesn't match")
 	}
-	if expected.SrcAddr != nil && !actual.SrcAddr.Equal(expected.SrcAddr) {
-		t.Fatal("Vxlan.SrcAddr doesn't match")
+	if expected.Local != nil && !actual.Local.Equal(expected.Local) {
+		t.Fatal("Vxlan.Local doesn't match")
 	}
 	if expected.Group != nil && !actual.Group.Equal(expected.Group) {
 		t.Fatal("Vxlan.Group doesn't match")
@@ -484,11 +484,11 @@ func TestLinkAddDelVxlan(t *testing.T) {
 		LinkAttrs: LinkAttrs{
 			Name: "bar",
 		},
-		VxlanId:      10,
-		VtepDevIndex: parent.Index,
-		Learning:     true,
-		L2miss:       true,
-		L3miss:       true,
+		Id:       10,
+		Link:     parent.Index,
+		Learning: true,
+		L2miss:   true,
+		L3miss:   true,
 	}
 
 	testLinkAddDel(t, &vxlan)
