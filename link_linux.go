@@ -801,48 +801,69 @@ func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
 		switch data[i].Attr.Type {
 		case nl.IFLA_BOND_MODE:
 			bond.Mode = BondMode(data[i].Value[0])
+			bond.FlagMask |= BOND_MODE_MASK
 		case nl.IFLA_BOND_ACTIVE_SLAVE:
 			bond.ActiveSlave = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_ACTIVE_SLAVE_MASK
 		case nl.IFLA_BOND_MIIMON:
 			bond.Miimon = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_MIIMON_MASK
 		case nl.IFLA_BOND_UPDELAY:
 			bond.UpDelay = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_UPDELAY_MASK
 		case nl.IFLA_BOND_DOWNDELAY:
 			bond.DownDelay = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_DOWNDELAY_MASK
 		case nl.IFLA_BOND_USE_CARRIER:
 			bond.UseCarrier = int(data[i].Value[0])
+			bond.FlagMask |= BOND_USE_CARRIER_MASK
 		case nl.IFLA_BOND_ARP_INTERVAL:
 			bond.ArpInterval = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_ARP_INTERVAL_MASK
 		case nl.IFLA_BOND_ARP_IP_TARGET:
 			// TODO: implement
 		case nl.IFLA_BOND_ARP_VALIDATE:
 			bond.ArpValidate = BondArpValidate(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_ARP_VALIDATE_MASK
 		case nl.IFLA_BOND_ARP_ALL_TARGETS:
 			bond.ArpAllTargets = BondArpAllTargets(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_ARP_ALL_TARGETS_MASK
 		case nl.IFLA_BOND_PRIMARY:
 			bond.Primary = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_PRIMARY_MASK
 		case nl.IFLA_BOND_PRIMARY_RESELECT:
 			bond.PrimaryReselect = BondPrimaryReselect(data[i].Value[0])
+			bond.FlagMask |= BOND_PRIMARY_RESELECT_MASK
 		case nl.IFLA_BOND_FAIL_OVER_MAC:
 			bond.FailOverMac = BondFailOverMac(data[i].Value[0])
+			bond.FlagMask |= BOND_FAIL_OVER_MAC_MASK
 		case nl.IFLA_BOND_XMIT_HASH_POLICY:
 			bond.XmitHashPolicy = BondXmitHashPolicy(data[i].Value[0])
+			bond.FlagMask |= BOND_XMIT_HASH_POLICY_MASK
 		case nl.IFLA_BOND_RESEND_IGMP:
 			bond.ResendIgmp = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_RESEND_IGMP_MASK
 		case nl.IFLA_BOND_NUM_PEER_NOTIF:
 			bond.NumPeerNotif = int(data[i].Value[0])
+			bond.FlagMask |= BOND_NUM_PEER_NOTIF_MASK
 		case nl.IFLA_BOND_ALL_SLAVES_ACTIVE:
 			bond.AllSlavesActive = int(data[i].Value[0])
+			bond.FlagMask |= BOND_ALL_SLAVES_ACTIVE_MASK
 		case nl.IFLA_BOND_MIN_LINKS:
 			bond.MinLinks = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_MIN_LINKS_MASK
 		case nl.IFLA_BOND_LP_INTERVAL:
 			bond.LpInterval = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_LP_INTERVAL_MASK
 		case nl.IFLA_BOND_PACKETS_PER_SLAVE:
 			bond.PackersPerSlave = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_PACKETS_PER_SLAVE_MASK
 		case nl.IFLA_BOND_AD_LACP_RATE:
 			bond.LacpRate = BondLacpRate(data[i].Value[0])
+			bond.FlagMask |= BOND_LACP_RATE_MASK
 		case nl.IFLA_BOND_AD_SELECT:
 			bond.AdSelect = BondAdSelect(data[i].Value[0])
+			bond.FlagMask |= BOND_AD_SELECT_MASK
 		case nl.IFLA_BOND_AD_INFO:
 			// TODO: implement
 		}
