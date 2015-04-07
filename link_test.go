@@ -38,8 +38,8 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if !ok {
 			t.Fatal("Result of create is not a vlan")
 		}
-		if vlan.VlanId != other.VlanId {
-			t.Fatal("Link.VlanId id doesn't match")
+		if vlan.Id != other.Id {
+			t.Fatal("Link.Id id doesn't match")
 		}
 	}
 

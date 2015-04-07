@@ -427,7 +427,7 @@ func LinkAdd(link Link) error {
 
 	if vlan, ok := link.(*Vlan); ok {
 		b := make([]byte, 2)
-		native.PutUint16(b, uint16(vlan.VlanId))
+		native.PutUint16(b, uint16(vlan.Id))
 		data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 		nl.NewRtAttrChild(data, nl.IFLA_VLAN_ID, b)
 	} else if veth, ok := link.(*Veth); ok {
@@ -742,7 +742,7 @@ func parseVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	for i := range data {
 		switch data[i].Attr.Type {
 		case nl.IFLA_VLAN_ID:
-			vlan.VlanId = int(native.Uint16(data[i].Value[0:2]))
+			vlan.Id = int(native.Uint16(data[i].Value[0:2]))
 		}
 	}
 }

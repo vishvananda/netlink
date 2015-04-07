@@ -91,7 +91,7 @@ func (bridge *Bridge) Type() string {
 // Vlan links have ParentIndex set in their Attrs()
 type Vlan struct {
 	LinkAttrs
-	VlanId int
+	Id int
 }
 
 // Attrs implementation.
