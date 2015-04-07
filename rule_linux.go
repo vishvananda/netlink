@@ -165,6 +165,7 @@ func RuleList(family int) ([]Rule, error) {
 			switch attrs[j].Attr.Type {
 			case syscall.RTA_TABLE:
 				rule.Table = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.FlagsMask |= RULE_TABLE_MASK
 			case nl.FRA_SRC:
 				rule.Src = &net.IPNet{
 					IP:   attrs[j].Value,
@@ -177,8 +178,10 @@ func RuleList(family int) ([]Rule, error) {
 				}
 			case nl.FRA_FWMARK:
 				rule.Mark = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.FlagsMask |= RULE_FWMARK_MASK
 			case nl.FRA_FWMASK:
 				rule.Mask = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.FlagsMask |= RULE_FWMASK_MASK
 			case nl.FRA_IIFNAME:
 				rule.IifName = string(attrs[j].Value[:len(attrs[j].Value)-1])
 			case nl.FRA_OIFNAME:
@@ -187,18 +190,23 @@ func RuleList(family int) ([]Rule, error) {
 				i := native.Uint32(attrs[j].Value[0:4])
 				if i != 0xffffffff {
 					rule.SuppressPrefixlen = int(i)
+					rule.FlagsMask |= RULE_SUPPRESS_PREFIXLEN_MASK
 				}
 			case nl.FRA_SUPPRESS_IFGROUP:
 				i := native.Uint32(attrs[j].Value[0:4])
 				if i != 0xffffffff {
 					rule.SuppressIfgroup = int(i)
+					rule.FlagsMask |= RULE_SUPPRESS_IFGROUP_MASK
 				}
 			case nl.FRA_FLOW:
 				rule.Flow = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.FlagsMask |= RULE_FLOW_MASK
 			case nl.FRA_GOTO:
 				rule.Goto = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.FlagsMask |= RULE_GOTO_MASK
 			case nl.FRA_PRIORITY:
 				rule.Priority = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.FlagsMask |= RULE_PRIORITY_MASK
 			}
 		}
 		res = append(res, rule)
