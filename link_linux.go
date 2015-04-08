@@ -377,8 +377,16 @@ func LinkAdd(link Link) error {
 	// TODO: support extra data for macvlan
 	base := link.Attrs()
 
+	if base == nil {
+		return fmt.Errorf("LinkAttrs can't be nil")
+	}
+
 	if base.Name == "" {
-		return fmt.Errorf("LinkAttrs.Name cannot be empty!")
+		return fmt.Errorf("LinkAttrs.Name can't be empty")
+	}
+
+	if base.ParentIndex == 0 && link.Type() == "ipvlan" {
+		return fmt.Errorf("can't create ipvlan link without ParentIndex")
 	}
 
 	req := nl.NewNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
@@ -391,8 +399,6 @@ func LinkAdd(link Link) error {
 		native.PutUint32(b, uint32(base.ParentIndex))
 		data := nl.NewRtAttr(syscall.IFLA_LINK, b)
 		req.AddData(data)
-	} else if link.Type() == "ipvlan" {
-		return fmt.Errorf("Can't create ipvlan link without ParentIndex")
 	}
 
 	nameData := nl.NewRtAttr(syscall.IFLA_IFNAME, nl.ZeroTerminated(base.Name))
@@ -502,7 +508,7 @@ func linkByNameDump(name string) (Link, error) {
 			return links[i], nil
 		}
 	}
-	return nil, fmt.Errorf("Link %s not found", name)
+	return nil, syscall.ENODEV
 }
 
 // LinkByName finds a link by name and returns a pointer to the object.
@@ -544,17 +550,12 @@ func LinkByIndex(index int) (Link, error) {
 func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 	msgs, err := req.Execute(syscall.NETLINK_ROUTE, 0)
 	if err != nil {
-		if errno, ok := err.(syscall.Errno); ok {
-			if errno == syscall.ENODEV {
-				return nil, fmt.Errorf("Link not found")
-			}
-		}
 		return nil, err
 	}
 
 	switch {
 	case len(msgs) == 0:
-		return nil, fmt.Errorf("Link not found")
+		return nil, syscall.ENODEV
 
 	case len(msgs) == 1:
 		return linkDeserialize(msgs[0])
