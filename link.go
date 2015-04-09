@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"fmt"
 	"net"
 
 	"git.spinoff.ovh.net/librouter/netlink/nl"
@@ -201,6 +202,23 @@ func (vxlan *Vxlan) Type() string {
 // BondMode type
 type BondMode int
 
+func (b BondMode) String() string {
+	s, ok := bondModeToString[b]
+	if !ok {
+		return fmt.Sprintf("BondMode(%d)", b)
+	}
+	return s
+}
+
+// StringToBondMode returns bond mode, or uknonw is the s is invalid.
+func StringToBondMode(s string) BondMode {
+	mode, ok := stringToBondMode[s]
+	if !ok {
+		return BOND_MODE_UNKNOWN
+	}
+	return mode
+}
+
 // Possible BondMode
 const (
 	BOND_MODE_BALANCE_RR BondMode = iota
@@ -210,7 +228,29 @@ const (
 	BOND_MODE_802_3AD
 	BOND_MODE_BALANCE_TLB
 	BOND_MODE_BALANCE_ALB
+	BOND_MODE_UNKNOWN
 )
+
+var bondModeToString = map[BondMode]string{
+	BOND_MODE_BALANCE_RR:    "balance-rr",
+	BOND_MODE_ACTIVE_BACKUP: "active-backup",
+	BOND_MODE_BALANCE_XOR:   "balance-xor",
+	BOND_MODE_BROADCAST:     "broadcast",
+	BOND_MODE_802_3AD:       "802.3ad",
+	BOND_MODE_BALANCE_TLB:   "balance-tlb",
+	BOND_MODE_BALANCE_ALB:   "balance-alb",
+}
+var stringToBondMode = map[string]BondMode{
+	"balance-rr":    BOND_MODE_BALANCE_RR,
+	"active-backup": BOND_MODE_ACTIVE_BACKUP,
+	"balance-xor":   BOND_MODE_BALANCE_XOR,
+	"broadcast":     BOND_MODE_BROADCAST,
+	"802.3ad":       BOND_MODE_802_3AD,
+	"balance-tlb":   BOND_MODE_BALANCE_TLB,
+	"balance-alb":   BOND_MODE_BALANCE_ALB,
+}
+
+// TODO: add String method for other Bond...
 
 // BondArpValidate type
 type BondArpValidate int
@@ -255,6 +295,23 @@ const (
 // BondXmitHashPolicy type
 type BondXmitHashPolicy int
 
+func (b BondXmitHashPolicy) String() string {
+	s, ok := bondXmitHashPolicyToString[b]
+	if !ok {
+		return fmt.Sprintf("XmitHashPolicy(%d)", b)
+	}
+	return s
+}
+
+// StringToBondXmitHashPolicy returns bond lacp arte, or uknonw is the s is invalid.
+func StringToBondXmitHashPolicy(s string) BondXmitHashPolicy {
+	lacp, ok := stringToBondXmitHashPolicy[s]
+	if !ok {
+		return BOND_XMIT_HASH_POLICY_UNKNOWN
+	}
+	return lacp
+}
+
 // Possible BondXmitHashPolicy value
 const (
 	BOND_XMIT_HASH_POLICY_LAYER2 BondXmitHashPolicy = iota
@@ -262,16 +319,59 @@ const (
 	BOND_XMIT_HASH_POLICY_LAYER2_3
 	BOND_XMIT_HASH_POLICY_ENCAP2_3
 	BOND_XMIT_HASH_POLICY_ENCAP3_4
+	BOND_XMIT_HASH_POLICY_UNKNOWN
 )
+
+var bondXmitHashPolicyToString = map[BondXmitHashPolicy]string{
+	BOND_XMIT_HASH_POLICY_LAYER2:   "layer2",
+	BOND_XMIT_HASH_POLICY_LAYER3_4: "layer3+4",
+	BOND_XMIT_HASH_POLICY_LAYER2_3: "layer2+3",
+	BOND_XMIT_HASH_POLICY_ENCAP2_3: "encap2+3",
+	BOND_XMIT_HASH_POLICY_ENCAP3_4: "encap3+4",
+}
+var stringToBondXmitHashPolicy = map[string]BondXmitHashPolicy{
+	"layer2":   BOND_XMIT_HASH_POLICY_LAYER2,
+	"layer3+4": BOND_XMIT_HASH_POLICY_LAYER3_4,
+	"layer2+3": BOND_XMIT_HASH_POLICY_LAYER2_3,
+	"encap2+3": BOND_XMIT_HASH_POLICY_ENCAP2_3,
+	"encap3+4": BOND_XMIT_HASH_POLICY_ENCAP3_4,
+}
 
 // BondLacpRate type
 type BondLacpRate int
+
+func (b BondLacpRate) String() string {
+	s, ok := bondLacpRateToString[b]
+	if !ok {
+		return fmt.Sprintf("LacpRate(%d)", b)
+	}
+	return s
+}
+
+// StringToBondLacpRate returns bond lacp arte, or uknonw is the s is invalid.
+func StringToBondLacpRate(s string) BondLacpRate {
+	lacp, ok := stringToBondLacpRate[s]
+	if !ok {
+		return BOND_LACP_RATE_UNKNOWN
+	}
+	return lacp
+}
 
 // Possible BondLacpRate value
 const (
 	BOND_LACP_RATE_SLOW BondLacpRate = iota
 	BOND_LACP_RATE_FAST
+	BOND_LACP_RATE_UNKNOWN
 )
+
+var bondLacpRateToString = map[BondLacpRate]string{
+	BOND_LACP_RATE_SLOW: "slow",
+	BOND_LACP_RATE_FAST: "fast",
+}
+var stringToBondLacpRate = map[string]BondLacpRate{
+	"slow": BOND_LACP_RATE_SLOW,
+	"fast": BOND_LACP_RATE_FAST,
+}
 
 // BondAdSelect type
 type BondAdSelect int
