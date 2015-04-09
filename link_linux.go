@@ -392,6 +392,7 @@ func LinkAdd(link Link) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	// TODO: add rest of the net.Flags
 	if base.Flags&net.FlagUp != 0 {
 		msg.Change = syscall.IFF_UP
 		msg.Flags = syscall.IFF_UP
