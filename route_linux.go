@@ -20,7 +20,7 @@ type RouteFilter struct {
 	Iif      int // the device from which this packet is expected to arrive.
 	Oif      int // force the output device on which this packet will be routed.
 
-	Flagmask uint64
+	FlagMask uint64
 
 	// TODO: Implement rest of filter option
 	// Mark         int
@@ -39,7 +39,7 @@ type RouteFilter struct {
 	// Flushe       int
 }
 
-// Flag mask for router filters. RouterFilter.Flagmask must be set to on
+// Flag mask for router filters. RouterFilter.FlagMask must be set to on
 // for filter to work.
 const (
 	FILTER_PROTOCOL uint64 = 1 << (1 + iota)
@@ -178,7 +178,7 @@ func RouteList(family int, filter *RouteFilter) ([]Route, error) {
 			if filter.Table != 0 && msg.Table != uint8(filter.Table) {
 				continue
 			}
-			f := filter.Flagmask
+			f := filter.FlagMask
 			switch {
 			case f&FILTER_PROTOCOL != 0:
 				if msg.Protocol != uint8(filter.Protocol) {
@@ -227,14 +227,14 @@ func RouteList(family int, filter *RouteFilter) ([]Route, error) {
 				}
 			case syscall.RTA_OIF:
 				routeIndex := int(native.Uint32(attrs[j].Value[0:4]))
-				if filter != nil && filter.Flagmask&FILTER_OIF != 0 && filter.Oif != routeIndex {
+				if filter != nil && filter.FlagMask&FILTER_OIF != 0 && filter.Oif != routeIndex {
 					// Ignore routes from other interfaces
 					continue
 				}
 				route.Oif = routeIndex
 			case syscall.RTA_IIF:
 				routeIndex := int(native.Uint32(attrs[j].Value[0:4]))
-				if filter != nil && filter.Flagmask&FILTER_IIF != 0 && filter.Iif != routeIndex {
+				if filter != nil && filter.FlagMask&FILTER_IIF != 0 && filter.Iif != routeIndex {
 					continue
 				}
 				route.Iif = routeIndex
