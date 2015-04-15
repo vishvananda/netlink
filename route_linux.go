@@ -19,6 +19,9 @@ type RouteFilter struct {
 	Tos      int
 	Iif      int // the device from which this packet is expected to arrive.
 	Oif      int // force the output device on which this packet will be routed.
+	Dst      *net.IPNet
+	Src      net.IP
+	Gateway  net.IP
 
 	FlagMask uint64
 
@@ -157,6 +160,7 @@ func RouteList(family int, filter *RouteFilter) ([]Route, error) {
 
 	native := nl.NativeEndian()
 	var res []Route
+LOOP:
 	for i := range msgs {
 		msg := nl.DeserializeRtMsg(msgs[i])
 		if msg.Flags&syscall.RTM_F_CLONED != 0 {
@@ -213,12 +217,24 @@ func RouteList(family int, filter *RouteFilter) ([]Route, error) {
 			switch attrs[j].Attr.Type {
 			case syscall.RTA_GATEWAY:
 				route.Gateway = net.IP(attrs[j].Value)
+				if filter != nil && filter.Gateway != nil && !route.Gateway.Equal(filter.Gateway) {
+					continue LOOP
+				}
 			case syscall.RTA_PREFSRC:
 				route.Src = net.IP(attrs[j].Value)
+				if filter != nil && filter.Src != nil && !route.Src.Equal(filter.Src) {
+					continue LOOP
+				}
 			case syscall.RTA_DST:
 				route.Dst = &net.IPNet{
 					IP:   attrs[j].Value,
 					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attrs[j].Value)),
+				}
+				if filter != nil && filter.Dst != nil {
+					once, _ := filter.Dst.Mask.Size()
+					if !(route.Dst.IP.Equal(filter.Dst.IP) && once == int(msg.Dst_len)) {
+						continue LOOP
+					}
 				}
 			case syscall.RTA_SRC:
 				route.From = &net.IPNet{
@@ -229,13 +245,13 @@ func RouteList(family int, filter *RouteFilter) ([]Route, error) {
 				routeIndex := int(native.Uint32(attrs[j].Value[0:4]))
 				if filter != nil && filter.FlagMask&FILTER_OIF != 0 && filter.Oif != routeIndex {
 					// Ignore routes from other interfaces
-					continue
+					continue LOOP
 				}
 				route.Oif = routeIndex
 			case syscall.RTA_IIF:
 				routeIndex := int(native.Uint32(attrs[j].Value[0:4]))
 				if filter != nil && filter.FlagMask&FILTER_IIF != 0 && filter.Iif != routeIndex {
-					continue
+					continue LOOP
 				}
 				route.Iif = routeIndex
 			case syscall.RTA_PRIORITY:

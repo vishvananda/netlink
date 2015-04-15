@@ -44,7 +44,7 @@ func dstAndSrcToString(dst *net.IPNet, src net.IP) string {
 	}
 
 	if dst != nil {
-		s += fmt.Sprintf("dst %s", dst)
+		s += fmt.Sprintf(" dst %s", dst)
 	}
 	return s
 }
