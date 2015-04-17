@@ -137,7 +137,9 @@ func (macvlan *Macvlan) Type() string {
 // Veth devices must specify PeerName on create
 type Veth struct {
 	LinkAttrs
-	PeerName string // veth on create only
+	PeerName string // veth: create only
+	// TODO: implelemnt (via IOCTL) get index while parse veth
+	PeerIndex int // veth: read only
 }
 
 // Attrs implementation.
