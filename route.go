@@ -3,6 +3,7 @@ package netlink
 import (
 	"fmt"
 	"net"
+	"strings"
 	"syscall"
 )
 
@@ -28,9 +29,18 @@ type Route struct {
 }
 
 func (r Route) String() string {
-	return fmt.Sprintf("ip route scope %s protocol %s table %s %s dev index %d via %s",
-		scopeToString(r.Scope), protocolToString(r.Protocol), tableToString(r.Table),
-		dstAndSrcToString(r.Dst, r.Src), r.Oif, r.Gateway)
+	s := fmt.Sprintf("ip route %s via %s %s %s %s %s ",
+		dstAndSrcToString(r.Dst, r.Src), r.Gateway, indexToString(r.Oif),
+		scopeToString(r.Scope), protocolToString(r.Protocol), tableToString(r.Table))
+	// remove multiple spaces
+	return strings.Join(strings.Fields(s), " ")
+}
+
+func indexToString(idx int) string {
+	if idx == 0 {
+		return ""
+	}
+	return fmt.Sprintf("via index %d", idx)
 }
 
 func dstAndSrcToString(dst *net.IPNet, src net.IP) string {
@@ -58,10 +68,13 @@ var scopesString = map[int]string{
 }
 
 func scopeToString(scope int) string {
-	if s, ok := scopesString[scope]; ok {
-		return s
+	if scope == syscall.RT_SCOPE_UNIVERSE {
+		return ""
 	}
-	return fmt.Sprintf("unknown(%d)", scope)
+	if s, ok := scopesString[scope]; ok {
+		return "scope " + s
+	}
+	return fmt.Sprintf("scope unknown(%d)", scope)
 }
 
 var tablesString = map[int]string{
@@ -73,10 +86,13 @@ var tablesString = map[int]string{
 }
 
 func tableToString(table int) string {
-	if s, ok := tablesString[table]; ok {
-		return s
+	if table == syscall.RT_TABLE_MAIN {
+		return ""
 	}
-	return fmt.Sprintf("unknown(%d)", table)
+	if s, ok := tablesString[table]; ok {
+		return "table " + s
+	}
+	return fmt.Sprintf("table unknown(%d)", table)
 }
 
 var protocolsString = map[int]string{
@@ -97,8 +113,11 @@ var protocolsString = map[int]string{
 }
 
 func protocolToString(protocol int) string {
-	if s, ok := protocolsString[protocol]; ok {
-		return s
+	if protocol == syscall.RTPROT_KERNEL {
+		return ""
 	}
-	return fmt.Sprintf("unknown(%d)", protocol)
+	if s, ok := protocolsString[protocol]; ok {
+		return "protocol " + s
+	}
+	return fmt.Sprintf("protocol unknown(%d)", protocol)
 }
