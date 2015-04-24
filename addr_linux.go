@@ -9,6 +9,9 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+// IFA_FLAGS is a u32 attribute.
+const IFA_FLAGS = 0x8
+
 // AddrAdd will add an IP address to a link device.
 // Equivalent to: `ip addr add $addr dev $link`
 func AddrAdd(link Link, addr *Addr) error {
@@ -111,6 +114,31 @@ func AddrList(link Link, family int) ([]Addr, error) {
 				}
 			case syscall.IFA_LABEL:
 				addr.Label = string(attrs[j].Value[:len(attrs[j].Value)-1])
+			case syscall.IFA_LOCAL:
+				addr.Local = &net.IPNet{
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
+				}
+			case syscall.IFA_BROADCAST:
+				addr.Broadcast = &net.IPNet{
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
+				}
+			case syscall.IFA_ANYCAST:
+				addr.Anycast = &net.IPNet{
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
+				}
+			case syscall.IFA_CACHEINFO:
+				// TODO: implement
+			case syscall.IFA_MULTICAST:
+				addr.Multicast = &net.IPNet{
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
+				}
+			case syscall.IFA_UNSPEC: /* unused */
+			case IFA_FLAGS:
+				addr.Flags = int(native.Uint32(attrs[j].Value[0:4]))
 			}
 		}
 
