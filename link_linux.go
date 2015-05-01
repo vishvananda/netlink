@@ -192,7 +192,7 @@ func LinkSetNsPid(link Link, nspid int) error {
 	return err
 }
 
-// LinkSetNsPid puts the device into a new network namespace. The
+// LinkSetNsFd puts the device into a new network namespace. The
 // fd must be an open file descriptor to a network namespace.
 // Similar to: `ip link set $link netns $ns`
 func LinkSetNsFd(link Link, fd int) error {
