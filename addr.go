@@ -39,6 +39,25 @@ func ParseAddr(s string) (*Addr, error) {
 	return &Addr{IPNet: m, Label: label}, nil
 }
 
+// ParseAddrWithDefaultNetmask parses the string representation of an address in the
+// form $ip/$netmask $label where the /$netmask and the label portion is optional.
+// If the $netmask dosen't occur then default one is used (/32 for IPv4 and /128 for IPv6)
+func ParseAddrWithDefaultNetmask(s string) (*Addr, error) {
+	label := ""
+	parts := strings.SplitN(s, " ", 1)
+	if len(parts) > 1 {
+		s, label = parts[0], parts[1]
+	}
+	if ip := net.ParseIP(s); ip != nil {
+		return &Addr{IPNet: NewIPNet(ip), Label: label}, nil
+	}
+	m, err := ParseIPNet(s)
+	if err != nil {
+		return nil, err
+	}
+	return &Addr{IPNet: m, Label: label}, nil
+}
+
 // NewAddr returns new Addr with no label.
 func NewAddr(ipnet *net.IPNet) *Addr {
 	return &Addr{IPNet: ipnet}
