@@ -23,9 +23,9 @@ func (a Addr) String() string {
 	return fmt.Sprintf("%s %s", a.IPNet, a.Label)
 }
 
-// ParseAddr parses the string representation of an address in the
-// form $ip/$netmask $label. The label portion is optional
-func ParseAddr(s string) (*Addr, error) {
+// ParseAddrWithLabel parses the string representation of an address in the
+// form $ip/$netmask $label. The label portion is optional.
+func ParseAddrWithLabel(s string) (*Addr, error) {
 	label := ""
 	parts := strings.Split(s, " ")
 	if len(parts) > 1 {
@@ -39,23 +39,23 @@ func ParseAddr(s string) (*Addr, error) {
 	return &Addr{IPNet: m, Label: label}, nil
 }
 
-// ParseAddrWithDefaultNetmask parses the string representation of an address in the
-// form $ip/$netmask $label where the /$netmask and the label portion is optional.
-// If the $netmask dosen't occur then default one is used (/32 for IPv4 and /128 for IPv6)
-func ParseAddrWithDefaultNetmask(s string) (*Addr, error) {
-	label := ""
-	parts := strings.SplitN(s, " ", 1)
-	if len(parts) > 1 {
-		s, label = parts[0], parts[1]
-	}
-	if ip := net.ParseIP(s); ip != nil {
-		return &Addr{IPNet: NewIPNet(ip), Label: label}, nil
-	}
+// ParseAddr parses the string representation of an address in the form $ip/$netmask.
+func ParseAddr(s string) (*Addr, error) {
 	m, err := ParseIPNet(s)
 	if err != nil {
 		return nil, err
 	}
-	return &Addr{IPNet: m, Label: label}, nil
+	return &Addr{IPNet: m}, nil
+}
+
+// ParseAddrWithDefaultNetmask parses the string representation of an address in the
+// form $ip/$netmask where the /$netmask is optional.
+// If the $netmask dosen't occur then default one is used (/32 for IPv4 and /128 for IPv6)
+func ParseAddrWithDefaultNetmask(s string) (*Addr, error) {
+	if ip := net.ParseIP(s); ip != nil {
+		return &Addr{IPNet: NewIPNet(ip)}, nil
+	}
+	return ParseAddr(s)
 }
 
 // NewAddr returns new Addr with no label.
