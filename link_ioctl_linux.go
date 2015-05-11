@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"errors"
 	"syscall"
 	"unsafe"
 )
@@ -23,4 +24,10 @@ func LinkSetBondSlave(link Link, master *Bond) error {
 		return errno
 	}
 	return nil
+}
+
+// LinkStatistics get link stats - equivalent to ethtool --statistics
+func LinkStatistics(link Link) error {
+	// TODO: implement
+	return errors.New("unimplemented")
 }
