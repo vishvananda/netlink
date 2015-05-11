@@ -13,7 +13,9 @@ import (
 // currently not supported.
 type Route struct {
 	Iif      int
+	IifName  string
 	Oif      int
+	OifName  string
 	Scope    int
 	Protocol int
 	Table    int

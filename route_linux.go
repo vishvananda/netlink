@@ -248,12 +248,22 @@ LOOP:
 					continue LOOP
 				}
 				route.Oif = routeIndex
+				link, err := LinkByIndex(route.Oif)
+				if err != nil {
+					return nil, err
+				}
+				route.OifName = link.Attrs().Name
 			case syscall.RTA_IIF:
 				routeIndex := int(native.Uint32(attrs[j].Value[0:4]))
 				if filter != nil && filter.FlagMask&FILTER_IIF != 0 && filter.Iif != routeIndex {
 					continue LOOP
 				}
 				route.Iif = routeIndex
+				link, err := LinkByIndex(route.Iif)
+				if err != nil {
+					return nil, err
+				}
+				route.IifName = link.Attrs().Name
 			case syscall.RTA_PRIORITY:
 				route.Priority = int(native.Uint32(attrs[j].Value[0:4]))
 			case syscall.RTA_TABLE:
