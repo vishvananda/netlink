@@ -76,7 +76,7 @@ func LinkSetMTU(link Link, mtu int) error {
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = nl.DEFAULT_CHANGE
+	msg.Change = syscall.IFLA_MTU
 	req.AddData(msg)
 
 	b := make([]byte, 4)
@@ -100,7 +100,7 @@ func LinkSetName(link Link, name string) error {
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = nl.DEFAULT_CHANGE
+	msg.Change = syscall.IFLA_IFNAME
 	req.AddData(msg)
 
 	data := nl.NewRtAttr(syscall.IFLA_IFNAME, []byte(name))
@@ -121,7 +121,7 @@ func LinkSetHardwareAddr(link Link, hwaddr net.HardwareAddr) error {
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = nl.DEFAULT_CHANGE
+	msg.Change = syscall.IFLA_ADDRESS
 	req.AddData(msg)
 
 	data := nl.NewRtAttr(syscall.IFLA_ADDRESS, []byte(hwaddr))
@@ -154,7 +154,7 @@ func LinkSetMasterByIndex(link Link, masterIndex int) error {
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = nl.DEFAULT_CHANGE
+	msg.Change = syscall.IFLA_MASTER
 	req.AddData(msg)
 
 	b := make([]byte, 4)
@@ -179,7 +179,7 @@ func LinkSetNsPid(link Link, nspid int) error {
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = nl.DEFAULT_CHANGE
+	msg.Change = syscall.IFLA_NET_NS_PID
 	req.AddData(msg)
 
 	b := make([]byte, 4)
@@ -204,7 +204,7 @@ func LinkSetNsFd(link Link, fd int) error {
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = nl.DEFAULT_CHANGE
+	msg.Change = nl.IFLA_NET_NS_FD
 	req.AddData(msg)
 
 	b := make([]byte, 4)
@@ -625,7 +625,7 @@ func setProtinfoAttr(link Link, mode bool, attr int) error {
 	msg.Type = syscall.RTM_SETLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = nl.DEFAULT_CHANGE
+	msg.Change = syscall.IFLA_PROTINFO | syscall.NLA_F_NESTED
 	req.AddData(msg)
 
 	br := nl.NewRtAttr(syscall.IFLA_PROTINFO|syscall.NLA_F_NESTED, nil)
