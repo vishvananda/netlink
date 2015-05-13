@@ -107,11 +107,6 @@ func AddrList(link Link, family int) ([]Addr, error) {
 					IP:   attrs[j].Value,
 					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
 				}
-			case syscall.IFA_LOCAL:
-				local = &net.IPNet{
-					IP:   attrs[j].Value,
-					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
-				}
 			case syscall.IFA_LABEL:
 				addr.Label = string(attrs[j].Value[:len(attrs[j].Value)-1])
 			case syscall.IFA_LOCAL:

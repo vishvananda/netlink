@@ -5,7 +5,7 @@ import (
 	"net"
 	"syscall"
 
-	"git.spinoff.ovh.net/librouter/netlink/nl"
+	"git.spinoff.ovh.net/router/netlink/nl"
 )
 
 // RuleAdd adds a rule to the system.

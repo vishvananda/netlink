@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"git.spinoff.ovh.net/librouter/netlink/nl"
+	"git.spinoff.ovh.net/router/netlink/nl"
 )
 
 // Link represents a link device from netlink. Shared link attributes
