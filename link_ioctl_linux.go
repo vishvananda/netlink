@@ -19,7 +19,11 @@ func LinkSetBondSlave(link Link, master *Bond) error {
 	copy(ifreq.Name[:syscall.IFNAMSIZ-1], master.Attrs().Name)
 	copy(ifreq.Slave[:syscall.IFNAMSIZ-1], link.Attrs().Name)
 
-	return ioctl(fd, uintptr(unsafe.Pointer(ifreq)))
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), SIOCBONDENSLAVE, uintptr(unsafe.Pointer(ifreq)))
+	if errno != 0 {
+		return errno
+	}
+	return nil
 }
 
 // LinkStatistics get link stats - equivalent to ethtool --statistics
