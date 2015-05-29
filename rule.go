@@ -1,6 +1,9 @@
 package netlink
 
-import "net"
+import (
+	"fmt"
+	"net"
+)
 
 // Flag mask for rule options. Rule.FlagMask must be set to on for option to work.
 const (
@@ -40,6 +43,6 @@ type Rule struct {
 	FlagMask uint64
 }
 
-//func (r Rule) String() string {
-//	return fmt.Sprintf("ip rule %d: from %s table %s", r.Priority, r.Src, tableToString(r.Table))
-//}
+func (r Rule) String() string {
+	return fmt.Sprintf("ip rule %d: from %s table %d", r.Priority, r.Src, r.Table)
+}

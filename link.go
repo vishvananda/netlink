@@ -214,7 +214,7 @@ func (b BondMode) String() string {
 
 // StringToBondMode returns bond mode, or uknonw is the s is invalid.
 func StringToBondMode(s string) BondMode {
-	mode, ok := stringToBondMode[s]
+	mode, ok := StringToBondModeMap[s]
 	if !ok {
 		return BOND_MODE_UNKNOWN
 	}
@@ -242,7 +242,7 @@ var bondModeToString = map[BondMode]string{
 	BOND_MODE_BALANCE_TLB:   "balance-tlb",
 	BOND_MODE_BALANCE_ALB:   "balance-alb",
 }
-var stringToBondMode = map[string]BondMode{
+var StringToBondModeMap = map[string]BondMode{
 	"balance-rr":    BOND_MODE_BALANCE_RR,
 	"active-backup": BOND_MODE_ACTIVE_BACKUP,
 	"balance-xor":   BOND_MODE_BALANCE_XOR,
@@ -307,7 +307,7 @@ func (b BondXmitHashPolicy) String() string {
 
 // StringToBondXmitHashPolicy returns bond lacp arte, or uknonw is the s is invalid.
 func StringToBondXmitHashPolicy(s string) BondXmitHashPolicy {
-	lacp, ok := stringToBondXmitHashPolicy[s]
+	lacp, ok := StringToBondXmitHashPolicyMap[s]
 	if !ok {
 		return BOND_XMIT_HASH_POLICY_UNKNOWN
 	}
@@ -331,7 +331,7 @@ var bondXmitHashPolicyToString = map[BondXmitHashPolicy]string{
 	BOND_XMIT_HASH_POLICY_ENCAP2_3: "encap2+3",
 	BOND_XMIT_HASH_POLICY_ENCAP3_4: "encap3+4",
 }
-var stringToBondXmitHashPolicy = map[string]BondXmitHashPolicy{
+var StringToBondXmitHashPolicyMap = map[string]BondXmitHashPolicy{
 	"layer2":   BOND_XMIT_HASH_POLICY_LAYER2,
 	"layer3+4": BOND_XMIT_HASH_POLICY_LAYER3_4,
 	"layer2+3": BOND_XMIT_HASH_POLICY_LAYER2_3,
@@ -352,7 +352,7 @@ func (b BondLacpRate) String() string {
 
 // StringToBondLacpRate returns bond lacp arte, or uknonw is the s is invalid.
 func StringToBondLacpRate(s string) BondLacpRate {
-	lacp, ok := stringToBondLacpRate[s]
+	lacp, ok := StringToBondLacpRateMap[s]
 	if !ok {
 		return BOND_LACP_RATE_UNKNOWN
 	}
@@ -370,7 +370,7 @@ var bondLacpRateToString = map[BondLacpRate]string{
 	BOND_LACP_RATE_SLOW: "slow",
 	BOND_LACP_RATE_FAST: "fast",
 }
-var stringToBondLacpRate = map[string]BondLacpRate{
+var StringToBondLacpRateMap = map[string]BondLacpRate{
 	"slow": BOND_LACP_RATE_SLOW,
 	"fast": BOND_LACP_RATE_FAST,
 }
