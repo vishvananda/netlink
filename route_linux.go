@@ -124,6 +124,19 @@ func routeHandle(route *Route, req *nl.NetlinkRequest) error {
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_GATEWAY, gwData))
 	}
 
+	//TODO: check if total table count does not exceed 255
+	if route.Table > 0 {
+		b := make([]byte, 4)
+		native.PutUint32(b, uint32(route.Table))
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_TABLE, b))
+	}
+
+	if route.Priority > 0 {
+		b := make([]byte, 4)
+		native.PutUint32(b, uint32(route.Priority))
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_PRIORITY, b))
+	}
+
 	msg.Family = uint8(family)
 
 	req.AddData(msg)

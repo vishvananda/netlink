@@ -31,9 +31,9 @@ type Route struct {
 }
 
 func (r Route) String() string {
-	s := fmt.Sprintf("ip route %s via %s %s %s %s %s ",
+	s := fmt.Sprintf("ip route %s via %s %s %s %s %s %s",
 		dstAndSrcToString(r.Dst, r.Src), r.Gateway, indexToString(r.Oif),
-		scopeToString(r.Scope), protocolToString(r.Protocol), tableToString(r.Table))
+		scopeToString(r.Scope), protocolToString(r.Protocol), tableToString(r.Table), metricToString(r.Priority))
 	// remove multiple spaces
 	return strings.Join(strings.Fields(s), " ")
 }
@@ -43,6 +43,13 @@ func indexToString(idx int) string {
 		return ""
 	}
 	return fmt.Sprintf("via index %d", idx)
+}
+
+func metricToString(metric int) string {
+	if metric <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("priority %d", metric)
 }
 
 func dstAndSrcToString(dst *net.IPNet, src net.IP) string {
