@@ -226,7 +226,7 @@ func TestLinkAddDelVeth(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar"})
+	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar", 0})
 }
 
 func TestLinkAddVethWithDefaultTxQLen(t *testing.T) {
@@ -423,7 +423,7 @@ func TestLinkSetNs(t *testing.T) {
 	}
 	defer newns.Close()
 
-	link := &Veth{LinkAttrs{Name: "foo"}, "bar"}
+	link := &Veth{LinkAttrs{Name: "foo"}, "bar", 0}
 	if err := LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +549,7 @@ func TestLinkAddDelIPVlanNoParent(t *testing.T) {
 	if err == nil {
 		t.Fatal("Add should fail if ipvlan creating without ParentIndex")
 	}
-	if err.Error() != "Can't create ipvlan link without ParentIndex" {
+	if err.Error() != "can't create ipvlan link without ParentIndex" {
 		t.Fatalf("Error should be about missing ParentIndex, got %q", err)
 	}
 }
