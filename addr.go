@@ -16,6 +16,8 @@ type Addr struct {
 	Multicast *net.IPNet
 	Local     *net.IPNet
 	Flags     int
+	Scope     int
+	Family    int
 }
 
 // String returns $ip/$netmask $label

@@ -12,6 +12,10 @@ import (
 // IFA_FLAGS is a u32 attribute.
 const IFA_FLAGS = 0x8
 
+// LINK SCOPES
+const SCOPE_LINK = 253
+const SCOPE_GLOBAL = 256
+
 // AddrAdd will add an IP address to a link device.
 // Equivalent to: `ip addr add $addr dev $link`
 func AddrAdd(link Link, addr *Addr) error {
@@ -143,6 +147,9 @@ func AddrList(link Link, family int) ([]Addr, error) {
 		} else {
 			addr.IPNet = dst
 		}
+
+		addr.Scope = int(msg.Scope)
+		addr.Family = int(msg.Family)
 
 		res = append(res, addr)
 	}
