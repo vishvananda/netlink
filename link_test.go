@@ -8,7 +8,10 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-const testTxQLen uint32 = 100
+const (
+	testTxQLen    int = 100
+	defaultTxQLen int = 1000
+)
 
 func testLinkAddDel(t *testing.T, link Link) {
 	links, err := LinkList()
@@ -50,9 +53,9 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
-	if veth, ok := link.(*Veth); ok {
-		if veth.TxQLen != testTxQLen {
-			t.Fatalf("TxQLen is %d, should be %d", veth.TxQLen, testTxQLen)
+	if veth, ok := result.(*Veth); ok {
+		if rBase.TxQLen != base.TxQLen {
+			t.Fatalf("qlen is %d, should be %d", rBase.TxQLen, base.TxQLen)
 		}
 		if rBase.MTU != base.MTU {
 			t.Fatalf("MTU is %d, should be %d", rBase.MTU, base.MTU)
@@ -224,6 +227,99 @@ func TestLinkAddDelVeth(t *testing.T) {
 	defer tearDown()
 
 	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar"})
+}
+
+func TestLinkAddVethWithDefaultTxQLen(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	la := NewLinkAttrs()
+	la.Name = "foo"
+
+	veth := &Veth{LinkAttrs: la, PeerName: "bar"}
+	if err := LinkAdd(veth); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if veth, ok := link.(*Veth); !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	} else {
+		if veth.TxQLen != defaultTxQLen {
+			t.Fatalf("TxQLen is %d, should be %d", veth.TxQLen, defaultTxQLen)
+		}
+	}
+	peer, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if veth, ok := peer.(*Veth); !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	} else {
+		if veth.TxQLen != defaultTxQLen {
+			t.Fatalf("TxQLen is %d, should be %d", veth.TxQLen, defaultTxQLen)
+		}
+	}
+}
+
+func TestLinkAddVethWithZeroTxQLen(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	la := NewLinkAttrs()
+	la.Name = "foo"
+	la.TxQLen = 0
+
+	veth := &Veth{LinkAttrs: la, PeerName: "bar"}
+	if err := LinkAdd(veth); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if veth, ok := link.(*Veth); !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	} else {
+		if veth.TxQLen != 0 {
+			t.Fatalf("TxQLen is %d, should be %d", veth.TxQLen, 0)
+		}
+	}
+	peer, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if veth, ok := peer.(*Veth); !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	} else {
+		if veth.TxQLen != 0 {
+			t.Fatalf("TxQLen is %d, should be %d", veth.TxQLen, 0)
+		}
+	}
+}
+
+func TestLinkAddDummyWithTxQLen(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	la := NewLinkAttrs()
+	la.Name = "foo"
+	la.TxQLen = 1500
+
+	dummy := &Dummy{LinkAttrs: la}
+	if err := LinkAdd(dummy); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dummy, ok := link.(*Dummy); !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	} else {
+		if dummy.TxQLen != 1500 {
+			t.Fatalf("TxQLen is %d, should be %d", dummy.TxQLen, 1500)
+		}
+	}
 }
 
 func TestLinkAddDelBridgeMaster(t *testing.T) {
