@@ -48,7 +48,7 @@ func LinkSetUp(link Link) error {
 	return err
 }
 
-// LinkSetUp disables link device.
+// LinkSetDown disables link device.
 // Equivalent to: `ip link set $link down`
 func LinkSetDown(link Link) error {
 	base := link.Attrs()
