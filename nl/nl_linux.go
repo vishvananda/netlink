@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -329,8 +330,18 @@ func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
 	return nil
 }
 
+var rcvPool = &sync.Pool{
+	New: func() interface{} {
+		return make([]byte, syscall.Getpagesize())
+	},
+}
+
 func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, error) {
-	rb := make([]byte, syscall.Getpagesize())
+	rb, ok := rcvPool.Get().([]byte)
+	if !ok {
+		return nil, fmt.Errorf("receive buffers pool error")
+	}
+	defer rcvPool.Put(rb)
 	nr, _, err := syscall.Recvfrom(s.fd, rb, 0)
 	if err != nil {
 		return nil, err
@@ -338,8 +349,9 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, error) {
 	if nr < syscall.NLMSG_HDRLEN {
 		return nil, fmt.Errorf("Got short response from netlink")
 	}
-	rb = rb[:nr]
-	return syscall.ParseNetlinkMessage(rb)
+	data := make([]byte, nr)
+	copy(data, rb[:nr])
+	return syscall.ParseNetlinkMessage(data)
 }
 
 func (s *NetlinkSocket) GetPid() (uint32, error) {

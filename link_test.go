@@ -638,3 +638,43 @@ func TestLinkSet(t *testing.T) {
 		t.Fatalf("hardware address not changed!")
 	}
 }
+
+func BenchmarkLinkAddDel(b *testing.B) {
+	tearDown := setUpNetlinkTest(b)
+	defer tearDown()
+
+	for i := 0; i < b.N; i++ {
+		link := &Veth{LinkAttrs{Name: "foo"}, "bar"}
+		if err := LinkAdd(link); err != nil {
+			b.Fatal(err)
+		}
+
+		if _, err := LinkByName("foo"); err != nil {
+			b.Fatal(err)
+		}
+
+		peer, err := LinkByName("bar")
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		if err := LinkDel(peer); err != nil {
+			b.Fatal(err)
+		}
+
+		if _, err = LinkByName("foo"); err == nil {
+			b.Fatal("Other half of veth pair not deleted")
+		}
+	}
+}
+
+func BenchmarkLinkList(b *testing.B) {
+	tearDown := setUpNetlinkTest(b)
+	defer tearDown()
+
+	for i := 0; i < b.N; i++ {
+		if _, err := LinkList(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

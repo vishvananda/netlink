@@ -11,7 +11,7 @@ import (
 
 type tearDownNetlinkTest func()
 
-func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
+func setUpNetlinkTest(t testing.TB) tearDownNetlinkTest {
 	if os.Getuid() != 0 {
 		msg := "Skipped test because it requires root privileges."
 		log.Printf(msg)
