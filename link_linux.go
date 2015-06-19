@@ -579,8 +579,7 @@ func LinkList() ([]Link, error) {
 		return nil, err
 	}
 
-	res := make([]Link, 0)
-
+	var res []Link
 	for _, m := range msgs {
 		link, err := linkDeserialize(m)
 		if err != nil {

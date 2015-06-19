@@ -172,16 +172,16 @@ type NetlinkRequest struct {
 }
 
 // Serialize the Netlink Request into a byte array
-func (msg *NetlinkRequest) Serialize() []byte {
+func (req *NetlinkRequest) Serialize() []byte {
 	length := syscall.SizeofNlMsghdr
-	dataBytes := make([][]byte, len(msg.Data))
-	for i, data := range msg.Data {
+	dataBytes := make([][]byte, len(req.Data))
+	for i, data := range req.Data {
 		dataBytes[i] = data.Serialize()
 		length = length + len(dataBytes[i])
 	}
-	msg.Len = uint32(length)
+	req.Len = uint32(length)
 	b := make([]byte, length)
-	hdr := (*(*[syscall.SizeofNlMsghdr]byte)(unsafe.Pointer(msg)))[:]
+	hdr := (*(*[syscall.SizeofNlMsghdr]byte)(unsafe.Pointer(req)))[:]
 	next := syscall.SizeofNlMsghdr
 	copy(b[0:next], hdr)
 	for _, data := range dataBytes {
@@ -193,9 +193,9 @@ func (msg *NetlinkRequest) Serialize() []byte {
 	return b
 }
 
-func (msg *NetlinkRequest) AddData(data NetlinkRequestData) {
+func (req *NetlinkRequest) AddData(data NetlinkRequestData) {
 	if data != nil {
-		msg.Data = append(msg.Data, data)
+		req.Data = append(req.Data, data)
 	}
 }
 
@@ -218,7 +218,7 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 		return nil, err
 	}
 
-	res := make([][]byte, 0)
+	var res [][]byte
 
 done:
 	for {
