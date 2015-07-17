@@ -143,6 +143,12 @@ func LinkSetMaster(link Link, master *Bridge) error {
 	return LinkSetMasterByIndex(link, index)
 }
 
+// LinkSetNoMaster remove the master of the link device.
+// Equivalent to: `ip link set $link nomaster`
+func LinkSetNoMaster(link Link) error {
+	return LinkSetMasterByIndex(link, 0)
+}
+
 // LinkSetMasterByIndex sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
 func LinkSetMasterByIndex(link Link, masterIndex int) error {
@@ -231,16 +237,16 @@ type vxlanPortRange struct {
 
 func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
-	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_ID, nl.Uint32Attr(uint32(vxlan.VxlanId)))
-	if vxlan.VtepDevIndex != 0 {
-		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LINK, nl.Uint32Attr(uint32(vxlan.VtepDevIndex)))
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_ID, nl.Uint32Attr(uint32(vxlan.Id)))
+	if vxlan.Link != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LINK, nl.Uint32Attr(uint32(vxlan.Link)))
 	}
-	if vxlan.SrcAddr != nil {
-		ip := vxlan.SrcAddr.To4()
+	if vxlan.Local != nil {
+		ip := vxlan.Local.To4()
 		if ip != nil {
 			nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LOCAL, []byte(ip))
 		} else {
-			ip = vxlan.SrcAddr.To16()
+			ip = vxlan.Local.To16()
 			if ip != nil {
 				nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LOCAL6, []byte(ip))
 			}
@@ -287,6 +293,88 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	}
 }
 
+func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	if bond.FlagMask&BOND_MODE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_MODE, nl.Uint8Attr(uint8(bond.Mode)))
+	}
+	if bond.FlagMask&BOND_ACTIVE_SLAVE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_ACTIVE_SLAVE, nl.Uint32Attr(uint32(bond.ActiveSlave)))
+	}
+	if bond.FlagMask&BOND_MIIMON_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_MIIMON, nl.Uint32Attr(uint32(bond.Miimon)))
+	}
+	if bond.FlagMask&BOND_UPDELAY_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_UPDELAY, nl.Uint32Attr(uint32(bond.UpDelay)))
+	}
+	if bond.FlagMask&BOND_DOWNDELAY_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_DOWNDELAY, nl.Uint32Attr(uint32(bond.DownDelay)))
+	}
+	if bond.FlagMask&BOND_USE_CARRIER_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_USE_CARRIER, nl.Uint8Attr(uint8(bond.UseCarrier)))
+	}
+	if bond.FlagMask&BOND_ARP_INTERVAL_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_ARP_INTERVAL, nl.Uint32Attr(uint32(bond.ArpInterval)))
+	}
+	if bond.ArpIpTargets != nil {
+		msg := nl.NewRtAttrChild(data, nl.IFLA_BOND_ARP_IP_TARGET, nil)
+		for i := range bond.ArpIpTargets {
+			ip := bond.ArpIpTargets[i].To4()
+			if ip != nil {
+				nl.NewRtAttrChild(msg, i, []byte(ip))
+				continue
+			}
+			ip = bond.ArpIpTargets[i].To16()
+			if ip != nil {
+				nl.NewRtAttrChild(msg, i, []byte(ip))
+			}
+		}
+	}
+	if bond.FlagMask&BOND_ARP_VALIDATE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_ARP_VALIDATE, nl.Uint32Attr(uint32(bond.ArpValidate)))
+	}
+	if bond.FlagMask&BOND_ARP_ALL_TARGETS_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_ARP_ALL_TARGETS, nl.Uint32Attr(uint32(bond.ArpAllTargets)))
+	}
+	if bond.FlagMask&BOND_PRIMARY_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_PRIMARY, nl.Uint32Attr(uint32(bond.Primary)))
+	}
+	if bond.FlagMask&BOND_PRIMARY_RESELECT_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_PRIMARY_RESELECT, nl.Uint8Attr(uint8(bond.PrimaryReselect)))
+	}
+	if bond.FlagMask&BOND_FAIL_OVER_MAC_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_XMIT_HASH_POLICY, nl.Uint8Attr(uint8(bond.FailOverMac)))
+	}
+	if bond.FlagMask&BOND_XMIT_HASH_POLICY_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_XMIT_HASH_POLICY, nl.Uint8Attr(uint8(bond.XmitHashPolicy)))
+	}
+	if bond.FlagMask&BOND_RESEND_IGMP_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_RESEND_IGMP, nl.Uint32Attr(uint32(bond.ResendIgmp)))
+	}
+	if bond.FlagMask&BOND_NUM_PEER_NOTIF_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_NUM_PEER_NOTIF, nl.Uint8Attr(uint8(bond.NumPeerNotif)))
+	}
+	if bond.FlagMask&BOND_ALL_SLAVES_ACTIVE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_ALL_SLAVES_ACTIVE, nl.Uint8Attr(uint8(bond.AllSlavesActive)))
+	}
+	if bond.FlagMask&BOND_MIN_LINKS_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_MIN_LINKS, nl.Uint32Attr(uint32(bond.MinLinks)))
+	}
+	if bond.FlagMask&BOND_LP_INTERVAL_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_LP_INTERVAL, nl.Uint32Attr(uint32(bond.LpInterval)))
+	}
+	if bond.FlagMask&BOND_PACKETS_PER_SLAVE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_PACKETS_PER_SLAVE, nl.Uint32Attr(uint32(bond.PackersPerSlave)))
+	}
+	if bond.FlagMask&BOND_LACP_RATE_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_LACP_RATE, nl.Uint8Attr(uint8(bond.LacpRate)))
+	}
+	if bond.FlagMask&BOND_AD_SELECT_MASK != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_SELECT, nl.Uint8Attr(uint8(bond.AdSelect)))
+	}
+}
+
 // LinkAdd adds a new link device. The type and features of the device
 // are taken fromt the parameters in the link object.
 // Equivalent to: `ip link add $link`
@@ -295,13 +383,26 @@ func LinkAdd(link Link) error {
 	// TODO: support extra data for macvlan
 	base := link.Attrs()
 
+	if base == nil {
+		return fmt.Errorf("LinkAttrs can't be nil")
+	}
+
 	if base.Name == "" {
-		return fmt.Errorf("LinkAttrs.Name cannot be empty!")
+		return fmt.Errorf("LinkAttrs.Name can't be empty")
+	}
+
+	if base.ParentIndex == 0 && link.Type() == "ipvlan" {
+		return fmt.Errorf("can't create ipvlan link without ParentIndex")
 	}
 
 	req := nl.NewNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	// TODO: add rest of the net.Flags
+	if base.Flags&net.FlagUp != 0 {
+		msg.Change = syscall.IFF_UP
+		msg.Flags = syscall.IFF_UP
+	}
 	req.AddData(msg)
 
 	if base.ParentIndex != 0 {
@@ -309,8 +410,6 @@ func LinkAdd(link Link) error {
 		native.PutUint32(b, uint32(base.ParentIndex))
 		data := nl.NewRtAttr(syscall.IFLA_LINK, b)
 		req.AddData(data)
-	} else if link.Type() == "ipvlan" {
-		return fmt.Errorf("Can't create ipvlan link without ParentIndex")
 	}
 
 	nameData := nl.NewRtAttr(syscall.IFLA_IFNAME, nl.ZeroTerminated(base.Name))
@@ -345,7 +444,7 @@ func LinkAdd(link Link) error {
 
 	if vlan, ok := link.(*Vlan); ok {
 		b := make([]byte, 2)
-		native.PutUint16(b, uint16(vlan.VlanId))
+		native.PutUint16(b, uint16(vlan.Id))
 		data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 		nl.NewRtAttrChild(data, nl.IFLA_VLAN_ID, b)
 	} else if veth, ok := link.(*Veth); ok {
@@ -362,6 +461,8 @@ func LinkAdd(link Link) error {
 
 	} else if vxlan, ok := link.(*Vxlan); ok {
 		addVxlanAttrs(vxlan, linkInfo)
+	} else if bond, ok := link.(*Bond); ok {
+		addBondAttrs(bond, linkInfo)
 	} else if ipv, ok := link.(*IPVlan); ok {
 		data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 		nl.NewRtAttrChild(data, nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(ipv.Mode)))
@@ -413,12 +514,12 @@ func linkByNameDump(name string) (Link, error) {
 		return nil, err
 	}
 
-	for _, link := range links {
-		if link.Attrs().Name == name {
-			return link, nil
+	for i := range links {
+		if links[i].Attrs().Name == name {
+			return links[i], nil
 		}
 	}
-	return nil, fmt.Errorf("Link %s not found", name)
+	return nil, syscall.ENODEV
 }
 
 // LinkByName finds a link by name and returns a pointer to the object.
@@ -460,17 +561,12 @@ func LinkByIndex(index int) (Link, error) {
 func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 	msgs, err := req.Execute(syscall.NETLINK_ROUTE, 0)
 	if err != nil {
-		if errno, ok := err.(syscall.Errno); ok {
-			if errno == syscall.ENODEV {
-				return nil, fmt.Errorf("Link not found")
-			}
-		}
 		return nil, err
 	}
 
 	switch {
 	case len(msgs) == 0:
-		return nil, fmt.Errorf("Link not found")
+		return nil, syscall.ENODEV
 
 	case len(msgs) == 1:
 		return linkDeserialize(msgs[0])
@@ -493,17 +589,17 @@ func linkDeserialize(m []byte) (Link, error) {
 	base := LinkAttrs{Index: int(msg.Index), Flags: linkFlags(msg.Flags)}
 	var link Link
 	linkType := ""
-	for _, attr := range attrs {
-		switch attr.Attr.Type {
+	for i := range attrs {
+		switch attrs[i].Attr.Type {
 		case syscall.IFLA_LINKINFO:
-			infos, err := nl.ParseRouteAttr(attr.Value)
+			infos, err := nl.ParseRouteAttr(attrs[i].Value)
 			if err != nil {
 				return nil, err
 			}
-			for _, info := range infos {
-				switch info.Attr.Type {
+			for n := range infos {
+				switch infos[n].Attr.Type {
 				case nl.IFLA_INFO_KIND:
-					linkType = string(info.Value[:len(info.Value)-1])
+					linkType = string(infos[n].Value[:len(infos[n].Value)-1])
 					switch linkType {
 					case "dummy":
 						link = &Dummy{}
@@ -515,6 +611,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &Veth{}
 					case "vxlan":
 						link = &Vxlan{}
+					case "bond":
+						link = &Bond{}
 					case "ipvlan":
 						link = &IPVlan{}
 					case "macvlan":
@@ -523,7 +621,7 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &Generic{LinkType: linkType}
 					}
 				case nl.IFLA_INFO_DATA:
-					data, err := nl.ParseRouteAttr(info.Value)
+					data, err := nl.ParseRouteAttr(infos[n].Value)
 					if err != nil {
 						return nil, err
 					}
@@ -532,6 +630,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						parseVlanData(link, data)
 					case "vxlan":
 						parseVxlanData(link, data)
+					case "bond":
+						parseBondData(link, data)
 					case "ipvlan":
 						parseIPVlanData(link, data)
 					case "macvlan":
@@ -541,24 +641,24 @@ func linkDeserialize(m []byte) (Link, error) {
 			}
 		case syscall.IFLA_ADDRESS:
 			var nonzero bool
-			for _, b := range attr.Value {
-				if b != 0 {
+			for k := range attrs[i].Value {
+				if attrs[i].Value[k] != 0 {
 					nonzero = true
 				}
 			}
 			if nonzero {
-				base.HardwareAddr = attr.Value[:]
+				base.HardwareAddr = attrs[i].Value[:]
 			}
 		case syscall.IFLA_IFNAME:
-			base.Name = string(attr.Value[:len(attr.Value)-1])
+			base.Name = string(attrs[i].Value[:len(attrs[i].Value)-1])
 		case syscall.IFLA_MTU:
-			base.MTU = int(native.Uint32(attr.Value[0:4]))
+			base.MTU = int(native.Uint32(attrs[i].Value[0:4]))
 		case syscall.IFLA_LINK:
-			base.ParentIndex = int(native.Uint32(attr.Value[0:4]))
+			base.ParentIndex = int(native.Uint32(attrs[i].Value[0:4]))
 		case syscall.IFLA_MASTER:
-			base.MasterIndex = int(native.Uint32(attr.Value[0:4]))
+			base.MasterIndex = int(native.Uint32(attrs[i].Value[0:4]))
 		case syscall.IFLA_TXQLEN:
-			base.TxQLen = int(native.Uint32(attr.Value[0:4]))
+			base.TxQLen = int64(native.Uint32(attrs[i].Value[0:4]))
 		}
 	}
 	// Links that don't have IFLA_INFO_KIND are hardware devices
@@ -586,8 +686,8 @@ func LinkList() ([]Link, error) {
 	}
 
 	var res []Link
-	for _, m := range msgs {
-		link, err := linkDeserialize(m)
+	for i := range msgs {
+		link, err := linkDeserialize(msgs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -597,26 +697,32 @@ func LinkList() ([]Link, error) {
 	return res, nil
 }
 
+// LinkSetHairpin sets bridge hairpin to on/off.
 func LinkSetHairpin(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_MODE)
 }
 
+// LinkSetGuard sets bridge guard to on/off.
 func LinkSetGuard(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_GUARD)
 }
 
+// LinkSetFastLeave sets bridge fastleave to on/off.
 func LinkSetFastLeave(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_FAST_LEAVE)
 }
 
+// LinkSetLearning sets bridge learing to on/off.
 func LinkSetLearning(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_LEARNING)
 }
 
+// LinkSetRootBlock sets bridge root_block to on/off.
 func LinkSetRootBlock(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_PROTECT)
 }
 
+// LinkSetFlood sets bridge flood to on/off.
 func LinkSetFlood(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_UNICAST_FLOOD)
 }
@@ -645,53 +751,53 @@ func setProtinfoAttr(link Link, mode bool, attr int) error {
 
 func parseVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	vlan := link.(*Vlan)
-	for _, datum := range data {
-		switch datum.Attr.Type {
+	for i := range data {
+		switch data[i].Attr.Type {
 		case nl.IFLA_VLAN_ID:
-			vlan.VlanId = int(native.Uint16(datum.Value[0:2]))
+			vlan.Id = int(native.Uint16(data[i].Value[0:2]))
 		}
 	}
 }
 
 func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	vxlan := link.(*Vxlan)
-	for _, datum := range data {
-		switch datum.Attr.Type {
+	for i := range data {
+		switch data[i].Attr.Type {
 		case nl.IFLA_VXLAN_ID:
-			vxlan.VxlanId = int(native.Uint32(datum.Value[0:4]))
+			vxlan.Id = int(native.Uint32(data[i].Value[0:4]))
 		case nl.IFLA_VXLAN_LINK:
-			vxlan.VtepDevIndex = int(native.Uint32(datum.Value[0:4]))
+			vxlan.Link = int(native.Uint32(data[i].Value[0:4]))
 		case nl.IFLA_VXLAN_LOCAL:
-			vxlan.SrcAddr = net.IP(datum.Value[0:4])
+			vxlan.Local = net.IP(data[i].Value[0:4])
 		case nl.IFLA_VXLAN_LOCAL6:
-			vxlan.SrcAddr = net.IP(datum.Value[0:16])
+			vxlan.Local = net.IP(data[i].Value[0:16])
 		case nl.IFLA_VXLAN_GROUP:
-			vxlan.Group = net.IP(datum.Value[0:4])
+			vxlan.Group = net.IP(data[i].Value[0:4])
 		case nl.IFLA_VXLAN_GROUP6:
-			vxlan.Group = net.IP(datum.Value[0:16])
+			vxlan.Group = net.IP(data[i].Value[0:16])
 		case nl.IFLA_VXLAN_TTL:
-			vxlan.TTL = int(datum.Value[0])
+			vxlan.TTL = int(data[i].Value[0])
 		case nl.IFLA_VXLAN_TOS:
-			vxlan.TOS = int(datum.Value[0])
+			vxlan.TOS = int(data[i].Value[0])
 		case nl.IFLA_VXLAN_LEARNING:
-			vxlan.Learning = int8(datum.Value[0]) != 0
+			vxlan.Learning = int8(data[i].Value[0]) != 0
 		case nl.IFLA_VXLAN_PROXY:
-			vxlan.Proxy = int8(datum.Value[0]) != 0
+			vxlan.Proxy = int8(data[i].Value[0]) != 0
 		case nl.IFLA_VXLAN_RSC:
-			vxlan.RSC = int8(datum.Value[0]) != 0
+			vxlan.RSC = int8(data[i].Value[0]) != 0
 		case nl.IFLA_VXLAN_L2MISS:
-			vxlan.L2miss = int8(datum.Value[0]) != 0
+			vxlan.L2miss = int8(data[i].Value[0]) != 0
 		case nl.IFLA_VXLAN_L3MISS:
-			vxlan.L3miss = int8(datum.Value[0]) != 0
+			vxlan.L3miss = int8(data[i].Value[0]) != 0
 		case nl.IFLA_VXLAN_AGEING:
-			vxlan.Age = int(native.Uint32(datum.Value[0:4]))
+			vxlan.Age = int(native.Uint32(data[i].Value[0:4]))
 			vxlan.NoAge = vxlan.Age == 0
 		case nl.IFLA_VXLAN_LIMIT:
-			vxlan.Limit = int(native.Uint32(datum.Value[0:4]))
+			vxlan.Limit = int(native.Uint32(data[i].Value[0:4]))
 		case nl.IFLA_VXLAN_PORT:
-			vxlan.Port = int(native.Uint16(datum.Value[0:2]))
+			vxlan.Port = int(native.Uint16(data[i].Value[0:2]))
 		case nl.IFLA_VXLAN_PORT_RANGE:
-			buf := bytes.NewBuffer(datum.Value[0:4])
+			buf := bytes.NewBuffer(data[i].Value[0:4])
 			var pr vxlanPortRange
 			if binary.Read(buf, binary.BigEndian, &pr) != nil {
 				vxlan.PortLow = int(pr.Lo)
@@ -701,11 +807,86 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	}
 }
 
+func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
+	bond := link.(*Bond)
+	for i := range data {
+		switch data[i].Attr.Type {
+		case nl.IFLA_BOND_MODE:
+			bond.Mode = BondMode(data[i].Value[0])
+			bond.FlagMask |= BOND_MODE_MASK
+		case nl.IFLA_BOND_ACTIVE_SLAVE:
+			bond.ActiveSlave = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_ACTIVE_SLAVE_MASK
+		case nl.IFLA_BOND_MIIMON:
+			bond.Miimon = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_MIIMON_MASK
+		case nl.IFLA_BOND_UPDELAY:
+			bond.UpDelay = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_UPDELAY_MASK
+		case nl.IFLA_BOND_DOWNDELAY:
+			bond.DownDelay = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_DOWNDELAY_MASK
+		case nl.IFLA_BOND_USE_CARRIER:
+			bond.UseCarrier = int(data[i].Value[0])
+			bond.FlagMask |= BOND_USE_CARRIER_MASK
+		case nl.IFLA_BOND_ARP_INTERVAL:
+			bond.ArpInterval = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_ARP_INTERVAL_MASK
+		case nl.IFLA_BOND_ARP_IP_TARGET:
+			// TODO: implement
+		case nl.IFLA_BOND_ARP_VALIDATE:
+			bond.ArpValidate = BondArpValidate(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_ARP_VALIDATE_MASK
+		case nl.IFLA_BOND_ARP_ALL_TARGETS:
+			bond.ArpAllTargets = BondArpAllTargets(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_ARP_ALL_TARGETS_MASK
+		case nl.IFLA_BOND_PRIMARY:
+			bond.Primary = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_PRIMARY_MASK
+		case nl.IFLA_BOND_PRIMARY_RESELECT:
+			bond.PrimaryReselect = BondPrimaryReselect(data[i].Value[0])
+			bond.FlagMask |= BOND_PRIMARY_RESELECT_MASK
+		case nl.IFLA_BOND_FAIL_OVER_MAC:
+			bond.FailOverMac = BondFailOverMac(data[i].Value[0])
+			bond.FlagMask |= BOND_FAIL_OVER_MAC_MASK
+		case nl.IFLA_BOND_XMIT_HASH_POLICY:
+			bond.XmitHashPolicy = BondXmitHashPolicy(data[i].Value[0])
+			bond.FlagMask |= BOND_XMIT_HASH_POLICY_MASK
+		case nl.IFLA_BOND_RESEND_IGMP:
+			bond.ResendIgmp = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_RESEND_IGMP_MASK
+		case nl.IFLA_BOND_NUM_PEER_NOTIF:
+			bond.NumPeerNotif = int(data[i].Value[0])
+			bond.FlagMask |= BOND_NUM_PEER_NOTIF_MASK
+		case nl.IFLA_BOND_ALL_SLAVES_ACTIVE:
+			bond.AllSlavesActive = int(data[i].Value[0])
+			bond.FlagMask |= BOND_ALL_SLAVES_ACTIVE_MASK
+		case nl.IFLA_BOND_MIN_LINKS:
+			bond.MinLinks = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_MIN_LINKS_MASK
+		case nl.IFLA_BOND_LP_INTERVAL:
+			bond.LpInterval = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_LP_INTERVAL_MASK
+		case nl.IFLA_BOND_PACKETS_PER_SLAVE:
+			bond.PackersPerSlave = int(native.Uint32(data[i].Value[0:4]))
+			bond.FlagMask |= BOND_PACKETS_PER_SLAVE_MASK
+		case nl.IFLA_BOND_AD_LACP_RATE:
+			bond.LacpRate = BondLacpRate(data[i].Value[0])
+			bond.FlagMask |= BOND_LACP_RATE_MASK
+		case nl.IFLA_BOND_AD_SELECT:
+			bond.AdSelect = BondAdSelect(data[i].Value[0])
+			bond.FlagMask |= BOND_AD_SELECT_MASK
+		case nl.IFLA_BOND_AD_INFO:
+			// TODO: implement
+		}
+	}
+}
+
 func parseIPVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	ipv := link.(*IPVlan)
-	for _, datum := range data {
-		if datum.Attr.Type == nl.IFLA_IPVLAN_MODE {
-			ipv.Mode = IPVlanMode(native.Uint32(datum.Value[0:4]))
+	for i := range data {
+		if data[i].Attr.Type == nl.IFLA_IPVLAN_MODE {
+			ipv.Mode = IPVlanMode(native.Uint32(data[i].Value[0:4]))
 			return
 		}
 	}
@@ -713,9 +894,9 @@ func parseIPVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 
 func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	macv := link.(*Macvlan)
-	for _, datum := range data {
-		if datum.Attr.Type == nl.IFLA_MACVLAN_MODE {
-			switch native.Uint32(datum.Value[0:4]) {
+	for i := range data {
+		if data[i].Attr.Type == nl.IFLA_MACVLAN_MODE {
+			switch native.Uint32(data[i].Value[0:4]) {
 			case nl.MACVLAN_MODE_PRIVATE:
 				macv.Mode = MACVLAN_MODE_PRIVATE
 			case nl.MACVLAN_MODE_VEPA:

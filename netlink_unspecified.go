@@ -90,7 +90,7 @@ func RouteDel(route *Route) error {
 	return ErrNotImplemented
 }
 
-func RouteList(link *Link, family int) ([]Route, error) {
+func RouteList(link *Link, filter RouterFilter) ([]Route, error) {
 	return nil, ErrNotImplemented
 }
 

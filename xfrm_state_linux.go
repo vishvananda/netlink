@@ -119,8 +119,8 @@ func XfrmStateList(family int) ([]XfrmState, error) {
 	}
 
 	var res []XfrmState
-	for _, m := range msgs {
-		msg := nl.DeserializeXfrmUsersaInfo(m)
+	for i := range msgs {
+		msg := nl.DeserializeXfrmUsersaInfo(msgs[i])
 
 		if family != FAMILY_ALL && family != int(msg.Family) {
 			continue
@@ -136,16 +136,16 @@ func XfrmStateList(family int) ([]XfrmState, error) {
 		state.Reqid = int(msg.Reqid)
 		state.ReplayWindow = int(msg.ReplayWindow)
 
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+		attrs, err := nl.ParseRouteAttr(msgs[i][msg.Len():])
 		if err != nil {
 			return nil, err
 		}
 
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
+		for j := range attrs {
+			switch attrs[j].Attr.Type {
 			case nl.XFRMA_ALG_AUTH, nl.XFRMA_ALG_CRYPT:
 				var resAlgo *XfrmStateAlgo
-				if attr.Attr.Type == nl.XFRMA_ALG_AUTH {
+				if attrs[j].Attr.Type == nl.XFRMA_ALG_AUTH {
 					if state.Auth == nil {
 						state.Auth = new(XfrmStateAlgo)
 					}
@@ -154,19 +154,19 @@ func XfrmStateList(family int) ([]XfrmState, error) {
 					state.Crypt = new(XfrmStateAlgo)
 					resAlgo = state.Crypt
 				}
-				algo := nl.DeserializeXfrmAlgo(attr.Value[:])
+				algo := nl.DeserializeXfrmAlgo(attrs[j].Value[:])
 				(*resAlgo).Name = nl.BytesToString(algo.AlgName[:])
 				(*resAlgo).Key = algo.AlgKey
 			case nl.XFRMA_ALG_AUTH_TRUNC:
 				if state.Auth == nil {
 					state.Auth = new(XfrmStateAlgo)
 				}
-				algo := nl.DeserializeXfrmAlgoAuth(attr.Value[:])
+				algo := nl.DeserializeXfrmAlgoAuth(attrs[j].Value[:])
 				state.Auth.Name = nl.BytesToString(algo.AlgName[:])
 				state.Auth.Key = algo.AlgKey
 				state.Auth.TruncateLen = int(algo.AlgTruncLen)
 			case nl.XFRMA_ENCAP:
-				encap := nl.DeserializeXfrmEncapTmpl(attr.Value[:])
+				encap := nl.DeserializeXfrmEncapTmpl(attrs[j].Value[:])
 				state.Encap = new(XfrmStateEncap)
 				state.Encap.Type = EncapType(encap.EncapType)
 				state.Encap.SrcPort = int(nl.Swap16(encap.EncapSport))

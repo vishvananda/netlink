@@ -13,7 +13,7 @@ func TestAddrAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	addr, err := ParseAddr("127.1.1.1/24 local")
+	addr, err := ParseAddr("127.1.1.1/24")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestAddrAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(addrs) != 1 || !addr.Equal(addrs[0]) || addrs[0].Label != addr.Label {
+	if len(addrs) != 1 || !addr.Equal(addrs[0]) {
 		t.Fatal("Address not added properly")
 	}
 

@@ -8,6 +8,7 @@ import (
 // Dir is an enum representing an ipsec template direction.
 type Dir uint8
 
+// Possible xfrm dir values.
 const (
 	XFRM_DIR_IN Dir = iota
 	XFRM_DIR_OUT

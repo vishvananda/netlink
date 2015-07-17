@@ -43,6 +43,7 @@ const (
 	NTF_ROUTER = 0x80
 )
 
+// Ndmsg struct for handle Neight netlink messages.
 type Ndmsg struct {
 	Family uint8
 	Index  uint32
@@ -56,10 +57,12 @@ func deserializeNdmsg(b []byte) *Ndmsg {
 	return (*Ndmsg)(unsafe.Pointer(&b[0:unsafe.Sizeof(dummy)][0]))
 }
 
+// Serialize Ndmsg for netlink format.
 func (msg *Ndmsg) Serialize() []byte {
 	return (*(*[unsafe.Sizeof(*msg)]byte)(unsafe.Pointer(msg)))[:]
 }
 
+// Len of Ndmsg message.
 func (msg *Ndmsg) Len() int {
 	return int(unsafe.Sizeof(*msg))
 }
@@ -70,7 +73,7 @@ func NeighAdd(neigh *Neigh) error {
 	return neighAdd(neigh, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL)
 }
 
-// NeighAdd will add or replace an IP to MAC mapping to the ARP table
+// NeighSet will add or replace an IP to MAC mapping to the ARP table
 // Equivalent to: `ip neigh replace....`
 func NeighSet(neigh *Neigh) error {
 	return neighAdd(neigh, syscall.NLM_F_CREATE)
@@ -142,14 +145,14 @@ func NeighList(linkIndex, family int) ([]Neigh, error) {
 	}
 
 	var res []Neigh
-	for _, m := range msgs {
-		ndm := deserializeNdmsg(m)
+	for i := range msgs {
+		ndm := deserializeNdmsg(msgs[i])
 		if linkIndex != 0 && int(ndm.Index) != linkIndex {
 			// Ignore messages from other interfaces
 			continue
 		}
 
-		neigh, err := NeighDeserialize(m)
+		neigh, err := NeighDeserialize(msgs[i])
 		if err != nil {
 			continue
 		}
@@ -160,6 +163,7 @@ func NeighList(linkIndex, family int) ([]Neigh, error) {
 	return res, nil
 }
 
+// NeighDeserialize netlink []byte message to Neigh struct.
 func NeighDeserialize(m []byte) (*Neigh, error) {
 	msg := deserializeNdmsg(m)
 
@@ -176,12 +180,12 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 		return nil, err
 	}
 
-	for _, attr := range attrs {
-		switch attr.Attr.Type {
+	for i := range attrs {
+		switch attrs[i].Attr.Type {
 		case NDA_DST:
-			neigh.IP = net.IP(attr.Value)
+			neigh.IP = net.IP(attrs[i].Value)
 		case NDA_LLADDR:
-			neigh.HardwareAddr = net.HardwareAddr(attr.Value)
+			neigh.HardwareAddr = net.HardwareAddr(attrs[i].Value)
 		}
 	}
 

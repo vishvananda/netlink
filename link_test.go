@@ -38,8 +38,8 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if !ok {
 			t.Fatal("Result of create is not a vlan")
 		}
-		if vlan.VlanId != other.VlanId {
-			t.Fatal("Link.VlanId id doesn't match")
+		if vlan.Id != other.Id {
+			t.Fatal("Link.Id id doesn't match")
 		}
 	}
 
@@ -120,11 +120,11 @@ func testLinkAddDel(t *testing.T, link Link) {
 
 func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 
-	if actual.VxlanId != expected.VxlanId {
-		t.Fatal("Vxlan.VxlanId doesn't match")
+	if actual.Id != expected.Id {
+		t.Fatal("Vxlan.Id doesn't match")
 	}
-	if expected.SrcAddr != nil && !actual.SrcAddr.Equal(expected.SrcAddr) {
-		t.Fatal("Vxlan.SrcAddr doesn't match")
+	if expected.Local != nil && !actual.Local.Equal(expected.Local) {
+		t.Fatal("Vxlan.Local doesn't match")
 	}
 	if expected.Group != nil && !actual.Group.Equal(expected.Group) {
 		t.Fatal("Vxlan.Group doesn't match")
@@ -226,7 +226,7 @@ func TestLinkAddDelVeth(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar"})
+	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar", 0})
 }
 
 func TestLinkAddVethWithDefaultTxQLen(t *testing.T) {
@@ -423,7 +423,7 @@ func TestLinkSetNs(t *testing.T) {
 	}
 	defer newns.Close()
 
-	link := &Veth{LinkAttrs{Name: "foo"}, "bar"}
+	link := &Veth{LinkAttrs{Name: "foo"}, "bar", 0}
 	if err := LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}
@@ -484,11 +484,11 @@ func TestLinkAddDelVxlan(t *testing.T) {
 		LinkAttrs: LinkAttrs{
 			Name: "bar",
 		},
-		VxlanId:      10,
-		VtepDevIndex: parent.Index,
-		Learning:     true,
-		L2miss:       true,
-		L3miss:       true,
+		Id:       10,
+		Link:     parent.Index,
+		Learning: true,
+		L2miss:   true,
+		L3miss:   true,
 	}
 
 	testLinkAddDel(t, &vxlan)
@@ -549,7 +549,7 @@ func TestLinkAddDelIPVlanNoParent(t *testing.T) {
 	if err == nil {
 		t.Fatal("Add should fail if ipvlan creating without ParentIndex")
 	}
-	if err.Error() != "Can't create ipvlan link without ParentIndex" {
+	if err.Error() != "can't create ipvlan link without ParentIndex" {
 		t.Fatalf("Error should be about missing ParentIndex, got %q", err)
 	}
 }

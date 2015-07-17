@@ -9,6 +9,13 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+// IFA_FLAGS is a u32 attribute.
+const IFA_FLAGS = 0x8
+
+// LINK SCOPES
+const SCOPE_LINK = 253
+const SCOPE_GLOBAL = 256
+
 // AddrAdd will add an IP address to a link device.
 // Equivalent to: `ip addr add $addr dev $link`
 func AddrAdd(link Link, addr *Addr) error {
@@ -82,35 +89,55 @@ func AddrList(link Link, family int) ([]Addr, error) {
 	}
 
 	var res []Addr
-	for _, m := range msgs {
-		msg := nl.DeserializeIfAddrmsg(m)
+	for i := range msgs {
+		msg := nl.DeserializeIfAddrmsg(msgs[i])
 
 		if link != nil && msg.Index != uint32(index) {
 			// Ignore messages from other interfaces
 			continue
 		}
 
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+		attrs, err := nl.ParseRouteAttr(msgs[i][msg.Len():])
 		if err != nil {
 			return nil, err
 		}
 
 		var local, dst *net.IPNet
 		var addr Addr
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
+		for j := range attrs {
+			switch attrs[j].Attr.Type {
 			case syscall.IFA_ADDRESS:
 				dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
-				}
-			case syscall.IFA_LOCAL:
-				local = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
 				}
 			case syscall.IFA_LABEL:
-				addr.Label = string(attr.Value[:len(attr.Value)-1])
+				addr.Label = string(attrs[j].Value[:len(attrs[j].Value)-1])
+			case syscall.IFA_LOCAL:
+				addr.Local = &net.IPNet{
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
+				}
+			case syscall.IFA_BROADCAST:
+				addr.Broadcast = &net.IPNet{
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
+				}
+			case syscall.IFA_ANYCAST:
+				addr.Anycast = &net.IPNet{
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
+				}
+			case syscall.IFA_CACHEINFO:
+				// TODO: implement
+			case syscall.IFA_MULTICAST:
+				addr.Multicast = &net.IPNet{
+					IP:   attrs[j].Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attrs[j].Value)),
+				}
+			case syscall.IFA_UNSPEC: /* unused */
+			case IFA_FLAGS:
+				addr.Flags = int(native.Uint32(attrs[j].Value[0:4]))
 			}
 		}
 
@@ -120,6 +147,9 @@ func AddrList(link Link, family int) ([]Addr, error) {
 		} else {
 			addr.IPNet = dst
 		}
+
+		addr.Scope = int(msg.Scope)
+		addr.Family = int(msg.Family)
 
 		res = append(res, addr)
 	}
