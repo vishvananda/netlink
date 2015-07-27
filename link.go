@@ -114,6 +114,15 @@ func (macvlan *Macvlan) Type() string {
 	return "macvlan"
 }
 
+// Macvtap - macvtap is a virtual interfaces based on macvlan
+type Macvtap struct {
+	Macvlan
+}
+
+func (macvtap Macvtap) Type() string {
+	return "macvtap"
+}
+
 // Veth devices must specify PeerName on create
 type Veth struct {
 	LinkAttrs
