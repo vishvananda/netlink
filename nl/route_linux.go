@@ -23,8 +23,8 @@ func NewRtMsg() *RtMsg {
 func NewRtDelMsg() *RtMsg {
 	return &RtMsg{
 		RtMsg: syscall.RtMsg{
-			Table:    syscall.RT_TABLE_MAIN,
-			Scope:    syscall.RT_SCOPE_NOWHERE,
+			Table: syscall.RT_TABLE_MAIN,
+			Scope: syscall.RT_SCOPE_NOWHERE,
 		},
 	}
 }
