@@ -225,6 +225,27 @@ func TestLinkAddDelMacvlan(t *testing.T) {
 	}
 }
 
+func TestLinkAddDelMacvtap(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	testLinkAddDel(t, &Macvtap{
+		Macvlan: Macvlan{
+			LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+			Mode:      MACVLAN_MODE_PRIVATE,
+		},
+	})
+
+	if err := LinkDel(parent); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLinkAddDelVeth(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
