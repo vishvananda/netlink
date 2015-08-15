@@ -505,6 +505,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &IPVlan{}
 					case "macvlan":
 						link = &Macvlan{}
+					case "macvtap":
+						link = &Macvtap{}
 					default:
 						link = &Generic{LinkType: linkType}
 					}
