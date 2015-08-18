@@ -1,26 +1,63 @@
 package netlink
 
 import (
-	"fmt"
 	"testing"
 )
 
 func TestQdiscAddDel(t *testing.T) {
-	// eth0, _ := LinkByName("eth0")
-	qdiscs, err := QdiscList(nil)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, qdisc := range qdiscs {
-		fmt.Printf("Qdisc: %v\n", qdisc)
-		switch qdisc.Type() {
-		case "pfifo_fast":
-			pfifo := qdisc.(*PfifoFast)
-			fmt.Printf("pfifo: %v %v\n", pfifo.Bands, pfifo.PriorityMap)
-		case "tbf":
-			fmt.Printf("tbf: %v\n", qdisc.(*TokenBucketFilter))
-		}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
 	}
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	qdisc := &TokenBucketFilter{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(1, 0),
+			Parent:    HANDLE_ROOT,
+		},
+		Rate:   131072,
+		Limit:  1220703,
+		Buffer: 16793,
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := QdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 1 {
+		t.Fatal("Failed to add qdisc")
+	}
+	tbf, ok := qdiscs[0].(*TokenBucketFilter)
+	if !ok {
+		t.Fatal("Qdisc is the wrong type")
+	}
+	if tbf.Rate != qdisc.Rate {
+		t.Fatal("Rate doesn't match")
+	}
+	if tbf.Limit != qdisc.Limit {
+		t.Fatal("Limit doesn't match")
+	}
+	if tbf.Buffer != qdisc.Buffer {
+		t.Fatal("Buffer doesn't match")
+	}
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = QdiscList(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 0 {
+		t.Fatal("Failed to remove qdisc")
+	}
 }

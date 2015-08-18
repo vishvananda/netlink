@@ -30,7 +30,7 @@ func (q QdiscAttrs) String() string {
 }
 
 func MakeHandle(major, minor uint16) uint32 {
-	return (uint32(major) << 16) & uint32(minor)
+	return (uint32(major) << 16) | uint32(minor)
 }
 
 func MajorMinor(handle uint32) (uint16, uint16) {
@@ -70,6 +70,11 @@ func (qdisc *PfifoFast) Type() string {
 // TokenBucketFilter is a classful qdisc that rate limits based on tokens
 type TokenBucketFilter struct {
 	QdiscAttrs
+	// TODO: handle 64bit rate properly
+	Rate   uint64
+	Limit  uint32
+	Buffer uint32
+	// TODO: handle other settings
 }
 
 func (qdisc *TokenBucketFilter) Attrs() *QdiscAttrs {

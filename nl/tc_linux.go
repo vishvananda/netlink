@@ -33,6 +33,8 @@ const (
 	SizeofTcMsg       = 0x14
 	SizeofTcActionMsg = 0x04
 	SizeofTcPrioMap   = 0x14
+	SizeofTcRateSpec  = 0x0c
+	SizeofTcTbfQopt   = 2*SizeofTcRateSpec + 0x0c
 )
 
 // struct tcmsg {
@@ -111,23 +113,6 @@ func (x *TcPrioMap) Serialize() []byte {
 	return (*(*[SizeofTcPrioMap]byte)(unsafe.Pointer(x)))[:]
 }
 
-// struct tc_ratespec {
-//   unsigned char cell_log;
-//   __u8    linklayer; /* lower 4 bits */
-//   unsigned short  overhead;
-//   short   cell_align;
-//   unsigned short  mpu;
-//   __u32   rate;
-// };
-
-// struct tc_tbf_qopt {
-//   struct tc_ratespec rate;
-//   struct tc_ratespec peakrate;
-//   __u32   limit;
-//   __u32   buffer;
-//   __u32   mtu;
-// };
-
 const (
 	TCA_TBF_UNSPEC = iota
 	TCA_TBF_PARMS
@@ -139,3 +124,53 @@ const (
 	TCA_TBF_PBURST
 	TCA_TBF_MAX = TCA_TBF_PBURST
 )
+
+// struct tc_ratespec {
+//   unsigned char cell_log;
+//   __u8    linklayer; /* lower 4 bits */
+//   unsigned short  overhead;
+//   short   cell_align;
+//   unsigned short  mpu;
+//   __u32   rate;
+// };
+
+type TcRateSpec struct {
+	CellLog   uint8
+	Linklayer uint8
+	Overhead  uint16
+	CellAlign int16
+	Mpu       uint16
+	Rate      uint32
+}
+
+func DeserializeTcRateSpec(b []byte) *TcRateSpec {
+	return (*TcRateSpec)(unsafe.Pointer(&b[0:SizeofTcRateSpec][0]))
+}
+
+func (x *TcRateSpec) Serialize() []byte {
+	return (*(*[SizeofTcRateSpec]byte)(unsafe.Pointer(x)))[:]
+}
+
+// struct tc_tbf_qopt {
+//   struct tc_ratespec rate;
+//   struct tc_ratespec peakrate;
+//   __u32   limit;
+//   __u32   buffer;
+//   __u32   mtu;
+// };
+
+type TcTbfQopt struct {
+	Rate     TcRateSpec
+	Peakrate TcRateSpec
+	Limit    uint32
+	Buffer   uint32
+	Mtu      uint32
+}
+
+func DeserializeTcTbfQopt(b []byte) *TcTbfQopt {
+	return (*TcTbfQopt)(unsafe.Pointer(&b[0:SizeofTcTbfQopt][0]))
+}
+
+func (x *TcTbfQopt) Serialize() []byte {
+	return (*(*[SizeofTcTbfQopt]byte)(unsafe.Pointer(x)))[:]
+}

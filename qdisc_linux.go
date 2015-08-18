@@ -1,98 +1,58 @@
 package netlink
 
 import (
-	"fmt"
+	"io/ioutil"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
 )
 
-// // QdiscAdd will add a qdisc to the system.
-// // Equivalent to: `tc qdisc add $qdisc`
-// func QdiscAdd(qdisc *Qdisc) error {
-// 	req := nl.NewNetlinkRequest(syscall.RTM_NEWROUTE, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
-// 	return qdiscHandle(qdisc, req, nl.NewRtMsg())
-// }
-//
-// // QdiscAdd will delete a qdisc from the system.
-// // Equivalent to: `tc qdisc del $qdisc`
-// func QdiscDel(qdisc *Qdisc) error {
-// 	req := nl.NewNetlinkRequest(syscall.RTM_DELROUTE, syscall.NLM_F_ACK)
-// 	return qdiscHandle(qdisc, req, nl.NewRtDelMsg())
-// }
-//
-// func qdiscHandle(qdisc *Qdisc, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
-// 	if (qdisc.Dst == nil || qdisc.Dst.IP == nil) && qdisc.Src == nil && qdisc.Gw == nil {
-// 		return fmt.Errorf("one of Dst.IP, Src, or Gw must not be nil")
-// 	}
-//
-// 	msg.Scope = uint8(qdisc.Scope)
-// 	family := -1
-// 	var rtAttrs []*nl.RtAttr
-//
-// 	if qdisc.Dst != nil && qdisc.Dst.IP != nil {
-// 		dstLen, _ := qdisc.Dst.Mask.Size()
-// 		msg.Dst_len = uint8(dstLen)
-// 		dstFamily := nl.GetIPFamily(qdisc.Dst.IP)
-// 		family = dstFamily
-// 		var dstData []byte
-// 		if dstFamily == FAMILY_V4 {
-// 			dstData = qdisc.Dst.IP.To4()
-// 		} else {
-// 			dstData = qdisc.Dst.IP.To16()
-// 		}
-// 		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_DST, dstData))
-// 	}
-//
-// 	if qdisc.Src != nil {
-// 		srcFamily := nl.GetIPFamily(qdisc.Src)
-// 		if family != -1 && family != srcFamily {
-// 			return fmt.Errorf("source and destination ip are not the same IP family")
-// 		}
-// 		family = srcFamily
-// 		var srcData []byte
-// 		if srcFamily == FAMILY_V4 {
-// 			srcData = qdisc.Src.To4()
-// 		} else {
-// 			srcData = qdisc.Src.To16()
-// 		}
-// 		// The commonly used src ip for qdiscs is actually PREFSRC
-// 		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_PREFSRC, srcData))
-// 	}
-//
-// 	if qdisc.Gw != nil {
-// 		gwFamily := nl.GetIPFamily(qdisc.Gw)
-// 		if family != -1 && family != gwFamily {
-// 			return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
-// 		}
-// 		family = gwFamily
-// 		var gwData []byte
-// 		if gwFamily == FAMILY_V4 {
-// 			gwData = qdisc.Gw.To4()
-// 		} else {
-// 			gwData = qdisc.Gw.To16()
-// 		}
-// 		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_GATEWAY, gwData))
-// 	}
-//
-// 	msg.Family = uint8(family)
-//
-// 	req.AddData(msg)
-// 	for _, attr := range rtAttrs {
-// 		req.AddData(attr)
-// 	}
-//
-// 	var (
-// 		b      = make([]byte, 4)
-// 		native = nl.NativeEndian()
-// 	)
-// 	native.PutUint32(b, uint32(qdisc.LinkIndex))
-//
-// 	req.AddData(nl.NewRtAttr(syscall.RTA_OIF, b))
-//
-// 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
-// 	return err
-// }
+// QdiscDel will delete a qdisc from the system.
+// Equivalent to: `tc qdisc del $qdisc`
+func QdiscDel(qdisc Qdisc) error {
+	req := nl.NewNetlinkRequest(syscall.RTM_DELQDISC, syscall.NLM_F_ACK)
+	base := qdisc.Attrs()
+	msg := &nl.TcMsg{
+		Family:  nl.FAMILY_ALL,
+		Ifindex: int32(base.LinkIndex),
+		Handle:  base.Handle,
+		Parent:  base.Parent,
+	}
+	req.AddData(msg)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+// QdiscAdd will add a qdisc to the system.
+// Equivalent to: `tc qdisc add $qdisc`
+func QdiscAdd(qdisc Qdisc) error {
+	req := nl.NewNetlinkRequest(syscall.RTM_NEWQDISC, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	base := qdisc.Attrs()
+	msg := &nl.TcMsg{
+		Family:  nl.FAMILY_ALL,
+		Ifindex: int32(base.LinkIndex),
+		Handle:  base.Handle,
+		Parent:  base.Parent,
+	}
+	req.AddData(msg)
+	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.NonZeroTerminated(qdisc.Type())))
+
+	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
+	if tbf, ok := qdisc.(*TokenBucketFilter); ok {
+		opt := nl.TcTbfQopt{}
+		// TODO: handle rate > uint32
+		opt.Rate.Rate = uint32(tbf.Rate)
+		opt.Limit = tbf.Limit
+		opt.Buffer = tbf.Buffer
+		nl.NewRtAttrChild(options, nl.TCA_TBF_PARMS, opt.Serialize())
+	}
+	req.AddData(options)
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
 
 // QdiscList gets a list of qdiscs in the system.
 // Equivalent to: `tc qdisc show`.
@@ -137,22 +97,16 @@ func QdiscList(link Link) ([]Qdisc, error) {
 				qdiscType = string(attr.Value[:len(attr.Value)-1])
 				switch qdiscType {
 				case "pfifo_fast":
-					fmt.Printf("found pfifo_fast\n")
 					qdisc = &PfifoFast{}
 				case "tbf":
-					fmt.Printf("found tbf\n")
 					qdisc = &TokenBucketFilter{}
 				default:
-					fmt.Printf("found generic\n")
 					qdisc = &GenericQdisc{QdiscType: qdiscType}
 				}
 			case nl.TCA_OPTIONS:
-				fmt.Printf("in options\n")
-				fmt.Printf("Value %v\n", attr.Value)
 				switch qdiscType {
 				case "pfifo_fast":
 					// pfifo returns TcPrioMap directly without wrapping it in rtattr
-					fmt.Printf("parsing pfifo_fast\n")
 					if err := parsePfifoFastData(qdisc, attr.Value); err != nil {
 						return nil, err
 					}
@@ -183,12 +137,90 @@ func parsePfifoFastData(qdisc Qdisc, value []byte) error {
 }
 
 func parseTokenBucketFilterData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
+	native = nl.NativeEndian()
 	tbf := qdisc.(*TokenBucketFilter)
 	for _, datum := range data {
 		switch datum.Attr.Type {
-		case nl.TCA_TBF_UNSPEC:
-			tbf.Type()
+		case nl.TCA_TBF_PARMS:
+			opt := nl.DeserializeTcTbfQopt(datum.Value)
+			tbf.Rate = uint64(opt.Rate.Rate)
+			tbf.Limit = opt.Limit
+			tbf.Buffer = opt.Buffer
+		case nl.TCA_TBF_RATE64:
+			tbf.Rate = native.Uint64(datum.Value[0:4])
 		}
 	}
 	return nil
+}
+
+const (
+	TIME_UNITS_PER_SEC = 1000000
+)
+
+var (
+	tickInUsec  float64 = 0.0
+	clockFactor float64 = 0.0
+)
+
+func initClock() {
+	data, err := ioutil.ReadFile("/proc/net/psched")
+	if err != nil {
+		return
+	}
+	parts := strings.Split(strings.TrimSpace(string(data)), " ")
+	if len(parts) < 3 {
+		return
+	}
+	var vals [3]uint64
+	for i := range vals {
+		val, err := strconv.ParseUint(parts[i], 16, 32)
+		if err != nil {
+			return
+		}
+		vals[i] = val
+	}
+	// compatibility
+	if vals[2] == 1000000000 {
+		vals[0] = vals[1]
+	}
+	clockFactor = float64(vals[2]) / TIME_UNITS_PER_SEC
+	tickInUsec = float64(vals[0]) / float64(vals[1]) * clockFactor
+}
+
+func TickInUsec() float64 {
+	if tickInUsec == 0.0 {
+		initClock()
+	}
+	return tickInUsec
+}
+
+func ClockFactor() float64 {
+	if clockFactor == 0.0 {
+		initClock()
+	}
+	return clockFactor
+}
+
+func time2Tick(time uint32) uint32 {
+	return uint32(float64(time) * TickInUsec())
+}
+
+func tick2Time(tick uint32) uint32 {
+	return uint32(float64(tick) / TickInUsec())
+}
+
+func time2Ktime(time uint32) uint32 {
+	return uint32(float64(time) * ClockFactor())
+}
+
+func ktime2Time(ktime uint32) uint32 {
+	return uint32(float64(ktime) / ClockFactor())
+}
+
+func burst(rate uint64, buffer uint32) uint32 {
+	return uint32(float64(rate) * float64(tick2Time(buffer)) / TIME_UNITS_PER_SEC)
+}
+
+func latency(rate uint64, limit, buffer uint32) float64 {
+	return TIME_UNITS_PER_SEC*(float64(limit)/float64(rate)) - float64(tick2Time(buffer))
 }
