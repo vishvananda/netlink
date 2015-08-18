@@ -62,6 +62,19 @@ func (dummy *Dummy) Type() string {
 	return "dummy"
 }
 
+// Ifb links are advanced dummy devices for packet filtering
+type Ifb struct {
+	LinkAttrs
+}
+
+func (ifb *Ifb) Attrs() *LinkAttrs {
+	return &ifb.LinkAttrs
+}
+
+func (ifb *Ifb) Type() string {
+	return "ifb"
+}
+
 // Bridge links are simple linux bridges
 type Bridge struct {
 	LinkAttrs

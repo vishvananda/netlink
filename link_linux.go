@@ -493,6 +493,8 @@ func linkDeserialize(m []byte) (Link, error) {
 					switch linkType {
 					case "dummy":
 						link = &Dummy{}
+					case "ifb":
+						link = &Ifb{}
 					case "bridge":
 						link = &Bridge{}
 					case "vlan":
@@ -522,8 +524,10 @@ func linkDeserialize(m []byte) (Link, error) {
 						parseVxlanData(link, data)
 					case "ipvlan":
 						parseIPVlanData(link, data)
-					case "macvlan", "macvtap":
+					case "macvlan":
 						parseMacvlanData(link, data)
+					case "macvtap":
+						parseMacvtapData(link, data)
 					}
 				}
 			}
@@ -696,6 +700,11 @@ func parseIPVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 			return
 		}
 	}
+}
+
+func parseMacvtapData(link Link, data []syscall.NetlinkRouteAttr) {
+	macv := link.(*Macvtap)
+	parseMacvlanData(&macv.Macvlan, data)
 }
 
 func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {

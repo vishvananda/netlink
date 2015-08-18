@@ -183,6 +183,13 @@ func TestLinkAddDelDummy(t *testing.T) {
 	testLinkAddDel(t, &Dummy{LinkAttrs{Name: "foo"}})
 }
 
+func TestLinkAddDelIfb(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Ifb{LinkAttrs{Name: "foo"}})
+}
+
 func TestLinkAddDelBridge(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
