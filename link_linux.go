@@ -508,7 +508,7 @@ func linkDeserialize(m []byte) (Link, error) {
 					case "macvtap":
 						link = &Macvtap{}
 					default:
-						link = &Generic{LinkType: linkType}
+						link = &GenericLink{LinkType: linkType}
 					}
 				case nl.IFLA_INFO_DATA:
 					data, err := nl.ParseRouteAttr(info.Value)
@@ -522,7 +522,7 @@ func linkDeserialize(m []byte) (Link, error) {
 						parseVxlanData(link, data)
 					case "ipvlan":
 						parseIPVlanData(link, data)
-					case "macvlan":
+					case "macvlan", "macvtap":
 						parseMacvlanData(link, data)
 					}
 				}

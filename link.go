@@ -137,18 +137,18 @@ func (veth *Veth) Type() string {
 	return "veth"
 }
 
-// Generic links represent types that are not currently understood
+// GenericLink links represent types that are not currently understood
 // by this netlink library.
-type Generic struct {
+type GenericLink struct {
 	LinkAttrs
 	LinkType string
 }
 
-func (generic *Generic) Attrs() *LinkAttrs {
+func (generic *GenericLink) Attrs() *LinkAttrs {
 	return &generic.LinkAttrs
 }
 
-func (generic *Generic) Type() string {
+func (generic *GenericLink) Type() string {
 	return generic.LinkType
 }
 
