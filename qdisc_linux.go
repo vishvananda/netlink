@@ -65,13 +65,15 @@ func QdiscAdd(qdisc Qdisc) error {
 // The list can be filtered by link.
 func QdiscList(link Link) ([]Qdisc, error) {
 	req := nl.NewNetlinkRequest(syscall.RTM_GETQDISC, syscall.NLM_F_DUMP)
-	msg := &nl.TcMsg{
-		Family: nl.FAMILY_ALL,
-	}
+	index := int32(0)
 	if link != nil {
 		base := link.Attrs()
 		ensureIndex(base)
-		msg.Ifindex = int32(base.Index)
+		index = int32(base.Index)
+	}
+	msg := &nl.TcMsg{
+		Family:  nl.FAMILY_ALL,
+		Ifindex: index,
 	}
 	req.AddData(msg)
 
@@ -80,7 +82,6 @@ func QdiscList(link Link) ([]Qdisc, error) {
 		return nil, err
 	}
 
-	//native := nl.NativeEndian()
 	var res []Qdisc
 	for _, m := range msgs {
 		msg := nl.DeserializeTcMsg(m)
@@ -88,6 +89,11 @@ func QdiscList(link Link) ([]Qdisc, error) {
 		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
 		if err != nil {
 			return nil, err
+		}
+
+		// skip qdiscs from other interfaces
+		if link != nil && msg.Ifindex != index {
+			continue
 		}
 
 		base := QdiscAttrs{
