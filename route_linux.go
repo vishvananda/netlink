@@ -131,7 +131,7 @@ func RouteList(link Link, family int) ([]Route, error) {
 			continue
 		}
 
-		route, err := DeserializeRoute(m)
+		route, err := deserializeRoute(m)
 		if err != nil {
 			return nil, err
 		}
@@ -146,8 +146,8 @@ func RouteList(link Link, family int) ([]Route, error) {
 	return res, nil
 }
 
-// DeserializeRoute decodes a binary netlink message into a Route struct
-func DeserializeRoute(m []byte) (Route, error) {
+// deserializeRoute decodes a binary netlink message into a Route struct
+func deserializeRoute(m []byte) (Route, error) {
 	route := Route{}
 	msg := nl.DeserializeRtMsg(m)
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
@@ -205,7 +205,7 @@ func RouteGet(destination net.IP) ([]Route, error) {
 
 	var res []Route
 	for _, m := range msgs {
-		route, err := DeserializeRoute(m)
+		route, err := deserializeRoute(m)
 		if err != nil {
 			return nil, err
 		}
