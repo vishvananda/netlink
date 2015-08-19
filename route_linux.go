@@ -214,3 +214,36 @@ func RouteGet(destination net.IP) ([]Route, error) {
 	return res, nil
 
 }
+
+// RouteSubscribe takes a chan down which notifications will be sent
+// when routes are added or deleted. Close the 'done' chan to stop subscription.
+func RouteSubscribe(ch chan<- RouteUpdate, done <-chan struct{}) error {
+	s, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_ROUTE, syscall.RTNLGRP_IPV6_ROUTE)
+	if err != nil {
+		return err
+	}
+	if done != nil {
+		go func() {
+			<-done
+			s.Close()
+		}()
+	}
+	go func() {
+		defer close(ch)
+		for {
+			msgs, err := s.Receive()
+			if err != nil {
+				return
+			}
+			for _, m := range msgs {
+				route, err := deserializeRoute(m.Data)
+				if err != nil {
+					return
+				}
+				ch <- RouteUpdate{Type: m.Header.Type, Route: route}
+			}
+		}
+	}()
+
+	return nil
+}
