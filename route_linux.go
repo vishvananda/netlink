@@ -117,9 +117,7 @@ func RouteList(link Link, family int) ([]Route, error) {
 		index = base.Index
 	}
 
-	native := nl.NativeEndian()
 	var res []Route
-MsgLoop:
 	for _, m := range msgs {
 		msg := nl.DeserializeRtMsg(m)
 
@@ -133,36 +131,49 @@ MsgLoop:
 			continue
 		}
 
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+		route, err := DeserializeRoute(m)
 		if err != nil {
 			return nil, err
 		}
 
-		route := Route{Scope: Scope(msg.Scope)}
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
-			case syscall.RTA_GATEWAY:
-				route.Gw = net.IP(attr.Value)
-			case syscall.RTA_PREFSRC:
-				route.Src = net.IP(attr.Value)
-			case syscall.RTA_DST:
-				route.Dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
-				}
-			case syscall.RTA_OIF:
-				routeIndex := int(native.Uint32(attr.Value[0:4]))
-				if link != nil && routeIndex != index {
-					// Ignore routes from other interfaces
-					continue MsgLoop
-				}
-				route.LinkIndex = routeIndex
-			}
+		if link != nil && route.LinkIndex != index {
+			// Ignore routes from other interfaces
+			continue
 		}
 		res = append(res, route)
 	}
 
 	return res, nil
+}
+
+// DeserializeRoute decodes a binary netlink message into a Route struct
+func DeserializeRoute(m []byte) (Route, error) {
+	route := Route{}
+	msg := nl.DeserializeRtMsg(m)
+	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+	if err != nil {
+		return route, err
+	}
+	route.Scope = Scope(msg.Scope)
+
+	native := nl.NativeEndian()
+	for _, attr := range attrs {
+		switch attr.Attr.Type {
+		case syscall.RTA_GATEWAY:
+			route.Gw = net.IP(attr.Value)
+		case syscall.RTA_PREFSRC:
+			route.Src = net.IP(attr.Value)
+		case syscall.RTA_DST:
+			route.Dst = &net.IPNet{
+				IP:   attr.Value,
+				Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
+			}
+		case syscall.RTA_OIF:
+			routeIndex := int(native.Uint32(attr.Value[0:4]))
+			route.LinkIndex = routeIndex
+		}
+	}
+	return route, nil
 }
 
 // RouteGet gets a route to a specific destination from the host system.
@@ -192,31 +203,11 @@ func RouteGet(destination net.IP) ([]Route, error) {
 		return nil, err
 	}
 
-	native := nl.NativeEndian()
 	var res []Route
 	for _, m := range msgs {
-		msg := nl.DeserializeRtMsg(m)
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+		route, err := DeserializeRoute(m)
 		if err != nil {
 			return nil, err
-		}
-
-		route := Route{}
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
-			case syscall.RTA_GATEWAY:
-				route.Gw = net.IP(attr.Value)
-			case syscall.RTA_PREFSRC:
-				route.Src = net.IP(attr.Value)
-			case syscall.RTA_DST:
-				route.Dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
-				}
-			case syscall.RTA_OIF:
-				routeIndex := int(native.Uint32(attr.Value[0:4]))
-				route.LinkIndex = routeIndex
-			}
 		}
 		res = append(res, route)
 	}
