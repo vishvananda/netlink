@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -38,16 +39,21 @@ func QdiscAdd(qdisc Qdisc) error {
 		Parent:  base.Parent,
 	}
 	req.AddData(msg)
-	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.NonZeroTerminated(qdisc.Type())))
+	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(qdisc.Type())))
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
-	if tbf, ok := qdisc.(*TokenBucketFilter); ok {
+	if tbf, ok := qdisc.(*Tbf); ok {
 		opt := nl.TcTbfQopt{}
 		// TODO: handle rate > uint32
 		opt.Rate.Rate = uint32(tbf.Rate)
 		opt.Limit = tbf.Limit
 		opt.Buffer = tbf.Buffer
 		nl.NewRtAttrChild(options, nl.TCA_TBF_PARMS, opt.Serialize())
+	} else if _, ok := qdisc.(*Ingress); ok {
+		// ingress filters must use the proper handle
+		if msg.Parent != HANDLE_INGRESS {
+			return fmt.Errorf("Ingress filters must set Parent to HANDLE_INGRESS")
+		}
 	}
 	req.AddData(options)
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
@@ -88,6 +94,7 @@ func QdiscList(link Link) ([]Qdisc, error) {
 			LinkIndex: int(msg.Ifindex),
 			Handle:    msg.Handle,
 			Parent:    msg.Parent,
+			Refcnt:    msg.Info,
 		}
 		var qdisc Qdisc
 		qdiscType := ""
@@ -99,7 +106,9 @@ func QdiscList(link Link) ([]Qdisc, error) {
 				case "pfifo_fast":
 					qdisc = &PfifoFast{}
 				case "tbf":
-					qdisc = &TokenBucketFilter{}
+					qdisc = &Tbf{}
+				case "ingress":
+					qdisc = &Ingress{}
 				default:
 					qdisc = &GenericQdisc{QdiscType: qdiscType}
 				}
@@ -115,9 +124,10 @@ func QdiscList(link Link) ([]Qdisc, error) {
 					if err != nil {
 						return nil, err
 					}
-					if err := parseTokenBucketFilterData(qdisc, data); err != nil {
+					if err := parseTbfData(qdisc, data); err != nil {
 						return nil, err
 					}
+					// no options for ingress
 				}
 			}
 		}
@@ -136,9 +146,9 @@ func parsePfifoFastData(qdisc Qdisc, value []byte) error {
 	return nil
 }
 
-func parseTokenBucketFilterData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
+func parseTbfData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 	native = nl.NativeEndian()
-	tbf := qdisc.(*TokenBucketFilter)
+	tbf := qdisc.(*Tbf)
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.TCA_TBF_PARMS:

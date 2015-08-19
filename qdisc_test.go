@@ -17,7 +17,7 @@ func TestQdiscAddDel(t *testing.T) {
 	if err := LinkSetUp(link); err != nil {
 		t.Fatal(err)
 	}
-	qdisc := &TokenBucketFilter{
+	qdisc := &Tbf{
 		QdiscAttrs: QdiscAttrs{
 			LinkIndex: link.Attrs().Index,
 			Handle:    MakeHandle(1, 0),
@@ -37,7 +37,7 @@ func TestQdiscAddDel(t *testing.T) {
 	if len(qdiscs) != 1 {
 		t.Fatal("Failed to add qdisc")
 	}
-	tbf, ok := qdiscs[0].(*TokenBucketFilter)
+	tbf, ok := qdiscs[0].(*Tbf)
 	if !ok {
 		t.Fatal("Qdisc is the wrong type")
 	}
@@ -53,7 +53,7 @@ func TestQdiscAddDel(t *testing.T) {
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(nil)
+	qdiscs, err = QdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}

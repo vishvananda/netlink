@@ -17,16 +17,17 @@ type Qdisc interface {
 }
 
 // Qdisc represents a netlink qdisc. A qdisc is associated with a link,
-// has a handle and a parent. The root qdisc of a device should have a
-// parent == HANDLE_ROOT.
+// has a handle, a parent and a refcnt. The root qdisc of a device should
+// have parent == HANDLE_ROOT.
 type QdiscAttrs struct {
 	LinkIndex int
 	Handle    uint32
 	Parent    uint32
+	Refcnt    uint32 // read only
 }
 
 func (q QdiscAttrs) String() string {
-	return fmt.Sprintf("{Ifindex: %d, Handle: %s Parent: %s}", q.LinkIndex, HandleStr(q.Handle), HandleStr(q.Parent))
+	return fmt.Sprintf("{LinkIndex: %d, Handle: %s, Parent: %s, Refcnt: %s}", q.LinkIndex, HandleStr(q.Handle), HandleStr(q.Parent), q.Refcnt)
 }
 
 func MakeHandle(major, minor uint16) uint32 {
@@ -67,8 +68,8 @@ func (qdisc *PfifoFast) Type() string {
 	return "pfifo_fast"
 }
 
-// TokenBucketFilter is a classful qdisc that rate limits based on tokens
-type TokenBucketFilter struct {
+// Tbf is a classful qdisc that rate limits based on tokens
+type Tbf struct {
 	QdiscAttrs
 	// TODO: handle 64bit rate properly
 	Rate   uint64
@@ -77,12 +78,25 @@ type TokenBucketFilter struct {
 	// TODO: handle other settings
 }
 
-func (qdisc *TokenBucketFilter) Attrs() *QdiscAttrs {
+func (qdisc *Tbf) Attrs() *QdiscAttrs {
 	return &qdisc.QdiscAttrs
 }
 
-func (qdisc *TokenBucketFilter) Type() string {
+func (qdisc *Tbf) Type() string {
 	return "tbf"
+}
+
+// Ingress is a qdisc for adding ingress filters
+type Ingress struct {
+	QdiscAttrs
+}
+
+func (qdisc *Ingress) Attrs() *QdiscAttrs {
+	return &qdisc.QdiscAttrs
+}
+
+func (qdisc *Ingress) Type() string {
+	return "ingress"
 }
 
 // GenericQdisc qdiscs represent types that are not currently understood
