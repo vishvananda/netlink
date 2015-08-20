@@ -17,7 +17,7 @@ func FilterDel(filter Filter) error {
 		Ifindex: int32(base.LinkIndex),
 		Handle:  base.Handle,
 		Parent:  base.Parent,
-		Info:    MakeHandle(base.Priority, base.Protocol),
+		Info:    MakeHandle(base.Priority, nl.Swap16(base.Protocol)),
 	}
 	req.AddData(msg)
 
@@ -35,7 +35,7 @@ func FilterAdd(filter Filter) error {
 		Ifindex: int32(base.LinkIndex),
 		Handle:  base.Handle,
 		Parent:  base.Parent,
-		Info:    MakeHandle(base.Priority, base.Protocol),
+		Info:    MakeHandle(base.Priority, nl.Swap16(base.Protocol)),
 	}
 	req.AddData(msg)
 	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(filter.Type())))
@@ -102,6 +102,8 @@ func FilterList(link Link, parent uint32) ([]Filter, error) {
 			Parent:    msg.Parent,
 		}
 		base.Priority, base.Protocol = MajorMinor(msg.Info)
+		base.Protocol = nl.Swap16(base.Protocol)
+
 		var filter Filter
 		filterType := ""
 		detailed := false
