@@ -313,15 +313,15 @@ const (
 )
 
 const (
-	TC_ACT_UNSPEC = int32(-1)
-	TC_ACT_OK     = iota
-	TC_ACT_RECLASSIFY
-	TC_ACT_SHOT
-	TC_ACT_PIPE
-	TC_ACT_STOLEN
-	TC_ACT_QUEUED
-	TC_ACT_REPEAT
-	TC_ACT_JUMP = 0x10000000
+	TC_ACT_UNSPEC     = int32(-1)
+	TC_ACT_OK         = 0
+	TC_ACT_RECLASSIFY = 1
+	TC_ACT_SHOT       = 2
+	TC_ACT_PIPE       = 3
+	TC_ACT_STOLEN     = 4
+	TC_ACT_QUEUED     = 5
+	TC_ACT_REPEAT     = 6
+	TC_ACT_JUMP       = 0x10000000
 )
 
 // #define tc_gen \
