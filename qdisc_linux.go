@@ -42,7 +42,13 @@ func QdiscAdd(qdisc Qdisc) error {
 	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(qdisc.Type())))
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
-	if tbf, ok := qdisc.(*Tbf); ok {
+	if prio, ok := qdisc.(*Prio); ok {
+		tcmap := nl.TcPrioMap{
+			Bands:   int32(prio.Bands),
+			Priomap: prio.PriorityMap,
+		}
+		options = nl.NewRtAttr(nl.TCA_OPTIONS, tcmap.Serialize())
+	} else if tbf, ok := qdisc.(*Tbf); ok {
 		opt := nl.TcTbfQopt{}
 		// TODO: handle rate > uint32
 		opt.Rate.Rate = uint32(tbf.Rate)
@@ -111,6 +117,8 @@ func QdiscList(link Link) ([]Qdisc, error) {
 				switch qdiscType {
 				case "pfifo_fast":
 					qdisc = &PfifoFast{}
+				case "prio":
+					qdisc = &Prio{}
 				case "tbf":
 					qdisc = &Tbf{}
 				case "ingress":
@@ -123,6 +131,11 @@ func QdiscList(link Link) ([]Qdisc, error) {
 				case "pfifo_fast":
 					// pfifo returns TcPrioMap directly without wrapping it in rtattr
 					if err := parsePfifoFastData(qdisc, attr.Value); err != nil {
+						return nil, err
+					}
+				case "prio":
+					// prio returns TcPrioMap directly without wrapping it in rtattr
+					if err := parsePrioData(qdisc, attr.Value); err != nil {
 						return nil, err
 					}
 				case "tbf":
@@ -149,6 +162,14 @@ func parsePfifoFastData(qdisc Qdisc, value []byte) error {
 	tcmap := nl.DeserializeTcPrioMap(value)
 	pfifo.PriorityMap = tcmap.Priomap
 	pfifo.Bands = uint8(tcmap.Bands)
+	return nil
+}
+
+func parsePrioData(qdisc Qdisc, value []byte) error {
+	prio := qdisc.(*Prio)
+	tcmap := nl.DeserializeTcPrioMap(value)
+	prio.PriorityMap = tcmap.Priomap
+	prio.Bands = uint8(tcmap.Bands)
 	return nil
 }
 

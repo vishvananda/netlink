@@ -68,6 +68,29 @@ func (qdisc *PfifoFast) Type() string {
 	return "pfifo_fast"
 }
 
+// Prio is a basic qdisc that works just like PfifoFast
+type Prio struct {
+	QdiscAttrs
+	Bands       uint8
+	PriorityMap [PRIORITY_MAP_LEN]uint8
+}
+
+func NewPrio(attrs QdiscAttrs) *Prio {
+	return &Prio{
+		QdiscAttrs:  attrs,
+		Bands:       3,
+		PriorityMap: [PRIORITY_MAP_LEN]uint8{1, 2, 2, 2, 1, 2, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1},
+	}
+}
+
+func (qdisc *Prio) Attrs() *QdiscAttrs {
+	return &qdisc.QdiscAttrs
+}
+
+func (qdisc *Prio) Type() string {
+	return "prio"
+}
+
 // Tbf is a classful qdisc that rate limits based on tokens
 type Tbf struct {
 	QdiscAttrs
