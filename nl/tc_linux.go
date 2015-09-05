@@ -35,6 +35,8 @@ const (
 	SizeofTcPrioMap   = 0x14
 	SizeofTcRateSpec  = 0x0c
 	SizeofTcTbfQopt   = 2*SizeofTcRateSpec + 0x0c
+	SizeofTcHtbQopt   = 2*SizeofTcRateSpec + 0x14
+	SizeofTcHtbGlob   = 0x14
 	SizeofTcU32Key    = 0x10
 	SizeofTcU32Sel    = 0x10 // without keys
 	SizeofTcMirred    = 0x1c
@@ -188,6 +190,38 @@ func DeserializeTcTbfQopt(b []byte) *TcTbfQopt {
 
 func (x *TcTbfQopt) Serialize() []byte {
 	return (*(*[SizeofTcTbfQopt]byte)(unsafe.Pointer(x)))[:]
+}
+
+const (
+	TCA_HTB_UNSPEC = iota
+	TCA_HTB_PARMS
+	TCA_HTB_INIT
+	TCA_HTB_CTAB
+	TCA_HTB_RTAB
+	TCA_HTB_DIRECT_QLEN
+	TCA_HTB_RATE64
+	TCA_HTB_CEIL64
+	TCA_HTB_MAX = TCA_HTB_CEIL64
+)
+
+type TcHtbGlob struct {
+	Version      uint32
+	Rate2Quantum uint32
+	Defcls       uint32
+	Debug        uint32
+	DirectPkts   uint32
+}
+
+func (msg *TcHtbGlob) Len() int {
+	return SizeofTcHtbGlob
+}
+
+func DeserializeTcHtbGlob(b []byte) *TcHtbGlob {
+	return (*TcHtbGlob)(unsafe.Pointer(&b[0:SizeofTcHtbGlob][0]))
+}
+
+func (x *TcHtbGlob) Serialize() []byte {
+	return (*(*[SizeofTcHtbGlob]byte)(unsafe.Pointer(x)))[:]
 }
 
 const (

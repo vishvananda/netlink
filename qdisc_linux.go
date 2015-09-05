@@ -55,6 +55,16 @@ func QdiscAdd(qdisc Qdisc) error {
 		opt.Limit = tbf.Limit
 		opt.Buffer = tbf.Buffer
 		nl.NewRtAttrChild(options, nl.TCA_TBF_PARMS, opt.Serialize())
+	} else if htb, ok := qdisc.(*Htb); ok {
+		opt := nl.TcHtbGlob{}
+		opt.Version = htb.Version
+		opt.Rate2Quantum = htb.Rate2Quantum
+		opt.Defcls = htb.Defcls
+		// TODO: Handle Debug properly. For now default to 0
+		opt.Debug = htb.Debug
+		opt.DirectPkts = htb.DirectPkts
+		nl.NewRtAttrChild(options, nl.TCA_HTB_INIT, opt.Serialize())
+		// nl.NewRtAttrChild(options, nl.TCA_HTB_DIRECT_QLEN, opt.Serialize())
 	} else if _, ok := qdisc.(*Ingress); ok {
 		// ingress filters must use the proper handle
 		if msg.Parent != HANDLE_INGRESS {
@@ -123,6 +133,8 @@ func QdiscList(link Link) ([]Qdisc, error) {
 					qdisc = &Tbf{}
 				case "ingress":
 					qdisc = &Ingress{}
+				case "htb":
+					qdisc = &Htb{}
 				default:
 					qdisc = &GenericQdisc{QdiscType: qdiscType}
 				}
@@ -146,6 +158,15 @@ func QdiscList(link Link) ([]Qdisc, error) {
 					if err := parseTbfData(qdisc, data); err != nil {
 						return nil, err
 					}
+				case "htb":
+					data, err := nl.ParseRouteAttr(attr.Value)
+					if err != nil {
+						return nil, err
+					}
+					if err := parseHtbData(qdisc, data); err != nil {
+						return nil, err
+					}
+
 					// no options for ingress
 				}
 			}
@@ -173,6 +194,25 @@ func parsePrioData(qdisc Qdisc, value []byte) error {
 	return nil
 }
 
+func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
+	native = nl.NativeEndian()
+	htb := qdisc.(*Htb)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.TCA_HTB_INIT:
+			opt := nl.DeserializeTcHtbGlob(datum.Value)
+			htb.Version = opt.Version
+			htb.Rate2Quantum = opt.Rate2Quantum
+			htb.Defcls = opt.Defcls
+			htb.Debug = opt.Debug
+			htb.DirectPkts = opt.DirectPkts
+		case nl.TCA_HTB_DIRECT_QLEN:
+			// TODO
+			//htb.DirectQlen = native.uint32(datum.Value)
+		}
+	}
+	return nil
+}
 func parseTbfData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 	native = nl.NativeEndian()
 	tbf := qdisc.(*Tbf)
