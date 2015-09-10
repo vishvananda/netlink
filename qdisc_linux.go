@@ -237,6 +237,7 @@ const (
 var (
 	tickInUsec  float64 = 0.0
 	clockFactor float64 = 0.0
+	hz          float64 = 0.0
 )
 
 func initClock() {
@@ -262,6 +263,7 @@ func initClock() {
 	}
 	clockFactor = float64(vals[2]) / TIME_UNITS_PER_SEC
 	tickInUsec = float64(vals[0]) / float64(vals[1]) * clockFactor
+	hz = float64(vals[0])
 }
 
 func TickInUsec() float64 {
@@ -276,6 +278,13 @@ func ClockFactor() float64 {
 		initClock()
 	}
 	return clockFactor
+}
+
+func Hz() float64 {
+	if hz == 0.0 {
+		initClock()
+	}
+	return hz
 }
 
 func time2Tick(time uint32) uint32 {
@@ -300,4 +309,8 @@ func burst(rate uint64, buffer uint32) uint32 {
 
 func latency(rate uint64, limit, buffer uint32) float64 {
 	return TIME_UNITS_PER_SEC*(float64(limit)/float64(rate)) - float64(tick2Time(buffer))
+}
+
+func Xmittime(rate uint64, size uint32) float64 {
+	return TickInUsec() * TIME_UNITS_PER_SEC * (float64(size) / float64(rate))
 }

@@ -88,6 +88,13 @@ func TestHtbAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	/*
+		cmd := exec.Command("tc", "qdisc")
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			fmt.Printf("%s\n", out)
+		}
+	*/
 	qdiscs, err := QdiscList(link)
 	if err != nil {
 		t.Fatal(err)

@@ -35,7 +35,7 @@ const (
 	SizeofTcPrioMap   = 0x14
 	SizeofTcRateSpec  = 0x0c
 	SizeofTcTbfQopt   = 2*SizeofTcRateSpec + 0x0c
-	SizeofTcHtbQopt   = 2*SizeofTcRateSpec + 0x14
+	SizeofTcHtbCopt   = 2*SizeofTcRateSpec + 0x14
 	SizeofTcHtbGlob   = 0x14
 	SizeofTcU32Key    = 0x10
 	SizeofTcU32Sel    = 0x10 // without keys
@@ -203,6 +203,38 @@ const (
 	TCA_HTB_CEIL64
 	TCA_HTB_MAX = TCA_HTB_CEIL64
 )
+
+//struct tc_htb_opt {
+//	struct tc_ratespec	rate;
+//	struct tc_ratespec	ceil;
+//	__u32	buffer;
+//	__u32	cbuffer;
+//	__u32	quantum;
+//	__u32	level;		/* out only */
+//	__u32	prio;
+//};
+
+type TcHtbCopt struct {
+	Rate    TcRateSpec
+	Ceil    TcRateSpec
+	Buffer  uint32
+	Cbuffer uint32
+	Quantum uint32
+	Level   uint32
+	Prio    uint32
+}
+
+func (msg *TcHtbCopt) Len() int {
+	return SizeofTcHtbCopt
+}
+
+func DeserializeTcHtbCopt(b []byte) *TcHtbCopt {
+	return (*TcHtbCopt)(unsafe.Pointer(&b[0:SizeofTcHtbCopt][0]))
+}
+
+func (x *TcHtbCopt) Serialize() []byte {
+	return (*(*[SizeofTcHtbCopt]byte)(unsafe.Pointer(x)))[:]
+}
 
 type TcHtbGlob struct {
 	Version      uint32
