@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+/* TcMsg */
 func (msg *TcMsg) write(b []byte) {
 	native := NativeEndian()
 	b[0] = msg.Family
@@ -38,6 +39,7 @@ func TestTcMsgDeserializeSerialize(t *testing.T) {
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
 
+/* TcActionMsg */
 func (msg *TcActionMsg) write(b []byte) {
 	b[0] = msg.Family
 	copy(b[1:4], msg.Pad[:])
@@ -64,6 +66,7 @@ func TestTcActionMsgDeserializeSerialize(t *testing.T) {
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
 
+/* TcRateSpec */
 func (msg *TcRateSpec) write(b []byte) {
 	native := NativeEndian()
 	b[0] = msg.CellLog
@@ -92,5 +95,40 @@ func TestTcRateSpecDeserializeSerialize(t *testing.T) {
 	rand.Read(orig)
 	safemsg := deserializeTcRateSpecSafe(orig)
 	msg := DeserializeTcRateSpec(orig)
+	testDeserializeSerialize(t, orig, safemsg, msg)
+}
+
+/* TcTbfQopt */
+func (msg *TcTbfQopt) write(b []byte) {
+	native := NativeEndian()
+	msg.Rate.write(b[0:SizeofTcRateSpec])
+	start := SizeofTcRateSpec
+	msg.Peakrate.write(b[start : start+SizeofTcRateSpec])
+	start += SizeofTcRateSpec
+	native.PutUint32(b[start:start+4], msg.Limit)
+	start += 4
+	native.PutUint32(b[start:start+4], msg.Buffer)
+	start += 4
+	native.PutUint32(b[start:start+4], msg.Mtu)
+}
+
+func (msg *TcTbfQopt) serializeSafe() []byte {
+	length := SizeofTcTbfQopt
+	b := make([]byte, length)
+	msg.write(b)
+	return b
+}
+
+func deserializeTcTbfQoptSafe(b []byte) *TcTbfQopt {
+	var msg = TcTbfQopt{}
+	binary.Read(bytes.NewReader(b[0:SizeofTcTbfQopt]), NativeEndian(), &msg)
+	return &msg
+}
+
+func TestTcTbfQoptDeserializeSerialize(t *testing.T) {
+	var orig = make([]byte, SizeofTcTbfQopt)
+	rand.Read(orig)
+	safemsg := deserializeTcTbfQoptSafe(orig)
+	msg := DeserializeTcTbfQopt(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
