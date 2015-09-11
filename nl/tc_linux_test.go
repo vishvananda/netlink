@@ -63,3 +63,34 @@ func TestTcActionMsgDeserializeSerialize(t *testing.T) {
 	msg := DeserializeTcActionMsg(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
+
+func (msg *TcRateSpec) write(b []byte) {
+	native := NativeEndian()
+	b[0] = msg.CellLog
+	b[1] = msg.Linklayer
+	native.PutUint16(b[2:4], msg.Overhead)
+	native.PutUint16(b[4:6], uint16(msg.CellAlign))
+	native.PutUint16(b[6:8], msg.Mpu)
+	native.PutUint32(b[8:12], msg.Rate)
+}
+
+func (msg *TcRateSpec) serializeSafe() []byte {
+	length := SizeofTcRateSpec
+	b := make([]byte, length)
+	msg.write(b)
+	return b
+}
+
+func deserializeTcRateSpecSafe(b []byte) *TcRateSpec {
+	var msg = TcRateSpec{}
+	binary.Read(bytes.NewReader(b[0:SizeofTcRateSpec]), NativeEndian(), &msg)
+	return &msg
+}
+
+func TestTcRateSpecDeserializeSerialize(t *testing.T) {
+	var orig = make([]byte, SizeofTcRateSpec)
+	rand.Read(orig)
+	safemsg := deserializeTcRateSpecSafe(orig)
+	msg := DeserializeTcRateSpec(orig)
+	testDeserializeSerialize(t, orig, safemsg, msg)
+}
