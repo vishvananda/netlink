@@ -132,3 +132,42 @@ func TestTcTbfQoptDeserializeSerialize(t *testing.T) {
 	msg := DeserializeTcTbfQopt(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
+
+/* TcHtbCopt */
+func (msg *TcHtbCopt) write(b []byte) {
+	native := NativeEndian()
+	msg.Rate.write(b[0:SizeofTcRateSpec])
+	start := SizeofTcRateSpec
+	msg.Ceil.write(b[start : start+SizeofTcRateSpec])
+	start += SizeofTcRateSpec
+	native.PutUint32(b[start:start+4], msg.Buffer)
+	start += 4
+	native.PutUint32(b[start:start+4], msg.Cbuffer)
+	start += 4
+	native.PutUint32(b[start:start+4], msg.Quantum)
+	start += 4
+	native.PutUint32(b[start:start+4], msg.Level)
+	start += 4
+	native.PutUint32(b[start:start+4], msg.Prio)
+}
+
+func (msg *TcHtbCopt) serializeSafe() []byte {
+	length := SizeofTcHtbCopt
+	b := make([]byte, length)
+	msg.write(b)
+	return b
+}
+
+func deserializeTcHtbCoptSafe(b []byte) *TcHtbCopt {
+	var msg = TcHtbCopt{}
+	binary.Read(bytes.NewReader(b[0:SizeofTcHtbCopt]), NativeEndian(), &msg)
+	return &msg
+}
+
+func TestTcHtbCoptDeserializeSerialize(t *testing.T) {
+	var orig = make([]byte, SizeofTcHtbCopt)
+	rand.Read(orig)
+	safemsg := deserializeTcHtbCoptSafe(orig)
+	msg := DeserializeTcHtbCopt(orig)
+	testDeserializeSerialize(t, orig, safemsg, msg)
+}
