@@ -1,10 +1,11 @@
 package netlink
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
-	"syscall"
-
 	"github.com/vishvananda/netlink/nl"
+	"syscall"
 )
 
 // FilterDel will delete a filter from the system.
@@ -28,6 +29,7 @@ func FilterDel(filter Filter) error {
 // FilterAdd will add a filter to the system.
 // Equivalent to: `tc filter add $filter`
 func FilterAdd(filter Filter) error {
+	native = nl.NativeEndian()
 	req := nl.NewNetlinkRequest(syscall.RTM_NEWTFILTER, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 	base := filter.Attrs()
 	msg := &nl.TcMsg{
@@ -60,7 +62,35 @@ func FilterAdd(filter Filter) error {
 		}
 		aopts := nl.NewRtAttrChild(table, nl.TCA_OPTIONS, nil)
 		nl.NewRtAttrChild(aopts, nl.TCA_MIRRED_PARMS, mir.Serialize())
+	} else if fw, ok := filter.(*Fw); ok {
+		if fw.Mask != 0 {
+			b := make([]byte, 4)
+			native.PutUint32(b, fw.Mask)
+			nl.NewRtAttrChild(options, nl.TCA_FW_MASK, b)
+		}
+		if fw.InDev != "" {
+			nl.NewRtAttrChild(options, nl.TCA_FW_INDEV, nl.ZeroTerminated(fw.InDev))
+		}
+		if (fw.Police != nl.TcPolice{}) {
+
+			police := nl.NewRtAttrChild(options, nl.TCA_FW_POLICE, nil)
+			nl.NewRtAttrChild(police, nl.TCA_POLICE_TBF, fw.Police.Serialize())
+			if (fw.Police.Rate != nl.TcRateSpec{}) {
+				payload := SerializeRtab(fw.Rtab)
+				nl.NewRtAttrChild(police, nl.TCA_POLICE_RATE, payload)
+			}
+			if (fw.Police.PeakRate != nl.TcRateSpec{}) {
+				payload := SerializeRtab(fw.Ptab)
+				nl.NewRtAttrChild(police, nl.TCA_POLICE_PEAKRATE, payload)
+			}
+		}
+		if fw.ClassId != 0 {
+			b := make([]byte, 4)
+			native.PutUint32(b, fw.ClassId)
+			nl.NewRtAttrChild(options, nl.TCA_FW_CLASSID, b)
+		}
 	}
+
 	req.AddData(options)
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
 	return err
@@ -114,6 +144,8 @@ func FilterList(link Link, parent uint32) ([]Filter, error) {
 				switch filterType {
 				case "u32":
 					filter = &U32{}
+				case "fw":
+					filter = &Fw{}
 				default:
 					filter = &GenericFilter{FilterType: filterType}
 				}
@@ -125,6 +157,15 @@ func FilterList(link Link, parent uint32) ([]Filter, error) {
 						return nil, err
 					}
 					detailed, err = parseU32Data(filter, data)
+					if err != nil {
+						return nil, err
+					}
+				case "fw":
+					data, err := nl.ParseRouteAttr(attr.Value)
+					if err != nil {
+						return nil, err
+					}
+					detailed, err = parseFwData(filter, data)
 					if err != nil {
 						return nil, err
 					}
@@ -188,4 +229,93 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 		}
 	}
 	return detailed, nil
+}
+
+func parseFwData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
+	native = nl.NativeEndian()
+	fw := filter.(*Fw)
+	detailed := true
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.TCA_FW_MASK:
+			fw.Mask = native.Uint32(datum.Value[0:4])
+		case nl.TCA_FW_CLASSID:
+			fw.ClassId = native.Uint32(datum.Value[0:4])
+		case nl.TCA_FW_INDEV:
+			fw.InDev = string(datum.Value[:len(datum.Value)-1])
+		case nl.TCA_FW_POLICE:
+			adata, _ := nl.ParseRouteAttr(datum.Value)
+			for _, aattr := range adata {
+				switch aattr.Attr.Type {
+				case nl.TCA_POLICE_TBF:
+					fw.Police = *nl.DeserializeTcPolice(aattr.Value)
+				case nl.TCA_POLICE_RATE:
+					fw.Rtab = DeserializeRtab(aattr.Value)
+				case nl.TCA_POLICE_PEAKRATE:
+					fw.Ptab = DeserializeRtab(aattr.Value)
+				}
+			}
+		}
+	}
+	return detailed, nil
+}
+
+func AlignToAtm(size uint) uint {
+	var linksize, cells int
+	cells = int(size / nl.ATM_CELL_PAYLOAD)
+	if (size % nl.ATM_CELL_PAYLOAD) > 0 {
+		cells++
+	}
+	linksize = cells * nl.ATM_CELL_SIZE
+	return uint(linksize)
+}
+
+func AdjustSize(sz uint, mpu uint, linklayer int) uint {
+	if sz < mpu {
+		sz = mpu
+	}
+	switch linklayer {
+	case nl.LINKLAYER_ATM:
+		return AlignToAtm(sz)
+	default:
+		return sz
+	}
+}
+
+func CalcRtable(rate *nl.TcRateSpec, rtab [256]uint32, cell_log int, mtu uint32, linklayer int) int {
+	bps := rate.Rate
+	mpu := rate.Mpu
+	var sz uint
+	if mtu == 0 {
+		mtu = 2047
+	}
+	if cell_log < 0 {
+		cell_log = 0
+		for (mtu >> uint(cell_log)) > 255 {
+			cell_log++
+		}
+	}
+	for i := 0; i < 256; i++ {
+		sz = AdjustSize(uint((i+1)<<uint32(cell_log)), uint(mpu), linklayer)
+		rtab[i] = uint32(Xmittime(uint64(bps), uint32(sz)))
+	}
+	rate.CellAlign = -1
+	rate.CellLog = uint8(cell_log)
+	rate.Linklayer = uint8(linklayer & nl.TC_LINKLAYER_MASK)
+	return cell_log
+}
+
+func DeserializeRtab(b []byte) [256]uint32 {
+	var rtab [256]uint32
+	native := nl.NativeEndian()
+	r := bytes.NewReader(b)
+	_ = binary.Read(r, native, &rtab)
+	return rtab
+}
+
+func SerializeRtab(rtab [256]uint32) []byte {
+	native := nl.NativeEndian()
+	var w bytes.Buffer
+	_ = binary.Write(&w, native, rtab)
+	return w.Bytes()
 }
