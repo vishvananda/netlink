@@ -55,6 +55,16 @@ func QdiscAdd(qdisc Qdisc) error {
 		opt.Limit = tbf.Limit
 		opt.Buffer = tbf.Buffer
 		nl.NewRtAttrChild(options, nl.TCA_TBF_PARMS, opt.Serialize())
+	} else if htb, ok := qdisc.(*Htb); ok {
+		opt := nl.TcHtbGlob{}
+		opt.Version = htb.Version
+		opt.Rate2Quantum = htb.Rate2Quantum
+		opt.Defcls = htb.Defcls
+		// TODO: Handle Debug properly. For now default to 0
+		opt.Debug = htb.Debug
+		opt.DirectPkts = htb.DirectPkts
+		nl.NewRtAttrChild(options, nl.TCA_HTB_INIT, opt.Serialize())
+		// nl.NewRtAttrChild(options, nl.TCA_HTB_DIRECT_QLEN, opt.Serialize())
 	} else if _, ok := qdisc.(*Ingress); ok {
 		// ingress filters must use the proper handle
 		if msg.Parent != HANDLE_INGRESS {
@@ -123,6 +133,8 @@ func QdiscList(link Link) ([]Qdisc, error) {
 					qdisc = &Tbf{}
 				case "ingress":
 					qdisc = &Ingress{}
+				case "htb":
+					qdisc = &Htb{}
 				default:
 					qdisc = &GenericQdisc{QdiscType: qdiscType}
 				}
@@ -146,6 +158,15 @@ func QdiscList(link Link) ([]Qdisc, error) {
 					if err := parseTbfData(qdisc, data); err != nil {
 						return nil, err
 					}
+				case "htb":
+					data, err := nl.ParseRouteAttr(attr.Value)
+					if err != nil {
+						return nil, err
+					}
+					if err := parseHtbData(qdisc, data); err != nil {
+						return nil, err
+					}
+
 					// no options for ingress
 				}
 			}
@@ -173,6 +194,25 @@ func parsePrioData(qdisc Qdisc, value []byte) error {
 	return nil
 }
 
+func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
+	native = nl.NativeEndian()
+	htb := qdisc.(*Htb)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.TCA_HTB_INIT:
+			opt := nl.DeserializeTcHtbGlob(datum.Value)
+			htb.Version = opt.Version
+			htb.Rate2Quantum = opt.Rate2Quantum
+			htb.Defcls = opt.Defcls
+			htb.Debug = opt.Debug
+			htb.DirectPkts = opt.DirectPkts
+		case nl.TCA_HTB_DIRECT_QLEN:
+			// TODO
+			//htb.DirectQlen = native.uint32(datum.Value)
+		}
+	}
+	return nil
+}
 func parseTbfData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 	native = nl.NativeEndian()
 	tbf := qdisc.(*Tbf)
@@ -197,6 +237,7 @@ const (
 var (
 	tickInUsec  float64 = 0.0
 	clockFactor float64 = 0.0
+	hz          float64 = 0.0
 )
 
 func initClock() {
@@ -222,6 +263,7 @@ func initClock() {
 	}
 	clockFactor = float64(vals[2]) / TIME_UNITS_PER_SEC
 	tickInUsec = float64(vals[0]) / float64(vals[1]) * clockFactor
+	hz = float64(vals[0])
 }
 
 func TickInUsec() float64 {
@@ -236,6 +278,13 @@ func ClockFactor() float64 {
 		initClock()
 	}
 	return clockFactor
+}
+
+func Hz() float64 {
+	if hz == 0.0 {
+		initClock()
+	}
+	return hz
 }
 
 func time2Tick(time uint32) uint32 {
@@ -260,4 +309,8 @@ func burst(rate uint64, buffer uint32) uint32 {
 
 func latency(rate uint64, limit, buffer uint32) float64 {
 	return TIME_UNITS_PER_SEC*(float64(limit)/float64(rate)) - float64(tick2Time(buffer))
+}
+
+func Xmittime(rate uint64, size uint32) float64 {
+	return TickInUsec() * TIME_UNITS_PER_SEC * (float64(size) / float64(rate))
 }

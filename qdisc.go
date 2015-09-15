@@ -91,7 +91,36 @@ func (qdisc *Prio) Type() string {
 	return "prio"
 }
 
-// Tbf is a classful qdisc that rate limits based on tokens
+// Htb is a classful qdisc that rate limits based on tokens
+type Htb struct {
+	QdiscAttrs
+	Version      uint32
+	Rate2Quantum uint32
+	Defcls       uint32
+	Debug        uint32
+	DirectPkts   uint32
+}
+
+func NewHtb(attrs QdiscAttrs) *Htb {
+	return &Htb{
+		QdiscAttrs:   attrs,
+		Version:      3,
+		Defcls:       0,
+		Rate2Quantum: 10,
+		Debug:        0,
+		DirectPkts:   0,
+	}
+}
+
+func (qdisc *Htb) Attrs() *QdiscAttrs {
+	return &qdisc.QdiscAttrs
+}
+
+func (qdisc *Htb) Type() string {
+	return "htb"
+}
+
+// Tbf is a classless qdisc that rate limits based on tokens
 type Tbf struct {
 	QdiscAttrs
 	// TODO: handle 64bit rate properly
