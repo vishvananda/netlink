@@ -3,7 +3,9 @@ package netlink
 import (
 	"bytes"
 	"net"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/vishvananda/netns"
 )
@@ -667,5 +669,56 @@ func TestLinkSet(t *testing.T) {
 
 	if !bytes.Equal(link.Attrs().HardwareAddr, addr) {
 		t.Fatalf("hardware address not changed!")
+	}
+}
+
+func expectLinkUpdate(ch <-chan LinkUpdate, ifaceName string, up bool) bool {
+	for {
+		timeout := time.After(time.Minute)
+		select {
+		case update := <-ch:
+			if ifaceName == update.Link.Attrs().Name && (update.IfInfomsg.Flags&syscall.IFF_UP != 0) == up {
+				return true
+			}
+		case <-timeout:
+			return false
+		}
+	}
+}
+
+func TestLinkSubscribe(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	ch := make(chan LinkUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	if err := LinkSubscribe(ch, done); err != nil {
+		t.Fatal(err)
+	}
+
+	link := &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar"}
+	if err := LinkAdd(link); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectLinkUpdate(ch, "foo", false) {
+		t.Fatal("Add update not received as expected")
+	}
+
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectLinkUpdate(ch, "foo", true) {
+		t.Fatal("Link Up update not received as expected")
+	}
+
+	if err := LinkDel(link); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectLinkUpdate(ch, "foo", false) {
+		t.Fatal("Del update not received as expected")
 	}
 }

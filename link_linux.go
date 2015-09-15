@@ -589,6 +589,46 @@ func LinkList() ([]Link, error) {
 	return res, nil
 }
 
+// LinkUpdate is used to pass information back from LinkSubscribe()
+type LinkUpdate struct {
+	nl.IfInfomsg
+	Link
+}
+
+// LinkSubscribe takes a chan down which notifications will be sent
+// when links change.  Close the 'done' chan to stop subscription.
+func LinkSubscribe(ch chan<- LinkUpdate, done <-chan struct{}) error {
+	s, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_LINK)
+	if err != nil {
+		return err
+	}
+	if done != nil {
+		go func() {
+			<-done
+			s.Close()
+		}()
+	}
+	go func() {
+		defer close(ch)
+		for {
+			msgs, err := s.Receive()
+			if err != nil {
+				return
+			}
+			for _, m := range msgs {
+				ifmsg := nl.DeserializeIfInfomsg(m.Data)
+				link, err := linkDeserialize(m.Data)
+				if err != nil {
+					return
+				}
+				ch <- LinkUpdate{IfInfomsg: *ifmsg, Link: link}
+			}
+		}
+	}()
+
+	return nil
+}
+
 func LinkSetHairpin(link Link, mode bool) error {
 	return setProtinfoAttr(link, mode, nl.IFLA_BRPORT_MODE)
 }
