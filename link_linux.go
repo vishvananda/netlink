@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"unsafe"
 	"syscall"
+	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
 )
@@ -294,7 +294,7 @@ func LinkAdd(link Link) error {
 		// TODO: support pi | vnet_hdr | multi_queue
 		// TODO: support non- exclusive
 		// TODO: support non- persistent
-		if (tuntap.Mode < syscall.IFF_TUN || tuntap.Mode > syscall.IFF_TAP) {
+		if tuntap.Mode < syscall.IFF_TUN || tuntap.Mode > syscall.IFF_TAP {
 			return fmt.Errorf("Tuntap.Mode %v unknown!", tuntap.Mode)
 		}
 		file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
