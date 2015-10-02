@@ -1,17 +1,14 @@
 package netlink
 
-/*
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <linux/if.h>
-#include <linux/if_tun.h>
-
-#define IFREQ_SIZE sizeof(struct ifreq)
-*/
-import "C"
+// ideally golang.org/x/sys/unix would define IfReq but it only has
+// IFNAMSIZ, hence this minimalistic implementation
+const (
+	SizeOfIfReq = 40
+	IFNAMSIZ    = 16
+)
 
 type ifReq struct {
-	Name  [C.IFNAMSIZ]byte
+	Name  [IFNAMSIZ]byte
 	Flags uint16
-	pad   [C.IFREQ_SIZE - C.IFNAMSIZ - 2]byte
+	pad   [SizeOfIfReq - IFNAMSIZ - 2]byte
 }
