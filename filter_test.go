@@ -1,9 +1,10 @@
 package netlink
 
 import (
-	"github.com/vishvananda/netlink/nl"
 	"syscall"
 	"testing"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 func TestFilterAddDel(t *testing.T) {

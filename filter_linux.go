@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/vishvananda/netlink/nl"
 	"syscall"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 // FilterDel will delete a filter from the system.

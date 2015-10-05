@@ -52,7 +52,7 @@ type FilterFwAttrs struct {
 	Rate      uint32
 	AvRate    uint32
 	PeakRate  uint32
-	Action    int32
+	Action    int
 	Overhead  uint16
 	LinkLayer int
 }
@@ -86,7 +86,7 @@ func NewFw(attrs FilterAttrs, fattrs FilterFwAttrs) (*Fw, error) {
 		linklayer = fattrs.LinkLayer
 	}
 
-	police.Action = fattrs.Action
+	police.Action = int32(fattrs.Action)
 	if police.Rate.Rate != 0 {
 		police.Rate.Mpu = fattrs.Mpu
 		police.Rate.Overhead = fattrs.Overhead
