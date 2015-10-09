@@ -30,6 +30,7 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 	}
 
 	msg.Scope = uint8(route.Scope)
+	msg.Flags = uint32(route.Flags)
 	family := -1
 	var rtAttrs []*nl.RtAttr
 
@@ -155,6 +156,7 @@ func deserializeRoute(m []byte) (Route, error) {
 		return route, err
 	}
 	route.Scope = Scope(msg.Scope)
+	route.Flags = int(msg.Flags)
 
 	native := nl.NativeEndian()
 	for _, attr := range attrs {
