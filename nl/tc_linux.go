@@ -4,6 +4,32 @@ import (
 	"unsafe"
 )
 
+// LinkLayer
+const (
+	LINKLAYER_UNSPEC = iota
+	LINKLAYER_ETHERNET
+	LINKLAYER_ATM
+)
+
+// ATM
+const (
+	ATM_CELL_PAYLOAD = 48
+	ATM_CELL_SIZE    = 53
+)
+
+const TC_LINKLAYER_MASK = 0x0F
+
+// Police
+const (
+	TCA_POLICE_UNSPEC = iota
+	TCA_POLICE_TBF
+	TCA_POLICE_RATE
+	TCA_POLICE_PEAKRATE
+	TCA_POLICE_AVRATE
+	TCA_POLICE_RESULT
+	TCA_POLICE_MAX = TCA_POLICE_RESULT
+)
+
 // Message types
 const (
 	TCA_UNSPEC = iota
@@ -40,6 +66,7 @@ const (
 	SizeofTcU32Key    = 0x10
 	SizeofTcU32Sel    = 0x10 // without keys
 	SizeofTcMirred    = 0x1c
+	SizeofTcPolice    = 2*SizeofTcRateSpec + 0x20
 )
 
 // struct tcmsg {
@@ -423,3 +450,59 @@ func DeserializeTcMirred(b []byte) *TcMirred {
 func (x *TcMirred) Serialize() []byte {
 	return (*(*[SizeofTcMirred]byte)(unsafe.Pointer(x)))[:]
 }
+
+const (
+	TC_POLICE_UNSPEC     = TC_ACT_UNSPEC
+	TC_POLICE_OK         = TC_ACT_OK
+	TC_POLICE_RECLASSIFY = TC_ACT_RECLASSIFY
+	TC_POLICE_SHOT       = TC_ACT_SHOT
+	TC_POLICE_PIPE       = TC_ACT_PIPE
+)
+
+// struct tc_police {
+// 	__u32			index;
+// 	int			action;
+// 	__u32			limit;
+// 	__u32			burst;
+// 	__u32			mtu;
+// 	struct tc_ratespec	rate;
+// 	struct tc_ratespec	peakrate;
+// 	int				refcnt;
+// 	int				bindcnt;
+// 	__u32			capab;
+// };
+
+type TcPolice struct {
+	Index    uint32
+	Action   int32
+	Limit    uint32
+	Burst    uint32
+	Mtu      uint32
+	Rate     TcRateSpec
+	PeakRate TcRateSpec
+	Refcnt   int32
+	Bindcnt  int32
+	Capab    uint32
+}
+
+func (msg *TcPolice) Len() int {
+	return SizeofTcPolice
+}
+
+func DeserializeTcPolice(b []byte) *TcPolice {
+	return (*TcPolice)(unsafe.Pointer(&b[0:SizeofTcPolice][0]))
+}
+
+func (x *TcPolice) Serialize() []byte {
+	return (*(*[SizeofTcPolice]byte)(unsafe.Pointer(x)))[:]
+}
+
+const (
+	TCA_FW_UNSPEC = iota
+	TCA_FW_CLASSID
+	TCA_FW_POLICE
+	TCA_FW_INDEV
+	TCA_FW_ACT
+	TCA_FW_MASK
+	TCA_FW_MAX = TCA_FW_MASK
+)
