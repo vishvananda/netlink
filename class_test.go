@@ -79,6 +79,37 @@ func TestClassAddDel(t *testing.T) {
 	if htb.Cbuffer != class.Cbuffer {
 		t.Fatal("Cbuffer doesn't match")
 	}
+
+	qattrs := QdiscAttrs{
+		LinkIndex: link.Attrs().Index,
+		Handle:    MakeHandle(0x2, 0),
+		Parent:    MakeHandle(0xffff, 2),
+	}
+	nattrs := NetemQdiscAttrs{
+		Latency:   20000,
+		Loss:      23.4,
+		Duplicate: 14.3,
+		Jitter:    1000,
+	}
+	netem := NewNetem(qattrs, nattrs)
+	if err := QdiscAdd(netem); err != nil {
+		t.Fatal(err)
+	}
+
+	qdiscs, err = QdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 2 {
+		t.Fatal("Failed to add qdisc")
+	}
+	_, ok = qdiscs[0].(*Htb)
+	if !ok {
+		t.Fatal("Qdisc is the wrong type")
+	}
+
+	// Deletion
+
 	if err := ClassDel(class); err != nil {
 		t.Fatal(err)
 	}

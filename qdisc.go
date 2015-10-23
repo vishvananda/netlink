@@ -2,6 +2,7 @@ package netlink
 
 import (
 	"fmt"
+	"math"
 )
 
 const (
@@ -50,6 +51,10 @@ func HandleStr(handle uint32) string {
 		major, minor := MajorMinor(handle)
 		return fmt.Sprintf("%x:%x", major, minor)
 	}
+}
+
+func Percentage(percentage float32) uint32 {
+	return uint32(math.MaxUint32 * (percentage / 100))
 }
 
 // PfifoFast is the default qdisc created by the kernel if one has not
@@ -118,6 +123,73 @@ func (qdisc *Htb) Attrs() *QdiscAttrs {
 
 func (qdisc *Htb) Type() string {
 	return "htb"
+}
+
+// Netem is a classless qdisc that rate limits based on tokens
+
+type NetemQdiscAttrs struct {
+	Latency   uint32 // in us
+	Limit     uint32
+	Loss      float32 // in %
+	Gap       uint32
+	Duplicate float32 // in %
+	Jitter    uint32  // in us
+}
+
+func (q NetemQdiscAttrs) String() string {
+	return fmt.Sprintf(
+		"{Latency: %d, Limit: %d, Loss: %d, Gap: %d, Duplicate: %d, Jitter: %d}",
+		q.Latency, q.Limit, q.Loss, q.Gap, q.Duplicate, q.Jitter,
+	)
+}
+
+type Netem struct {
+	QdiscAttrs
+	Latency   uint32
+	Limit     uint32
+	Loss      uint32
+	Gap       uint32
+	Duplicate uint32
+	Jitter    uint32
+}
+
+func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
+	var limit uint32 = 1000
+
+	latency := nattrs.Latency
+	loss := Percentage(nattrs.Loss)
+	gap := nattrs.Gap
+	duplicate := Percentage(nattrs.Duplicate)
+	jitter := nattrs.Jitter
+
+	// FIXME should validate values(like loss/duplicate are percentages...)
+	latency = time2Tick(latency)
+
+	if nattrs.Limit != 0 {
+		limit = nattrs.Limit
+	}
+	// Jitter is only value if latency is > 0
+	if latency > 0 {
+		jitter = time2Tick(jitter)
+	}
+
+	return &Netem{
+		QdiscAttrs: attrs,
+		Latency:    latency,
+		Limit:      limit,
+		Loss:       loss,
+		Gap:        gap,
+		Duplicate:  duplicate,
+		Jitter:     jitter,
+	}
+}
+
+func (qdisc *Netem) Attrs() *QdiscAttrs {
+	return &qdisc.QdiscAttrs
+}
+
+func (qdisc *Netem) Type() string {
+	return "netem"
 }
 
 // Tbf is a classless qdisc that rate limits based on tokens

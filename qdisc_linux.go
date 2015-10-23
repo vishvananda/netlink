@@ -65,6 +65,15 @@ func QdiscAdd(qdisc Qdisc) error {
 		opt.DirectPkts = htb.DirectPkts
 		nl.NewRtAttrChild(options, nl.TCA_HTB_INIT, opt.Serialize())
 		// nl.NewRtAttrChild(options, nl.TCA_HTB_DIRECT_QLEN, opt.Serialize())
+	} else if netem, ok := qdisc.(*Netem); ok {
+		opt := nl.TcNetemQopt{}
+		opt.Latency = netem.Latency
+		opt.Limit = netem.Limit
+		opt.Loss = netem.Loss
+		opt.Gap = netem.Gap
+		opt.Duplicate = netem.Duplicate
+		opt.Jitter = netem.Jitter
+		options = nl.NewRtAttr(nl.TCA_OPTIONS, opt.Serialize())
 	} else if _, ok := qdisc.(*Ingress); ok {
 		// ingress filters must use the proper handle
 		if msg.Parent != HANDLE_INGRESS {
@@ -135,6 +144,8 @@ func QdiscList(link Link) ([]Qdisc, error) {
 					qdisc = &Ingress{}
 				case "htb":
 					qdisc = &Htb{}
+				case "netem":
+					qdisc = &Netem{}
 				default:
 					qdisc = &GenericQdisc{QdiscType: qdiscType}
 				}
@@ -164,6 +175,10 @@ func QdiscList(link Link) ([]Qdisc, error) {
 						return nil, err
 					}
 					if err := parseHtbData(qdisc, data); err != nil {
+						return nil, err
+					}
+				case "netem":
+					if err := parseNetemData(qdisc, attr.Value); err != nil {
 						return nil, err
 					}
 
@@ -213,6 +228,19 @@ func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 	}
 	return nil
 }
+
+func parseNetemData(qdisc Qdisc, value []byte) error {
+	netem := qdisc.(*Netem)
+	opt := nl.DeserializeTcNetemQopt(value)
+	netem.Latency = opt.Latency
+	netem.Limit = opt.Limit
+	netem.Loss = opt.Loss
+	netem.Gap = opt.Gap
+	netem.Duplicate = opt.Duplicate
+	netem.Jitter = opt.Jitter
+	return nil
+}
+
 func parseTbfData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 	native = nl.NativeEndian()
 	tbf := qdisc.(*Tbf)
