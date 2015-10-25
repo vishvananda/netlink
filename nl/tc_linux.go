@@ -56,18 +56,21 @@ const (
 )
 
 const (
-	SizeofTcMsg       = 0x14
-	SizeofTcActionMsg = 0x04
-	SizeofTcPrioMap   = 0x14
-	SizeofTcRateSpec  = 0x0c
-	SizeofTcNetemQopt = 0x18
-	SizeofTcTbfQopt   = 2*SizeofTcRateSpec + 0x0c
-	SizeofTcHtbCopt   = 2*SizeofTcRateSpec + 0x14
-	SizeofTcHtbGlob   = 0x14
-	SizeofTcU32Key    = 0x10
-	SizeofTcU32Sel    = 0x10 // without keys
-	SizeofTcMirred    = 0x1c
-	SizeofTcPolice    = 2*SizeofTcRateSpec + 0x20
+	SizeofTcMsg          = 0x14
+	SizeofTcActionMsg    = 0x04
+	SizeofTcPrioMap      = 0x14
+	SizeofTcRateSpec     = 0x0c
+	SizeofTcNetemQopt    = 0x18
+	SizeofTcNetemCorr    = 0x0c
+	SizeofTcNetemReorder = 0x08
+	SizeofTcNetemCorrupt = 0x08
+	SizeofTcTbfQopt      = 2*SizeofTcRateSpec + 0x0c
+	SizeofTcHtbCopt      = 2*SizeofTcRateSpec + 0x14
+	SizeofTcHtbGlob      = 0x14
+	SizeofTcU32Key       = 0x10
+	SizeofTcU32Sel       = 0x10 // without keys
+	SizeofTcMirred       = 0x1c
+	SizeofTcPolice       = 2*SizeofTcRateSpec + 0x20
 )
 
 // struct tcmsg {
@@ -237,6 +240,74 @@ func DeserializeTcNetemQopt(b []byte) *TcNetemQopt {
 
 func (x *TcNetemQopt) Serialize() []byte {
 	return (*(*[SizeofTcNetemQopt]byte)(unsafe.Pointer(x)))[:]
+}
+
+// struct tc_netem_corr {
+//  __u32   delay_corr; /* delay correlation */
+//  __u32   loss_corr;  /* packet loss correlation */
+//  __u32   dup_corr;   /* duplicate correlation  */
+// };
+
+type TcNetemCorr struct {
+	DelayCorr uint32
+	LossCorr  uint32
+	DupCorr   uint32
+}
+
+func (msg *TcNetemCorr) Len() int {
+	return SizeofTcNetemCorr
+}
+
+func DeserializeTcNetemCorr(b []byte) *TcNetemCorr {
+	return (*TcNetemCorr)(unsafe.Pointer(&b[0:SizeofTcNetemCorr][0]))
+}
+
+func (x *TcNetemCorr) Serialize() []byte {
+	return (*(*[SizeofTcNetemCorr]byte)(unsafe.Pointer(x)))[:]
+}
+
+// struct tc_netem_reorder {
+//  __u32   probability;
+//  __u32   correlation;
+// };
+
+type TcNetemReorder struct {
+	Probability uint32
+	Correlation uint32
+}
+
+func (msg *TcNetemReorder) Len() int {
+	return SizeofTcNetemReorder
+}
+
+func DeserializeTcNetemReorder(b []byte) *TcNetemReorder {
+	return (*TcNetemReorder)(unsafe.Pointer(&b[0:SizeofTcNetemReorder][0]))
+}
+
+func (x *TcNetemReorder) Serialize() []byte {
+	return (*(*[SizeofTcNetemReorder]byte)(unsafe.Pointer(x)))[:]
+}
+
+// struct tc_netem_corrupt {
+//  __u32   probability;
+//  __u32   correlation;
+// };
+
+type TcNetemCorrupt struct {
+	Probability uint32
+	Correlation uint32
+}
+
+func (msg *TcNetemCorrupt) Len() int {
+	return SizeofTcNetemCorrupt
+}
+
+func DeserializeTcNetemCorrupt(b []byte) *TcNetemCorrupt {
+	return (*TcNetemCorrupt)(unsafe.Pointer(&b[0:SizeofTcNetemCorrupt][0]))
+}
+
+func (x *TcNetemCorrupt) Serialize() []byte {
+	return (*(*[SizeofTcNetemCorrupt]byte)(unsafe.Pointer(x)))[:]
 }
 
 // struct tc_tbf_qopt {

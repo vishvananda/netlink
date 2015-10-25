@@ -86,13 +86,18 @@ func TestClassAddDel(t *testing.T) {
 		Parent:    MakeHandle(0xffff, 2),
 	}
 	nattrs := NetemQdiscAttrs{
-		Latency:   20000,
-		Loss:      23.4,
-		Duplicate: 14.3,
-		Jitter:    1000,
+		Latency:     20000,
+		Loss:        23.4,
+		Duplicate:   14.3,
+		LossCorr:    8.34,
+		Jitter:      1000,
+		DelayCorr:   12.3,
+		ReorderProb: 23.4,
+		CorruptProb: 10.0,
+		CorruptCorr: 10,
 	}
-	netem := NewNetem(qattrs, nattrs)
-	if err := QdiscAdd(netem); err != nil {
+	qdiscnetem := NewNetem(qattrs, nattrs)
+	if err := QdiscAdd(qdiscnetem); err != nil {
 		t.Fatal(err)
 	}
 
@@ -108,8 +113,31 @@ func TestClassAddDel(t *testing.T) {
 		t.Fatal("Qdisc is the wrong type")
 	}
 
-	// Deletion
+	netem, ok := qdiscs[1].(*Netem)
+	if !ok {
+		t.Fatal("Qdisc is the wrong type")
+	}
+	// Compare the record we got from the list with the one we created
+	if netem.Loss != qdiscnetem.Loss {
+		t.Fatal("Loss does not match")
+	}
+	if netem.Latency != qdiscnetem.Latency {
+		t.Fatal("Latency does not match")
+	}
+	if netem.CorruptProb != qdiscnetem.CorruptProb {
+		t.Fatal("CorruptProb does not match")
+	}
+	if netem.Jitter != qdiscnetem.Jitter {
+		t.Fatal("Jitter does not match")
+	}
+	if netem.LossCorr != qdiscnetem.LossCorr {
+		t.Fatal("Loss does not match")
+	}
+	if netem.DuplicateCorr != qdiscnetem.DuplicateCorr {
+		t.Fatal("DuplicateCorr does not match")
+	}
 
+	// Deletion
 	if err := ClassDel(class); err != nil {
 		t.Fatal(err)
 	}
