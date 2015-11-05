@@ -325,6 +325,10 @@ func (s *NetlinkSocket) Close() {
 	syscall.Close(s.fd)
 }
 
+func (s *NetlinkSocket) GetFd() int {
+	return s.fd
+}
+
 func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
 	if err := syscall.Sendto(s.fd, request.Serialize(), 0, &s.lsa); err != nil {
 		return err
