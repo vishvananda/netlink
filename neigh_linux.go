@@ -70,7 +70,7 @@ func NeighAdd(neigh *Neigh) error {
 	return neighAdd(neigh, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL)
 }
 
-// NeighAdd will add or replace an IP to MAC mapping to the ARP table
+// NeighSet will add or replace an IP to MAC mapping to the ARP table
 // Equivalent to: `ip neigh replace....`
 func NeighSet(neigh *Neigh) error {
 	return neighAdd(neigh, syscall.NLM_F_CREATE|syscall.NLM_F_REPLACE)
