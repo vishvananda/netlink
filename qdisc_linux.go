@@ -13,42 +13,37 @@ import (
 // QdiscDel will delete a qdisc from the system.
 // Equivalent to: `tc qdisc del $qdisc`
 func QdiscDel(qdisc Qdisc) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_DELQDISC, syscall.NLM_F_ACK)
-	base := qdisc.Attrs()
-	msg := &nl.TcMsg{
-		Family:  nl.FAMILY_ALL,
-		Ifindex: int32(base.LinkIndex),
-		Handle:  base.Handle,
-		Parent:  base.Parent,
-	}
-	req.AddData(msg)
-
-	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
-	return err
+	return qdiscModify(syscall.RTM_DELQDISC, 0, qdisc)
 }
 
-// QdiscChanf will change a qdisc in place
+// QdiscChange will change a qdisc in place
 // Equivalent to: `tc qdisc change $qdisc`
 // The parent and handle MUST NOT be changed.
 func QdiscChange(qdisc Qdisc) error {
-	return qdiscModify(qdisc, 0)
+	return qdiscModify(syscall.RTM_NEWQDISC, 0, qdisc)
 }
 
 // QdiscReplace will replace a qdisc to the system.
 // Equivalent to: `tc qdisc replace $qdisc`
 // The handle MUST change.
 func QdiscReplace(qdisc Qdisc) error {
-	return qdiscModify(qdisc, syscall.NLM_F_CREATE|syscall.NLM_F_REPLACE)
+	return qdiscModify(
+		syscall.RTM_NEWQDISC,
+		syscall.NLM_F_CREATE|syscall.NLM_F_REPLACE,
+		qdisc)
 }
 
 // QdiscAdd will add a qdisc to the system.
 // Equivalent to: `tc qdisc add $qdisc`
 func QdiscAdd(qdisc Qdisc) error {
-	return qdiscModify(qdisc, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL)
+	return qdiscModify(
+		syscall.RTM_NEWQDISC,
+		syscall.NLM_F_CREATE|syscall.NLM_F_EXCL,
+		qdisc)
 }
 
-func qdiscModify(qdisc Qdisc, flags int) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_NEWQDISC, flags|syscall.NLM_F_ACK)
+func qdiscModify(cmd, flags int, qdisc Qdisc) error {
+	req := nl.NewNetlinkRequest(cmd, flags|syscall.NLM_F_ACK)
 	base := qdisc.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
@@ -58,8 +53,11 @@ func qdiscModify(qdisc Qdisc, flags int) error {
 	}
 	req.AddData(msg)
 
-	if err := qdiscPayload(req, qdisc); err != nil {
-		return err
+	// When deleting don't bother building the rest of the netlink payload
+	if cmd != syscall.RTM_DELQDISC {
+		if err := qdiscPayload(req, qdisc); err != nil {
+			return err
+		}
 	}
 
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
