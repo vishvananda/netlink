@@ -27,10 +27,28 @@ func QdiscDel(qdisc Qdisc) error {
 	return err
 }
 
+// QdiscChanf will change a qdisc in place
+// Equivalent to: `tc qdisc change $qdisc`
+// The parent and handle MUST NOT be changed.
+func QdiscChange(qdisc Qdisc) error {
+	return qdiscModify(qdisc, 0)
+}
+
+// QdiscReplace will replace a qdisc to the system.
+// Equivalent to: `tc qdisc replace $qdisc`
+// The handle MUST change.
+func QdiscReplace(qdisc Qdisc) error {
+	return qdiscModify(qdisc, syscall.NLM_F_CREATE|syscall.NLM_F_REPLACE)
+}
+
 // QdiscAdd will add a qdisc to the system.
 // Equivalent to: `tc qdisc add $qdisc`
 func QdiscAdd(qdisc Qdisc) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_NEWQDISC, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	return qdiscModify(qdisc, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL)
+}
+
+func qdiscModify(qdisc Qdisc, flags int) error {
+	req := nl.NewNetlinkRequest(syscall.RTM_NEWQDISC, flags|syscall.NLM_F_ACK)
 	base := qdisc.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
