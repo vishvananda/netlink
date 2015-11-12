@@ -57,6 +57,17 @@ func qdiscModify(qdisc Qdisc, flags int) error {
 		Parent:  base.Parent,
 	}
 	req.AddData(msg)
+
+	if err := qdiscPayload(req, qdisc); err != nil {
+		return err
+	}
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
+
 	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(qdisc.Type())))
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
@@ -117,14 +128,13 @@ func qdiscModify(qdisc Qdisc, flags int) error {
 		}
 	} else if _, ok := qdisc.(*Ingress); ok {
 		// ingress filters must use the proper handle
-		if msg.Parent != HANDLE_INGRESS {
+		if qdisc.Attrs().Parent != HANDLE_INGRESS {
 			return fmt.Errorf("Ingress filters must set Parent to HANDLE_INGRESS")
 		}
 	}
 
 	req.AddData(options)
-	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
-	return err
+	return nil
 }
 
 // QdiscList gets a list of qdiscs in the system.
