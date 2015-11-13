@@ -133,6 +133,7 @@ func NeighList(linkIndex, family int) ([]Neigh, error) {
 	req := nl.NewNetlinkRequest(syscall.RTM_GETNEIGH, syscall.NLM_F_DUMP)
 	msg := Ndmsg{
 		Family: uint8(family),
+		Index:  uint32(linkIndex),
 	}
 	req.AddData(&msg)
 
