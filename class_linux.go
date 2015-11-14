@@ -9,24 +9,21 @@ import (
 // ClassDel will delete a class from the system.
 // Equivalent to: `tc class del $class`
 func ClassDel(class Class) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_DELTCLASS, syscall.NLM_F_ACK)
-	base := class.Attrs()
-	msg := &nl.TcMsg{
-		Family:  nl.FAMILY_ALL,
-		Ifindex: int32(base.LinkIndex),
-		Handle:  base.Handle,
-		Parent:  base.Parent,
-	}
-	req.AddData(msg)
-
-	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
-	return err
+	return classModify(syscall.RTM_DELTCLASS, 0, class)
 }
 
 // ClassAdd will add a class to the system.
 // Equivalent to: `tc class add $class`
 func ClassAdd(class Class) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_NEWTCLASS, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	return classModify(
+		syscall.RTM_NEWTCLASS,
+		syscall.NLM_F_CREATE|syscall.NLM_F_EXCL,
+		class,
+	)
+}
+
+func classModify(cmd, flags int, class Class) error {
+	req := nl.NewNetlinkRequest(cmd, flags|syscall.NLM_F_ACK)
 	base := class.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
@@ -35,6 +32,17 @@ func ClassAdd(class Class) error {
 		Parent:  base.Parent,
 	}
 	req.AddData(msg)
+
+	if cmd != syscall.RTM_DELTCLASS {
+		if err := classPayload(req, class); err != nil {
+			return err
+		}
+	}
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func classPayload(req *nl.NetlinkRequest, class Class) error {
 	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(class.Type())))
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
@@ -51,8 +59,7 @@ func ClassAdd(class Class) error {
 		nl.NewRtAttrChild(options, nl.TCA_HTB_PARMS, opt.Serialize())
 	}
 	req.AddData(options)
-	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
-	return err
+	return nil
 }
 
 // ClassList gets a list of classes in the system.
