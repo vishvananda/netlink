@@ -12,6 +12,23 @@ func ClassDel(class Class) error {
 	return classModify(syscall.RTM_DELTCLASS, 0, class)
 }
 
+// ClassChange will change a class in place
+// Equivalent to: `tc class change $class`
+// The parent and handle MUST NOT be changed.
+
+func ClassChange(class Class) error {
+	return classModify(syscall.RTM_NEWTCLASS, 0, class)
+}
+
+// ClassReplace will replace a class to the system.
+// quivalent to: `tc class replace $class`
+// The handle MAY be changed.
+// If a class already exist with this parent/handle pair, the class is changed.
+// If a class does not already exist with this parent/handle, a new class is created.
+func ClassReplace(class Class) error {
+	return classModify(syscall.RTM_NEWTCLASS, syscall.NLM_F_CREATE, class)
+}
+
 // ClassAdd will add a class to the system.
 // Equivalent to: `tc class add $class`
 func ClassAdd(class Class) error {
@@ -64,7 +81,7 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 
 // ClassList gets a list of classes in the system.
 // Equivalent to: `tc class show`.
-// Generally retunrs nothing if link and parent are not specified.
+// Generally returns nothing if link and parent are not specified.
 func ClassList(link Link, parent uint32) ([]Class, error) {
 	req := nl.NewNetlinkRequest(syscall.RTM_GETTCLASS, syscall.NLM_F_DUMP)
 	msg := &nl.TcMsg{
