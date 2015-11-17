@@ -13,24 +13,37 @@ import (
 // QdiscDel will delete a qdisc from the system.
 // Equivalent to: `tc qdisc del $qdisc`
 func QdiscDel(qdisc Qdisc) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_DELQDISC, syscall.NLM_F_ACK)
-	base := qdisc.Attrs()
-	msg := &nl.TcMsg{
-		Family:  nl.FAMILY_ALL,
-		Ifindex: int32(base.LinkIndex),
-		Handle:  base.Handle,
-		Parent:  base.Parent,
-	}
-	req.AddData(msg)
+	return qdiscModify(syscall.RTM_DELQDISC, 0, qdisc)
+}
 
-	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
-	return err
+// QdiscChange will change a qdisc in place
+// Equivalent to: `tc qdisc change $qdisc`
+// The parent and handle MUST NOT be changed.
+func QdiscChange(qdisc Qdisc) error {
+	return qdiscModify(syscall.RTM_NEWQDISC, 0, qdisc)
+}
+
+// QdiscReplace will replace a qdisc to the system.
+// Equivalent to: `tc qdisc replace $qdisc`
+// The handle MUST change.
+func QdiscReplace(qdisc Qdisc) error {
+	return qdiscModify(
+		syscall.RTM_NEWQDISC,
+		syscall.NLM_F_CREATE|syscall.NLM_F_REPLACE,
+		qdisc)
 }
 
 // QdiscAdd will add a qdisc to the system.
 // Equivalent to: `tc qdisc add $qdisc`
 func QdiscAdd(qdisc Qdisc) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_NEWQDISC, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	return qdiscModify(
+		syscall.RTM_NEWQDISC,
+		syscall.NLM_F_CREATE|syscall.NLM_F_EXCL,
+		qdisc)
+}
+
+func qdiscModify(cmd, flags int, qdisc Qdisc) error {
+	req := nl.NewNetlinkRequest(cmd, flags|syscall.NLM_F_ACK)
 	base := qdisc.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
@@ -39,6 +52,20 @@ func QdiscAdd(qdisc Qdisc) error {
 		Parent:  base.Parent,
 	}
 	req.AddData(msg)
+
+	// When deleting don't bother building the rest of the netlink payload
+	if cmd != syscall.RTM_DELQDISC {
+		if err := qdiscPayload(req, qdisc); err != nil {
+			return err
+		}
+	}
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
+
 	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(qdisc.Type())))
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
@@ -99,14 +126,13 @@ func QdiscAdd(qdisc Qdisc) error {
 		}
 	} else if _, ok := qdisc.(*Ingress); ok {
 		// ingress filters must use the proper handle
-		if msg.Parent != HANDLE_INGRESS {
+		if qdisc.Attrs().Parent != HANDLE_INGRESS {
 			return fmt.Errorf("Ingress filters must set Parent to HANDLE_INGRESS")
 		}
 	}
 
 	req.AddData(options)
-	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
-	return err
+	return nil
 }
 
 // QdiscList gets a list of qdiscs in the system.
