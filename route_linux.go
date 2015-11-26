@@ -29,8 +29,6 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 		return fmt.Errorf("one of Dst.IP, Src, or Gw must not be nil")
 	}
 
-	msg.Scope = uint8(route.Scope)
-	msg.Flags = uint32(route.Flags)
 	family := -1
 	var rtAttrs []*nl.RtAttr
 
@@ -79,8 +77,34 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_GATEWAY, gwData))
 	}
 
-	msg.Family = uint8(family)
+	if route.Table > 0 {
+		if route.Table >= 256 {
+			msg.Table = syscall.RT_TABLE_UNSPEC
+			b := make([]byte, 4)
+			native.PutUint32(b, uint32(route.Table))
+			rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_TABLE, b))
+		} else {
+			msg.Table = uint8(route.Table)
+		}
+	}
 
+	if route.Priority > 0 {
+		b := make([]byte, 4)
+		native.PutUint32(b, uint32(route.Priority))
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_PRIORITY, b))
+	}
+	if route.Tos > 0 {
+		msg.Tos = uint8(route.Tos)
+	}
+	if route.Protocol > 0 {
+		msg.Protocol = uint8(route.Protocol)
+	}
+	if route.Type > 0 {
+		msg.Type = uint8(route.Type)
+	}
+
+	msg.Scope = uint8(route.Scope)
+	msg.Family = uint8(family)
 	req.AddData(msg)
 	for _, attr := range rtAttrs {
 		req.AddData(attr)
@@ -103,8 +127,8 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 // The list can be filtered by link and ip family.
 func RouteList(link Link, family int) ([]Route, error) {
 	req := nl.NewNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_DUMP)
-	msg := nl.NewIfInfomsg(family)
-	req.AddData(msg)
+	infmsg := nl.NewIfInfomsg(family)
+	req.AddData(infmsg)
 
 	msgs, err := req.Execute(syscall.NETLINK_ROUTE, syscall.RTM_NEWROUTE)
 	if err != nil {
@@ -149,14 +173,19 @@ func RouteList(link Link, family int) ([]Route, error) {
 
 // deserializeRoute decodes a binary netlink message into a Route struct
 func deserializeRoute(m []byte) (Route, error) {
-	route := Route{}
 	msg := nl.DeserializeRtMsg(m)
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
 	if err != nil {
-		return route, err
+		return Route{}, err
 	}
-	route.Scope = Scope(msg.Scope)
-	route.Flags = int(msg.Flags)
+	route := Route{
+		Scope:    Scope(msg.Scope),
+		Protocol: int(msg.Protocol),
+		Table:    int(msg.Table),
+		Type:     int(msg.Type),
+		Tos:      int(msg.Tos),
+		Flags:    int(msg.Flags),
+	}
 
 	native := nl.NativeEndian()
 	for _, attr := range attrs {
@@ -171,8 +200,13 @@ func deserializeRoute(m []byte) (Route, error) {
 				Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
 			}
 		case syscall.RTA_OIF:
-			routeIndex := int(native.Uint32(attr.Value[0:4]))
-			route.LinkIndex = routeIndex
+			route.LinkIndex = int(native.Uint32(attr.Value[0:4]))
+		case syscall.RTA_IIF:
+			route.Iif = int(native.Uint32(attr.Value[0:4]))
+		case syscall.RTA_PRIORITY:
+			route.Priority = int(native.Uint32(attr.Value[0:4]))
+		case syscall.RTA_TABLE:
+			route.Table = int(native.Uint32(attr.Value[0:4]))
 		}
 	}
 	return route, nil
