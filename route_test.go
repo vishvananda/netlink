@@ -172,11 +172,20 @@ func TestRouteExtraFields(t *testing.T) {
 		Priority:  13,
 		Table:     syscall.RT_TABLE_MAIN,
 		Type:      syscall.RTN_UNICAST,
+		Tos:       14,
 	}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
 	}
-	routes, err := RouteList(link, FAMILY_V4)
+	routes, err := RouteListFiltered(FAMILY_V4, &RouteFilter{
+		Dst:      dst,
+		Src:      src,
+		Scope:    syscall.RT_SCOPE_LINK,
+		Table:    syscall.RT_TABLE_MAIN,
+		Type:     syscall.RTN_UNICAST,
+		Tos:      14,
+		FlagMask: RT_FILTER_DST | RT_FILTER_SRC | RT_FILTER_SCOPE | RT_FILTER_TABLE | RT_FILTER_TYPE | RT_FILTER_TOS,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,5 +204,8 @@ func TestRouteExtraFields(t *testing.T) {
 	}
 	if routes[0].Type != syscall.RTN_UNICAST {
 		t.Fatal("Invalid Type. Route not added properly")
+	}
+	if routes[0].Tos != 14 {
+		t.Fatal("Invalid Tos. Route not added properly")
 	}
 }
