@@ -29,6 +29,7 @@ type LinkAttrs struct {
 	ParentIndex  int         // index of the parent link device
 	MasterIndex  int         // must be the index of a bridge
 	Namespace    interface{} // nil | NsPid | NsFd
+	Alias        string
 }
 
 // NewLinkAttrs returns LinkAttrs structure filled with default values

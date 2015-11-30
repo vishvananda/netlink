@@ -670,6 +670,25 @@ func TestLinkSet(t *testing.T) {
 	if !bytes.Equal(link.Attrs().HardwareAddr, addr) {
 		t.Fatalf("hardware address not changed!")
 	}
+
+	err = LinkSetAlias(link, "barAlias")
+	if err != nil {
+		t.Fatalf("Could not set alias: %v", err)
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().Alias != "barAlias" {
+		t.Fatalf("alias not changed!")
+	}
+
+	link, err = LinkByAlias("barAlias")
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func expectLinkUpdate(ch <-chan LinkUpdate, ifaceName string, up bool) bool {

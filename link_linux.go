@@ -106,6 +106,24 @@ func LinkSetName(link Link, name string) error {
 	return err
 }
 
+// LinkSetAlias sets the alias of the link device.
+// Equivalent to: `ip link set dev $link alias $name`
+func LinkSetAlias(link Link, name string) error {
+	base := link.Attrs()
+	ensureIndex(base)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(syscall.IFLA_IFALIAS, []byte(name))
+	req.AddData(data)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetHardwareAddr sets the hardware address of the link device.
 // Equivalent to: `ip link set $link address $hwaddr`
 func LinkSetHardwareAddr(link Link, hwaddr net.HardwareAddr) error {
@@ -447,6 +465,20 @@ func linkByNameDump(name string) (Link, error) {
 	return nil, fmt.Errorf("Link %s not found", name)
 }
 
+func linkByAliasDump(alias string) (Link, error) {
+	links, err := LinkList()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, link := range links {
+		if link.Attrs().Alias == alias {
+			return link, nil
+		}
+	}
+	return nil, fmt.Errorf("Link alias %s not found", alias)
+}
+
 // LinkByName finds a link by name and returns a pointer to the object.
 func LinkByName(name string) (Link, error) {
 	if lookupByDump {
@@ -467,6 +499,32 @@ func LinkByName(name string) (Link, error) {
 		// so fall back to dumping all links
 		lookupByDump = true
 		return linkByNameDump(name)
+	}
+
+	return link, err
+}
+
+// LinkByAlias finds a link by its alias and returns a pointer to the object.
+// If there are multiple links with the alias it returns the first one
+func LinkByAlias(alias string) (Link, error) {
+	if lookupByDump {
+		return linkByAliasDump(alias)
+	}
+
+	req := nl.NewNetlinkRequest(syscall.RTM_GETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	req.AddData(msg)
+
+	nameData := nl.NewRtAttr(syscall.IFLA_IFALIAS, nl.ZeroTerminated(alias))
+	req.AddData(nameData)
+
+	link, err := execGetLink(req)
+	if err == syscall.EINVAL {
+		// older kernels don't support looking up via IFLA_IFALIAS
+		// so fall back to dumping all links
+		lookupByDump = true
+		return linkByAliasDump(alias)
 	}
 
 	return link, err
@@ -591,6 +649,8 @@ func linkDeserialize(m []byte) (Link, error) {
 			base.MasterIndex = int(native.Uint32(attr.Value[0:4]))
 		case syscall.IFLA_TXQLEN:
 			base.TxQLen = int(native.Uint32(attr.Value[0:4]))
+		case syscall.IFLA_IFALIAS:
+			base.Alias = string(attr.Value[:len(attr.Value)-1])
 		}
 	}
 	// Links that don't have IFLA_INFO_KIND are hardware devices
