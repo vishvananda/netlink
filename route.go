@@ -26,18 +26,18 @@ const (
 
 // Route represents a netlink route.
 type Route struct {
-	LinkIndex int
-	Iif       int
-	Scope     Scope
-	Dst       *net.IPNet
-	Src       net.IP
-	Gw        net.IP
-	Protocol  int
-	Priority  int
-	Table     int
-	Type      int
-	Tos       int
-	Flags     int
+	LinkIndex  int
+	ILinkIndex int
+	Scope      Scope
+	Dst        *net.IPNet
+	Src        net.IP
+	Gw         net.IP
+	Protocol   int
+	Priority   int
+	Table      int
+	Type       int
+	Tos        int
+	Flags      int
 }
 
 func (r Route) String() string {

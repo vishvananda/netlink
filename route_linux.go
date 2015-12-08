@@ -10,24 +10,6 @@ import (
 
 // RtAttr is shared so it is in netlink_linux.go
 
-// RouteFilter represents filter that can be apply to RouteList function.
-type RouteFilter struct {
-	Table    int
-	Protocol int
-	Scope    Scope
-	Type     int
-	Tos      int
-	Iif      int
-	Oif      int
-	Dst      *net.IPNet
-	Src      net.IP
-	Gw       net.IP
-
-	FlagMask uint64
-}
-
-// Flag mask for router filters. RouterFilter.FlagMask must be set to on
-// for filter to work.
 const (
 	RT_FILTER_PROTOCOL uint64 = 1 << (1 + iota)
 	RT_FILTER_SCOPE
@@ -157,19 +139,18 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 // Equivalent to: `ip route show`.
 // The list can be filtered by link and ip family.
 func RouteList(link Link, family int) ([]Route, error) {
-	var rf *RouteFilter
+	var routeFilter *Route
 	if link != nil {
-		rf = &RouteFilter{
-			Oif:      link.Attrs().Index,
-			FlagMask: RT_FILTER_OIF,
+		routeFilter = &Route{
+			LinkIndex: link.Attrs().Index,
 		}
 	}
-	return RouteListFiltered(family, rf)
+	return RouteListFiltered(family, routeFilter, RT_FILTER_OIF)
 }
 
 // RouteListFiltered gets a list of routes in the system filtered with specified rules.
 // All rules must be defined in RouteFilter struct
-func RouteListFiltered(family int, filter *RouteFilter) ([]Route, error) {
+func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
 	req := nl.NewNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_DUMP)
 	infmsg := nl.NewIfInfomsg(family)
 	req.AddData(infmsg)
@@ -182,46 +163,41 @@ func RouteListFiltered(family int, filter *RouteFilter) ([]Route, error) {
 	var res []Route
 	for _, m := range msgs {
 		msg := nl.DeserializeRtMsg(m)
-
 		if msg.Flags&syscall.RTM_F_CLONED != 0 {
 			// Ignore cloned routes
 			continue
 		}
-
 		if msg.Table != syscall.RT_TABLE_MAIN {
-			if filter == nil || filter != nil && filter.FlagMask&RT_FILTER_TABLE == 0 {
+			if filter == nil || filter != nil && filterMask&RT_FILTER_TABLE == 0 {
 				// Ignore non-main tables
 				continue
 			}
 		}
-
 		route, err := deserializeRoute(m)
 		if err != nil {
 			return nil, err
 		}
-
 		if filter != nil {
-			f := filter.FlagMask
 			switch {
-			case f&RT_FILTER_TABLE != 0 && filter.Table != route.Table:
+			case filterMask&RT_FILTER_TABLE != 0 && route.Table != filter.Table:
 				continue
-			case f&RT_FILTER_PROTOCOL != 0 && route.Protocol != filter.Protocol:
+			case filterMask&RT_FILTER_PROTOCOL != 0 && route.Protocol != filter.Protocol:
 				continue
-			case f&RT_FILTER_SCOPE != 0 && route.Scope != filter.Scope:
+			case filterMask&RT_FILTER_SCOPE != 0 && route.Scope != filter.Scope:
 				continue
-			case f&RT_FILTER_TYPE != 0 && route.Type != filter.Type:
+			case filterMask&RT_FILTER_TYPE != 0 && route.Type != filter.Type:
 				continue
-			case f&RT_FILTER_TOS != 0 && route.Tos != filter.Tos:
+			case filterMask&RT_FILTER_TOS != 0 && route.Tos != filter.Tos:
 				continue
-			case f&RT_FILTER_OIF != 0 && filter.Oif != route.LinkIndex:
+			case filterMask&RT_FILTER_OIF != 0 && route.LinkIndex != filter.LinkIndex:
 				continue
-			case f&RT_FILTER_IIF != 0 && filter.Iif != route.Iif:
+			case filterMask&RT_FILTER_IIF != 0 && route.ILinkIndex != filter.ILinkIndex:
 				continue
-			case f&RT_FILTER_GW != 0 && !route.Gw.Equal(filter.Gw):
+			case filterMask&RT_FILTER_GW != 0 && !route.Gw.Equal(filter.Gw):
 				continue
-			case f&RT_FILTER_SRC != 0 && !route.Src.Equal(filter.Src):
+			case filterMask&RT_FILTER_SRC != 0 && !route.Src.Equal(filter.Src):
 				continue
-			case f&RT_FILTER_DST != 0 && filter.Dst != nil:
+			case filterMask&RT_FILTER_DST != 0 && filter.Dst != nil:
 				if route.Dst == nil {
 					continue
 				}
@@ -232,10 +208,8 @@ func RouteListFiltered(family int, filter *RouteFilter) ([]Route, error) {
 				}
 			}
 		}
-
 		res = append(res, route)
 	}
-
 	return res, nil
 }
 
@@ -270,7 +244,7 @@ func deserializeRoute(m []byte) (Route, error) {
 		case syscall.RTA_OIF:
 			route.LinkIndex = int(native.Uint32(attr.Value[0:4]))
 		case syscall.RTA_IIF:
-			route.Iif = int(native.Uint32(attr.Value[0:4]))
+			route.ILinkIndex = int(native.Uint32(attr.Value[0:4]))
 		case syscall.RTA_PRIORITY:
 			route.Priority = int(native.Uint32(attr.Value[0:4]))
 		case syscall.RTA_TABLE:

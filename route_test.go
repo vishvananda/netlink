@@ -177,15 +177,14 @@ func TestRouteExtraFields(t *testing.T) {
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
 	}
-	routes, err := RouteListFiltered(FAMILY_V4, &RouteFilter{
-		Dst:      dst,
-		Src:      src,
-		Scope:    syscall.RT_SCOPE_LINK,
-		Table:    syscall.RT_TABLE_MAIN,
-		Type:     syscall.RTN_UNICAST,
-		Tos:      14,
-		FlagMask: RT_FILTER_DST | RT_FILTER_SRC | RT_FILTER_SCOPE | RT_FILTER_TABLE | RT_FILTER_TYPE | RT_FILTER_TOS,
-	})
+	routes, err := RouteListFiltered(FAMILY_V4, &Route{
+		Dst:   dst,
+		Src:   src,
+		Scope: syscall.RT_SCOPE_LINK,
+		Table: syscall.RT_TABLE_MAIN,
+		Type:  syscall.RTN_UNICAST,
+		Tos:   14,
+	}, RT_FILTER_DST|RT_FILTER_SRC|RT_FILTER_SCOPE|RT_FILTER_TABLE|RT_FILTER_TYPE|RT_FILTER_TOS)
 	if err != nil {
 		t.Fatal(err)
 	}
