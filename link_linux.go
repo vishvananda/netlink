@@ -133,6 +133,9 @@ func LinkSetMaster(link Link, master *Bridge) error {
 		ensureIndex(masterBase)
 		index = masterBase.Index
 	}
+	if index <= 0 {
+		return fmt.Errorf("Device does not exist")
+	}
 	return LinkSetMasterByIndex(link, index)
 }
 
