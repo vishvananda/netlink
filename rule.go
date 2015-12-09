@@ -3,46 +3,41 @@ package netlink
 import (
 	"fmt"
 	"net"
-)
 
-// Flag mask for rule options. Rule.FlagMask must be set to on for option to work.
-const (
-	RULE_PRIORITY_MASK = 1 << (1 + iota)
-	RULE_FWMARK_MASK
-	RULE_FWMASK_MASK
-	RULE_FLOW_MASK
-	RULE_TABLE_MASK
-	RULE_SUPPRESS_PREFIXLEN_MASK
-	RULE_SUPPRESS_IFGROUP_MASK
-	RULE_IIFNAME_MASK
-	RULE_OIFNAME_MASK
-	RULE_GOTO_MASK
+	"github.com/vishvananda/netlink/nl"
 )
 
 // Rule represents a netlink rule.
 type Rule struct {
-	Family            int
-	Tos               int
-	Scope             int
-	Table             int
-	Protocol          int
-	Type              int
+	*nl.RtMsg
 	Priority          int
+	Table             int
 	Mark              int
 	Mask              int
+	TunID             uint
 	Goto              int
 	Src               *net.IPNet
 	Dst               *net.IPNet
-	Flow              int // IPv4 only
-	Flags             int
+	Flow              int
 	IifName           string
 	OifName           string
 	SuppressIfgroup   int
 	SuppressPrefixlen int
-
-	FlagMask uint64
 }
 
 func (r Rule) String() string {
 	return fmt.Sprintf("ip rule %d: from %s table %d", r.Priority, r.Src, r.Table)
+}
+
+// NewRule return empty rules.
+func NewRule() *Rule {
+	return &Rule{
+		SuppressIfgroup:   -1,
+		SuppressPrefixlen: -1,
+		Priority:          -1,
+		Mark:              -1,
+		Mask:              -1,
+		Goto:              -1,
+		Flow:              -1,
+	}
 }

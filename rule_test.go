@@ -15,18 +15,13 @@ func TestRuleAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rule := &Rule{
-		Table:    syscall.RT_TABLE_MAIN,
-		Src:      srcNet,
-		Dst:      dstNet,
-		Priority: 5,
-		OifName:  "lo",
-		IifName:  "lo",
-		FlagMask: RULE_TABLE_MASK |
-			RULE_IIFNAME_MASK |
-			RULE_PRIORITY_MASK |
-			RULE_OIFNAME_MASK,
-	}
+	rule := NewRule()
+	rule.Table = syscall.RT_TABLE_MAIN
+	rule.Src = srcNet
+	rule.Dst = dstNet
+	rule.Priority = 5
+	rule.OifName = "lo"
+	rule.IifName = "lo"
 	if err := RuleAdd(rule); err != nil {
 		t.Fatal(err)
 	}
