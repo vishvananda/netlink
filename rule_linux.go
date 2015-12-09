@@ -91,6 +91,10 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 		native.PutUint32(b, uint32(rule.Flow))
 		req.AddData(nl.NewRtAttr(nl.FRA_FLOW, b))
 	}
+	if rule.TunID > 0 {
+		native.PutUint32(b, uint32(rule.TunID))
+		req.AddData(nl.NewRtAttr(nl.FRA_TUN_ID, b))
+	}
 	if rule.Table >= 256 {
 		native.PutUint32(b, uint32(rule.Table))
 		req.AddData(nl.NewRtAttr(nl.FRA_TABLE, b))
@@ -163,6 +167,8 @@ func RuleList(family int) ([]Rule, error) {
 				rule.Mark = int(native.Uint32(attrs[j].Value[0:4]))
 			case nl.FRA_FWMASK:
 				rule.Mask = int(native.Uint32(attrs[j].Value[0:4]))
+			case nl.FRA_TUN_ID:
+				rule.TunID = uint(native.Uint64(attrs[j].Value[0:4]))
 			case nl.FRA_IIFNAME:
 				rule.IifName = string(attrs[j].Value[:len(attrs[j].Value)-1])
 			case nl.FRA_OIFNAME:
