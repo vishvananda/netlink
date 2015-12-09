@@ -106,8 +106,7 @@ func TestAddrAddDelFlags(t *testing.T) {
 			IP:   net.IPv4(127, 1, 1, 1),
 			Mask: net.CIDRMask(24, 32),
 		},
-		Flags:     syscall.IFA_F_PERMANENT,
-		FlagsMask: syscall.IFA_F_PERMANENT,
+		Flags: syscall.IFA_F_PERMANENT,
 	}
 	if err = AddrAdd(link, addr); err != nil {
 		t.Fatal(err)

@@ -56,7 +56,7 @@ func addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error {
 	addressData := nl.NewRtAttr(syscall.IFA_ADDRESS, addrData)
 	req.AddData(addressData)
 
-	if addr.FlagsMask != 0 {
+	if addr.Flags != 0 {
 		b := make([]byte, 4)
 		native.PutUint32(b, uint32(addr.Flags))
 		flagsData := nl.NewRtAttr(IFA_FLAGS, b)
