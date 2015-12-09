@@ -262,6 +262,13 @@ func TestLinkAddDelVeth(t *testing.T) {
 	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar"})
 }
 
+func TestLinkAddDelBond(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, NewBond(LinkAttrs{Name: "foo"}))
+}
+
 func TestLinkAddVethWithDefaultTxQLen(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
