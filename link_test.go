@@ -389,6 +389,12 @@ func TestLinkSetUnsetResetMaster(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	nonexistsmaster := &Bridge{LinkAttrs{Name: "foobar"}}
+
+	if err := LinkSetMaster(slave, nonexistsmaster); err == nil {
+		t.Fatal("error expected")
+	}
+
 	if err := LinkSetMaster(slave, master); err != nil {
 		t.Fatal(err)
 	}
@@ -415,7 +421,7 @@ func TestLinkSetUnsetResetMaster(t *testing.T) {
 		t.Fatal("Master not reset properly")
 	}
 
-	if err := LinkSetMaster(slave, nil); err != nil {
+	if err := LinkSetNoMaster(slave); err != nil {
 		t.Fatal(err)
 	}
 
