@@ -241,6 +241,22 @@ func (ipvlan *IPVlan) Type() string {
 	return "ipvlan"
 }
 
+// GreTap devices must specify LocalIP and RemoteIP on create
+type Gretap struct {
+	LinkAttrs
+	Key      uint32
+	LocalIP  net.IP
+	RemoteIP net.IP
+}
+
+func (gretap *Gretap) Attrs() *LinkAttrs {
+	return &gretap.LinkAttrs
+}
+
+func (gretap *Gretap) Type() string {
+	return "gretap"
+}
+
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
 // bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |

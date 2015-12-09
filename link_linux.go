@@ -293,6 +293,63 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	}
 }
 
+func htonl(val uint32) []byte {
+	bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(bytes, val)
+	return bytes
+}
+
+func htons(val uint16) []byte {
+	bytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(bytes, val)
+	return bytes
+}
+
+func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
+
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_IKEY, htonl(gretap.Key))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_OKEY, htonl(gretap.Key))
+
+	ip := gretap.LocalIP.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_LOCAL, []byte(ip))
+	}
+	ip = gretap.RemoteIP.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_REMOTE, []byte(ip))
+	}
+
+	iflags := uint16(nl.GRE_KEY)
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_IFLAGS, htons(iflags))
+
+	oflags := uint16(nl.GRE_KEY)
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_OFLAGS, htons(oflags))
+
+	// Use sane defaults for remaining parameters
+
+	//grelink := 0
+	//if grelink != 0 {
+	//	nl.NewRtAttrChild(data, nl.IFLA_GRE_LINK, nl.Uint32Attr(uint32(grelink)))
+	//}
+	pmtudisc := 1
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_PMTUDISC, nl.Uint8Attr(uint8(pmtudisc)))
+	ttl := 0
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_TTL, nl.Uint8Attr(uint8(ttl)))
+	tos := 0
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_TOS, nl.Uint8Attr(uint8(tos)))
+	encaptype := 0
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_TYPE, nl.Uint16Attr(uint16(encaptype)))
+	encapflags := 0
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_FLAGS, nl.Uint16Attr(uint16(encapflags)))
+
+	encapsport := uint16(0)
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_SPORT, htons(encapsport))
+	encapdport := uint16(0)
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_DPORT, htons(encapdport))
+}
+
 // LinkAdd adds a new link device. The type and features of the device
 // are taken fromt the parameters in the link object.
 // Equivalent to: `ip link add $link`
@@ -414,6 +471,8 @@ func LinkAdd(link Link) error {
 			data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 			nl.NewRtAttrChild(data, nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[macv.Mode]))
 		}
+	} else if gretap, ok := link.(*Gretap); ok {
+		addGretapAttrs(gretap, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -607,6 +666,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &Macvlan{}
 					case "macvtap":
 						link = &Macvtap{}
+					case "gretap":
+						link = &Gretap{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}

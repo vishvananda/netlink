@@ -199,6 +199,17 @@ func TestLinkAddDelBridge(t *testing.T) {
 	testLinkAddDel(t, &Bridge{LinkAttrs{Name: "foo", MTU: 1400}})
 }
 
+func TestLinkAddDelGretap(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Key:       0x101,
+		LocalIP:   net.IPv4(127, 0, 0, 1),
+		RemoteIP:  net.IPv4(127, 0, 0, 1)})
+}
+
 func TestLinkAddDelVlan(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
