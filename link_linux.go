@@ -136,6 +136,12 @@ func LinkSetMaster(link Link, master *Bridge) error {
 	return LinkSetMasterByIndex(link, index)
 }
 
+// LinkSetNoMaster removes the master of the link device.
+// Equivalent to: `ip link set $link nomaster`
+func LinkSetNoMaster(link Link) error {
+	return LinkSetMasterByIndex(link, 0)
+}
+
 // LinkSetMasterByIndex sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
 func LinkSetMasterByIndex(link Link, masterIndex int) error {
