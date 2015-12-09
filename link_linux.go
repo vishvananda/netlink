@@ -328,6 +328,27 @@ func LinkAdd(link Link) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	// TODO: make it shorter
+	if base.Flags&net.FlagUp != 0 {
+		msg.Change = syscall.IFF_UP
+		msg.Flags = syscall.IFF_UP
+	}
+	if base.Flags&net.FlagBroadcast != 0 {
+		msg.Change |= syscall.IFF_BROADCAST
+		msg.Flags |= syscall.IFF_BROADCAST
+	}
+	if base.Flags&net.FlagLoopback != 0 {
+		msg.Change |= syscall.IFF_LOOPBACK
+		msg.Flags |= syscall.IFF_LOOPBACK
+	}
+	if base.Flags&net.FlagPointToPoint != 0 {
+		msg.Change |= syscall.IFF_POINTOPOINT
+		msg.Flags |= syscall.IFF_POINTOPOINT
+	}
+	if base.Flags&net.FlagMulticast != 0 {
+		msg.Change |= syscall.IFF_MULTICAST
+		msg.Flags |= syscall.IFF_MULTICAST
+	}
 	req.AddData(msg)
 
 	if base.ParentIndex != 0 {
