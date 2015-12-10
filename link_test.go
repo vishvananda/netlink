@@ -277,7 +277,7 @@ func TestLinkAddDelBond(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, NewBond(LinkAttrs{Name: "foo"}))
+	testLinkAddDel(t, NewLinkBond(LinkAttrs{Name: "foo"}))
 }
 
 func TestLinkAddVethWithDefaultTxQLen(t *testing.T) {
