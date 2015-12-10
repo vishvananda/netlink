@@ -528,9 +528,20 @@ func (bond *Bond) Type() string {
 // GreTap devices must specify LocalIP and RemoteIP on create
 type Gretap struct {
 	LinkAttrs
-	Key      uint32
-	LocalIP  net.IP
-	RemoteIP net.IP
+	IKey       uint32
+	OKey       uint32
+	EncapSport uint16
+	EncapDport uint16
+	Local      net.IP
+	Remote     net.IP
+	IFlags     uint16
+	OFlags     uint16
+	PMtuDisc   uint8
+	Ttl        uint8
+	Tos        uint8
+	EncapType  uint16
+	EncapFlags uint16
+	Link       uint32
 }
 
 func (gretap *Gretap) Attrs() *LinkAttrs {
