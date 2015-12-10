@@ -133,7 +133,16 @@ func LinkSetMaster(link Link, master *Bridge) error {
 		ensureIndex(masterBase)
 		index = masterBase.Index
 	}
+	if index <= 0 {
+		return fmt.Errorf("Device does not exist")
+	}
 	return LinkSetMasterByIndex(link, index)
+}
+
+// LinkSetNoMaster removes the master of the link device.
+// Equivalent to: `ip link set $link nomaster`
+func LinkSetNoMaster(link Link) error {
+	return LinkSetMasterByIndex(link, 0)
 }
 
 // LinkSetMasterByIndex sets the master of the link device.
