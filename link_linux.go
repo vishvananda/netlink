@@ -106,6 +106,24 @@ func LinkSetName(link Link, name string) error {
 	return err
 }
 
+// LinkSetAlias sets the alias of the link device.
+// Equivalent to: `ip link set dev $link alias $name`
+func LinkSetAlias(link Link, name string) error {
+	base := link.Attrs()
+	ensureIndex(base)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(syscall.IFLA_IFALIAS, []byte(name))
+	req.AddData(data)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetHardwareAddr sets the hardware address of the link device.
 // Equivalent to: `ip link set $link address $hwaddr`
 func LinkSetHardwareAddr(link Link, hwaddr net.HardwareAddr) error {
@@ -509,6 +527,8 @@ func LinkAdd(link Link) error {
 			data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 			nl.NewRtAttrChild(data, nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[macv.Mode]))
 		}
+	} else if gretap, ok := link.(*Gretap); ok {
+		addGretapAttrs(gretap, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -560,6 +580,20 @@ func linkByNameDump(name string) (Link, error) {
 	return nil, fmt.Errorf("Link %s not found", name)
 }
 
+func linkByAliasDump(alias string) (Link, error) {
+	links, err := LinkList()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, link := range links {
+		if link.Attrs().Alias == alias {
+			return link, nil
+		}
+	}
+	return nil, fmt.Errorf("Link alias %s not found", alias)
+}
+
 // LinkByName finds a link by name and returns a pointer to the object.
 func LinkByName(name string) (Link, error) {
 	if lookupByDump {
@@ -580,6 +614,32 @@ func LinkByName(name string) (Link, error) {
 		// so fall back to dumping all links
 		lookupByDump = true
 		return linkByNameDump(name)
+	}
+
+	return link, err
+}
+
+// LinkByAlias finds a link by its alias and returns a pointer to the object.
+// If there are multiple links with the alias it returns the first one
+func LinkByAlias(alias string) (Link, error) {
+	if lookupByDump {
+		return linkByAliasDump(alias)
+	}
+
+	req := nl.NewNetlinkRequest(syscall.RTM_GETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	req.AddData(msg)
+
+	nameData := nl.NewRtAttr(syscall.IFLA_IFALIAS, nl.ZeroTerminated(alias))
+	req.AddData(nameData)
+
+	link, err := execGetLink(req)
+	if err == syscall.EINVAL {
+		// older kernels don't support looking up via IFLA_IFALIAS
+		// so fall back to dumping all links
+		lookupByDump = true
+		return linkByAliasDump(alias)
 	}
 
 	return link, err
@@ -664,6 +724,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &Macvlan{}
 					case "macvtap":
 						link = &Macvtap{}
+					case "gretap":
+						link = &Gretap{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}
@@ -708,6 +770,8 @@ func linkDeserialize(m []byte) (Link, error) {
 			base.MasterIndex = int(native.Uint32(attr.Value[0:4]))
 		case syscall.IFLA_TXQLEN:
 			base.TxQLen = int(native.Uint32(attr.Value[0:4]))
+		case syscall.IFLA_IFALIAS:
+			base.Alias = string(attr.Value[:len(attr.Value)-1])
 		}
 	}
 	// Links that don't have IFLA_INFO_KIND are hardware devices
@@ -998,4 +1062,61 @@ func linkFlags(rawFlags uint32) net.Flags {
 		f |= net.FlagMulticast
 	}
 	return f
+}
+
+func htonl(val uint32) []byte {
+	bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(bytes, val)
+	return bytes
+}
+
+func htons(val uint16) []byte {
+	bytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(bytes, val)
+	return bytes
+}
+
+func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
+
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_IKEY, htonl(gretap.Key))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_OKEY, htonl(gretap.Key))
+
+	ip := gretap.LocalIP.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_LOCAL, []byte(ip))
+	}
+	ip = gretap.RemoteIP.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_REMOTE, []byte(ip))
+	}
+
+	iflags := uint16(nl.GRE_KEY)
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_IFLAGS, htons(iflags))
+
+	oflags := uint16(nl.GRE_KEY)
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_OFLAGS, htons(oflags))
+
+	// Use sane defaults for remaining parameters
+
+	//grelink := 0
+	//if grelink != 0 {
+	//	nl.NewRtAttrChild(data, nl.IFLA_GRE_LINK, nl.Uint32Attr(uint32(grelink)))
+	//}
+	pmtudisc := 1
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_PMTUDISC, nl.Uint8Attr(uint8(pmtudisc)))
+	ttl := 0
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_TTL, nl.Uint8Attr(uint8(ttl)))
+	tos := 0
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_TOS, nl.Uint8Attr(uint8(tos)))
+	encaptype := 0
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_TYPE, nl.Uint16Attr(uint16(encaptype)))
+	encapflags := 0
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_FLAGS, nl.Uint16Attr(uint16(encapflags)))
+
+	encapsport := uint16(0)
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_SPORT, htons(encapsport))
+	encapdport := uint16(0)
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_DPORT, htons(encapdport))
 }

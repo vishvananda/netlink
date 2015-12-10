@@ -199,6 +199,17 @@ func TestLinkAddDelBridge(t *testing.T) {
 	testLinkAddDel(t, &Bridge{LinkAttrs{Name: "foo", MTU: 1400}})
 }
 
+func TestLinkAddDelGretap(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Key:       0x101,
+		LocalIP:   net.IPv4(127, 0, 0, 1),
+		RemoteIP:  net.IPv4(127, 0, 0, 1)})
+}
+
 func TestLinkAddDelVlan(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
@@ -682,6 +693,25 @@ func TestLinkSet(t *testing.T) {
 
 	if !bytes.Equal(link.Attrs().HardwareAddr, addr) {
 		t.Fatalf("hardware address not changed!")
+	}
+
+	err = LinkSetAlias(link, "barAlias")
+	if err != nil {
+		t.Fatalf("Could not set alias: %v", err)
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().Alias != "barAlias" {
+		t.Fatalf("alias not changed!")
+	}
+
+	link, err = LinkByAlias("barAlias")
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

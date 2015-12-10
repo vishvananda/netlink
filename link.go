@@ -30,6 +30,7 @@ type LinkAttrs struct {
 	ParentIndex  int         // index of the parent link device
 	MasterIndex  int         // must be the index of a bridge
 	Namespace    interface{} // nil | NsPid | NsFd
+	Alias        string
 }
 
 // NewLinkAttrs returns LinkAttrs structure filled with default values
@@ -522,6 +523,22 @@ func (bond *Bond) Attrs() *LinkAttrs {
 // Type implementation fro Vxlan.
 func (bond *Bond) Type() string {
 	return "bond"
+}
+
+// GreTap devices must specify LocalIP and RemoteIP on create
+type Gretap struct {
+	LinkAttrs
+	Key      uint32
+	LocalIP  net.IP
+	RemoteIP net.IP
+}
+
+func (gretap *Gretap) Attrs() *LinkAttrs {
+	return &gretap.LinkAttrs
+}
+
+func (gretap *Gretap) Type() string {
+	return "gretap"
 }
 
 // iproute2 supported devices;
