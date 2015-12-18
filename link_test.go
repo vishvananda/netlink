@@ -125,7 +125,7 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if len(links) == num {
 			return
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 	t.Fatal("Link not removed properly")
 }
