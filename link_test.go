@@ -114,20 +114,15 @@ func testLinkAddDel(t *testing.T, link Link) {
 		t.Fatal(err)
 	}
 
-	// It appears that some links don't disappear immediately. Specifically,
-	// the first GreTap device takes a moment to delete.
-	for i := 0; i < 10; i++ {
-		links, err = LinkList()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if len(links) == num {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
+	links, err = LinkList()
+	if err != nil {
+		t.Fatal(err)
 	}
-	t.Fatal("Link not removed properly")
+
+	if len(links) != num {
+		t.Fatal("Link not removed properly")
+		return
+	}
 }
 
 func compareVxlan(t *testing.T, expected, actual *Vxlan) {
