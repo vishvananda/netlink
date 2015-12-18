@@ -205,9 +205,11 @@ func TestLinkAddDelGretap(t *testing.T) {
 
 	testLinkAddDel(t, &Gretap{
 		LinkAttrs: LinkAttrs{Name: "foo"},
-		Key:       0x101,
-		LocalIP:   net.IPv4(127, 0, 0, 1),
-		RemoteIP:  net.IPv4(127, 0, 0, 1)})
+		IKey:      0x101,
+		OKey:      0x101,
+		PMtuDisc:  1,
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 1)})
 }
 
 func TestLinkAddDelVlan(t *testing.T) {

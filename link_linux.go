@@ -747,6 +747,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						parseMacvlanData(link, data)
 					case "macvtap":
 						parseMacvtapData(link, data)
+					case "gretap":
+						parseGretapData(link, data)
 					}
 				}
 			}
@@ -1076,47 +1078,83 @@ func htons(val uint16) []byte {
 	return bytes
 }
 
-func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
+func ntohl(buf []byte) uint32 {
+	return binary.BigEndian.Uint32(buf)
+}
 
+func ntohs(buf []byte) uint16 {
+	return binary.BigEndian.Uint16(buf)
+}
+
+func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_IKEY, htonl(gretap.Key))
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_OKEY, htonl(gretap.Key))
-
-	ip := gretap.LocalIP.To4()
+	ip := gretap.Local.To4()
 	if ip != nil {
 		nl.NewRtAttrChild(data, nl.IFLA_GRE_LOCAL, []byte(ip))
 	}
-	ip = gretap.RemoteIP.To4()
+	ip = gretap.Remote.To4()
 	if ip != nil {
 		nl.NewRtAttrChild(data, nl.IFLA_GRE_REMOTE, []byte(ip))
 	}
 
-	iflags := uint16(nl.GRE_KEY)
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_IFLAGS, htons(iflags))
+	if gretap.IKey != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_IKEY, htonl(gretap.IKey))
+		gretap.IFlags |= uint16(nl.GRE_KEY)
+	}
 
-	oflags := uint16(nl.GRE_KEY)
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_OFLAGS, htons(oflags))
+	if gretap.OKey != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_OKEY, htonl(gretap.OKey))
+		gretap.OFlags |= uint16(nl.GRE_KEY)
+	}
 
-	// Use sane defaults for remaining parameters
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_IFLAGS, htons(gretap.IFlags))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_OFLAGS, htons(gretap.OFlags))
 
-	//grelink := 0
-	//if grelink != 0 {
-	//	nl.NewRtAttrChild(data, nl.IFLA_GRE_LINK, nl.Uint32Attr(uint32(grelink)))
-	//}
-	pmtudisc := 1
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_PMTUDISC, nl.Uint8Attr(uint8(pmtudisc)))
-	ttl := 0
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_TTL, nl.Uint8Attr(uint8(ttl)))
-	tos := 0
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_TOS, nl.Uint8Attr(uint8(tos)))
-	encaptype := 0
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_TYPE, nl.Uint16Attr(uint16(encaptype)))
-	encapflags := 0
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_FLAGS, nl.Uint16Attr(uint16(encapflags)))
+	if gretap.Link != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_LINK, nl.Uint32Attr(gretap.Link))
+	}
 
-	encapsport := uint16(0)
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_SPORT, htons(encapsport))
-	encapdport := uint16(0)
-	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_DPORT, htons(encapdport))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_PMTUDISC, nl.Uint8Attr(gretap.PMtuDisc))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_TTL, nl.Uint8Attr(gretap.Ttl))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_TOS, nl.Uint8Attr(gretap.Tos))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_TYPE, nl.Uint16Attr(gretap.EncapType))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_FLAGS, nl.Uint16Attr(gretap.EncapFlags))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_SPORT, htons(gretap.EncapSport))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_DPORT, htons(gretap.EncapDport))
+}
+
+func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
+	gre := link.(*Gretap)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_GRE_OKEY:
+			gre.IKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_IKEY:
+			gre.OKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_LOCAL:
+			gre.Local = net.IP(datum.Value[0:4])
+		case nl.IFLA_GRE_REMOTE:
+			gre.Remote = net.IP(datum.Value[0:4])
+		case nl.IFLA_GRE_ENCAP_SPORT:
+			gre.EncapSport = ntohs(datum.Value[0:2])
+		case nl.IFLA_GRE_ENCAP_DPORT:
+			gre.EncapDport = ntohs(datum.Value[0:2])
+		case nl.IFLA_GRE_IFLAGS:
+			gre.IFlags = ntohs(datum.Value[0:2])
+		case nl.IFLA_GRE_OFLAGS:
+			gre.OFlags = ntohs(datum.Value[0:2])
+
+		case nl.IFLA_GRE_TTL:
+			gre.Ttl = uint8(datum.Value[0])
+		case nl.IFLA_GRE_TOS:
+			gre.Tos = uint8(datum.Value[0])
+		case nl.IFLA_GRE_PMTUDISC:
+			gre.PMtuDisc = uint8(datum.Value[0])
+		case nl.IFLA_GRE_ENCAP_TYPE:
+			gre.EncapType = native.Uint16(datum.Value[0:2])
+		case nl.IFLA_GRE_ENCAP_FLAGS:
+			gre.EncapFlags = native.Uint16(datum.Value[0:2])
+		}
+	}
 }
