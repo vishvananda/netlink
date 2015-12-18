@@ -45,16 +45,6 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
-	if rBase.ParentIndex == 0 && base.ParentIndex != 0 {
-		t.Fatal("Created link doesn't have a Parent but it should")
-	} else if rBase.ParentIndex != 0 && base.ParentIndex == 0 {
-		t.Fatal("Created link has a Parent but it shouldn't")
-	} else if rBase.ParentIndex != 0 && base.ParentIndex != 0 {
-		if rBase.ParentIndex != base.ParentIndex {
-			t.Fatal("Link.ParentIndex doesn't match")
-		}
-	}
-
 	if veth, ok := result.(*Veth); ok {
 		if rBase.TxQLen != base.TxQLen {
 			t.Fatalf("qlen is %d, should be %d", rBase.TxQLen, base.TxQLen)
@@ -63,17 +53,30 @@ func testLinkAddDel(t *testing.T, link Link) {
 			t.Fatalf("MTU is %d, should be %d", rBase.MTU, base.MTU)
 		}
 
-		if veth.PeerName != "" {
-			var peer *Veth
-			other, err := LinkByName(veth.PeerName)
-			if err != nil {
-				t.Fatalf("Peer %s not created", veth.PeerName)
+		if original, ok := link.(*Veth); ok {
+			if original.PeerName != "" {
+				var peer *Veth
+				other, err := LinkByName(original.PeerName)
+				if err != nil {
+					t.Fatalf("Peer %s not created", veth.PeerName)
+				}
+				if peer, ok = other.(*Veth); !ok {
+					t.Fatalf("Peer %s is incorrect type", veth.PeerName)
+				}
+				if peer.TxQLen != testTxQLen {
+					t.Fatalf("TxQLen of peer is %d, should be %d", peer.TxQLen, testTxQLen)
+				}
 			}
-			if peer, ok = other.(*Veth); !ok {
-				t.Fatalf("Peer %s is incorrect type", veth.PeerName)
-			}
-			if peer.TxQLen != testTxQLen {
-				t.Fatalf("TxQLen of peer is %d, should be %d", peer.TxQLen, testTxQLen)
+		}
+	} else {
+		// recent kernels set the parent index for veths in the response
+		if rBase.ParentIndex == 0 && base.ParentIndex != 0 {
+			t.Fatal("Created link doesn't have parent %d but it should", base.ParentIndex)
+		} else if rBase.ParentIndex != 0 && base.ParentIndex == 0 {
+			t.Fatalf("Created link has parent %d but it shouldn't", rBase.ParentIndex)
+		} else if rBase.ParentIndex != 0 && base.ParentIndex != 0 {
+			if rBase.ParentIndex != base.ParentIndex {
+				t.Fatalf("Link.ParentIndex doesn't match %d != %d", rBase.ParentIndex, base.ParentIndex)
 			}
 		}
 	}
@@ -272,7 +275,8 @@ func TestLinkAddDelVeth(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar"})
+	veth := &Veth{LinkAttrs: LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, PeerName: "bar"}
+	testLinkAddDel(t, veth)
 }
 
 func TestLinkAddDelBond(t *testing.T) {
