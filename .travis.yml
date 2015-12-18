@@ -1,3 +1,4 @@
 language: go
+sudo: true
 install:
       - go get github.com/vishvananda/netns
