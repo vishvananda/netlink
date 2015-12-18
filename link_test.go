@@ -3,6 +3,7 @@ package netlink
 import (
 	"bytes"
 	"net"
+	"os"
 	"syscall"
 	"testing"
 	"time"
@@ -113,14 +114,20 @@ func testLinkAddDel(t *testing.T, link Link) {
 		t.Fatal(err)
 	}
 
-	links, err = LinkList()
-	if err != nil {
-		t.Fatal(err)
-	}
+	// It appears that some links don't disappear immediately. Specifically,
+	// the first GreTap device takes a moment to delete.
+	for i := 0; i < 10; i++ {
+		links, err = LinkList()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if len(links) != num {
-		t.Fatal("Link not removed properly")
+		if len(links) == num {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
+	t.Fatal("Link not removed properly")
 }
 
 func compareVxlan(t *testing.T, expected, actual *Vxlan) {
@@ -561,6 +568,9 @@ func TestLinkAddDelVxlan(t *testing.T) {
 }
 
 func TestLinkAddDelIPVlanL2(t *testing.T) {
+	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
+		t.Skipf("Kernel in travis is too old for this test")
+	}
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 	parent := &Dummy{LinkAttrs{Name: "foo"}}
@@ -580,6 +590,9 @@ func TestLinkAddDelIPVlanL2(t *testing.T) {
 }
 
 func TestLinkAddDelIPVlanL3(t *testing.T) {
+	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
+		t.Skipf("Kernel in travis is too old for this test")
+	}
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 	parent := &Dummy{LinkAttrs{Name: "foo"}}
