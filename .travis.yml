@@ -1,4 +1,5 @@
 language: go
-sudo: true
+before_script:
+  - sudo sed -i -e 's/^Defaults\tsecure_path.*$//' /etc/sudoers
 install:
-      - go get github.com/vishvananda/netns
+  - go get github.com/vishvananda/netns
