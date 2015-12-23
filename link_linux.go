@@ -815,6 +815,7 @@ func LinkList() ([]Link, error) {
 // LinkUpdate is used to pass information back from LinkSubscribe()
 type LinkUpdate struct {
 	nl.IfInfomsg
+	Header syscall.NlMsghdr
 	Link
 }
 
@@ -844,7 +845,7 @@ func LinkSubscribe(ch chan<- LinkUpdate, done <-chan struct{}) error {
 				if err != nil {
 					return
 				}
-				ch <- LinkUpdate{IfInfomsg: *ifmsg, Link: link}
+				ch <- LinkUpdate{IfInfomsg: *ifmsg, Header: m.Header, Link: link}
 			}
 		}
 	}()
