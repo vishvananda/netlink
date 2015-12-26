@@ -2,6 +2,8 @@ package netlink
 
 import (
 	"fmt"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 type Class interface {
@@ -41,21 +43,29 @@ func (q HtbClassAttrs) String() string {
 // Htb class
 type HtbClass struct {
 	ClassAttrs
-	Rate    uint64
-	Ceil    uint64
+	Rate    nl.TcRateSpec
+	Ceil    nl.TcRateSpec
 	Buffer  uint32
 	Cbuffer uint32
 	Quantum uint32
 	Level   uint32
 	Prio    uint32
+	Rtab    [256]uint32
+	Ctab    [256]uint32
 }
 
 func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) *HtbClass {
+	var rtab [256]uint32
+	var ctab [256]uint32
+	cell_log := -1
+	ccell_log := -1
+	linklayer := nl.LINKLAYER_ETHERNET
 	mtu := 1600
 	rate := cattrs.Rate / 8
 	ceil := cattrs.Ceil / 8
 	buffer := cattrs.Buffer
 	cbuffer := cattrs.Cbuffer
+
 	if ceil == 0 {
 		ceil = rate
 	}
@@ -70,15 +80,27 @@ func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) *HtbClass {
 	}
 	cbuffer = uint32(Xmittime(ceil, cbuffer))
 
+	tcrate := nl.TcRateSpec{Rate: uint32(rate)}
+	if CalcRtable(&tcrate, rtab, cell_log, uint32(mtu), linklayer) < 0 {
+		return nil
+	}
+
+	tcceil := nl.TcRateSpec{Rate: uint32(ceil)}
+	if CalcRtable(&tcceil, ctab, ccell_log, uint32(mtu), linklayer) < 0 {
+		return nil
+	}
+
 	return &HtbClass{
 		ClassAttrs: attrs,
-		Rate:       rate,
-		Ceil:       ceil,
+		Rate:       tcrate,
+		Ceil:       tcceil,
 		Buffer:     buffer,
 		Cbuffer:    cbuffer,
 		Quantum:    10,
 		Level:      0,
 		Prio:       0,
+		Rtab:       rtab,
+		Ctab:       ctab,
 	}
 }
 

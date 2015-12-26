@@ -67,10 +67,10 @@ func TestClassAddDel(t *testing.T) {
 	if !ok {
 		t.Fatal("Class is the wrong type")
 	}
-	if htb.Rate != class.Rate {
+	if htb.Rate.Rate != class.Rate.Rate {
 		t.Fatal("Rate doesn't match")
 	}
-	if htb.Ceil != class.Ceil {
+	if htb.Ceil.Rate != class.Ceil.Rate {
 		t.Fatal("Ceil doesn't match")
 	}
 	if htb.Buffer != class.Buffer {
@@ -299,7 +299,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		t.Fatal("Class is the wrong type")
 	}
 	// Verify that the rate value has changed.
-	if htb.Rate != class.Rate {
+	if htb.Rate.Rate != class.Rate.Rate {
 		t.Fatal("Rate did not get changed while changing the class.")
 	}
 
@@ -348,7 +348,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		t.Fatal("Class is the wrong type")
 	}
 	// Verify that the rate value has changed.
-	if htb.Rate != class.Rate {
+	if htb.Rate.Rate != class.Rate.Rate {
 		t.Fatal("Rate did not get changed while changing the class.")
 	}
 
@@ -375,7 +375,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		t.Fatal("Class is the wrong type")
 	}
 	// Verify that the rate value has changed.
-	if htb.Rate != class.Rate {
+	if htb.Rate.Rate != class.Rate.Rate {
 		t.Fatal("Rate did not get changed while changing the class.")
 	}
 

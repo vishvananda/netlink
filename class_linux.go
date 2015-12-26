@@ -65,8 +65,8 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
 	if htb, ok := class.(*HtbClass); ok {
 		opt := nl.TcHtbCopt{}
-		opt.Rate.Rate = uint32(htb.Rate)
-		opt.Ceil.Rate = uint32(htb.Ceil)
+		opt.Rate = htb.Rate
+		opt.Ceil = htb.Ceil
 		opt.Buffer = htb.Buffer
 		opt.Cbuffer = htb.Cbuffer
 		opt.Quantum = htb.Quantum
@@ -74,6 +74,8 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 		opt.Prio = htb.Prio
 		// TODO: Handle Debug properly. For now default to 0
 		nl.NewRtAttrChild(options, nl.TCA_HTB_PARMS, opt.Serialize())
+		nl.NewRtAttrChild(options, nl.TCA_HTB_RTAB, SerializeRtab(htb.Rtab))
+		nl.NewRtAttrChild(options, nl.TCA_HTB_CTAB, SerializeRtab(htb.Ctab))
 	}
 	req.AddData(options)
 	return nil
@@ -155,8 +157,8 @@ func parseHtbClassData(class Class, data []syscall.NetlinkRouteAttr) (bool, erro
 		switch datum.Attr.Type {
 		case nl.TCA_HTB_PARMS:
 			opt := nl.DeserializeTcHtbCopt(datum.Value)
-			htb.Rate = uint64(opt.Rate.Rate)
-			htb.Ceil = uint64(opt.Ceil.Rate)
+			htb.Rate = opt.Rate
+			htb.Ceil = opt.Ceil
 			htb.Buffer = opt.Buffer
 			htb.Cbuffer = opt.Cbuffer
 			htb.Quantum = opt.Quantum
