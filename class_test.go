@@ -51,7 +51,7 @@ func TestClassAddDel(t *testing.T) {
 		Rate:    1234000,
 		Cbuffer: 1690,
 	}
-	class := NewHtbClass(classattrs, htbclassattrs)
+	class, _ := NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassAdd(class); err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +214,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		Rate:    1234000,
 		Cbuffer: 1690,
 	}
-	class := NewHtbClass(classattrs, htbclassattrs)
+	class, _ := NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassAdd(class); err != nil {
 		t.Fatal(err)
 	}
@@ -271,14 +271,14 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 	// First, test it fails if we change the Handle.
 	old_handle := classattrs.Handle
 	classattrs.Handle = MakeHandle(0xffff, 3)
-	class = NewHtbClass(classattrs, htbclassattrs)
+	class, _ = NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassChange(class); err == nil {
 		t.Fatal("ClassChange should not work when using a different handle.")
 	}
 	// It should work with the same handle
 	classattrs.Handle = old_handle
 	htbclassattrs.Rate = 4321000
-	class = NewHtbClass(classattrs, htbclassattrs)
+	class, _ = NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassChange(class); err != nil {
 		t.Fatal(err)
 	}
@@ -327,7 +327,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 	// Then, replace by providing a new handle, n new class will be created.
 
 	// Replace acting as Change
-	class = NewHtbClass(classattrs, htbclassattrs)
+	class, _ = NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassReplace(class); err != nil {
 		t.Fatal("Failed to replace class that is existing.")
 	}
@@ -354,7 +354,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 
 	// It should work with the same handle
 	classattrs.Handle = MakeHandle(0xffff, 3)
-	class = NewHtbClass(classattrs, htbclassattrs)
+	class, _ = NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassReplace(class); err != nil {
 		t.Fatal(err)
 	}

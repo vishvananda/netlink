@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/vishvananda/netlink/nl"
@@ -54,7 +55,7 @@ type HtbClass struct {
 	Ctab    [256]uint32
 }
 
-func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) *HtbClass {
+func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) (*HtbClass, error) {
 	var rtab [256]uint32
 	var ctab [256]uint32
 	cell_log := -1
@@ -82,12 +83,12 @@ func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) *HtbClass {
 
 	tcrate := nl.TcRateSpec{Rate: uint32(rate)}
 	if CalcRtable(&tcrate, rtab, cell_log, uint32(mtu), linklayer) < 0 {
-		return nil
+		return nil, errors.New("HTB: failed to calculate rate table.")
 	}
 
 	tcceil := nl.TcRateSpec{Rate: uint32(ceil)}
 	if CalcRtable(&tcceil, ctab, ccell_log, uint32(mtu), linklayer) < 0 {
-		return nil
+		return nil, errors.New("HTB: failed to calculate ceil rate table.")
 	}
 
 	return &HtbClass{
@@ -101,7 +102,7 @@ func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) *HtbClass {
 		Prio:       0,
 		Rtab:       rtab,
 		Ctab:       ctab,
-	}
+	}, nil
 }
 
 func (q HtbClass) String() string {
