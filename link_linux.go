@@ -383,6 +383,24 @@ func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
 	}
 }
 
+
+func assureMasterIsBridge(link Link, currendIndex int) (bool, error) {
+	base := link.Attrs()
+	if base.MasterIndex != currendIndex {
+		return false, t.Fatal("Master not a bridge!")
+	}
+
+	br, ok := link.(*Bridge)
+	if !ok {
+		return false, fmt.Errorf("already exists but is not a bridge")
+	}
+	
+	if br.Attrs().Index != currendIndex {
+		return false, t.Fatal("Master not a bridge!")
+	}
+	return true, nil
+}
+
 // LinkAdd adds a new link device. The type and features of the device
 // are taken fromt the parameters in the link object.
 // Equivalent to: `ip link add $link`
@@ -428,6 +446,10 @@ func LinkAdd(link Link) error {
 		// can't set master during create, so set it afterwards
 		if base.MasterIndex != 0 {
 			// TODO: verify MasterIndex is actually a bridge?
+			br, err := assureMasterIsBridge(link, base.MasterIndex)
+			if br == false || err != nil {
+				return err
+			}
 			return LinkSetMasterByIndex(link, base.MasterIndex)
 		}
 		return nil
@@ -543,6 +565,10 @@ func LinkAdd(link Link) error {
 	// can't set master during create, so set it afterwards
 	if base.MasterIndex != 0 {
 		// TODO: verify MasterIndex is actually a bridge?
+		br, err := assureMasterIsBridge(link, base.MasterIndex)
+		if br == false || err != nil {
+			return err
+		}
 		return LinkSetMasterByIndex(link, base.MasterIndex)
 	}
 	return nil
