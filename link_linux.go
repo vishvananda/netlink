@@ -387,7 +387,7 @@ func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
 func assureMasterIsBridge(link Link, currendIndex int) (bool, error) {
 	base := link.Attrs()
 	if base.MasterIndex != currendIndex {
-		false, t.Fatal("Master not a bridge!")
+		return false, t.Fatal("Master not a bridge!")
 	}
 
 	br, ok := link.(*Bridge)
@@ -396,7 +396,7 @@ func assureMasterIsBridge(link Link, currendIndex int) (bool, error) {
 	}
 	
 	if br.Attrs().Index != currendIndex {
-		false, t.Fatal("Master not a bridge!")
+		return false, t.Fatal("Master not a bridge!")
 	}
 	return true, nil
 }
