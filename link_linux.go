@@ -277,10 +277,12 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_L2MISS, boolAttr(vxlan.L2miss))
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_L3MISS, boolAttr(vxlan.L3miss))
 
+	if vxlan.UDPCSum {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_UDP_CSUM, boolAttr(vxlan.UDPCSum))
+	}
 	if vxlan.GBP {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_GBP, boolAttr(vxlan.GBP))
 	}
-
 	if vxlan.NoAge {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_AGEING, nl.Uint32Attr(0))
 	} else if vxlan.Age > 0 {
@@ -935,6 +937,8 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 			vxlan.L2miss = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_L3MISS:
 			vxlan.L3miss = int8(datum.Value[0]) != 0
+		case nl.IFLA_VXLAN_UDP_CSUM:
+			vxlan.UDPCSum = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_GBP:
 			vxlan.GBP = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_AGEING:
