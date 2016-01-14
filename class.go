@@ -1,10 +1,7 @@
 package netlink
 
 import (
-	"errors"
 	"fmt"
-
-	"github.com/vishvananda/netlink/nl"
 )
 
 type Class interface {
@@ -44,23 +41,16 @@ func (q HtbClassAttrs) String() string {
 // Htb class
 type HtbClass struct {
 	ClassAttrs
-	Rate    nl.TcRateSpec
-	Ceil    nl.TcRateSpec
+	Rate    uint64
+	Ceil    uint64
 	Buffer  uint32
 	Cbuffer uint32
 	Quantum uint32
 	Level   uint32
 	Prio    uint32
-	Rtab    [256]uint32
-	Ctab    [256]uint32
 }
 
-func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) (*HtbClass, error) {
-	var rtab [256]uint32
-	var ctab [256]uint32
-	cell_log := -1
-	ccell_log := -1
-	linklayer := nl.LINKLAYER_ETHERNET
+func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) *HtbClass {
 	mtu := 1600
 	rate := cattrs.Rate / 8
 	ceil := cattrs.Ceil / 8
@@ -81,28 +71,16 @@ func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) (*HtbClass, error) {
 	}
 	cbuffer = uint32(Xmittime(ceil, cbuffer))
 
-	tcrate := nl.TcRateSpec{Rate: uint32(rate)}
-	if CalcRtable(&tcrate, rtab, cell_log, uint32(mtu), linklayer) < 0 {
-		return nil, errors.New("HTB: failed to calculate rate table.")
-	}
-
-	tcceil := nl.TcRateSpec{Rate: uint32(ceil)}
-	if CalcRtable(&tcceil, ctab, ccell_log, uint32(mtu), linklayer) < 0 {
-		return nil, errors.New("HTB: failed to calculate ceil rate table.")
-	}
-
 	return &HtbClass{
 		ClassAttrs: attrs,
-		Rate:       tcrate,
-		Ceil:       tcceil,
+		Rate:       rate,
+		Ceil:       ceil,
 		Buffer:     buffer,
 		Cbuffer:    cbuffer,
 		Quantum:    10,
 		Level:      0,
 		Prio:       0,
-		Rtab:       rtab,
-		Ctab:       ctab,
-	}, nil
+	}
 }
 
 func (q HtbClass) String() string {

@@ -146,7 +146,7 @@ func TestFilterFwAddDel(t *testing.T) {
 		Rate:    1234000,
 		Cbuffer: 1690,
 	}
-	class, _ := NewHtbClass(classattrs, htbclassattrs)
+	class := NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassAdd(class); err != nil {
 		t.Fatal(err)
 	}

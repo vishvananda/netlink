@@ -51,7 +51,7 @@ func TestClassAddDel(t *testing.T) {
 		Rate:    1234000,
 		Cbuffer: 1690,
 	}
-	class, _ := NewHtbClass(classattrs, htbclassattrs)
+	class := NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassAdd(class); err != nil {
 		t.Fatal(err)
 	}
@@ -67,10 +67,10 @@ func TestClassAddDel(t *testing.T) {
 	if !ok {
 		t.Fatal("Class is the wrong type")
 	}
-	if htb.Rate.Rate != class.Rate.Rate {
+	if htb.Rate != class.Rate {
 		t.Fatal("Rate doesn't match")
 	}
-	if htb.Ceil.Rate != class.Ceil.Rate {
+	if htb.Ceil != class.Ceil {
 		t.Fatal("Ceil doesn't match")
 	}
 	if htb.Buffer != class.Buffer {
@@ -214,7 +214,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		Rate:    1234000,
 		Cbuffer: 1690,
 	}
-	class, _ := NewHtbClass(classattrs, htbclassattrs)
+	class := NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassAdd(class); err != nil {
 		t.Fatal(err)
 	}
@@ -271,14 +271,14 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 	// First, test it fails if we change the Handle.
 	old_handle := classattrs.Handle
 	classattrs.Handle = MakeHandle(0xffff, 3)
-	class, _ = NewHtbClass(classattrs, htbclassattrs)
+	class = NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassChange(class); err == nil {
 		t.Fatal("ClassChange should not work when using a different handle.")
 	}
 	// It should work with the same handle
 	classattrs.Handle = old_handle
 	htbclassattrs.Rate = 4321000
-	class, _ = NewHtbClass(classattrs, htbclassattrs)
+	class = NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassChange(class); err != nil {
 		t.Fatal(err)
 	}
@@ -299,7 +299,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		t.Fatal("Class is the wrong type")
 	}
 	// Verify that the rate value has changed.
-	if htb.Rate.Rate != class.Rate.Rate {
+	if htb.Rate != class.Rate {
 		t.Fatal("Rate did not get changed while changing the class.")
 	}
 
@@ -327,7 +327,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 	// Then, replace by providing a new handle, n new class will be created.
 
 	// Replace acting as Change
-	class, _ = NewHtbClass(classattrs, htbclassattrs)
+	class = NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassReplace(class); err != nil {
 		t.Fatal("Failed to replace class that is existing.")
 	}
@@ -348,13 +348,13 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		t.Fatal("Class is the wrong type")
 	}
 	// Verify that the rate value has changed.
-	if htb.Rate.Rate != class.Rate.Rate {
+	if htb.Rate != class.Rate {
 		t.Fatal("Rate did not get changed while changing the class.")
 	}
 
 	// It should work with the same handle
 	classattrs.Handle = MakeHandle(0xffff, 3)
-	class, _ = NewHtbClass(classattrs, htbclassattrs)
+	class = NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassReplace(class); err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +375,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		t.Fatal("Class is the wrong type")
 	}
 	// Verify that the rate value has changed.
-	if htb.Rate.Rate != class.Rate.Rate {
+	if htb.Rate != class.Rate {
 		t.Fatal("Rate did not get changed while changing the class.")
 	}
 
