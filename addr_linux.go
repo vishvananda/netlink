@@ -2,6 +2,7 @@ package netlink
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"strings"
 	"syscall"
@@ -139,4 +140,82 @@ func AddrList(link Link, family int) ([]Addr, error) {
 	}
 
 	return res, nil
+}
+
+type AddrUpdate struct {
+	LinkAddress net.IPNet
+	LinkIndex   int
+	NewAddr     bool // true=added false=deleted
+}
+
+// AddrSubscribe takes a chan down which notifications will be sent
+// when addresses change.  Close the 'done' chan to stop subscription.
+func AddrSubscribe(ch chan<- AddrUpdate, done <-chan struct{}) error {
+	s, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_IFADDR, syscall.RTNLGRP_IPV6_IFADDR)
+	if err != nil {
+		return err
+	}
+	if done != nil {
+		go func() {
+			<-done
+			s.Close()
+		}()
+	}
+	go func() {
+		defer close(ch)
+		for {
+			msgs, err := s.Receive()
+			if err != nil {
+				log.Printf("netlink.AddrSubscribe: Receive() error: %v", err)
+				return
+			}
+			for _, m := range msgs {
+				msgType := m.Header.Type
+				if msgType != syscall.RTM_NEWADDR && msgType != syscall.RTM_DELADDR {
+					log.Printf("netlink.AddrSubscribe: bad message type: %d", msgType)
+					continue
+				}
+
+				msg := nl.DeserializeIfAddrmsg(m.Data)
+
+				attrs, err := nl.ParseRouteAttr(m.Data[msg.Len():])
+				if err != nil {
+					log.Printf("netlink.AddrSubscribe: nl.ParseRouteAttr() error: %v", err)
+					return
+				}
+
+				var local, dst *net.IPNet
+				var addr Addr
+				for _, attr := range attrs {
+					switch attr.Attr.Type {
+					case syscall.IFA_ADDRESS:
+						dst = &net.IPNet{
+							IP:   attr.Value,
+							Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
+						}
+					case syscall.IFA_LOCAL:
+						local = &net.IPNet{
+							IP:   attr.Value,
+							Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
+						}
+					case syscall.IFA_LABEL:
+						addr.Label = string(attr.Value[:len(attr.Value)-1])
+					case IFA_FLAGS:
+						addr.Flags = int(native.Uint32(attr.Value[0:4]))
+					}
+				}
+
+				// IFA_LOCAL should be there but if not, fall back to IFA_ADDRESS
+				if local != nil {
+					addr.IPNet = local
+				} else {
+					addr.IPNet = dst
+				}
+
+				ch <- AddrUpdate{LinkAddress: *addr.IPNet, LinkIndex: int(msg.Index), NewAddr: msgType == syscall.RTM_NEWADDR}
+			}
+		}
+	}()
+
+	return nil
 }
