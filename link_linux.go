@@ -142,6 +142,54 @@ func LinkSetHardwareAddr(link Link, hwaddr net.HardwareAddr) error {
 	return err
 }
 
+// LinkSetVfHardwareAddr sets the hardware address of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf mac $hwaddr`
+func LinkSetVfHardwareAddr(link Link, vf int, hwaddr net.HardwareAddr) error {
+	base := link.Attrs()
+	ensureIndex(base)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(nl.IFLA_VFINFO_LIST, nil)
+	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
+	vfmsg := nl.VfMac{
+		Vf: uint32(vf),
+	}
+	copy(vfmsg.Mac[:], []byte(hwaddr))
+	nl.NewRtAttrChild(info, nl.IFLA_VF_MAC, vfmsg.Serialize())
+	req.AddData(data)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+// LinkSetVfVlan sets the vlan of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf vlan $vlan`
+func LinkSetVfVlan(link Link, vf, vlan int) error {
+	base := link.Attrs()
+	ensureIndex(base)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(nl.IFLA_VFINFO_LIST, nil)
+	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
+	vfmsg := nl.VfVlan{
+		Vf:   uint32(vf),
+		Vlan: uint32(vlan),
+	}
+	nl.NewRtAttrChild(info, nl.IFLA_VF_VLAN, vfmsg.Serialize())
+	req.AddData(data)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetMaster sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
 func LinkSetMaster(link Link, master *Bridge) error {
