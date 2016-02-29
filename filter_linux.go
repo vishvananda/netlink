@@ -52,17 +52,17 @@ func FilterAdd(filter Filter) error {
 		}
 		sel.Keys = append(sel.Keys, nl.TcU32Key{})
 		nl.NewRtAttrChild(options, nl.TCA_U32_SEL, sel.Serialize())
-		actions := nl.NewRtAttrChild(options, nl.TCA_U32_ACT, nil)
-		table := nl.NewRtAttrChild(actions, nl.TCA_ACT_TAB, nil)
-		nl.NewRtAttrChild(table, nl.TCA_KIND, nl.ZeroTerminated("mirred"))
-		// redirect to other interface
-		mir := nl.TcMirred{
-			Action:  nl.TC_ACT_STOLEN,
-			Eaction: nl.TCA_EGRESS_REDIR,
-			Ifindex: uint32(u32.RedirIndex),
+		if u32.ClassId != 0 {
+			nl.NewRtAttrChild(options, nl.TCA_U32_CLASSID, nl.Uint32Attr(u32.ClassId))
 		}
-		aopts := nl.NewRtAttrChild(table, nl.TCA_OPTIONS, nil)
-		nl.NewRtAttrChild(aopts, nl.TCA_MIRRED_PARMS, mir.Serialize())
+		actionsAttr := nl.NewRtAttrChild(options, nl.TCA_U32_ACT, nil)
+		// backwards compatibility
+		if u32.RedirIndex != 0 {
+			u32.Actions = append([]Action{NewMirredAction(u32.RedirIndex)}, u32.Actions...)
+		}
+		if err := encodeActions(actionsAttr, u32.Actions); err != nil {
+			return err
+		}
 	} else if fw, ok := filter.(*Fw); ok {
 		if fw.Mask != 0 {
 			b := make([]byte, 4)
@@ -151,21 +151,17 @@ func FilterList(link Link, parent uint32) ([]Filter, error) {
 					filter = &GenericFilter{FilterType: filterType}
 				}
 			case nl.TCA_OPTIONS:
+				data, err := nl.ParseRouteAttr(attr.Value)
+				if err != nil {
+					return nil, err
+				}
 				switch filterType {
 				case "u32":
-					data, err := nl.ParseRouteAttr(attr.Value)
-					if err != nil {
-						return nil, err
-					}
 					detailed, err = parseU32Data(filter, data)
 					if err != nil {
 						return nil, err
 					}
 				case "fw":
-					data, err := nl.ParseRouteAttr(attr.Value)
-					if err != nil {
-						return nil, err
-					}
 					detailed, err = parseFwData(filter, data)
 					if err != nil {
 						return nil, err
@@ -183,6 +179,85 @@ func FilterList(link Link, parent uint32) ([]Filter, error) {
 	return res, nil
 }
 
+func encodeActions(attr *nl.RtAttr, actions []Action) error {
+	tabIndex := int(nl.TCA_ACT_TAB)
+
+	for _, action := range actions {
+		switch action := action.(type) {
+		default:
+			return fmt.Errorf("unknown action type %s", action.Type())
+		case *MirredAction:
+			table := nl.NewRtAttrChild(attr, tabIndex, nil)
+			tabIndex++
+			nl.NewRtAttrChild(table, nl.TCA_ACT_KIND, nl.ZeroTerminated("mirred"))
+			aopts := nl.NewRtAttrChild(table, nl.TCA_ACT_OPTIONS, nil)
+			nl.NewRtAttrChild(aopts, nl.TCA_MIRRED_PARMS, action.Serialize())
+		case *BpfAction:
+			table := nl.NewRtAttrChild(attr, tabIndex, nil)
+			tabIndex++
+			nl.NewRtAttrChild(table, nl.TCA_ACT_KIND, nl.ZeroTerminated("bpf"))
+			aopts := nl.NewRtAttrChild(table, nl.TCA_ACT_OPTIONS, nil)
+			nl.NewRtAttrChild(aopts, nl.TCA_ACT_BPF_PARMS, action.Serialize())
+			nl.NewRtAttrChild(aopts, nl.TCA_ACT_BPF_FD, nl.Uint32Attr(uint32(action.Fd)))
+			nl.NewRtAttrChild(aopts, nl.TCA_ACT_BPF_NAME, nl.ZeroTerminated(action.Name))
+		}
+	}
+	return nil
+}
+
+func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
+	var actions []Action
+	for _, table := range tables {
+		var action Action
+		var actionType string
+		aattrs, err := nl.ParseRouteAttr(table.Value)
+		if err != nil {
+			return nil, err
+		}
+	nextattr:
+		for _, aattr := range aattrs {
+			switch aattr.Attr.Type {
+			case nl.TCA_KIND:
+				actionType = string(aattr.Value[:len(aattr.Value)-1])
+				// only parse if the action is mirred or bpf
+				switch actionType {
+				case "mirred":
+					action = &MirredAction{}
+				case "bpf":
+					action = &BpfAction{}
+				default:
+					break nextattr
+				}
+			case nl.TCA_OPTIONS:
+				adata, err := nl.ParseRouteAttr(aattr.Value)
+				if err != nil {
+					return nil, err
+				}
+				for _, adatum := range adata {
+					switch actionType {
+					case "mirred":
+						switch adatum.Attr.Type {
+						case nl.TCA_MIRRED_PARMS:
+							action.(*MirredAction).TcMirred = *nl.DeserializeTcMirred(adatum.Value)
+						}
+					case "bpf":
+						switch adatum.Attr.Type {
+						case nl.TCA_ACT_BPF_PARMS:
+							action.(*BpfAction).TcActBpf = *nl.DeserializeTcActBpf(adatum.Value)
+						case nl.TCA_ACT_BPF_FD:
+							action.(*BpfAction).Fd = int(native.Uint32(adatum.Value[0:4]))
+						case nl.TCA_ACT_BPF_NAME:
+							action.(*BpfAction).Name = string(adatum.Value[:len(adatum.Value)-1])
+						}
+					}
+				}
+			}
+		}
+		actions = append(actions, action)
+	}
+	return actions, nil
+}
+
 func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
 	native = nl.NativeEndian()
 	u32 := filter.(*U32)
@@ -197,34 +272,17 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 				return detailed, nil
 			}
 		case nl.TCA_U32_ACT:
-			table, err := nl.ParseRouteAttr(datum.Value)
+			tables, err := nl.ParseRouteAttr(datum.Value)
 			if err != nil {
 				return detailed, err
 			}
-			if len(table) != 1 || table[0].Attr.Type != nl.TCA_ACT_TAB {
-				return detailed, fmt.Errorf("Action table not formed properly")
+			u32.Actions, err = parseActions(tables)
+			if err != nil {
+				return detailed, err
 			}
-			aattrs, err := nl.ParseRouteAttr(table[0].Value)
-			for _, aattr := range aattrs {
-				switch aattr.Attr.Type {
-				case nl.TCA_KIND:
-					actionType := string(aattr.Value[:len(aattr.Value)-1])
-					// only parse if the action is mirred
-					if actionType != "mirred" {
-						return detailed, nil
-					}
-				case nl.TCA_OPTIONS:
-					adata, err := nl.ParseRouteAttr(aattr.Value)
-					if err != nil {
-						return detailed, err
-					}
-					for _, adatum := range adata {
-						switch adatum.Attr.Type {
-						case nl.TCA_MIRRED_PARMS:
-							mir := nl.DeserializeTcMirred(adatum.Value)
-							u32.RedirIndex = int(mir.Ifindex)
-						}
-					}
+			for _, action := range u32.Actions {
+				if action, ok := action.(*MirredAction); ok {
+					u32.RedirIndex = int(action.Ifindex)
 				}
 			}
 		}

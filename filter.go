@@ -26,11 +26,45 @@ func (q FilterAttrs) String() string {
 	return fmt.Sprintf("{LinkIndex: %d, Handle: %s, Parent: %s, Priority: %d, Protocol: %d}", q.LinkIndex, HandleStr(q.Handle), HandleStr(q.Parent), q.Priority, q.Protocol)
 }
 
+// Action represents an action in any supported filter.
+type Action interface {
+	Type() string
+}
+
+type BpfAction struct {
+	nl.TcActBpf
+	Fd   int
+	Name string
+}
+
+func (action *BpfAction) Type() string {
+	return "bpf"
+}
+
+type MirredAction struct {
+	nl.TcMirred
+}
+
+func (action *MirredAction) Type() string {
+	return "mirred"
+}
+
+func NewMirredAction(redirIndex int) *MirredAction {
+	return &MirredAction{
+		TcMirred: nl.TcMirred{
+			TcGen:   nl.TcGen{Action: nl.TC_ACT_STOLEN},
+			Eaction: nl.TCA_EGRESS_REDIR,
+			Ifindex: uint32(redirIndex),
+		},
+	}
+}
+
 // U32 filters on many packet related properties
 type U32 struct {
 	FilterAttrs
-	// Currently only supports redirecting to another interface
+	ClassId    uint32
 	RedirIndex int
+	Actions    []Action
 }
 
 func (filter *U32) Attrs() *FilterAttrs {
