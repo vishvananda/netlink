@@ -294,7 +294,7 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 
 	fd, err := loadSimpleBpf(BPF_PROG_TYPE_SCHED_ACT)
 	if err != nil {
-		t.Fatal(err)
+		t.Skipf("Loading bpf program failed: %s", err)
 	}
 	filter := &U32{
 		FilterAttrs: FilterAttrs{
@@ -415,7 +415,7 @@ func TestFilterClsActBpfAddDel(t *testing.T) {
 	}
 	fd, err := loadSimpleBpf(BPF_PROG_TYPE_SCHED_CLS)
 	if err != nil {
-		t.Fatal(err)
+		t.Skipf("Loading bpf program failed: %s", err)
 	}
 	filter := &BpfFilter{
 		FilterAttrs:  filterattrs,

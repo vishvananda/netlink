@@ -3,10 +3,12 @@ package netlink
 /*
 #include <asm/types.h>
 #include <asm/unistd.h>
+#include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 
 static int load_simple_bpf(int prog_type) {
+#ifdef __NR_bpf
 	// { return 1; }
 	__u64 __attribute__((aligned(8))) insns[] = {
 		0x00000001000000b7ull,
@@ -32,6 +34,10 @@ static int load_simple_bpf(int prog_type) {
 		.license = (__u64)&license,
 	};
 	return syscall(__NR_bpf, 5, &attr, sizeof(attr));
+#else
+	errno = EINVAL;
+	return -1;
+#endif
 }
 */
 import "C"
