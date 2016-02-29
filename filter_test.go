@@ -368,3 +368,107 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 		t.Fatal("Failed to remove qdisc")
 	}
 }
+
+func TestFilterClsActBpfAddDel(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	attrs := QdiscAttrs{
+		LinkIndex: link.Attrs().Index,
+		Handle:    MakeHandle(0xffff, 0),
+		Parent:    HANDLE_CLSACT,
+	}
+	qdisc := &GenericQdisc{
+		QdiscAttrs: attrs,
+		QdiscType:  "clsact",
+	}
+	// This feature was added in kernel 4.5
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Skipf("Failed adding clsact qdisc, unsupported kernel")
+	}
+	qdiscs, err := QdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 1 {
+		t.Fatal("Failed to add qdisc")
+	}
+	if q, ok := qdiscs[0].(*GenericQdisc); !ok || q.Type() != "clsact" {
+		t.Fatal("qdisc is the wrong type")
+	}
+
+	filterattrs := FilterAttrs{
+		LinkIndex: link.Attrs().Index,
+		Parent:    HANDLE_MIN_EGRESS,
+		Handle:    MakeHandle(0, 1),
+		Protocol:  syscall.ETH_P_ALL,
+		Priority:  1,
+	}
+	fd, err := loadSimpleBpf(BPF_PROG_TYPE_SCHED_CLS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	filter := &BpfFilter{
+		FilterAttrs:  filterattrs,
+		Fd:           fd,
+		Name:         "simple",
+		DirectAction: true,
+	}
+	if filter.Fd < 0 {
+		t.Skipf("Failed to load bpf program")
+	}
+
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+
+	filters, err := FilterList(link, HANDLE_MIN_EGRESS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	bpf, ok := filters[0].(*BpfFilter)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+
+	if bpf.Fd != filter.Fd {
+		t.Fatal("Filter Fd does not match")
+	}
+	if bpf.DirectAction != filter.DirectAction {
+		t.Fatal("Filter DirectAction does not match")
+	}
+
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, HANDLE_MIN_EGRESS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = QdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 0 {
+		t.Fatal("Failed to remove qdisc")
+	}
+}

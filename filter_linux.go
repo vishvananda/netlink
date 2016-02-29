@@ -90,6 +90,21 @@ func FilterAdd(filter Filter) error {
 			native.PutUint32(b, fw.ClassId)
 			nl.NewRtAttrChild(options, nl.TCA_FW_CLASSID, b)
 		}
+	} else if bpf, ok := filter.(*BpfFilter); ok {
+		var bpf_flags uint32
+		if bpf.ClassId != 0 {
+			nl.NewRtAttrChild(options, nl.TCA_BPF_CLASSID, nl.Uint32Attr(bpf.ClassId))
+		}
+		if bpf.Fd >= 0 {
+			nl.NewRtAttrChild(options, nl.TCA_BPF_FD, nl.Uint32Attr((uint32(bpf.Fd))))
+		}
+		if bpf.Name != "" {
+			nl.NewRtAttrChild(options, nl.TCA_BPF_NAME, nl.ZeroTerminated(bpf.Name))
+		}
+		if bpf.DirectAction {
+			bpf_flags |= nl.TCA_BPF_FLAG_ACT_DIRECT
+		}
+		nl.NewRtAttrChild(options, nl.TCA_BPF_FLAGS, nl.Uint32Attr(bpf_flags))
 	}
 
 	req.AddData(options)
@@ -147,6 +162,8 @@ func FilterList(link Link, parent uint32) ([]Filter, error) {
 					filter = &U32{}
 				case "fw":
 					filter = &Fw{}
+				case "bpf":
+					filter = &BpfFilter{}
 				default:
 					filter = &GenericFilter{FilterType: filterType}
 				}
@@ -163,6 +180,11 @@ func FilterList(link Link, parent uint32) ([]Filter, error) {
 					}
 				case "fw":
 					detailed, err = parseFwData(filter, data)
+					if err != nil {
+						return nil, err
+					}
+				case "bpf":
+					detailed, err = parseBpfData(filter, data)
 					if err != nil {
 						return nil, err
 					}
@@ -313,6 +335,28 @@ func parseFwData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
 				case nl.TCA_POLICE_PEAKRATE:
 					fw.Ptab = DeserializeRtab(aattr.Value)
 				}
+			}
+		}
+	}
+	return detailed, nil
+}
+
+func parseBpfData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
+	native = nl.NativeEndian()
+	bpf := filter.(*BpfFilter)
+	detailed := true
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.TCA_BPF_FD:
+			bpf.Fd = int(native.Uint32(datum.Value[0:4]))
+		case nl.TCA_BPF_NAME:
+			bpf.Name = string(datum.Value[:len(datum.Value)-1])
+		case nl.TCA_BPF_CLASSID:
+			bpf.ClassId = native.Uint32(datum.Value[0:4])
+		case nl.TCA_BPF_FLAGS:
+			flags := native.Uint32(datum.Value[0:4])
+			if (flags & nl.TCA_BPF_FLAG_ACT_DIRECT) != 0 {
+				bpf.DirectAction = true
 			}
 		}
 	}

@@ -158,6 +158,22 @@ func (filter *Fw) Type() string {
 	return "fw"
 }
 
+type BpfFilter struct {
+	FilterAttrs
+	ClassId      uint32
+	Fd           int
+	Name         string
+	DirectAction bool
+}
+
+func (filter *BpfFilter) Type() string {
+	return "bpf"
+}
+
+func (filter *BpfFilter) Attrs() *FilterAttrs {
+	return &filter.FilterAttrs
+}
+
 // GenericFilter filters represent types that are not currently understood
 // by this netlink library.
 type GenericFilter struct {
