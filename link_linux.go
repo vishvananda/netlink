@@ -465,11 +465,11 @@ func LinkAdd(link Link) error {
 		req.Flags |= syscall.IFF_TUN_EXCL
 		copy(req.Name[:15], base.Name)
 		req.Flags |= uint16(tuntap.Mode)
-		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall.TUNSETIFF), uintptr(unsafe.Pointer(&req)))
+		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall_TUNSETIFF), uintptr(unsafe.Pointer(&req)))
 		if errno != 0 {
 			return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed, errno %v", errno)
 		}
-		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall.TUNSETPERSIST), 1)
+		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall_TUNSETPERSIST), 1)
 		if errno != 0 {
 			return fmt.Errorf("Tuntap IOCTL TUNSETPERSIST failed, errno %v", errno)
 		}
