@@ -121,8 +121,9 @@ func parseAddr(m []byte) (addr Addr, family, index int, err error) {
 	family = -1
 	index = -1
 
-	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
-	if err != nil {
+	attrs, err1 := nl.ParseRouteAttr(m[msg.Len():])
+	if err1 != nil {
+		err = err1
 		return
 	}
 
