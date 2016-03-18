@@ -86,18 +86,21 @@ func AddrList(link Link, family int) ([]Addr, error) {
 		return nil, err
 	}
 
-	index := 0
+	indexFilter := 0
 	if link != nil {
 		base := link.Attrs()
 		ensureIndex(base)
-		index = base.Index
+		indexFilter = base.Index
 	}
 
 	var res []Addr
 	for _, m := range msgs {
-		msg := nl.DeserializeIfAddrmsg(m)
+		addr, family, ifindex, err := parseAddr(m)
+		if err != nil {
+			return res, err
+		}
 
-		if link != nil && msg.Index != uint32(index) {
+		if link != nil && ifindex != indexFilter {
 			// Ignore messages from other interfaces
 			continue
 		}
@@ -106,44 +109,54 @@ func AddrList(link Link, family int) ([]Addr, error) {
 			continue
 		}
 
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
-		if err != nil {
-			return nil, err
-		}
-
-		var local, dst *net.IPNet
-		var addr Addr
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
-			case syscall.IFA_ADDRESS:
-				dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
-				}
-			case syscall.IFA_LOCAL:
-				local = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
-				}
-			case syscall.IFA_LABEL:
-				addr.Label = string(attr.Value[:len(attr.Value)-1])
-			case IFA_FLAGS:
-				addr.Flags = int(native.Uint32(attr.Value[0:4]))
-			}
-		}
-
-		// IFA_LOCAL should be there but if not, fall back to IFA_ADDRESS
-		if local != nil {
-			addr.IPNet = local
-		} else {
-			addr.IPNet = dst
-		}
-		addr.Scope = int(msg.Scope)
-
 		res = append(res, addr)
 	}
 
 	return res, nil
+}
+
+func parseAddr(m []byte) (addr Addr, family, index int, err error) {
+	msg := nl.DeserializeIfAddrmsg(m)
+
+	family = -1
+	index = -1
+
+	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+	if err != nil {
+		return
+	}
+
+	index = int(msg.Index)
+
+	var local, dst *net.IPNet
+	for _, attr := range attrs {
+		switch attr.Attr.Type {
+		case syscall.IFA_ADDRESS:
+			dst = &net.IPNet{
+				IP:   attr.Value,
+				Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
+			}
+		case syscall.IFA_LOCAL:
+			local = &net.IPNet{
+				IP:   attr.Value,
+				Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
+			}
+		case syscall.IFA_LABEL:
+			addr.Label = string(attr.Value[:len(attr.Value)-1])
+		case IFA_FLAGS:
+			addr.Flags = int(native.Uint32(attr.Value[0:4]))
+		}
+	}
+
+	// IFA_LOCAL should be there but if not, fall back to IFA_ADDRESS
+	if local != nil {
+		addr.IPNet = local
+	} else {
+		addr.IPNet = dst
+	}
+	addr.Scope = int(msg.Scope)
+
+	return
 }
 
 type AddrUpdate struct {
@@ -180,43 +193,13 @@ func AddrSubscribe(ch chan<- AddrUpdate, done <-chan struct{}) error {
 					continue
 				}
 
-				msg := nl.DeserializeIfAddrmsg(m.Data)
-
-				attrs, err := nl.ParseRouteAttr(m.Data[msg.Len():])
+				addr, _, ifindex, err := parseAddr(m.Data)
 				if err != nil {
-					log.Printf("netlink.AddrSubscribe: nl.ParseRouteAttr() error: %v", err)
-					return
+					log.Printf("netlink.AddrSubscribe: could not parse address: %v", err)
+					continue
 				}
 
-				var local, dst *net.IPNet
-				var addr Addr
-				for _, attr := range attrs {
-					switch attr.Attr.Type {
-					case syscall.IFA_ADDRESS:
-						dst = &net.IPNet{
-							IP:   attr.Value,
-							Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
-						}
-					case syscall.IFA_LOCAL:
-						local = &net.IPNet{
-							IP:   attr.Value,
-							Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
-						}
-					case syscall.IFA_LABEL:
-						addr.Label = string(attr.Value[:len(attr.Value)-1])
-					case IFA_FLAGS:
-						addr.Flags = int(native.Uint32(attr.Value[0:4]))
-					}
-				}
-
-				// IFA_LOCAL should be there but if not, fall back to IFA_ADDRESS
-				if local != nil {
-					addr.IPNet = local
-				} else {
-					addr.IPNet = dst
-				}
-
-				ch <- AddrUpdate{LinkAddress: *addr.IPNet, LinkIndex: int(msg.Index), NewAddr: msgType == syscall.RTM_NEWADDR}
+				ch <- AddrUpdate{LinkAddress: *addr.IPNet, LinkIndex: ifindex, NewAddr: msgType == syscall.RTM_NEWADDR}
 			}
 		}
 	}()
