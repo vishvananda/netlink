@@ -5,6 +5,7 @@ package netlink
 #include <asm/unistd.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <unistd.h>
 
 static int load_simple_bpf(int prog_type) {
@@ -30,8 +31,8 @@ static int load_simple_bpf(int prog_type) {
 	} __attribute__((aligned(8))) attr = {
 		.prog_type = prog_type,
 		.insn_cnt = 2,
-		.insns = (__u64)&insns,
-		.license = (__u64)&license,
+		.insns = (uintptr_t)&insns,
+		.license = (uintptr_t)&license,
 	};
 	return syscall(__NR_bpf, 5, &attr, sizeof(attr));
 #else
