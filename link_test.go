@@ -72,7 +72,7 @@ func testLinkAddDel(t *testing.T, link Link) {
 	} else {
 		// recent kernels set the parent index for veths in the response
 		if rBase.ParentIndex == 0 && base.ParentIndex != 0 {
-			t.Fatal("Created link doesn't have parent %d but it should", base.ParentIndex)
+			t.Fatalf("Created link doesn't have parent %d but it should", base.ParentIndex)
 		} else if rBase.ParentIndex != 0 && base.ParentIndex == 0 {
 			t.Fatalf("Created link has parent %d but it shouldn't", rBase.ParentIndex)
 		} else if rBase.ParentIndex != 0 && base.ParentIndex != 0 {

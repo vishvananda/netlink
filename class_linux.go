@@ -73,20 +73,20 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 		opt.Prio = htb.Prio
 		// TODO: Handle Debug properly. For now default to 0
 		/* Calculate {R,C}Tab and set Rate and Ceil */
-		cell_log := -1
-		ccell_log := -1
+		cellLog := -1
+		ccellLog := -1
 		linklayer := nl.LINKLAYER_ETHERNET
 		mtu := 1600
 		var rtab [256]uint32
 		var ctab [256]uint32
 		tcrate := nl.TcRateSpec{Rate: uint32(htb.Rate)}
-		if CalcRtable(&tcrate, rtab, cell_log, uint32(mtu), linklayer) < 0 {
-			return errors.New("HTB: failed to calculate rate table.")
+		if CalcRtable(&tcrate, rtab, cellLog, uint32(mtu), linklayer) < 0 {
+			return errors.New("HTB: failed to calculate rate table")
 		}
 		opt.Rate = tcrate
 		tcceil := nl.TcRateSpec{Rate: uint32(htb.Ceil)}
-		if CalcRtable(&tcceil, ctab, ccell_log, uint32(mtu), linklayer) < 0 {
-			return errors.New("HTB: failed to calculate ceil rate table.")
+		if CalcRtable(&tcceil, ctab, ccellLog, uint32(mtu), linklayer) < 0 {
+			return errors.New("HTB: failed to calculate ceil rate table")
 		}
 		opt.Ceil = tcceil
 		nl.NewRtAttrChild(options, nl.TCA_HTB_PARMS, opt.Serialize())

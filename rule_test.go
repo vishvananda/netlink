@@ -10,7 +10,7 @@ func TestRuleAddDel(t *testing.T) {
 	srcNet := &net.IPNet{IP: net.IPv4(172, 16, 0, 1), Mask: net.CIDRMask(16, 32)}
 	dstNet := &net.IPNet{IP: net.IPv4(172, 16, 1, 1), Mask: net.CIDRMask(24, 32)}
 
-	rules_begin, err := RuleList(syscall.AF_INET)
+	rulesBegin, err := RuleList(syscall.AF_INET)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestRuleAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(rules) != len(rules_begin)+1 {
+	if len(rules) != len(rulesBegin)+1 {
 		t.Fatal("Rule not added properly")
 	}
 
@@ -55,12 +55,12 @@ func TestRuleAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rules_end, err := RuleList(syscall.AF_INET)
+	rulesEnd, err := RuleList(syscall.AF_INET)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(rules_end) != len(rules_begin) {
+	if len(rulesEnd) != len(rulesBegin) {
 		t.Fatal("Rule not removed properly")
 	}
 }

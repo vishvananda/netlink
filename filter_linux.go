@@ -91,7 +91,7 @@ func FilterAdd(filter Filter) error {
 			nl.NewRtAttrChild(options, nl.TCA_FW_CLASSID, b)
 		}
 	} else if bpf, ok := filter.(*BpfFilter); ok {
-		var bpf_flags uint32
+		var bpfFlags uint32
 		if bpf.ClassId != 0 {
 			nl.NewRtAttrChild(options, nl.TCA_BPF_CLASSID, nl.Uint32Attr(bpf.ClassId))
 		}
@@ -102,9 +102,9 @@ func FilterAdd(filter Filter) error {
 			nl.NewRtAttrChild(options, nl.TCA_BPF_NAME, nl.ZeroTerminated(bpf.Name))
 		}
 		if bpf.DirectAction {
-			bpf_flags |= nl.TCA_BPF_FLAG_ACT_DIRECT
+			bpfFlags |= nl.TCA_BPF_FLAG_ACT_DIRECT
 		}
-		nl.NewRtAttrChild(options, nl.TCA_BPF_FLAGS, nl.Uint32Attr(bpf_flags))
+		nl.NewRtAttrChild(options, nl.TCA_BPF_FLAGS, nl.Uint32Attr(bpfFlags))
 	}
 
 	req.AddData(options)
@@ -385,27 +385,27 @@ func AdjustSize(sz uint, mpu uint, linklayer int) uint {
 	}
 }
 
-func CalcRtable(rate *nl.TcRateSpec, rtab [256]uint32, cell_log int, mtu uint32, linklayer int) int {
+func CalcRtable(rate *nl.TcRateSpec, rtab [256]uint32, cellLog int, mtu uint32, linklayer int) int {
 	bps := rate.Rate
 	mpu := rate.Mpu
 	var sz uint
 	if mtu == 0 {
 		mtu = 2047
 	}
-	if cell_log < 0 {
-		cell_log = 0
-		for (mtu >> uint(cell_log)) > 255 {
-			cell_log++
+	if cellLog < 0 {
+		cellLog = 0
+		for (mtu >> uint(cellLog)) > 255 {
+			cellLog++
 		}
 	}
 	for i := 0; i < 256; i++ {
-		sz = AdjustSize(uint((i+1)<<uint32(cell_log)), uint(mpu), linklayer)
+		sz = AdjustSize(uint((i+1)<<uint32(cellLog)), uint(mpu), linklayer)
 		rtab[i] = uint32(Xmittime(uint64(bps), uint32(sz)))
 	}
 	rate.CellAlign = -1
-	rate.CellLog = uint8(cell_log)
+	rate.CellLog = uint8(cellLog)
 	rate.Linklayer = uint8(linklayer & nl.TC_LINKLAYER_MASK)
-	return cell_log
+	return cellLog
 }
 
 func DeserializeRtab(b []byte) [256]uint32 {
