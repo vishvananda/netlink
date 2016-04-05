@@ -128,6 +128,7 @@ func parseAddr(m []byte) (addr Addr, family, index int, err error) {
 	}
 
 	index = int(msg.Index)
+	family = int(msg.Family)
 
 	var local, dst *net.IPNet
 	for _, attr := range attrs {
