@@ -95,7 +95,7 @@ func AddrList(link Link, family int) ([]Addr, error) {
 
 	var res []Addr
 	for _, m := range msgs {
-		addr, family, ifindex, err := parseAddr(m)
+		addr, msgFamily, ifindex, err := parseAddr(m)
 		if err != nil {
 			return res, err
 		}
@@ -105,7 +105,7 @@ func AddrList(link Link, family int) ([]Addr, error) {
 			continue
 		}
 
-		if family != FAMILY_ALL && msg.Family != uint8(family) {
+		if family != FAMILY_ALL && msgFamily != family {
 			continue
 		}
 
@@ -127,6 +127,7 @@ func parseAddr(m []byte) (addr Addr, family, index int, err error) {
 		return
 	}
 
+	family = int(msg.Family)
 	index = int(msg.Index)
 
 	var local, dst *net.IPNet
