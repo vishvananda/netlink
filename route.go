@@ -41,8 +41,8 @@ type Route struct {
 }
 
 func (r Route) String() string {
-	return fmt.Sprintf("{Ifindex: %d Dst: %s Src: %s Gw: %s Flags: %s}", r.LinkIndex, r.Dst,
-		r.Src, r.Gw, r.ListFlags())
+	return fmt.Sprintf("{Ifindex: %d Dst: %s Src: %s Gw: %s Flags: %s Table: %d}", r.LinkIndex, r.Dst,
+		r.Src, r.Gw, r.ListFlags(), r.Table)
 }
 
 func (r *Route) SetFlag(flag NextHopFlag) {
