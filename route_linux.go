@@ -26,18 +26,40 @@ const (
 // RouteAdd will add a route to the system.
 // Equivalent to: `ip route add $route`
 func RouteAdd(route *Route) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_NEWROUTE, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
-	return routeHandle(route, req, nl.NewRtMsg())
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.RouteAdd(route)
+}
+
+// RouteAdd will add a route to the system.
+// Equivalent to: `ip route add $route`
+func (h *Handle) RouteAdd(route *Route) error {
+	req := h.newNetlinkRequest(syscall.RTM_NEWROUTE, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	return h.routeHandle(route, req, nl.NewRtMsg())
 }
 
 // RouteDel will delete a route from the system.
 // Equivalent to: `ip route del $route`
 func RouteDel(route *Route) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_DELROUTE, syscall.NLM_F_ACK)
-	return routeHandle(route, req, nl.NewRtDelMsg())
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.RouteDel(route)
 }
 
-func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
+// RouteDel will delete a route from the system.
+// Equivalent to: `ip route del $route`
+func (h *Handle) RouteDel(route *Route) error {
+	req := h.newNetlinkRequest(syscall.RTM_DELROUTE, syscall.NLM_F_ACK)
+	return h.routeHandle(route, req, nl.NewRtDelMsg())
+}
+
+func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 	if (route.Dst == nil || route.Dst.IP == nil) && route.Src == nil && route.Gw == nil {
 		return fmt.Errorf("one of Dst.IP, Src, or Gw must not be nil")
 	}
@@ -140,19 +162,42 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 // Equivalent to: `ip route show`.
 // The list can be filtered by link and ip family.
 func RouteList(link Link, family int) ([]Route, error) {
+	h, err := NewHandle()
+	if err != nil {
+		return nil, err
+	}
+	defer h.Delete()
+	return h.RouteList(link, family)
+}
+
+// RouteList gets a list of routes in the system.
+// Equivalent to: `ip route show`.
+// The list can be filtered by link and ip family.
+func (h *Handle) RouteList(link Link, family int) ([]Route, error) {
 	var routeFilter *Route
 	if link != nil {
 		routeFilter = &Route{
 			LinkIndex: link.Attrs().Index,
 		}
 	}
-	return RouteListFiltered(family, routeFilter, RT_FILTER_OIF)
+	return h.RouteListFiltered(family, routeFilter, RT_FILTER_OIF)
 }
 
 // RouteListFiltered gets a list of routes in the system filtered with specified rules.
 // All rules must be defined in RouteFilter struct
 func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
-	req := nl.NewNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_DUMP)
+	h, err := NewHandle()
+	if err != nil {
+		return nil, err
+	}
+	defer h.Delete()
+	return h.RouteListFiltered(family, filter, filterMask)
+}
+
+// RouteListFiltered gets a list of routes in the system filtered with specified rules.
+// All rules must be defined in RouteFilter struct
+func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
+	req := h.newNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_DUMP)
 	infmsg := nl.NewIfInfomsg(family)
 	req.AddData(infmsg)
 
@@ -258,7 +303,18 @@ func deserializeRoute(m []byte) (Route, error) {
 // RouteGet gets a route to a specific destination from the host system.
 // Equivalent to: 'ip route get'.
 func RouteGet(destination net.IP) ([]Route, error) {
-	req := nl.NewNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_REQUEST)
+	h, err := NewHandle()
+	if err != nil {
+		return nil, err
+	}
+	defer h.Delete()
+	return h.RouteGet(destination)
+}
+
+// RouteGet gets a route to a specific destination from the host system.
+// Equivalent to: 'ip route get'.
+func (h *Handle) RouteGet(destination net.IP) ([]Route, error) {
+	req := h.newNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_REQUEST)
 	family := nl.GetIPFamily(destination)
 	var destinationData []byte
 	var bitlen uint8
