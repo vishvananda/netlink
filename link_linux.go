@@ -433,6 +433,12 @@ func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
 	}
 }
 
+func cleanupFds(fds []*os.File) {
+	for _, f := range fds {
+		f.Close()
+	}
+}
+
 // LinkAdd adds a new link device. The type and features of the device
 // are taken fromt the parameters in the link object.
 // Equivalent to: `ip link add $link`
@@ -455,23 +461,43 @@ func LinkAdd(link Link) error {
 		if tuntap.Mode < syscall.IFF_TUN || tuntap.Mode > syscall.IFF_TAP {
 			return fmt.Errorf("Tuntap.Mode %v unknown!", tuntap.Mode)
 		}
-		file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
-		if err != nil {
-			return err
+
+		queues := tuntap.Queues
+		if queues == 0 { //Legacy compatibility
+			queues = 1
 		}
-		defer file.Close()
-		var req ifReq
-		req.Flags |= syscall.IFF_ONE_QUEUE
-		req.Flags |= syscall.IFF_TUN_EXCL
-		copy(req.Name[:15], base.Name)
-		req.Flags |= uint16(tuntap.Mode)
-		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall.TUNSETIFF), uintptr(unsafe.Pointer(&req)))
-		if errno != 0 {
-			return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed, errno %v", errno)
+
+		tuntap.Fds = nil
+		for i := 0; i < queues; i++ {
+			file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+			if err != nil {
+				cleanupFds(tuntap.Fds[:i])
+				return err
+			}
+			tuntap.Fds = append(tuntap.Fds, file)
+			var req ifReq
+			//req.Flags |= syscall.IFF_ONE_QUEUE
+			//req.Flags |= syscall.IFF_TUN_EXCL
+			if queues > 1 {
+				const IFF_MULTI_QUEUE = 0x0100
+				req.Flags |= IFF_MULTI_QUEUE
+			}
+			copy(req.Name[:15], base.Name)
+			req.Flags |= uint16(tuntap.Mode)
+			_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall.TUNSETIFF), uintptr(unsafe.Pointer(&req)))
+			if errno != 0 {
+				cleanupFds(tuntap.Fds[:i])
+				return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed [%d], errno %v", i, errno)
+			}
+			_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall.TUNSETPERSIST), 1)
+			if errno != 0 {
+				cleanupFds(tuntap.Fds[:i])
+				return fmt.Errorf("Tuntap IOCTL TUNSETPERSIST failed [%d], errno %v", i, errno)
+			}
 		}
-		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall.TUNSETPERSIST), 1)
-		if errno != 0 {
-			return fmt.Errorf("Tuntap IOCTL TUNSETPERSIST failed, errno %v", errno)
+
+		if tuntap.Queues == 0 {
+			cleanupFds(tuntap.Fds)
 		}
 		ensureIndex(base)
 

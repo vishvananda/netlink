@@ -3,6 +3,7 @@ package netlink
 import (
 	"fmt"
 	"net"
+	"os"
 	"syscall"
 )
 
@@ -151,7 +152,9 @@ const (
 // Tuntap links created via /dev/tun/tap, but can be destroyed via netlink
 type Tuntap struct {
 	LinkAttrs
-	Mode TuntapMode
+	Mode   TuntapMode
+	Queues int
+	Fds    []*os.File
 }
 
 func (tuntap *Tuntap) Attrs() *LinkAttrs {
