@@ -434,7 +434,7 @@ func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
 }
 
 // LinkAdd adds a new link device. The type and features of the device
-// are taken fromt the parameters in the link object.
+// are taken from the parameters in the link object.
 // Equivalent to: `ip link add $link`
 func LinkAdd(link Link) error {
 	// TODO: set mtu and hardware address
