@@ -23,6 +23,10 @@ func TestXfrmStateAddDel(t *testing.T) {
 			Name: "cbc(aes)",
 			Key:  []byte("abcdefghijklmnopqrstuvwzyzABCDEF"),
 		},
+		Mark: &XfrmMark{
+			Value: 0x12340000,
+			Mask:  0xffff0000,
+		},
 	}
 	if err := XfrmStateAdd(&state); err != nil {
 		t.Fatal(err)

@@ -47,6 +47,7 @@ type XfrmState struct {
 	Spi          int
 	Reqid        int
 	ReplayWindow int
+	Mark         *XfrmMark
 	Auth         *XfrmStateAlgo
 	Crypt        *XfrmStateAlgo
 	Encap        *XfrmStateEncap
