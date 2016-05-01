@@ -340,7 +340,7 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LIMIT, nl.Uint32Attr(uint32(vxlan.Limit)))
 	}
 	if vxlan.Port > 0 {
-		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_PORT, nl.Uint16Attr(uint16(vxlan.Port)))
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_PORT, htons(uint16(vxlan.Port)))
 	}
 	if vxlan.PortLow > 0 || vxlan.PortHigh > 0 {
 		pr := vxlanPortRange{uint16(vxlan.PortLow), uint16(vxlan.PortHigh)}
@@ -996,7 +996,7 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_VXLAN_LIMIT:
 			vxlan.Limit = int(native.Uint32(datum.Value[0:4]))
 		case nl.IFLA_VXLAN_PORT:
-			vxlan.Port = int(native.Uint16(datum.Value[0:2]))
+			vxlan.Port = int(ntohs(datum.Value[0:2]))
 		case nl.IFLA_VXLAN_PORT_RANGE:
 			buf := bytes.NewBuffer(datum.Value[0:4])
 			var pr vxlanPortRange
