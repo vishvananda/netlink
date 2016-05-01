@@ -55,5 +55,6 @@ type XfrmPolicy struct {
 	Dir      Dir
 	Priority int
 	Index    int
+	Mark     *XfrmMark
 	Tmpls    []XfrmPolicyTmpl
 }

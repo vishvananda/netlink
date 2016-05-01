@@ -49,6 +49,10 @@ func XfrmPolicyAdd(policy *XfrmPolicy) error {
 		tmpls := nl.NewRtAttr(nl.XFRMA_TMPL, tmplData)
 		req.AddData(tmpls)
 	}
+	if policy.Mark != nil {
+		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(policy.Mark))
+		req.AddData(out)
+	}
 
 	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
 	return err
@@ -65,6 +69,11 @@ func XfrmPolicyDel(policy *XfrmPolicy) error {
 	msg.Index = uint32(policy.Index)
 	msg.Dir = uint8(policy.Dir)
 	req.AddData(msg)
+
+	if policy.Mark != nil {
+		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(policy.Mark))
+		req.AddData(out)
+	}
 
 	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
 	return err
@@ -119,6 +128,11 @@ func XfrmPolicyList(family int) ([]XfrmPolicy, error) {
 					resTmpl.Reqid = int(tmpl.Reqid)
 					policy.Tmpls = append(policy.Tmpls, resTmpl)
 				}
+			case nl.XFRMA_MARK:
+				mark := nl.DeserializeXfrmMark(attr.Value[:])
+				policy.Mark = new(XfrmMark)
+				policy.Mark.Value = mark.Value
+				policy.Mark.Mask = mark.Mask
 			}
 		}
 		res = append(res, policy)

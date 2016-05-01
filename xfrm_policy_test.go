@@ -15,6 +15,10 @@ func TestXfrmPolicyAddDel(t *testing.T) {
 		Src: src,
 		Dst: dst,
 		Dir: XFRM_DIR_OUT,
+		Mark: &XfrmMark{
+			Value: 0xabff22,
+			Mask:  0xffffffff,
+		},
 	}
 	tmpl := XfrmPolicyTmpl{
 		Src:   net.ParseIP("127.0.0.1"),

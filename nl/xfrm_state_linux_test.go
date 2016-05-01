@@ -205,3 +205,29 @@ func TestXfrmEncapTmplDeserializeSerialize(t *testing.T) {
 	msg := DeserializeXfrmEncapTmpl(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
+
+func (msg *XfrmMark) write(b []byte) {
+	native := NativeEndian()
+	native.PutUint32(b[0:4], msg.Value)
+	native.PutUint32(b[4:8], msg.Mask)
+}
+
+func (msg *XfrmMark) serializeSafe() []byte {
+	b := make([]byte, SizeofXfrmMark)
+	msg.write(b)
+	return b
+}
+
+func deserializeXfrmMarkSafe(b []byte) *XfrmMark {
+	var msg = XfrmMark{}
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmMark]), NativeEndian(), &msg)
+	return &msg
+}
+
+func TestXfrmMarkDeserializeSerialize(t *testing.T) {
+	var orig = make([]byte, SizeofXfrmMark)
+	rand.Read(orig)
+	safemsg := deserializeXfrmMarkSafe(orig)
+	msg := DeserializeXfrmMark(orig)
+	testDeserializeSerialize(t, orig, safemsg, msg)
+}

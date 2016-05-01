@@ -34,6 +34,17 @@ func writeStateAlgoAuth(a *XfrmStateAlgo) []byte {
 	return algo.Serialize()
 }
 
+func writeMark(m *XfrmMark) []byte {
+	mark := &nl.XfrmMark{
+		Value: m.Value,
+		Mask:  m.Mask,
+	}
+	if mark.Mask == 0 {
+		mark.Mask = 0xfffffff
+	}
+	return mark.Serialize()
+}
+
 // XfrmStateAdd will add an xfrm state to the system.
 // Equivalent to: `ip xfrm state add $state`
 func XfrmStateAdd(state *XfrmState) error {
@@ -76,6 +87,10 @@ func XfrmStateAdd(state *XfrmState) error {
 		out := nl.NewRtAttr(nl.XFRMA_ENCAP, encapData)
 		req.AddData(out)
 	}
+	if state.Mark != nil {
+		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
+		req.AddData(out)
+	}
 
 	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
 	return err
@@ -99,7 +114,10 @@ func XfrmStateDel(state *XfrmState) error {
 	srcdata := nl.NewRtAttr(nl.XFRMA_SRCADDR, saddr.Serialize())
 
 	req.AddData(srcdata)
-
+	if state.Mark != nil {
+		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
+		req.AddData(out)
+	}
 	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
 	return err
 }
@@ -169,6 +187,11 @@ func XfrmStateList(family int) ([]XfrmState, error) {
 				state.Encap.SrcPort = int(nl.Swap16(encap.EncapSport))
 				state.Encap.DstPort = int(nl.Swap16(encap.EncapDport))
 				state.Encap.OriginalAddress = encap.EncapOa.ToIP()
+			case nl.XFRMA_MARK:
+				mark := nl.DeserializeXfrmMark(attr.Value[:])
+				state.Mark = new(XfrmMark)
+				state.Mark.Value = mark.Value
+				state.Mark.Mask = mark.Mask
 			}
 
 		}
