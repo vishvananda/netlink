@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestXfrmPolicyAddDel(t *testing.T) {
+func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
@@ -19,6 +19,7 @@ func TestXfrmPolicyAddDel(t *testing.T) {
 			Value: 0xabff22,
 			Mask:  0xffffffff,
 		},
+		Priority: 10,
 	}
 	tmpl := XfrmPolicyTmpl{
 		Src:   net.ParseIP("127.0.0.1"),
@@ -37,6 +38,19 @@ func TestXfrmPolicyAddDel(t *testing.T) {
 
 	if len(policies) != 1 {
 		t.Fatal("Policy not added properly")
+	}
+
+	// Modify the policy
+	policy.Priority = 100
+	if err := XfrmPolicyUpdate(&policy); err != nil {
+		t.Fatal(err)
+	}
+	policies, err = XfrmPolicyList(FAMILY_ALL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if policies[0].Priority != 100 {
+		t.Fatalf("failed to modify the policy")
 	}
 
 	if err = XfrmPolicyDel(&policy); err != nil {

@@ -19,7 +19,17 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 // XfrmPolicyAdd will add an xfrm policy to the system.
 // Equivalent to: `ip xfrm policy add $policy`
 func XfrmPolicyAdd(policy *XfrmPolicy) error {
-	req := nl.NewNetlinkRequest(nl.XFRM_MSG_NEWPOLICY, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	return xfrmPolicyAddOrUpdate(policy, nl.XFRM_MSG_NEWPOLICY)
+}
+
+// XfrmPolicyUpdate will update an xfrm policy to the system.
+// Equivalent to: `ip xfrm policy update $policy`
+func XfrmPolicyUpdate(policy *XfrmPolicy) error {
+	return xfrmPolicyAddOrUpdate(policy, nl.XFRM_MSG_UPDPOLICY)
+}
+
+func xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
+	req := nl.NewNetlinkRequest(nlProto, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
 	msg := &nl.XfrmUserpolicyInfo{}
 	selFromPolicy(&msg.Sel, policy)

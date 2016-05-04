@@ -48,11 +48,21 @@ func writeMark(m *XfrmMark) []byte {
 // XfrmStateAdd will add an xfrm state to the system.
 // Equivalent to: `ip xfrm state add $state`
 func XfrmStateAdd(state *XfrmState) error {
+	return xfrmStateAddOrUpdate(state, nl.XFRM_MSG_NEWSA)
+}
+
+// XfrmStateUpdate will update an xfrm state to the system.
+// Equivalent to: `ip xfrm state update $state`
+func XfrmStateUpdate(state *XfrmState) error {
+	return xfrmStateAddOrUpdate(state, nl.XFRM_MSG_UPDSA)
+}
+
+func xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 	// A state with spi 0 can't be deleted so don't allow it to be set
 	if state.Spi == 0 {
 		return fmt.Errorf("Spi must be set when adding xfrm state.")
 	}
-	req := nl.NewNetlinkRequest(nl.XFRM_MSG_NEWSA, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	req := nl.NewNetlinkRequest(nlProto, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
 	msg := &nl.XfrmUsersaInfo{}
 	msg.Family = uint16(nl.GetIPFamily(state.Dst))
