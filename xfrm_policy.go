@@ -52,6 +52,9 @@ type XfrmPolicyTmpl struct {
 type XfrmPolicy struct {
 	Dst      *net.IPNet
 	Src      *net.IPNet
+	Proto    Proto
+	DstPort  int
+	SrcPort  int
 	Dir      Dir
 	Priority int
 	Index    int

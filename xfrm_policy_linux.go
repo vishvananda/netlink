@@ -14,6 +14,11 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 	sel.PrefixlenD = uint8(prefixlenD)
 	prefixlenS, _ := policy.Src.Mask.Size()
 	sel.PrefixlenS = uint8(prefixlenS)
+	sel.Proto = uint8(policy.Proto)
+	sel.Dport = nl.Swap16(uint16(policy.DstPort))
+	sel.Sport = nl.Swap16(uint16(policy.SrcPort))
+	sel.DportMask = ^uint16(0)
+	sel.SportMask = ^uint16(0)
 }
 
 // XfrmPolicyAdd will add an xfrm policy to the system.
@@ -160,6 +165,9 @@ func (h *Handle) XfrmPolicyList(family int) ([]XfrmPolicy, error) {
 
 		policy.Dst = msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD)
 		policy.Src = msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS)
+		policy.Proto = Proto(msg.Sel.Proto)
+		policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
+		policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))
 		policy.Priority = int(msg.Priority)
 		policy.Index = int(msg.Index)
 		policy.Dir = Dir(msg.Dir)

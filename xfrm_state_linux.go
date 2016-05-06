@@ -40,7 +40,7 @@ func writeMark(m *XfrmMark) []byte {
 		Mask:  m.Mask,
 	}
 	if mark.Mask == 0 {
-		mark.Mask = 0xfffffff
+		mark.Mask = ^uint32(0)
 	}
 	return mark.Serialize()
 }
