@@ -155,50 +155,96 @@ func (h *Handle) XfrmPolicyList(family int) ([]XfrmPolicy, error) {
 
 	var res []XfrmPolicy
 	for _, m := range msgs {
-		msg := nl.DeserializeXfrmUserpolicyInfo(m)
-
-		if family != FAMILY_ALL && family != int(msg.Sel.Family) {
+		if policy, err := parseXfrmPolicy(m, family); err == nil {
+			res = append(res, *policy)
+		} else if err == familyError {
 			continue
-		}
-
-		var policy XfrmPolicy
-
-		policy.Dst = msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD)
-		policy.Src = msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS)
-		policy.Proto = Proto(msg.Sel.Proto)
-		policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
-		policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))
-		policy.Priority = int(msg.Priority)
-		policy.Index = int(msg.Index)
-		policy.Dir = Dir(msg.Dir)
-
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
-		if err != nil {
+		} else {
 			return nil, err
 		}
-
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
-			case nl.XFRMA_TMPL:
-				max := len(attr.Value)
-				for i := 0; i < max; i += nl.SizeofXfrmUserTmpl {
-					var resTmpl XfrmPolicyTmpl
-					tmpl := nl.DeserializeXfrmUserTmpl(attr.Value[i : i+nl.SizeofXfrmUserTmpl])
-					resTmpl.Dst = tmpl.XfrmId.Daddr.ToIP()
-					resTmpl.Src = tmpl.Saddr.ToIP()
-					resTmpl.Proto = Proto(tmpl.XfrmId.Proto)
-					resTmpl.Mode = Mode(tmpl.Mode)
-					resTmpl.Reqid = int(tmpl.Reqid)
-					policy.Tmpls = append(policy.Tmpls, resTmpl)
-				}
-			case nl.XFRMA_MARK:
-				mark := nl.DeserializeXfrmMark(attr.Value[:])
-				policy.Mark = new(XfrmMark)
-				policy.Mark.Value = mark.Value
-				policy.Mark.Mask = mark.Mask
-			}
-		}
-		res = append(res, policy)
 	}
 	return res, nil
+}
+
+// XfrmPolicyGet gets a the policy described by the index or selector, if found.
+// Equivalent to: `ip xfrm policy get { SELECTOR | index INDEX } dir DIR [ctx CTX ] [ mark MARK [ mask MASK ] ] [ ptype PTYPE ]`.
+func XfrmPolicyGet(policy *XfrmPolicy) (*XfrmPolicy, error) {
+	h, err := NewHandle()
+	if err != nil {
+		return nil, err
+	}
+	defer h.Delete()
+	return h.XfrmPolicyGet(policy)
+}
+
+// XfrmPolicyGet gets a the policy described by the index or selector, if found.
+// Equivalent to: `ip xfrm policy get { SELECTOR | index INDEX } dir DIR [ctx CTX ] [ mark MARK [ mask MASK ] ] [ ptype PTYPE ]`.
+func (h *Handle) XfrmPolicyGet(policy *XfrmPolicy) (*XfrmPolicy, error) {
+	req := h.newNetlinkRequest(nl.XFRM_MSG_GETPOLICY, syscall.NLM_F_DUMP)
+
+	msg := &nl.XfrmUserpolicyInfo{}
+	selFromPolicy(&msg.Sel, policy)
+	msg.Index = uint32(policy.Index)
+	msg.Dir = uint8(policy.Dir)
+	req.AddData(msg)
+
+	msgs, err := req.Execute(syscall.NETLINK_XFRM, nl.XFRM_MSG_NEWPOLICY)
+	if err != nil {
+		return nil, err
+	}
+
+	if policy, err := parseXfrmPolicy(msgs[0], FAMILY_ALL); err == nil {
+		return policy, nil
+	} else {
+		return nil, err
+	}
+}
+
+func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
+	msg := nl.DeserializeXfrmUserpolicyInfo(m)
+
+	// This is mainly for the policy dump
+	if family != FAMILY_ALL && family != int(msg.Sel.Family) {
+		return nil, familyError
+	}
+
+	var policy XfrmPolicy
+
+	policy.Dst = msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD)
+	policy.Src = msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS)
+	policy.Proto = Proto(msg.Sel.Proto)
+	policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
+	policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))
+	policy.Priority = int(msg.Priority)
+	policy.Index = int(msg.Index)
+	policy.Dir = Dir(msg.Dir)
+
+	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+	if err != nil {
+		return nil, err
+	}
+
+	for _, attr := range attrs {
+		switch attr.Attr.Type {
+		case nl.XFRMA_TMPL:
+			max := len(attr.Value)
+			for i := 0; i < max; i += nl.SizeofXfrmUserTmpl {
+				var resTmpl XfrmPolicyTmpl
+				tmpl := nl.DeserializeXfrmUserTmpl(attr.Value[i : i+nl.SizeofXfrmUserTmpl])
+				resTmpl.Dst = tmpl.XfrmId.Daddr.ToIP()
+				resTmpl.Src = tmpl.Saddr.ToIP()
+				resTmpl.Proto = Proto(tmpl.XfrmId.Proto)
+				resTmpl.Mode = Mode(tmpl.Mode)
+				resTmpl.Reqid = int(tmpl.Reqid)
+				policy.Tmpls = append(policy.Tmpls, resTmpl)
+			}
+		case nl.XFRMA_MARK:
+			mark := nl.DeserializeXfrmMark(attr.Value[:])
+			policy.Mark = new(XfrmMark)
+			policy.Mark.Value = mark.Value
+			policy.Mark.Mask = mark.Mask
+		}
+	}
+
+	return &policy, nil
 }

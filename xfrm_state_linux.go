@@ -208,7 +208,21 @@ func (h *Handle) XfrmStateList(family int) ([]XfrmState, error) {
 // ID := [ src ADDR ] [ dst ADDR ] [ proto XFRM-PROTO ] [ spi SPI ]
 // mark is optional
 func XfrmStateGet(state *XfrmState) (*XfrmState, error) {
-	req := nl.NewNetlinkRequest(nl.XFRM_MSG_GETSA, syscall.NLM_F_DUMP)
+	h, err := NewHandle()
+	if err != nil {
+		return nil, err
+	}
+	defer h.Delete()
+	return h.XfrmStateGet(state)
+}
+
+// XfrmStateGet gets the xfrm state described by the ID, if found.
+// Equivalent to: `ip xfrm state get ID [ mark MARK [ mask MASK ] ]`.
+// Only the fields which constitue the SA ID must be filled in:
+// ID := [ src ADDR ] [ dst ADDR ] [ proto XFRM-PROTO ] [ spi SPI ]
+// mark is optional
+func (h *Handle) XfrmStateGet(state *XfrmState) (*XfrmState, error) {
+	req := h.newNetlinkRequest(nl.XFRM_MSG_GETSA, syscall.NLM_F_DUMP)
 
 	msg := &nl.XfrmUsersaInfo{}
 	msg.Family = uint16(nl.GetIPFamily(state.Dst))
