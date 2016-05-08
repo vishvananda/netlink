@@ -12,7 +12,18 @@ import (
 // FilterDel will delete a filter from the system.
 // Equivalent to: `tc filter del $filter`
 func FilterDel(filter Filter) error {
-	req := nl.NewNetlinkRequest(syscall.RTM_DELTFILTER, syscall.NLM_F_ACK)
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.FilterDel(filter)
+}
+
+// FilterDel will delete a filter from the system.
+// Equivalent to: `tc filter del $filter`
+func (h *Handle) FilterDel(filter Filter) error {
+	req := h.newNetlinkRequest(syscall.RTM_DELTFILTER, syscall.NLM_F_ACK)
 	base := filter.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
@@ -30,8 +41,19 @@ func FilterDel(filter Filter) error {
 // FilterAdd will add a filter to the system.
 // Equivalent to: `tc filter add $filter`
 func FilterAdd(filter Filter) error {
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.FilterAdd(filter)
+}
+
+// FilterAdd will add a filter to the system.
+// Equivalent to: `tc filter add $filter`
+func (h *Handle) FilterAdd(filter Filter) error {
 	native = nl.NativeEndian()
-	req := nl.NewNetlinkRequest(syscall.RTM_NEWTFILTER, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	req := h.newNetlinkRequest(syscall.RTM_NEWTFILTER, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 	base := filter.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
@@ -116,14 +138,26 @@ func FilterAdd(filter Filter) error {
 // Equivalent to: `tc filter show`.
 // Generally retunrs nothing if link and parent are not specified.
 func FilterList(link Link, parent uint32) ([]Filter, error) {
-	req := nl.NewNetlinkRequest(syscall.RTM_GETTFILTER, syscall.NLM_F_DUMP)
+	h, err := NewHandle()
+	if err != nil {
+		return nil, err
+	}
+	defer h.Delete()
+	return h.FilterList(link, parent)
+}
+
+// FilterList gets a list of filters in the system.
+// Equivalent to: `tc filter show`.
+// Generally retunrs nothing if link and parent are not specified.
+func (h *Handle) FilterList(link Link, parent uint32) ([]Filter, error) {
+	req := h.newNetlinkRequest(syscall.RTM_GETTFILTER, syscall.NLM_F_DUMP)
 	msg := &nl.TcMsg{
 		Family: nl.FAMILY_ALL,
 		Parent: parent,
 	}
 	if link != nil {
 		base := link.Attrs()
-		ensureIndex(base)
+		h.ensureIndex(base)
 		msg.Ifindex = int32(base.Index)
 	}
 	req.AddData(msg)

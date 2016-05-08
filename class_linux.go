@@ -10,15 +10,37 @@ import (
 // ClassDel will delete a class from the system.
 // Equivalent to: `tc class del $class`
 func ClassDel(class Class) error {
-	return classModify(syscall.RTM_DELTCLASS, 0, class)
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.ClassDel(class)
+}
+
+// ClassDel will delete a class from the system.
+// Equivalent to: `tc class del $class`
+func (h *Handle) ClassDel(class Class) error {
+	return h.classModify(syscall.RTM_DELTCLASS, 0, class)
 }
 
 // ClassChange will change a class in place
 // Equivalent to: `tc class change $class`
 // The parent and handle MUST NOT be changed.
-
 func ClassChange(class Class) error {
-	return classModify(syscall.RTM_NEWTCLASS, 0, class)
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.ClassChange(class)
+}
+
+// ClassChange will change a class in place
+// Equivalent to: `tc class change $class`
+// The parent and handle MUST NOT be changed.
+func (h *Handle) ClassChange(class Class) error {
+	return h.classModify(syscall.RTM_NEWTCLASS, 0, class)
 }
 
 // ClassReplace will replace a class to the system.
@@ -27,21 +49,46 @@ func ClassChange(class Class) error {
 // If a class already exist with this parent/handle pair, the class is changed.
 // If a class does not already exist with this parent/handle, a new class is created.
 func ClassReplace(class Class) error {
-	return classModify(syscall.RTM_NEWTCLASS, syscall.NLM_F_CREATE, class)
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.ClassReplace(class)
+}
+
+// ClassReplace will replace a class to the system.
+// quivalent to: `tc class replace $class`
+// The handle MAY be changed.
+// If a class already exist with this parent/handle pair, the class is changed.
+// If a class does not already exist with this parent/handle, a new class is created.
+func (h *Handle) ClassReplace(class Class) error {
+	return h.classModify(syscall.RTM_NEWTCLASS, syscall.NLM_F_CREATE, class)
 }
 
 // ClassAdd will add a class to the system.
 // Equivalent to: `tc class add $class`
 func ClassAdd(class Class) error {
-	return classModify(
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.ClassAdd(class)
+}
+
+// ClassAdd will add a class to the system.
+// Equivalent to: `tc class add $class`
+func (h *Handle) ClassAdd(class Class) error {
+	return h.classModify(
 		syscall.RTM_NEWTCLASS,
 		syscall.NLM_F_CREATE|syscall.NLM_F_EXCL,
 		class,
 	)
 }
 
-func classModify(cmd, flags int, class Class) error {
-	req := nl.NewNetlinkRequest(cmd, flags|syscall.NLM_F_ACK)
+func (h *Handle) classModify(cmd, flags int, class Class) error {
+	req := h.newNetlinkRequest(cmd, flags|syscall.NLM_F_ACK)
 	base := class.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
@@ -101,14 +148,26 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 // Equivalent to: `tc class show`.
 // Generally returns nothing if link and parent are not specified.
 func ClassList(link Link, parent uint32) ([]Class, error) {
-	req := nl.NewNetlinkRequest(syscall.RTM_GETTCLASS, syscall.NLM_F_DUMP)
+	h, err := NewHandle()
+	if err != nil {
+		return nil, err
+	}
+	defer h.Delete()
+	return h.ClassList(link, parent)
+}
+
+// ClassList gets a list of classes in the system.
+// Equivalent to: `tc class show`.
+// Generally returns nothing if link and parent are not specified.
+func (h *Handle) ClassList(link Link, parent uint32) ([]Class, error) {
+	req := h.newNetlinkRequest(syscall.RTM_GETTCLASS, syscall.NLM_F_DUMP)
 	msg := &nl.TcMsg{
 		Family: nl.FAMILY_ALL,
 		Parent: parent,
 	}
 	if link != nil {
 		base := link.Attrs()
-		ensureIndex(base)
+		h.ensureIndex(base)
 		msg.Ifindex = int32(base.Index)
 	}
 	req.AddData(msg)

@@ -19,17 +19,38 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 // XfrmPolicyAdd will add an xfrm policy to the system.
 // Equivalent to: `ip xfrm policy add $policy`
 func XfrmPolicyAdd(policy *XfrmPolicy) error {
-	return xfrmPolicyAddOrUpdate(policy, nl.XFRM_MSG_NEWPOLICY)
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	return h.XfrmPolicyAdd(policy)
+}
+
+// XfrmPolicyAdd will add an xfrm policy to the system.
+// Equivalent to: `ip xfrm policy add $policy`
+func (h *Handle) XfrmPolicyAdd(policy *XfrmPolicy) error {
+	return h.xfrmPolicyAddOrUpdate(policy, nl.XFRM_MSG_NEWPOLICY)
 }
 
 // XfrmPolicyUpdate will update an xfrm policy to the system.
 // Equivalent to: `ip xfrm policy update $policy`
 func XfrmPolicyUpdate(policy *XfrmPolicy) error {
-	return xfrmPolicyAddOrUpdate(policy, nl.XFRM_MSG_UPDPOLICY)
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.XfrmPolicyUpdate(policy)
 }
 
-func xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
-	req := nl.NewNetlinkRequest(nlProto, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+// XfrmPolicyUpdate will update an xfrm policy to the system.
+// Equivalent to: `ip xfrm policy update $policy`
+func (h *Handle) XfrmPolicyUpdate(policy *XfrmPolicy) error {
+	return h.xfrmPolicyAddOrUpdate(policy, nl.XFRM_MSG_UPDPOLICY)
+}
+
+func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
+	req := h.newNetlinkRequest(nlProto, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
 	msg := &nl.XfrmUserpolicyInfo{}
 	selFromPolicy(&msg.Sel, policy)
@@ -72,7 +93,19 @@ func xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 // the Tmpls are ignored when matching the policy to delete.
 // Equivalent to: `ip xfrm policy del $policy`
 func XfrmPolicyDel(policy *XfrmPolicy) error {
-	req := nl.NewNetlinkRequest(nl.XFRM_MSG_DELPOLICY, syscall.NLM_F_ACK)
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.XfrmPolicyDel(policy)
+}
+
+// XfrmPolicyDel will delete an xfrm policy from the system. Note that
+// the Tmpls are ignored when matching the policy to delete.
+// Equivalent to: `ip xfrm policy del $policy`
+func (h *Handle) XfrmPolicyDel(policy *XfrmPolicy) error {
+	req := h.newNetlinkRequest(nl.XFRM_MSG_DELPOLICY, syscall.NLM_F_ACK)
 
 	msg := &nl.XfrmUserpolicyId{}
 	selFromPolicy(&msg.Sel, policy)
@@ -93,7 +126,19 @@ func XfrmPolicyDel(policy *XfrmPolicy) error {
 // Equivalent to: `ip xfrm policy show`.
 // The list can be filtered by ip family.
 func XfrmPolicyList(family int) ([]XfrmPolicy, error) {
-	req := nl.NewNetlinkRequest(nl.XFRM_MSG_GETPOLICY, syscall.NLM_F_DUMP)
+	h, err := NewHandle()
+	if err != nil {
+		return nil, err
+	}
+	defer h.Delete()
+	return h.XfrmPolicyList(family)
+}
+
+// XfrmPolicyList gets a list of xfrm policies in the system.
+// Equivalent to: `ip xfrm policy show`.
+// The list can be filtered by ip family.
+func (h *Handle) XfrmPolicyList(family int) ([]XfrmPolicy, error) {
+	req := h.newNetlinkRequest(nl.XFRM_MSG_GETPOLICY, syscall.NLM_F_DUMP)
 
 	msg := nl.NewIfInfomsg(family)
 	req.AddData(msg)

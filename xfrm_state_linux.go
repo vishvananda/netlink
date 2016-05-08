@@ -48,21 +48,43 @@ func writeMark(m *XfrmMark) []byte {
 // XfrmStateAdd will add an xfrm state to the system.
 // Equivalent to: `ip xfrm state add $state`
 func XfrmStateAdd(state *XfrmState) error {
-	return xfrmStateAddOrUpdate(state, nl.XFRM_MSG_NEWSA)
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.XfrmStateAdd(state)
+}
+
+// XfrmStateAdd will add an xfrm state to the system.
+// Equivalent to: `ip xfrm state add $state`
+func (h *Handle) XfrmStateAdd(state *XfrmState) error {
+	return h.xfrmStateAddOrUpdate(state, nl.XFRM_MSG_NEWSA)
 }
 
 // XfrmStateUpdate will update an xfrm state to the system.
 // Equivalent to: `ip xfrm state update $state`
 func XfrmStateUpdate(state *XfrmState) error {
-	return xfrmStateAddOrUpdate(state, nl.XFRM_MSG_UPDSA)
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.XfrmStateUpdate(state)
 }
 
-func xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
+// XfrmStateUpdate will update an xfrm state to the system.
+// Equivalent to: `ip xfrm state update $state`
+func (h *Handle) XfrmStateUpdate(state *XfrmState) error {
+	return h.xfrmStateAddOrUpdate(state, nl.XFRM_MSG_UPDSA)
+}
+
+func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 	// A state with spi 0 can't be deleted so don't allow it to be set
 	if state.Spi == 0 {
 		return fmt.Errorf("Spi must be set when adding xfrm state.")
 	}
-	req := nl.NewNetlinkRequest(nlProto, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	req := h.newNetlinkRequest(nlProto, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
 	msg := &nl.XfrmUsersaInfo{}
 	msg.Family = uint16(nl.GetIPFamily(state.Dst))
@@ -110,7 +132,19 @@ func xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 // the Algos are ignored when matching the state to delete.
 // Equivalent to: `ip xfrm state del $state`
 func XfrmStateDel(state *XfrmState) error {
-	req := nl.NewNetlinkRequest(nl.XFRM_MSG_DELSA, syscall.NLM_F_ACK)
+	h, err := NewHandle()
+	if err != nil {
+		return err
+	}
+	defer h.Delete()
+	return h.XfrmStateDel(state)
+}
+
+// XfrmStateDel will delete an xfrm state from the system. Note that
+// the Algos are ignored when matching the state to delete.
+// Equivalent to: `ip xfrm state del $state`
+func (h *Handle) XfrmStateDel(state *XfrmState) error {
+	req := h.newNetlinkRequest(nl.XFRM_MSG_DELSA, syscall.NLM_F_ACK)
 
 	msg := &nl.XfrmUsersaId{}
 	msg.Daddr.FromIP(state.Dst)
@@ -136,7 +170,19 @@ func XfrmStateDel(state *XfrmState) error {
 // Equivalent to: `ip [-4|-6] xfrm state show`.
 // The list can be filtered by ip family.
 func XfrmStateList(family int) ([]XfrmState, error) {
-	req := nl.NewNetlinkRequest(nl.XFRM_MSG_GETSA, syscall.NLM_F_DUMP)
+	h, err := NewHandle()
+	if err != nil {
+		return nil, err
+	}
+	defer h.Delete()
+	return h.XfrmStateList(family)
+}
+
+// XfrmStateList gets a list of xfrm states in the system.
+// Equivalent to: `ip xfrm state show`.
+// The list can be filtered by ip family.
+func (h *Handle) XfrmStateList(family int) ([]XfrmState, error) {
+	req := h.newNetlinkRequest(nl.XFRM_MSG_GETSA, syscall.NLM_F_DUMP)
 
 	msgs, err := req.Execute(syscall.NETLINK_XFRM, nl.XFRM_MSG_NEWSA)
 	if err != nil {
