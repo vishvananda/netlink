@@ -67,12 +67,7 @@ func (msg *Ndmsg) Len() int {
 // NeighAdd will add an IP to MAC mapping to the ARP table
 // Equivalent to: `ip neigh add ....`
 func NeighAdd(neigh *Neigh) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.NeighAdd(neigh)
+	return pkgHandle.NeighAdd(neigh)
 }
 
 // NeighAdd will add an IP to MAC mapping to the ARP table
@@ -84,12 +79,7 @@ func (h *Handle) NeighAdd(neigh *Neigh) error {
 // NeighSet will add or replace an IP to MAC mapping to the ARP table
 // Equivalent to: `ip neigh replace....`
 func NeighSet(neigh *Neigh) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.NeighSet(neigh)
+	return pkgHandle.NeighSet(neigh)
 }
 
 // NeighSet will add or replace an IP to MAC mapping to the ARP table
@@ -101,12 +91,7 @@ func (h *Handle) NeighSet(neigh *Neigh) error {
 // NeighAppend will append an entry to FDB
 // Equivalent to: `bridge fdb append...`
 func NeighAppend(neigh *Neigh) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.NeighAppend(neigh)
+	return pkgHandle.NeighAppend(neigh)
 }
 
 // NeighAppend will append an entry to FDB
@@ -118,12 +103,7 @@ func (h *Handle) NeighAppend(neigh *Neigh) error {
 // NeighAppend will append an entry to FDB
 // Equivalent to: `bridge fdb append...`
 func neighAdd(neigh *Neigh, mode int) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.neighAdd(neigh, mode)
+	return pkgHandle.neighAdd(neigh, mode)
 }
 
 // NeighAppend will append an entry to FDB
@@ -136,12 +116,7 @@ func (h *Handle) neighAdd(neigh *Neigh, mode int) error {
 // NeighDel will delete an IP address from a link device.
 // Equivalent to: `ip addr del $addr dev $link`
 func NeighDel(neigh *Neigh) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.NeighDel(neigh)
+	return pkgHandle.NeighDel(neigh)
 }
 
 // NeighDel will delete an IP address from a link device.
@@ -187,12 +162,7 @@ func neighHandle(neigh *Neigh, req *nl.NetlinkRequest) error {
 // Equivalent to: `ip neighbor show`.
 // The list can be filtered by link and ip family.
 func NeighList(linkIndex, family int) ([]Neigh, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.NeighList(linkIndex, family)
+	return pkgHandle.NeighList(linkIndex, family)
 }
 
 // NeighList gets a list of IP-MAC mappings in the system (ARP table).

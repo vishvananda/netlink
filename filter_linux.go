@@ -12,12 +12,7 @@ import (
 // FilterDel will delete a filter from the system.
 // Equivalent to: `tc filter del $filter`
 func FilterDel(filter Filter) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.FilterDel(filter)
+	return pkgHandle.FilterDel(filter)
 }
 
 // FilterDel will delete a filter from the system.
@@ -41,12 +36,7 @@ func (h *Handle) FilterDel(filter Filter) error {
 // FilterAdd will add a filter to the system.
 // Equivalent to: `tc filter add $filter`
 func FilterAdd(filter Filter) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.FilterAdd(filter)
+	return pkgHandle.FilterAdd(filter)
 }
 
 // FilterAdd will add a filter to the system.
@@ -138,12 +128,7 @@ func (h *Handle) FilterAdd(filter Filter) error {
 // Equivalent to: `tc filter show`.
 // Generally retunrs nothing if link and parent are not specified.
 func FilterList(link Link, parent uint32) ([]Filter, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.FilterList(link, parent)
+	return pkgHandle.FilterList(link, parent)
 }
 
 // FilterList gets a list of filters in the system.

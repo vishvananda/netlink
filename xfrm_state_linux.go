@@ -48,12 +48,7 @@ func writeMark(m *XfrmMark) []byte {
 // XfrmStateAdd will add an xfrm state to the system.
 // Equivalent to: `ip xfrm state add $state`
 func XfrmStateAdd(state *XfrmState) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.XfrmStateAdd(state)
+	return pkgHandle.XfrmStateAdd(state)
 }
 
 // XfrmStateAdd will add an xfrm state to the system.
@@ -65,12 +60,7 @@ func (h *Handle) XfrmStateAdd(state *XfrmState) error {
 // XfrmStateUpdate will update an xfrm state to the system.
 // Equivalent to: `ip xfrm state update $state`
 func XfrmStateUpdate(state *XfrmState) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.XfrmStateUpdate(state)
+	return pkgHandle.XfrmStateUpdate(state)
 }
 
 // XfrmStateUpdate will update an xfrm state to the system.
@@ -132,12 +122,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 // the Algos are ignored when matching the state to delete.
 // Equivalent to: `ip xfrm state del $state`
 func XfrmStateDel(state *XfrmState) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.XfrmStateDel(state)
+	return pkgHandle.XfrmStateDel(state)
 }
 
 // XfrmStateDel will delete an xfrm state from the system. Note that
@@ -170,12 +155,7 @@ func (h *Handle) XfrmStateDel(state *XfrmState) error {
 // Equivalent to: `ip [-4|-6] xfrm state show`.
 // The list can be filtered by ip family.
 func XfrmStateList(family int) ([]XfrmState, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.XfrmStateList(family)
+	return pkgHandle.XfrmStateList(family)
 }
 
 // XfrmStateList gets a list of xfrm states in the system.

@@ -11,12 +11,7 @@ import (
 // RuleAdd adds a rule to the system.
 // Equivalent to: ip rule add
 func RuleAdd(rule *Rule) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.RuleAdd(rule)
+	return pkgHandle.RuleAdd(rule)
 }
 
 // RuleAdd adds a rule to the system.
@@ -29,12 +24,7 @@ func (h *Handle) RuleAdd(rule *Rule) error {
 // RuleDel deletes a rule from the system.
 // Equivalent to: ip rule del
 func RuleDel(rule *Rule) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.RuleDel(rule)
+	return pkgHandle.RuleDel(rule)
 }
 
 // RuleDel deletes a rule from the system.
@@ -150,12 +140,7 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 // RuleList lists rules in the system.
 // Equivalent to: ip rule list
 func RuleList(family int) ([]Rule, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.RuleList(family)
+	return pkgHandle.RuleList(family)
 }
 
 // RuleList lists rules in the system.

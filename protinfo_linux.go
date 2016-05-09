@@ -8,12 +8,7 @@ import (
 )
 
 func LinkGetProtinfo(link Link) (Protinfo, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return Protinfo{}, err
-	}
-	defer h.Delete()
-	return h.LinkGetProtinfo(link)
+	return pkgHandle.LinkGetProtinfo(link)
 }
 
 func (h *Handle) LinkGetProtinfo(link Link) (Protinfo, error) {

@@ -24,11 +24,7 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 // XfrmPolicyAdd will add an xfrm policy to the system.
 // Equivalent to: `ip xfrm policy add $policy`
 func XfrmPolicyAdd(policy *XfrmPolicy) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	return h.XfrmPolicyAdd(policy)
+	return pkgHandle.XfrmPolicyAdd(policy)
 }
 
 // XfrmPolicyAdd will add an xfrm policy to the system.
@@ -40,12 +36,7 @@ func (h *Handle) XfrmPolicyAdd(policy *XfrmPolicy) error {
 // XfrmPolicyUpdate will update an xfrm policy to the system.
 // Equivalent to: `ip xfrm policy update $policy`
 func XfrmPolicyUpdate(policy *XfrmPolicy) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.XfrmPolicyUpdate(policy)
+	return pkgHandle.XfrmPolicyUpdate(policy)
 }
 
 // XfrmPolicyUpdate will update an xfrm policy to the system.
@@ -98,12 +89,7 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 // the Tmpls are ignored when matching the policy to delete.
 // Equivalent to: `ip xfrm policy del $policy`
 func XfrmPolicyDel(policy *XfrmPolicy) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.XfrmPolicyDel(policy)
+	return pkgHandle.XfrmPolicyDel(policy)
 }
 
 // XfrmPolicyDel will delete an xfrm policy from the system. Note that
@@ -131,12 +117,7 @@ func (h *Handle) XfrmPolicyDel(policy *XfrmPolicy) error {
 // Equivalent to: `ip xfrm policy show`.
 // The list can be filtered by ip family.
 func XfrmPolicyList(family int) ([]XfrmPolicy, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.XfrmPolicyList(family)
+	return pkgHandle.XfrmPolicyList(family)
 }
 
 // XfrmPolicyList gets a list of xfrm policies in the system.
