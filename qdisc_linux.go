@@ -13,12 +13,7 @@ import (
 // QdiscDel will delete a qdisc from the system.
 // Equivalent to: `tc qdisc del $qdisc`
 func QdiscDel(qdisc Qdisc) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.QdiscDel(qdisc)
+	return pkgHandle.QdiscDel(qdisc)
 }
 
 // QdiscDel will delete a qdisc from the system.
@@ -31,12 +26,7 @@ func (h *Handle) QdiscDel(qdisc Qdisc) error {
 // Equivalent to: `tc qdisc change $qdisc`
 // The parent and handle MUST NOT be changed.
 func QdiscChange(qdisc Qdisc) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.QdiscChange(qdisc)
+	return pkgHandle.QdiscChange(qdisc)
 }
 
 // QdiscChange will change a qdisc in place
@@ -50,12 +40,7 @@ func (h *Handle) QdiscChange(qdisc Qdisc) error {
 // Equivalent to: `tc qdisc replace $qdisc`
 // The handle MUST change.
 func QdiscReplace(qdisc Qdisc) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.QdiscReplace(qdisc)
+	return pkgHandle.QdiscReplace(qdisc)
 }
 
 // QdiscReplace will replace a qdisc to the system.
@@ -71,12 +56,7 @@ func (h *Handle) QdiscReplace(qdisc Qdisc) error {
 // QdiscAdd will add a qdisc to the system.
 // Equivalent to: `tc qdisc add $qdisc`
 func QdiscAdd(qdisc Qdisc) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.QdiscAdd(qdisc)
+	return pkgHandle.QdiscAdd(qdisc)
 }
 
 // QdiscAdd will add a qdisc to the system.
@@ -185,12 +165,7 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 // Equivalent to: `tc qdisc show`.
 // The list can be filtered by link.
 func QdiscList(link Link) ([]Qdisc, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.QdiscList(link)
+	return pkgHandle.QdiscList(link)
 }
 
 // QdiscList gets a list of qdiscs in the system.

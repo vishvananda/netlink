@@ -26,12 +26,7 @@ const (
 // RouteAdd will add a route to the system.
 // Equivalent to: `ip route add $route`
 func RouteAdd(route *Route) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.RouteAdd(route)
+	return pkgHandle.RouteAdd(route)
 }
 
 // RouteAdd will add a route to the system.
@@ -44,12 +39,7 @@ func (h *Handle) RouteAdd(route *Route) error {
 // RouteDel will delete a route from the system.
 // Equivalent to: `ip route del $route`
 func RouteDel(route *Route) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.RouteDel(route)
+	return pkgHandle.RouteDel(route)
 }
 
 // RouteDel will delete a route from the system.
@@ -162,12 +152,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 // Equivalent to: `ip route show`.
 // The list can be filtered by link and ip family.
 func RouteList(link Link, family int) ([]Route, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.RouteList(link, family)
+	return pkgHandle.RouteList(link, family)
 }
 
 // RouteList gets a list of routes in the system.
@@ -186,12 +171,7 @@ func (h *Handle) RouteList(link Link, family int) ([]Route, error) {
 // RouteListFiltered gets a list of routes in the system filtered with specified rules.
 // All rules must be defined in RouteFilter struct
 func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.RouteListFiltered(family, filter, filterMask)
+	return pkgHandle.RouteListFiltered(family, filter, filterMask)
 }
 
 // RouteListFiltered gets a list of routes in the system filtered with specified rules.
@@ -303,12 +283,7 @@ func deserializeRoute(m []byte) (Route, error) {
 // RouteGet gets a route to a specific destination from the host system.
 // Equivalent to: 'ip route get'.
 func RouteGet(destination net.IP) ([]Route, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.RouteGet(destination)
+	return pkgHandle.RouteGet(destination)
 }
 
 // RouteGet gets a route to a specific destination from the host system.

@@ -45,12 +45,7 @@ func (h *Handle) ensureIndex(link *LinkAttrs) {
 // LinkSetUp enables the link device.
 // Equivalent to: `ip link set $link up`
 func LinkSetUp(link Link) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetUp(link)
+	return pkgHandle.LinkSetUp(link)
 }
 
 // LinkSetUp enables the link device.
@@ -73,12 +68,7 @@ func (h *Handle) LinkSetUp(link Link) error {
 // LinkSetDown disables link device.
 // Equivalent to: `ip link set $link down`
 func LinkSetDown(link Link) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetDown(link)
+	return pkgHandle.LinkSetDown(link)
 }
 
 // LinkSetDown disables link device.
@@ -101,12 +91,7 @@ func (h *Handle) LinkSetDown(link Link) error {
 // LinkSetMTU sets the mtu of the link device.
 // Equivalent to: `ip link set $link mtu $mtu`
 func LinkSetMTU(link Link, mtu int) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetMTU(link, mtu)
+	return pkgHandle.LinkSetMTU(link, mtu)
 }
 
 // LinkSetMTU sets the mtu of the link device.
@@ -133,12 +118,7 @@ func (h *Handle) LinkSetMTU(link Link, mtu int) error {
 // LinkSetName sets the name of the link device.
 // Equivalent to: `ip link set $link name $name`
 func LinkSetName(link Link, name string) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetName(link, name)
+	return pkgHandle.LinkSetName(link, name)
 }
 
 // LinkSetName sets the name of the link device.
@@ -162,12 +142,7 @@ func (h *Handle) LinkSetName(link Link, name string) error {
 // LinkSetAlias sets the alias of the link device.
 // Equivalent to: `ip link set dev $link alias $name`
 func LinkSetAlias(link Link, name string) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetAlias(link, name)
+	return pkgHandle.LinkSetAlias(link, name)
 }
 
 // LinkSetAlias sets the alias of the link device.
@@ -191,12 +166,7 @@ func (h *Handle) LinkSetAlias(link Link, name string) error {
 // LinkSetHardwareAddr sets the hardware address of the link device.
 // Equivalent to: `ip link set $link address $hwaddr`
 func LinkSetHardwareAddr(link Link, hwaddr net.HardwareAddr) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetHardwareAddr(link, hwaddr)
+	return pkgHandle.LinkSetHardwareAddr(link, hwaddr)
 }
 
 // LinkSetHardwareAddr sets the hardware address of the link device.
@@ -220,12 +190,7 @@ func (h *Handle) LinkSetHardwareAddr(link Link, hwaddr net.HardwareAddr) error {
 // LinkSetVfHardwareAddr sets the hardware address of a vf for the link.
 // Equivalent to: `ip link set $link vf $vf mac $hwaddr`
 func LinkSetVfHardwareAddr(link Link, vf int, hwaddr net.HardwareAddr) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetVfHardwareAddr(link, vf, hwaddr)
+	return pkgHandle.LinkSetVfHardwareAddr(link, vf, hwaddr)
 }
 
 // LinkSetVfHardwareAddr sets the hardware address of a vf for the link.
@@ -255,12 +220,7 @@ func (h *Handle) LinkSetVfHardwareAddr(link Link, vf int, hwaddr net.HardwareAdd
 // LinkSetVfVlan sets the vlan of a vf for the link.
 // Equivalent to: `ip link set $link vf $vf vlan $vlan`
 func LinkSetVfVlan(link Link, vf, vlan int) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetVfVlan(link, vf, vlan)
+	return pkgHandle.LinkSetVfVlan(link, vf, vlan)
 }
 
 // LinkSetVfVlan sets the vlan of a vf for the link.
@@ -290,12 +250,7 @@ func (h *Handle) LinkSetVfVlan(link Link, vf, vlan int) error {
 // LinkSetMaster sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
 func LinkSetMaster(link Link, master *Bridge) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetMaster(link, master)
+	return pkgHandle.LinkSetMaster(link, master)
 }
 
 // LinkSetMaster sets the master of the link device.
@@ -316,12 +271,7 @@ func (h *Handle) LinkSetMaster(link Link, master *Bridge) error {
 // LinkSetNoMaster removes the master of the link device.
 // Equivalent to: `ip link set $link nomaster`
 func LinkSetNoMaster(link Link) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetNoMaster(link)
+	return pkgHandle.LinkSetNoMaster(link)
 }
 
 // LinkSetNoMaster removes the master of the link device.
@@ -333,12 +283,7 @@ func (h *Handle) LinkSetNoMaster(link Link) error {
 // LinkSetMasterByIndex sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
 func LinkSetMasterByIndex(link Link, masterIndex int) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetMasterByIndex(link, masterIndex)
+	return pkgHandle.LinkSetMasterByIndex(link, masterIndex)
 }
 
 // LinkSetMasterByIndex sets the master of the link device.
@@ -366,12 +311,7 @@ func (h *Handle) LinkSetMasterByIndex(link Link, masterIndex int) error {
 // pid must be a pid of a running process.
 // Equivalent to: `ip link set $link netns $pid`
 func LinkSetNsPid(link Link, nspid int) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetNsPid(link, nspid)
+	return pkgHandle.LinkSetNsPid(link, nspid)
 }
 
 // LinkSetNsPid puts the device into a new network namespace. The
@@ -400,12 +340,7 @@ func (h *Handle) LinkSetNsPid(link Link, nspid int) error {
 // fd must be an open file descriptor to a network namespace.
 // Similar to: `ip link set $link netns $ns`
 func LinkSetNsFd(link Link, fd int) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetNsFd(link, fd)
+	return pkgHandle.LinkSetNsFd(link, fd)
 }
 
 // LinkSetNsFd puts the device into a new network namespace. The
@@ -591,12 +526,7 @@ func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
 // are taken from the parameters in the link object.
 // Equivalent to: `ip link add $link`
 func LinkAdd(link Link) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkAdd(link)
+	return pkgHandle.LinkAdd(link)
 }
 
 // LinkAdd adds a new link device. The type and features of the device
@@ -768,12 +698,7 @@ func (h *Handle) LinkAdd(link Link) error {
 // the link object for it to be deleted. The other values are ignored.
 // Equivalent to: `ip link del $link`
 func LinkDel(link Link) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkDel(link)
+	return pkgHandle.LinkDel(link)
 }
 
 // LinkDel deletes link device. Either Index or Name must be set in
@@ -824,12 +749,7 @@ func (h *Handle) linkByAliasDump(alias string) (Link, error) {
 
 // LinkByName finds a link by name and returns a pointer to the object.
 func LinkByName(name string) (Link, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.LinkByName(name)
+	return pkgHandle.LinkByName(name)
 }
 
 // LinkByName finds a link by name and returns a pointer to the object.
@@ -860,12 +780,7 @@ func (h *Handle) LinkByName(name string) (Link, error) {
 // LinkByAlias finds a link by its alias and returns a pointer to the object.
 // If there are multiple links with the alias it returns the first one
 func LinkByAlias(alias string) (Link, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.LinkByAlias(alias)
+	return pkgHandle.LinkByAlias(alias)
 }
 
 // LinkByAlias finds a link by its alias and returns a pointer to the object.
@@ -896,12 +811,7 @@ func (h *Handle) LinkByAlias(alias string) (Link, error) {
 
 // LinkByIndex finds a link by index and returns a pointer to the object.
 func LinkByIndex(index int) (Link, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.LinkByIndex(index)
+	return pkgHandle.LinkByIndex(index)
 }
 
 // LinkByIndex finds a link by index and returns a pointer to the object.
@@ -1047,12 +957,7 @@ func linkDeserialize(m []byte) (Link, error) {
 // LinkList gets a list of link devices.
 // Equivalent to: `ip link show`
 func LinkList() ([]Link, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.LinkList()
+	return pkgHandle.LinkList()
 }
 
 // LinkList gets a list of link devices.
@@ -1124,12 +1029,7 @@ func LinkSubscribe(ch chan<- LinkUpdate, done <-chan struct{}) error {
 }
 
 func LinkSetHairpin(link Link, mode bool) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetHairpin(link, mode)
+	return pkgHandle.LinkSetHairpin(link, mode)
 }
 
 func (h *Handle) LinkSetHairpin(link Link, mode bool) error {
@@ -1137,12 +1037,7 @@ func (h *Handle) LinkSetHairpin(link Link, mode bool) error {
 }
 
 func LinkSetGuard(link Link, mode bool) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetGuard(link, mode)
+	return pkgHandle.LinkSetGuard(link, mode)
 }
 
 func (h *Handle) LinkSetGuard(link Link, mode bool) error {
@@ -1150,12 +1045,7 @@ func (h *Handle) LinkSetGuard(link Link, mode bool) error {
 }
 
 func LinkSetFastLeave(link Link, mode bool) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetFastLeave(link, mode)
+	return pkgHandle.LinkSetFastLeave(link, mode)
 }
 
 func (h *Handle) LinkSetFastLeave(link Link, mode bool) error {
@@ -1163,12 +1053,7 @@ func (h *Handle) LinkSetFastLeave(link Link, mode bool) error {
 }
 
 func LinkSetLearning(link Link, mode bool) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetLearning(link, mode)
+	return pkgHandle.LinkSetLearning(link, mode)
 }
 
 func (h *Handle) LinkSetLearning(link Link, mode bool) error {
@@ -1176,12 +1061,7 @@ func (h *Handle) LinkSetLearning(link Link, mode bool) error {
 }
 
 func LinkSetRootBlock(link Link, mode bool) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetRootBlock(link, mode)
+	return pkgHandle.LinkSetRootBlock(link, mode)
 }
 
 func (h *Handle) LinkSetRootBlock(link Link, mode bool) error {
@@ -1189,12 +1069,7 @@ func (h *Handle) LinkSetRootBlock(link Link, mode bool) error {
 }
 
 func LinkSetFlood(link Link, mode bool) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.LinkSetFlood(link, mode)
+	return pkgHandle.LinkSetFlood(link, mode)
 }
 
 func (h *Handle) LinkSetFlood(link Link, mode bool) error {

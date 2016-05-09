@@ -8,6 +8,9 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+// Empty handle used by the netlink package methods
+var pkgHandle = &Handle{}
+
 // Handle is an handle for the netlink requests
 // on a specific network namespace. All the requests
 // share the same netlink socket, which gets released

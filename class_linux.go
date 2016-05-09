@@ -10,12 +10,7 @@ import (
 // ClassDel will delete a class from the system.
 // Equivalent to: `tc class del $class`
 func ClassDel(class Class) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.ClassDel(class)
+	return pkgHandle.ClassDel(class)
 }
 
 // ClassDel will delete a class from the system.
@@ -28,12 +23,7 @@ func (h *Handle) ClassDel(class Class) error {
 // Equivalent to: `tc class change $class`
 // The parent and handle MUST NOT be changed.
 func ClassChange(class Class) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.ClassChange(class)
+	return pkgHandle.ClassChange(class)
 }
 
 // ClassChange will change a class in place
@@ -49,12 +39,7 @@ func (h *Handle) ClassChange(class Class) error {
 // If a class already exist with this parent/handle pair, the class is changed.
 // If a class does not already exist with this parent/handle, a new class is created.
 func ClassReplace(class Class) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.ClassReplace(class)
+	return pkgHandle.ClassReplace(class)
 }
 
 // ClassReplace will replace a class to the system.
@@ -69,12 +54,7 @@ func (h *Handle) ClassReplace(class Class) error {
 // ClassAdd will add a class to the system.
 // Equivalent to: `tc class add $class`
 func ClassAdd(class Class) error {
-	h, err := NewHandle()
-	if err != nil {
-		return err
-	}
-	defer h.Delete()
-	return h.ClassAdd(class)
+	return pkgHandle.ClassAdd(class)
 }
 
 // ClassAdd will add a class to the system.
@@ -148,12 +128,7 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 // Equivalent to: `tc class show`.
 // Generally returns nothing if link and parent are not specified.
 func ClassList(link Link, parent uint32) ([]Class, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.ClassList(link, parent)
+	return pkgHandle.ClassList(link, parent)
 }
 
 // ClassList gets a list of classes in the system.
