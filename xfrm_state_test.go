@@ -69,6 +69,12 @@ func TestXfrmStateAddDel(t *testing.T) {
 }
 
 func compareStates(a, b *XfrmState) bool {
+	if a == b {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
 	return a.Src.Equal(b.Src) && a.Dst.Equal(b.Dst) &&
 		a.Mode == b.Mode && a.Spi == b.Spi && a.Proto == b.Proto &&
 		a.Auth.Name == b.Auth.Name && bytes.Equal(a.Auth.Key, b.Auth.Key) &&

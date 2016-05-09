@@ -1,6 +1,9 @@
 package netlink
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"io"
 	"testing"
 
 	"github.com/vishvananda/netns"
@@ -22,7 +25,11 @@ func TestHandleCreateDelete(t *testing.T) {
 }
 
 func TestHandleCreateNetns(t *testing.T) {
-	ifName := "dummy0"
+	id := make([]byte, 4)
+	if _, err := io.ReadFull(rand.Reader, id); err != nil {
+		t.Fatal(err)
+	}
+	ifName := "dummy-" + hex.EncodeToString(id)
 
 	// Create an handle on the current netns
 	curNs, err := netns.Get()
