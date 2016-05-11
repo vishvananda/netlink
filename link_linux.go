@@ -12,6 +12,8 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+const SizeofLinkStats = 0x5c
+
 var native = nl.NativeEndian()
 var lookupByDump = false
 
@@ -943,6 +945,8 @@ func linkDeserialize(m []byte) (Link, error) {
 			base.TxQLen = int(native.Uint32(attr.Value[0:4]))
 		case syscall.IFLA_IFALIAS:
 			base.Alias = string(attr.Value[:len(attr.Value)-1])
+		case syscall.IFLA_STATS:
+			base.Statistics = parseLinkStats(attr.Value[:])
 		}
 	}
 	// Links that don't have IFLA_INFO_KIND are hardware devices
@@ -1359,4 +1363,8 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.EncapFlags = native.Uint16(datum.Value[0:2])
 		}
 	}
+}
+
+func parseLinkStats(data []byte) *LinkStatistics {
+	return (*LinkStatistics)(unsafe.Pointer(&data[0:SizeofLinkStats][0]))
 }
