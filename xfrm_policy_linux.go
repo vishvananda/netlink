@@ -101,20 +101,7 @@ func XfrmPolicyDel(policy *XfrmPolicy) error {
 // the Tmpls are ignored when matching the policy to delete.
 // Equivalent to: `ip xfrm policy del $policy`
 func (h *Handle) XfrmPolicyDel(policy *XfrmPolicy) error {
-	req := h.newNetlinkRequest(nl.XFRM_MSG_DELPOLICY, syscall.NLM_F_ACK)
-
-	msg := &nl.XfrmUserpolicyId{}
-	selFromPolicy(&msg.Sel, policy)
-	msg.Index = uint32(policy.Index)
-	msg.Dir = uint8(policy.Dir)
-	req.AddData(msg)
-
-	if policy.Mark != nil {
-		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(policy.Mark))
-		req.AddData(out)
-	}
-
-	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
+	_, err := h.xfrmPolicyGetOrDelete(policy, nl.XFRM_MSG_DELPOLICY)
 	return err
 }
 
@@ -155,35 +142,49 @@ func (h *Handle) XfrmPolicyList(family int) ([]XfrmPolicy, error) {
 // XfrmPolicyGet gets a the policy described by the index or selector, if found.
 // Equivalent to: `ip xfrm policy get { SELECTOR | index INDEX } dir DIR [ctx CTX ] [ mark MARK [ mask MASK ] ] [ ptype PTYPE ]`.
 func XfrmPolicyGet(policy *XfrmPolicy) (*XfrmPolicy, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.XfrmPolicyGet(policy)
+	return pkgHandle.XfrmPolicyGet(policy)
 }
 
 // XfrmPolicyGet gets a the policy described by the index or selector, if found.
 // Equivalent to: `ip xfrm policy get { SELECTOR | index INDEX } dir DIR [ctx CTX ] [ mark MARK [ mask MASK ] ] [ ptype PTYPE ]`.
 func (h *Handle) XfrmPolicyGet(policy *XfrmPolicy) (*XfrmPolicy, error) {
-	req := h.newNetlinkRequest(nl.XFRM_MSG_GETPOLICY, syscall.NLM_F_DUMP)
+	return h.xfrmPolicyGetOrDelete(policy, nl.XFRM_MSG_GETPOLICY)
+}
 
-	msg := &nl.XfrmUserpolicyInfo{}
+func (h *Handle) xfrmPolicyGetOrDelete(policy *XfrmPolicy, nlProto int) (*XfrmPolicy, error) {
+	req := h.newNetlinkRequest(nlProto, syscall.NLM_F_ACK)
+
+	msg := &nl.XfrmUserpolicyId{}
 	selFromPolicy(&msg.Sel, policy)
 	msg.Index = uint32(policy.Index)
 	msg.Dir = uint8(policy.Dir)
 	req.AddData(msg)
 
-	msgs, err := req.Execute(syscall.NETLINK_XFRM, nl.XFRM_MSG_NEWPOLICY)
+	if policy.Mark != nil {
+		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(policy.Mark))
+		req.AddData(out)
+	}
+
+	resType := nl.XFRM_MSG_NEWPOLICY
+	if nlProto == nl.XFRM_MSG_DELPOLICY {
+		resType = 0
+	}
+
+	msgs, err := req.Execute(syscall.NETLINK_XFRM, uint16(resType))
 	if err != nil {
 		return nil, err
 	}
 
-	if policy, err := parseXfrmPolicy(msgs[0], FAMILY_ALL); err == nil {
-		return policy, nil
-	} else {
+	if nlProto == nl.XFRM_MSG_DELPOLICY {
 		return nil, err
 	}
+
+	p, err := parseXfrmPolicy(msgs[0], FAMILY_ALL)
+	if err != nil {
+		return nil, err
+	}
+
+	return p, nil
 }
 
 func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {

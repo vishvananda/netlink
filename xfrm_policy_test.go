@@ -104,6 +104,10 @@ func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 	if err = XfrmPolicyDel(policy); err != nil {
 		t.Fatal(err)
 	}
+
+	if _, err := XfrmPolicyGet(policy); err == nil {
+		t.Fatalf("Unexpected success")
+	}
 }
 
 func comparePolicies(a, b *XfrmPolicy) bool {

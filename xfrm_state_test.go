@@ -29,6 +29,7 @@ func TestXfrmStateAddDel(t *testing.T) {
 			Mask:  0xffff0000,
 		},
 	}
+
 	if err := XfrmStateAdd(state); err != nil {
 		t.Fatal(err)
 	}
@@ -65,6 +66,10 @@ func TestXfrmStateAddDel(t *testing.T) {
 	}
 	if len(states) != 0 {
 		t.Fatal("State not removed properly")
+	}
+
+	if _, err := XfrmStateGet(state); err == nil {
+		t.Fatalf("Unexpected success")
 	}
 }
 

@@ -129,25 +129,7 @@ func XfrmStateDel(state *XfrmState) error {
 // the Algos are ignored when matching the state to delete.
 // Equivalent to: `ip xfrm state del $state`
 func (h *Handle) XfrmStateDel(state *XfrmState) error {
-	req := h.newNetlinkRequest(nl.XFRM_MSG_DELSA, syscall.NLM_F_ACK)
-
-	msg := &nl.XfrmUsersaId{}
-	msg.Daddr.FromIP(state.Dst)
-	msg.Family = uint16(nl.GetIPFamily(state.Dst))
-	msg.Proto = uint8(state.Proto)
-	msg.Spi = nl.Swap32(uint32(state.Spi))
-	req.AddData(msg)
-
-	saddr := nl.XfrmAddress{}
-	saddr.FromIP(state.Src)
-	srcdata := nl.NewRtAttr(nl.XFRMA_SRCADDR, saddr.Serialize())
-
-	req.AddData(srcdata)
-	if state.Mark != nil {
-		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
-		req.AddData(out)
-	}
-	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
+	_, err := h.xfrmStateGetOrDelete(state, nl.XFRM_MSG_DELSA)
 	return err
 }
 
@@ -188,12 +170,7 @@ func (h *Handle) XfrmStateList(family int) ([]XfrmState, error) {
 // ID := [ src ADDR ] [ dst ADDR ] [ proto XFRM-PROTO ] [ spi SPI ]
 // mark is optional
 func XfrmStateGet(state *XfrmState) (*XfrmState, error) {
-	h, err := NewHandle()
-	if err != nil {
-		return nil, err
-	}
-	defer h.Delete()
-	return h.XfrmStateGet(state)
+	return pkgHandle.XfrmStateGet(state)
 }
 
 // XfrmStateGet gets the xfrm state described by the ID, if found.
@@ -202,31 +179,48 @@ func XfrmStateGet(state *XfrmState) (*XfrmState, error) {
 // ID := [ src ADDR ] [ dst ADDR ] [ proto XFRM-PROTO ] [ spi SPI ]
 // mark is optional
 func (h *Handle) XfrmStateGet(state *XfrmState) (*XfrmState, error) {
-	req := h.newNetlinkRequest(nl.XFRM_MSG_GETSA, syscall.NLM_F_DUMP)
+	return h.xfrmStateGetOrDelete(state, nl.XFRM_MSG_GETSA)
+}
 
-	msg := &nl.XfrmUsersaInfo{}
+func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState, error) {
+	req := h.newNetlinkRequest(nlProto, syscall.NLM_F_ACK)
+
+	msg := &nl.XfrmUsersaId{}
 	msg.Family = uint16(nl.GetIPFamily(state.Dst))
-	msg.Id.Daddr.FromIP(state.Dst)
-	msg.Saddr.FromIP(state.Src)
-	msg.Id.Proto = uint8(state.Proto)
-	msg.Id.Spi = nl.Swap32(uint32(state.Spi))
+	msg.Daddr.FromIP(state.Dst)
+	msg.Proto = uint8(state.Proto)
+	msg.Spi = nl.Swap32(uint32(state.Spi))
 	req.AddData(msg)
 
 	if state.Mark != nil {
 		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
 		req.AddData(out)
 	}
+	if state.Src != nil {
+		out := nl.NewRtAttr(nl.XFRMA_SRCADDR, state.Src)
+		req.AddData(out)
+	}
 
-	msgs, err := req.Execute(syscall.NETLINK_XFRM, nl.XFRM_MSG_NEWSA)
+	resType := nl.XFRM_MSG_NEWSA
+	if nlProto == nl.XFRM_MSG_DELSA {
+		resType = 0
+	}
+
+	msgs, err := req.Execute(syscall.NETLINK_XFRM, uint16(resType))
 	if err != nil {
 		return nil, err
 	}
 
-	if state, err := parseXfrmState(msgs[0], FAMILY_ALL); err == nil {
-		return state, nil
-	} else {
+	if nlProto == nl.XFRM_MSG_DELSA {
+		return nil, nil
+	}
+
+	s, err := parseXfrmState(msgs[0], FAMILY_ALL)
+	if err != nil {
 		return nil, err
 	}
+
+	return s, nil
 }
 
 var familyError = fmt.Errorf("family error")
