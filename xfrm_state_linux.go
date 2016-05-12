@@ -289,3 +289,26 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 
 	return &state, nil
 }
+
+// XfrmStateFlush will flush the xfrm state on the system.
+// proto = 0 means any transformation protocols
+// Equivalent to: `ip xfrm state flush [ proto XFRM-PROTO ]`
+func XfrmStateFlush(proto Proto) error {
+	return pkgHandle.XfrmStateFlush(proto)
+}
+
+// XfrmStateFlush will flush the xfrm state on the system.
+// proto = 0 means any transformation protocols
+// Equivalent to: `ip xfrm state flush [ proto XFRM-PROTO ]`
+func (h *Handle) XfrmStateFlush(proto Proto) error {
+	req := h.newNetlinkRequest(nl.XFRM_MSG_FLUSHSA, syscall.NLM_F_ACK)
+
+	req.AddData(&nl.XfrmUsersaFlush{Proto: uint8(proto)})
+
+	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -16,7 +16,7 @@ func (a XfrmStateAlgo) String() string {
 	return fmt.Sprintf("{Name: %s, Key: 0x%x, TruncateLen: %d}", a.Name, a.Key, a.TruncateLen)
 }
 
-// EncapType is an enum representing an ipsec template direction.
+// EncapType is an enum representing the optional packet encapsulation.
 type EncapType uint8
 
 const (
@@ -27,7 +27,7 @@ const (
 func (e EncapType) String() string {
 	switch e {
 	case XFRM_ENCAP_ESPINUDP_NONIKE:
-		return "espinudp-nonike"
+		return "espinudp-non-ike"
 	case XFRM_ENCAP_ESPINUDP:
 		return "espinudp"
 	}
