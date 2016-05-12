@@ -779,3 +779,51 @@ func TestLinkSubscribe(t *testing.T) {
 		t.Fatal("Del update not received as expected")
 	}
 }
+
+func TestLinkStats(t *testing.T) {
+	defer setUpNetlinkTest(t)()
+
+	// Create a veth pair and verify the cross-stats once both
+	// ends are brought up and some ICMPv6 packets are exchanged
+	v0 := "v0"
+	v1 := "v1"
+
+	vethLink := &Veth{LinkAttrs: LinkAttrs{Name: v0}, PeerName: v1}
+	if err := LinkAdd(vethLink); err != nil {
+		t.Fatal(err)
+	}
+
+	veth0, err := LinkByName(v0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(veth0); err != nil {
+		t.Fatal(err)
+	}
+
+	veth1, err := LinkByName(v1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(veth1); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	// verify statistics
+	veth0, err = LinkByName(v0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	veth1, err = LinkByName(v1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v0Stats := veth0.Attrs().Statistics
+	v1Stats := veth1.Attrs().Statistics
+	if v0Stats.RxPackets != v1Stats.TxPackets || v0Stats.TxPackets != v1Stats.RxPackets ||
+		v0Stats.RxBytes != v1Stats.TxBytes || v0Stats.TxBytes != v1Stats.RxBytes {
+		t.Fatalf("veth ends counters differ:\n%v\n%v", v0Stats, v1Stats)
+	}
+}
