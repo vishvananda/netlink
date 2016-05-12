@@ -7,13 +7,18 @@ import (
 )
 
 func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
-	sel.Family = uint16(nl.GetIPFamily(policy.Dst.IP))
-	sel.Daddr.FromIP(policy.Dst.IP)
-	sel.Saddr.FromIP(policy.Src.IP)
-	prefixlenD, _ := policy.Dst.Mask.Size()
-	sel.PrefixlenD = uint8(prefixlenD)
-	prefixlenS, _ := policy.Src.Mask.Size()
-	sel.PrefixlenS = uint8(prefixlenS)
+	sel.Family = uint16(nl.FAMILY_V4)
+	if policy.Dst != nil {
+		sel.Family = uint16(nl.GetIPFamily(policy.Dst.IP))
+		sel.Daddr.FromIP(policy.Dst.IP)
+		prefixlenD, _ := policy.Dst.Mask.Size()
+		sel.PrefixlenD = uint8(prefixlenD)
+	}
+	if policy.Src != nil {
+		sel.Saddr.FromIP(policy.Src.IP)
+		prefixlenS, _ := policy.Src.Mask.Size()
+		sel.PrefixlenS = uint8(prefixlenS)
+	}
 	sel.Proto = uint8(policy.Proto)
 	sel.Dport = nl.Swap16(uint16(policy.DstPort))
 	sel.Sport = nl.Swap16(uint16(policy.SrcPort))

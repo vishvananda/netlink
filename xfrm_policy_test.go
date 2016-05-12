@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+const zeroCIDR = "0.0.0.0/0"
+
 func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
@@ -82,6 +84,26 @@ func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 	if len(policies) != 0 {
 		t.Fatal("Policy not removed properly")
 	}
+
+	// Src and dst are not mandatory field. Creation should succeed
+	policy.Src = nil
+	policy.Dst = nil
+	if err = XfrmPolicyAdd(policy); err != nil {
+		t.Fatal(err)
+	}
+
+	sp, err = XfrmPolicyGet(policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !comparePolicies(policy, sp) {
+		t.Fatalf("unexpected policy returned")
+	}
+
+	if err = XfrmPolicyDel(policy); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func comparePolicies(a, b *XfrmPolicy) bool {
@@ -114,6 +136,10 @@ func compareTemplates(a, b []XfrmPolicyTmpl) bool {
 
 func compareIPNet(a, b *net.IPNet) bool {
 	if a == b {
+		return true
+	}
+	// For unspecified src/dst parseXfrmPolicy would set the zero address cidr
+	if (a == nil && b.String() == zeroCIDR) || (b == nil && a.String() == zeroCIDR) {
 		return true
 	}
 	if a == nil || b == nil {
