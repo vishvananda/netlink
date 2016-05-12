@@ -69,10 +69,14 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 	req.AddData(addressData)
 
 	if addr.Flags != 0 {
-		b := make([]byte, 4)
-		native.PutUint32(b, uint32(addr.Flags))
-		flagsData := nl.NewRtAttr(IFA_FLAGS, b)
-		req.AddData(flagsData)
+		if addr.Flags <= 0xff {
+			msg.IfAddrmsg.Flags = uint8(addr.Flags)
+		} else {
+			b := make([]byte, 4)
+			native.PutUint32(b, uint32(addr.Flags))
+			flagsData := nl.NewRtAttr(IFA_FLAGS, b)
+			req.AddData(flagsData)
+		}
 	}
 
 	if addr.Label != "" {
