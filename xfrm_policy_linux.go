@@ -151,6 +151,20 @@ func (h *Handle) XfrmPolicyGet(policy *XfrmPolicy) (*XfrmPolicy, error) {
 	return h.xfrmPolicyGetOrDelete(policy, nl.XFRM_MSG_GETPOLICY)
 }
 
+// XfrmPolicyFlush will flush the policies on the system.
+// Equivalent to: `ip xfrm policy flush`
+func XfrmPolicyFlush() error {
+	return pkgHandle.XfrmPolicyFlush()
+}
+
+// XfrmPolicyFlush will flush the policies on the system.
+// Equivalent to: `ip xfrm policy flush`
+func (h *Handle) XfrmPolicyFlush() error {
+	req := h.newNetlinkRequest(nl.XFRM_MSG_FLUSHPOLICY, syscall.NLM_F_ACK)
+	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
+	return err
+}
+
 func (h *Handle) xfrmPolicyGetOrDelete(policy *XfrmPolicy, nlProto int) (*XfrmPolicy, error) {
 	req := h.newNetlinkRequest(nlProto, syscall.NLM_F_ACK)
 
