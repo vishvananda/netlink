@@ -147,7 +147,7 @@ func compareTemplates(a, b []XfrmPolicyTmpl) bool {
 	}
 	for i, ta := range a {
 		tb := b[i]
-		if !ta.Dst.Equal(tb.Dst) || !ta.Src.Equal(tb.Src) ||
+		if !ta.Dst.Equal(tb.Dst) || !ta.Src.Equal(tb.Src) || ta.Spi != tb.Spi ||
 			ta.Mode != tb.Mode || ta.Reqid != tb.Reqid || ta.Proto != tb.Proto {
 			return false
 		}
@@ -190,6 +190,7 @@ func getPolicy() *XfrmPolicy {
 		Dst:   net.ParseIP("127.0.0.2"),
 		Proto: XFRM_PROTO_ESP,
 		Mode:  XFRM_MODE_TUNNEL,
+		Spi:   0xabcdef99,
 	}
 	policy.Tmpls = append(policy.Tmpls, tmpl)
 	return policy
