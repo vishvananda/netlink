@@ -22,8 +22,12 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 	sel.Proto = uint8(policy.Proto)
 	sel.Dport = nl.Swap16(uint16(policy.DstPort))
 	sel.Sport = nl.Swap16(uint16(policy.SrcPort))
-	sel.DportMask = ^uint16(0)
-	sel.SportMask = ^uint16(0)
+	if sel.Dport != 0 {
+		sel.DportMask = ^uint16(0)
+	}
+	if sel.Sport != 0 {
+		sel.SportMask = ^uint16(0)
+	}
 }
 
 // XfrmPolicyAdd will add an xfrm policy to the system.
