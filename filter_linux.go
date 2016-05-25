@@ -207,6 +207,8 @@ func (h *Handle) FilterList(link Link, parent uint32) ([]Filter, error) {
 					if err != nil {
 						return nil, err
 					}
+				default:
+					detailed = true
 				}
 			}
 		}
