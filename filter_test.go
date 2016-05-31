@@ -3,8 +3,6 @@ package netlink
 import (
 	"syscall"
 	"testing"
-
-	"github.com/vishvananda/netlink/nl"
 )
 
 func TestFilterAddDel(t *testing.T) {
@@ -169,7 +167,7 @@ func TestFilterFwAddDel(t *testing.T) {
 		Buffer:   12345,
 		Rate:     1234,
 		PeakRate: 2345,
-		Action:   nl.TC_POLICE_SHOT,
+		Action:   TC_POLICE_SHOT,
 		ClassId:  MakeHandle(0xffff, 2),
 	}
 
@@ -307,11 +305,11 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 		Actions: []Action{
 			&BpfAction{Fd: fd, Name: "simple"},
 			&MirredAction{
-				TcMirred: nl.TcMirred{
-					TcGen:   nl.TcGen{Action: nl.TC_ACT_STOLEN},
-					Eaction: nl.TCA_EGRESS_REDIR,
-					Ifindex: uint32(redir.Attrs().Index),
+				ActionAttrs: ActionAttrs{
+					Action: TC_ACT_STOLEN,
 				},
+				MirredAction: TCA_EGRESS_REDIR,
+				Ifindex:      redir.Attrs().Index,
 			},
 		},
 	}
