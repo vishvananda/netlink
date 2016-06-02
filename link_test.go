@@ -217,6 +217,25 @@ func TestLinkAddDelGretap(t *testing.T) {
 		Remote:    net.IPv4(127, 0, 0, 1)})
 }
 
+func TestLinkAddDelTuntap(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Tuntap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Mode:      TUNTAP_MODE_TAP})
+}
+
+func TestLinkAddDelTuntapMq(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Tuntap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Mode:      TUNTAP_MODE_TAP,
+		Queues:    4})
+}
+
 func TestLinkAddDelVlan(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
