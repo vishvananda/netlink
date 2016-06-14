@@ -675,6 +675,11 @@ func (h *Handle) LinkAdd(link Link) error {
 			data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 			nl.NewRtAttrChild(data, nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[macv.Mode]))
 		}
+	} else if macv, ok := link.(*Macvtap); ok {
+		if macv.Mode != MACVLAN_MODE_DEFAULT {
+			data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+			nl.NewRtAttrChild(data, nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[macv.Mode]))
+		}
 	} else if gretap, ok := link.(*Gretap); ok {
 		addGretapAttrs(gretap, linkInfo)
 	}
