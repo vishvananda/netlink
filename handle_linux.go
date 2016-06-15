@@ -1,6 +1,9 @@
 package netlink
 
 import (
+	"fmt"
+	"os/exec"
+	"strings"
 	"sync/atomic"
 	"syscall"
 
@@ -50,9 +53,11 @@ func newHandle(newNs, curNs netns.NsHandle) (*Handle, error) {
 	if err != nil {
 		return nil, err
 	}
-	xSocket, err = nl.GetNetlinkSocketAt(newNs, curNs, syscall.NETLINK_XFRM)
-	if err != nil {
-		return nil, err
+	if err := installXfrmModules(); err == nil {
+		xSocket, err = nl.GetNetlinkSocketAt(newNs, curNs, syscall.NETLINK_XFRM)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &Handle{routeSocket: rSocket, xfrmSocket: xSocket}, nil
 }
@@ -83,4 +88,14 @@ func (h *Handle) newNetlinkRequest(proto, flags int) *nl.NetlinkRequest {
 		RouteSocket: h.routeSocket,
 		XfmrSocket:  h.xfrmSocket,
 	}
+}
+
+func installXfrmModules() error {
+	if out, err := exec.Command("modprobe", "-va", "xfrm_user").CombinedOutput(); err != nil {
+		return fmt.Errorf("Running modprobe xfrm_user failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+	}
+	if out, err := exec.Command("modprobe", "-va", "xfrm_algo").CombinedOutput(); err != nil {
+		return fmt.Errorf("Running modprobe xfrm_algo failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+	}
+	return nil
 }
