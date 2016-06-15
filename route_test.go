@@ -208,3 +208,40 @@ func TestRouteExtraFields(t *testing.T) {
 		t.Fatal("Invalid Tos. Route not added properly")
 	}
 }
+
+func TestRouteMultiPath(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// get loopback interface
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// bring the interface up
+	if err = LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	// add a gateway route
+	dst := &net.IPNet{
+		IP:   net.IPv4(192, 168, 0, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+
+	idx := link.Attrs().Index
+	route := Route{Dst: dst, MultiPath: []*NexthopInfo{&NexthopInfo{LinkIndex: idx}, &NexthopInfo{LinkIndex: idx}}}
+	if err := RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+	routes, err := RouteList(nil, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatal("MultiPath Route not added properly")
+	}
+	if len(routes[0].MultiPath) != 2 {
+		t.Fatal("MultiPath Route not added properly")
+	}
+}
