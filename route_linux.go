@@ -11,6 +11,14 @@ import (
 // RtAttr is shared so it is in netlink_linux.go
 
 const (
+	SCOPE_UNIVERSE Scope = syscall.RT_SCOPE_UNIVERSE
+	SCOPE_SITE     Scope = syscall.RT_SCOPE_SITE
+	SCOPE_LINK     Scope = syscall.RT_SCOPE_LINK
+	SCOPE_HOST     Scope = syscall.RT_SCOPE_HOST
+	SCOPE_NOWHERE  Scope = syscall.RT_SCOPE_NOWHERE
+)
+
+const (
 	RT_FILTER_PROTOCOL uint64 = 1 << (1 + iota)
 	RT_FILTER_SCOPE
 	RT_FILTER_TYPE
@@ -22,6 +30,26 @@ const (
 	RT_FILTER_GW
 	RT_FILTER_TABLE
 )
+
+const (
+	FLAG_ONLINK    NextHopFlag = syscall.RTNH_F_ONLINK
+	FLAG_PERVASIVE NextHopFlag = syscall.RTNH_F_PERVASIVE
+)
+
+var testFlags = []flagString{
+	{f: FLAG_ONLINK, s: "onlink"},
+	{f: FLAG_PERVASIVE, s: "pervasive"},
+}
+
+func (r *Route) ListFlags() []string {
+	var flags []string
+	for _, tf := range testFlags {
+		if r.Flags&int(tf.f) != 0 {
+			flags = append(flags, tf.s)
+		}
+	}
+	return flags
+}
 
 // RouteAdd will add a route to the system.
 // Equivalent to: `ip route add $route`

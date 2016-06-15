@@ -14,6 +14,11 @@ import (
 
 const SizeofLinkStats = 0x5c
 
+const (
+	TUNTAP_MODE_TUN TuntapMode = syscall.IFF_TUN
+	TUNTAP_MODE_TAP TuntapMode = syscall.IFF_TAP
+)
+
 var native = nl.NativeEndian()
 var lookupByDump = false
 
