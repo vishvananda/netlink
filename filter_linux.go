@@ -126,14 +126,14 @@ func (h *Handle) FilterAdd(filter Filter) error {
 
 // FilterList gets a list of filters in the system.
 // Equivalent to: `tc filter show`.
-// Generally retunrs nothing if link and parent are not specified.
+// Generally returns nothing if link and parent are not specified.
 func FilterList(link Link, parent uint32) ([]Filter, error) {
 	return pkgHandle.FilterList(link, parent)
 }
 
 // FilterList gets a list of filters in the system.
 // Equivalent to: `tc filter show`.
-// Generally retunrs nothing if link and parent are not specified.
+// Generally returns nothing if link and parent are not specified.
 func (h *Handle) FilterList(link Link, parent uint32) ([]Filter, error) {
 	req := h.newNetlinkRequest(syscall.RTM_GETTFILTER, syscall.NLM_F_DUMP)
 	msg := &nl.TcMsg{

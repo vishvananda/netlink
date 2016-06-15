@@ -209,7 +209,7 @@ func (req *NetlinkRequest) AddData(data NetlinkRequestData) {
 }
 
 // Execute the request against a the given sockType.
-// Returns a list of netlink messages in seriaized format, optionally filtered
+// Returns a list of netlink messages in serialized format, optionally filtered
 // by resType.
 func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, error) {
 	var (
