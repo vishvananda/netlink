@@ -110,6 +110,16 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if macv, ok := link.(*Macvtap); ok {
+		other, ok := result.(*Macvtap)
+		if !ok {
+			t.Fatal("Result of create is not a macvtap")
+		}
+		if macv.Mode != other.Mode {
+			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, macv.Mode)
+		}
+	}
+
 	if err = LinkDel(link); err != nil {
 		t.Fatal(err)
 	}
@@ -247,6 +257,16 @@ func TestLinkAddDelMacvlan(t *testing.T) {
 		Mode:      MACVLAN_MODE_PRIVATE,
 	})
 
+	testLinkAddDel(t, &Macvlan{
+		LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+		Mode:      MACVLAN_MODE_BRIDGE,
+	})
+
+	testLinkAddDel(t, &Macvlan{
+		LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+		Mode:      MACVLAN_MODE_VEPA,
+	})
+
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)
 	}
@@ -265,6 +285,20 @@ func TestLinkAddDelMacvtap(t *testing.T) {
 		Macvlan: Macvlan{
 			LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
 			Mode:      MACVLAN_MODE_PRIVATE,
+		},
+	})
+
+	testLinkAddDel(t, &Macvtap{
+		Macvlan: Macvlan{
+			LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+			Mode:      MACVLAN_MODE_BRIDGE,
+		},
+	})
+
+	testLinkAddDel(t, &Macvtap{
+		Macvlan: Macvlan{
+			LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+			Mode:      MACVLAN_MODE_VEPA,
 		},
 	})
 
