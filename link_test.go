@@ -814,6 +814,54 @@ func TestLinkSubscribe(t *testing.T) {
 	}
 }
 
+func TestLinkSubscribeAt(t *testing.T) {
+	// Create an handle on a custom netns
+	newNs, err := netns.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer newNs.Close()
+
+	nh, err := NewHandleAt(newNs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nh.Delete()
+
+	// Subscribe for Link events on the custom netns
+	ch := make(chan LinkUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	if err := LinkSubscribeAt(newNs, ch, done); err != nil {
+		t.Fatal(err)
+	}
+
+	link := &Veth{LinkAttrs{Name: "test", TxQLen: testTxQLen, MTU: 1400}, "bar"}
+	if err := nh.LinkAdd(link); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectLinkUpdate(ch, "test", false) {
+		t.Fatal("Add update not received as expected")
+	}
+
+	if err := nh.LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectLinkUpdate(ch, "test", true) {
+		t.Fatal("Link Up update not received as expected")
+	}
+
+	if err := nh.LinkDel(link); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectLinkUpdate(ch, "test", false) {
+		t.Fatal("Del update not received as expected")
+	}
+}
+
 func TestLinkStats(t *testing.T) {
 	defer setUpNetlinkTest(t)()
 

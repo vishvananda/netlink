@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
+	"github.com/vishvananda/netns"
 )
 
 const SizeofLinkStats = 0x5c
@@ -1011,7 +1012,17 @@ type LinkUpdate struct {
 // LinkSubscribe takes a chan down which notifications will be sent
 // when links change.  Close the 'done' chan to stop subscription.
 func LinkSubscribe(ch chan<- LinkUpdate, done <-chan struct{}) error {
-	s, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_LINK)
+	return linkSubscribe(netns.None(), netns.None(), ch, done)
+}
+
+// LinkSubscribeAt works like LinkSubscribe plus it allows the caller
+// to choose the network namespace in which to subscribe (ns).
+func LinkSubscribeAt(ns netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}) error {
+	return linkSubscribe(ns, netns.None(), ch, done)
+}
+
+func linkSubscribe(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}) error {
+	s, err := nl.SubscribeAt(newNs, curNs, syscall.NETLINK_ROUTE, syscall.RTNLGRP_LINK)
 	if err != nil {
 		return err
 	}
