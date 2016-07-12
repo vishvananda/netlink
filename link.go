@@ -32,6 +32,7 @@ type LinkAttrs struct {
 	Alias        string
 	Statistics   *LinkStatistics
 	Promisc      int
+	Xdp          *LinkXdp
 }
 
 // NewLinkAttrs returns LinkAttrs structure filled with default values
@@ -68,6 +69,11 @@ type LinkStatistics struct {
 	TxWindowErrors    uint32
 	RxCompressed      uint32
 	TxCompressed      uint32
+}
+
+type LinkXdp struct {
+	Fd       int
+	Attached bool
 }
 
 // Device links cannot be created via netlink. These links

@@ -290,7 +290,7 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 		t.Fatal("Qdisc is the wrong type")
 	}
 
-	fd, err := loadSimpleBpf(BPF_PROG_TYPE_SCHED_ACT)
+	fd, err := loadSimpleBpf(BPF_PROG_TYPE_SCHED_ACT, 1)
 	if err != nil {
 		t.Skipf("Loading bpf program failed: %s", err)
 	}
@@ -411,7 +411,7 @@ func TestFilterClsActBpfAddDel(t *testing.T) {
 		Protocol:  syscall.ETH_P_ALL,
 		Priority:  1,
 	}
-	fd, err := loadSimpleBpf(BPF_PROG_TYPE_SCHED_CLS)
+	fd, err := loadSimpleBpf(BPF_PROG_TYPE_SCHED_CLS, 1)
 	if err != nil {
 		t.Skipf("Loading bpf program failed: %s", err)
 	}

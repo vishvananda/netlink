@@ -942,3 +942,30 @@ func TestLinkStats(t *testing.T) {
 		t.Fatalf("veth ends counters differ:\n%v\n%v", v0Stats, v1Stats)
 	}
 }
+
+func TestLinkXdp(t *testing.T) {
+	links, err := LinkList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var testXdpLink Link
+	for _, link := range links {
+		if link.Attrs().Xdp != nil && !link.Attrs().Xdp.Attached {
+			testXdpLink = link
+			break
+		}
+	}
+	if testXdpLink == nil {
+		t.Skipf("No link supporting XDP found")
+	}
+	fd, err := loadSimpleBpf(BPF_PROG_TYPE_XDP, 2 /*XDP_PASS*/)
+	if err != nil {
+		t.Skipf("Loading bpf program failed: %s", err)
+	}
+	if err := LinkSetXdpFd(testXdpLink, fd); err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetXdpFd(testXdpLink, -1); err != nil {
+		t.Fatal(err)
+	}
+}
