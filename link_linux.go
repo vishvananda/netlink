@@ -16,8 +16,13 @@ import (
 const SizeofLinkStats = 0x5c
 
 const (
-	TUNTAP_MODE_TUN TuntapMode = syscall.IFF_TUN
-	TUNTAP_MODE_TAP TuntapMode = syscall.IFF_TAP
+	TUNTAP_MODE_TUN  TuntapMode = syscall.IFF_TUN
+	TUNTAP_MODE_TAP  TuntapMode = syscall.IFF_TAP
+	TUNTAP_DEFAULTS  TuntapFlag = syscall.IFF_TUN_EXCL | syscall.IFF_ONE_QUEUE
+	TUNTAP_VNET_HDR  TuntapFlag = syscall.IFF_VNET_HDR
+	TUNTAP_TUN_EXCL  TuntapFlag = syscall.IFF_TUN_EXCL
+	TUNTAP_NO_PI     TuntapFlag = syscall.IFF_NO_PI
+	TUNTAP_ONE_QUEUE TuntapFlag = syscall.IFF_ONE_QUEUE
 )
 
 var native = nl.NativeEndian()
@@ -552,9 +557,7 @@ func (h *Handle) LinkAdd(link Link) error {
 	if tuntap, ok := link.(*Tuntap); ok {
 		// TODO: support user
 		// TODO: support group
-		// TODO: support non- one_queue
-		// TODO: support pi | vnet_hdr | multi_queue
-		// TODO: support non- exclusive
+		// TODO: multi_queue
 		// TODO: support non- persistent
 		if tuntap.Mode < syscall.IFF_TUN || tuntap.Mode > syscall.IFF_TAP {
 			return fmt.Errorf("Tuntap.Mode %v unknown!", tuntap.Mode)
@@ -565,10 +568,9 @@ func (h *Handle) LinkAdd(link Link) error {
 		}
 		defer file.Close()
 		var req ifReq
-		req.Flags |= syscall.IFF_ONE_QUEUE
-		req.Flags |= syscall.IFF_TUN_EXCL
-		copy(req.Name[:15], base.Name)
+		req.Flags = uint16(tuntap.Flags)
 		req.Flags |= uint16(tuntap.Mode)
+		copy(req.Name[:15], base.Name)
 		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall.TUNSETIFF), uintptr(unsafe.Pointer(&req)))
 		if errno != 0 {
 			return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed, errno %v", errno)
