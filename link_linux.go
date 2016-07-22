@@ -568,7 +568,11 @@ func (h *Handle) LinkAdd(link Link) error {
 		}
 		defer file.Close()
 		var req ifReq
-		req.Flags = uint16(tuntap.Flags)
+		if tuntap.Flags == 0 {
+			req.Flags = uint16(TUNTAP_DEFAULTS)
+		} else {
+			req.Flags = uint16(tuntap.Flags)
+		}
 		req.Flags |= uint16(tuntap.Mode)
 		copy(req.Name[:15], base.Name)
 		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall.TUNSETIFF), uintptr(unsafe.Pointer(&req)))
