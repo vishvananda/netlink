@@ -55,6 +55,44 @@ func (h *Handle) ensureIndex(link *LinkAttrs) {
 	}
 }
 
+func (h *Handle) SetPromiscOn(link Link) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Change = syscall.IFF_PROMISC
+	msg.Flags = syscall.IFF_UP
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func SetPromiscOn(link Link) error {
+	return pkgHandle.SetPromiscOn(link)
+}
+
+func (h *Handle) SetPromiscOff(link Link) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Change = syscall.IFF_PROMISC
+	msg.Flags = 0 & ^syscall.IFF_UP
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func SetPromiscOff(link Link) error {
+	return pkgHandle.SetPromiscOff(link)
+}
+
 // LinkSetUp enables the link device.
 // Equivalent to: `ip link set $link up`
 func LinkSetUp(link Link) error {
@@ -878,6 +916,9 @@ func linkDeserialize(m []byte) (Link, error) {
 	}
 
 	base := LinkAttrs{Index: int(msg.Index), Flags: linkFlags(msg.Flags)}
+	if msg.Flags&syscall.IFF_PROMISC != 0 {
+		base.Promisc = 1
+	}
 	var link Link
 	linkType := ""
 	for _, attr := range attrs {

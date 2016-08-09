@@ -31,6 +31,7 @@ type LinkAttrs struct {
 	Namespace    interface{} // nil | NsPid | NsFd
 	Alias        string
 	Statistics   *LinkStatistics
+	Promisc      int
 }
 
 // NewLinkAttrs returns LinkAttrs structure filled with default values
