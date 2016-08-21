@@ -783,6 +783,8 @@ func (h *Handle) LinkAdd(link Link) error {
 		}
 	} else if gretap, ok := link.(*Gretap); ok {
 		addGretapAttrs(gretap, linkInfo)
+	} else if gre, ok := link.(*Gre); ok {
+		addGreAttrs(gre, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -1006,6 +1008,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &Macvtap{}
 					case "gretap":
 						link = &Gretap{}
+					case "gre":
+						link = &Gre{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}
@@ -1029,6 +1033,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						parseMacvtapData(link, data)
 					case "gretap":
 						parseGretapData(link, data)
+					case "gre":
+						parseGreData(link, data)
 					}
 				}
 			}
@@ -1486,6 +1492,80 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.EncapType = native.Uint16(datum.Value[0:2])
 		case nl.IFLA_GRE_ENCAP_FLAGS:
 			gre.EncapFlags = native.Uint16(datum.Value[0:2])
+		}
+	}
+}
+
+
+func addGreAttrs(gretap *Gre, linkInfo *nl.RtAttr) {
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	ip := gretap.Local.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_LOCAL, []byte(ip))
+	}
+	ip = gretap.Remote.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_REMOTE, []byte(ip))
+	}
+
+	if gretap.IKey != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_IKEY, htonl(gretap.IKey))
+		gretap.IFlags |= uint16(nl.GRE_KEY)
+	}
+
+	if gretap.OKey != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_OKEY, htonl(gretap.OKey))
+		gretap.OFlags |= uint16(nl.GRE_KEY)
+	}
+
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_IFLAGS, htons(gretap.IFlags))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_OFLAGS, htons(gretap.OFlags))
+
+	if gretap.Link != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_LINK, nl.Uint32Attr(gretap.Link))
+	}
+
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_PMTUDISC, nl.Uint8Attr(gretap.PMtuDisc))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_TTL, nl.Uint8Attr(gretap.Ttl))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_TOS, nl.Uint8Attr(gretap.Tos))
+	//nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_TYPE, nl.Uint16Attr(gretap.EncapType))
+	//nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_FLAGS, nl.Uint16Attr(gretap.EncapFlags))
+	//nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_SPORT, htons(gretap.EncapSport))
+	//nl.NewRtAttrChild(data, nl.IFLA_GRE_ENCAP_DPORT, htons(gretap.EncapDport))
+}
+
+func parseGreData(link Link, data []syscall.NetlinkRouteAttr) {
+	gre := link.(*Gre)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_GRE_OKEY:
+			gre.IKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_IKEY:
+			gre.OKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_LOCAL:
+			gre.Local = net.IP(datum.Value[0:4])
+		case nl.IFLA_GRE_REMOTE:
+			gre.Remote = net.IP(datum.Value[0:4])
+		//case nl.IFLA_GRE_ENCAP_SPORT:
+		//	gre.EncapSport = ntohs(datum.Value[0:2])
+		//case nl.IFLA_GRE_ENCAP_DPORT:
+		//	gre.EncapDport = ntohs(datum.Value[0:2])
+		case nl.IFLA_GRE_IFLAGS:
+			gre.IFlags = ntohs(datum.Value[0:2])
+		case nl.IFLA_GRE_OFLAGS:
+			gre.OFlags = ntohs(datum.Value[0:2])
+
+		case nl.IFLA_GRE_TTL:
+			gre.Ttl = uint8(datum.Value[0])
+		case nl.IFLA_GRE_TOS:
+			gre.Tos = uint8(datum.Value[0])
+		case nl.IFLA_GRE_PMTUDISC:
+			gre.PMtuDisc = uint8(datum.Value[0])
+		//case nl.IFLA_GRE_ENCAP_TYPE:
+		//	gre.EncapType = native.Uint16(datum.Value[0:2])
+		//case nl.IFLA_GRE_ENCAP_FLAGS:
+		//	gre.EncapFlags = native.Uint16(datum.Value[0:2])
 		}
 	}
 }

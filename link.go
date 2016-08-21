@@ -589,6 +589,33 @@ func (gretap *Gretap) Type() string {
 	return "gretap"
 }
 
+// Gre devices must specify LocalIP and RemoteIP on create
+type Gre struct {
+	LinkAttrs
+	IKey       uint32
+	OKey       uint32
+	//EncapSport uint16
+	//EncapDport uint16
+	Local      net.IP
+	Remote     net.IP
+	IFlags     uint16
+	OFlags     uint16
+	PMtuDisc   uint8
+	Ttl        uint8
+	Tos        uint8
+	//EncapType  uint16
+	//EncapFlags uint16
+	Link       uint32
+}
+
+func (gre *Gre) Attrs() *LinkAttrs {
+	return &gre.LinkAttrs
+}
+
+func (gre *Gre) Type() string {
+	return "gre"
+}
+
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
 // bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |
