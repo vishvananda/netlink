@@ -59,8 +59,9 @@ type NexthopInfo struct {
 	LinkIndex int
 	Hops      int
 	Gw        net.IP
+	Flags     int
 }
 
 func (n *NexthopInfo) String() string {
-	return fmt.Sprintf("{Ifindex: %d Weight: %d, Gw: %s}", n.LinkIndex, n.Hops+1, n.Gw)
+	return fmt.Sprintf("{Ifindex: %d Weight: %d Gw: %s Flags: %s}", n.LinkIndex, n.Hops+1, n.Gw, n.ListFlags())
 }

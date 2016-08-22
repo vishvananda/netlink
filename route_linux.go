@@ -42,14 +42,22 @@ var testFlags = []flagString{
 	{f: FLAG_PERVASIVE, s: "pervasive"},
 }
 
-func (r *Route) ListFlags() []string {
+func listFlags(flag int) []string {
 	var flags []string
 	for _, tf := range testFlags {
-		if r.Flags&int(tf.f) != 0 {
+		if flag&int(tf.f) != 0 {
 			flags = append(flags, tf.s)
 		}
 	}
 	return flags
+}
+
+func (r *Route) ListFlags() []string {
+	return listFlags(r.Flags)
+}
+
+func (n *NexthopInfo) ListFlags() []string {
+	return listFlags(n.Flags)
 }
 
 // RouteAdd will add a route to the system.
@@ -154,6 +162,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 					Hops:    uint8(nh.Hops),
 					Ifindex: int32(nh.LinkIndex),
 					Len:     uint16(syscall.SizeofRtNexthop),
+					Flags:   uint8(nh.Flags),
 				},
 			}
 			var gwData []byte
@@ -368,6 +377,7 @@ func deserializeRoute(m []byte) (Route, error) {
 				info := &NexthopInfo{
 					LinkIndex: int(nh.RtNexthop.Ifindex),
 					Hops:      int(nh.RtNexthop.Hops),
+					Flags:     int(nh.RtNexthop.Flags),
 				}
 				attrs, err := nl.ParseRouteAttr(value[syscall.SizeofRtNexthop:int(nh.RtNexthop.Len)])
 				if err != nil {
