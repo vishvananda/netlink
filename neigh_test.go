@@ -10,6 +10,11 @@ type arpEntry struct {
 	mac net.HardwareAddr
 }
 
+type proxyEntry struct {
+	ip  net.IP
+	dev int
+}
+
 func parseMAC(s string) net.HardwareAddr {
 	m, err := net.ParseMAC(s)
 	if err != nil {
@@ -21,6 +26,15 @@ func parseMAC(s string) net.HardwareAddr {
 func dumpContains(dump []Neigh, e arpEntry) bool {
 	for _, n := range dump {
 		if n.IP.Equal(e.ip) && (n.State&NUD_INCOMPLETE) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func dumpContainsProxy(dump []Neigh, p proxyEntry) bool {
+	for _, n := range dump {
+		if n.IP.Equal(p.ip) && (n.LinkIndex == p.dev) && (n.Flags&NTF_PROXY) == NTF_PROXY {
 			return true
 		}
 	}
@@ -97,6 +111,80 @@ func TestNeighAddDel(t *testing.T) {
 	//t.Errorf("Dump contains: %v", entry)
 	//}
 	//}
+
+	if err := LinkDel(&dummy); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNeighAddDelProxy(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	dummy := Dummy{LinkAttrs{Name: "neigh0"}}
+	if err := LinkAdd(&dummy); err != nil {
+		t.Fatal(err)
+	}
+
+	ensureIndex(dummy.Attrs())
+
+	proxyTable := []proxyEntry{
+		{net.ParseIP("10.99.0.1"), dummy.Index},
+		{net.ParseIP("10.99.0.2"), dummy.Index},
+		{net.ParseIP("10.99.0.3"), dummy.Index},
+		{net.ParseIP("10.99.0.4"), dummy.Index},
+		{net.ParseIP("10.99.0.5"), dummy.Index},
+	}
+
+	// Add the proxyTable
+	for _, entry := range proxyTable {
+		err := NeighAdd(&Neigh{
+			LinkIndex: dummy.Index,
+			Flags:     NTF_PROXY,
+			IP:        entry.ip,
+		})
+
+		if err != nil {
+			t.Errorf("Failed to NeighAdd: %v", err)
+		}
+	}
+
+	// Dump and see that all added entries are there
+	dump, err := NeighProxyList(dummy.Index, 0)
+	if err != nil {
+		t.Errorf("Failed to NeighList: %v", err)
+	}
+
+	for _, entry := range proxyTable {
+		if !dumpContainsProxy(dump, entry) {
+			t.Errorf("Dump does not contain: %v", entry)
+		}
+	}
+
+	// Delete the proxyTable
+	for _, entry := range proxyTable {
+		err := NeighDel(&Neigh{
+			LinkIndex: dummy.Index,
+			Flags:     NTF_PROXY,
+			IP:        entry.ip,
+		})
+
+		if err != nil {
+			t.Errorf("Failed to NeighDel: %v", err)
+		}
+	}
+
+	// Dump and see that none of deleted entries are there
+	dump, err = NeighProxyList(dummy.Index, 0)
+	if err != nil {
+		t.Errorf("Failed to NeighList: %v", err)
+	}
+
+	for _, entry := range proxyTable {
+		if dumpContainsProxy(dump, entry) {
+			t.Errorf("Dump contains: %v", entry)
+		}
+	}
 
 	if err := LinkDel(&dummy); err != nil {
 		t.Fatal(err)
