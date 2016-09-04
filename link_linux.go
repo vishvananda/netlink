@@ -141,13 +141,13 @@ func (h *Handle) LinkSetDown(link Link) error {
 
 // LinkSetMTU sets the mtu of the link device.
 // Equivalent to: `ip link set $link mtu $mtu`
-func LinkSetMTU(link Link, mtu int) error {
+func LinkSetMTU(link Link, mtu uint32) error {
 	return pkgHandle.LinkSetMTU(link, mtu)
 }
 
 // LinkSetMTU sets the mtu of the link device.
 // Equivalent to: `ip link set $link mtu $mtu`
-func (h *Handle) LinkSetMTU(link Link, mtu int) error {
+func (h *Handle) LinkSetMTU(link Link, mtu uint32) error {
 	base := link.Attrs()
 	h.ensureIndex(base)
 	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
@@ -157,7 +157,7 @@ func (h *Handle) LinkSetMTU(link Link, mtu int) error {
 	req.AddData(msg)
 
 	b := make([]byte, 4)
-	native.PutUint32(b, uint32(mtu))
+	native.PutUint32(b, mtu)
 
 	data := nl.NewRtAttr(syscall.IFLA_MTU, b)
 	req.AddData(data)
@@ -687,7 +687,7 @@ func (h *Handle) LinkAdd(link Link) error {
 	req.AddData(nameData)
 
 	if base.MTU > 0 {
-		mtu := nl.NewRtAttr(syscall.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
+		mtu := nl.NewRtAttr(syscall.IFLA_MTU, nl.Uint32Attr(base.MTU))
 		req.AddData(mtu)
 	}
 
@@ -731,7 +731,7 @@ func (h *Handle) LinkAdd(link Link) error {
 			nl.NewRtAttrChild(peer, syscall.IFLA_TXQLEN, nl.Uint32Attr(uint32(base.TxQLen)))
 		}
 		if base.MTU > 0 {
-			nl.NewRtAttrChild(peer, syscall.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
+			nl.NewRtAttrChild(peer, syscall.IFLA_MTU, nl.Uint32Attr(base.MTU))
 		}
 
 	} else if vxlan, ok := link.(*Vxlan); ok {
@@ -1015,7 +1015,7 @@ func linkDeserialize(m []byte) (Link, error) {
 		case syscall.IFLA_IFNAME:
 			base.Name = string(attr.Value[:len(attr.Value)-1])
 		case syscall.IFLA_MTU:
-			base.MTU = int(native.Uint32(attr.Value[0:4]))
+			base.MTU = native.Uint32(attr.Value[0:4])
 		case syscall.IFLA_LINK:
 			base.ParentIndex = int(native.Uint32(attr.Value[0:4]))
 		case syscall.IFLA_MASTER:
