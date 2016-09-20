@@ -936,7 +936,7 @@ func linkDeserialize(m []byte) (Link, error) {
 		return nil, err
 	}
 
-	base := LinkAttrs{Index: int(msg.Index), Flags: linkFlags(msg.Flags)}
+	base := LinkAttrs{Index: int(msg.Index), RawFlags: msg.Flags, Flags: linkFlags(msg.Flags)}
 	if msg.Flags&syscall.IFF_PROMISC != 0 {
 		base.Promisc = 1
 	}
