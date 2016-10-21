@@ -261,6 +261,7 @@ type IPVlanMode uint16
 const (
 	IPVLAN_MODE_L2 IPVlanMode = iota
 	IPVLAN_MODE_L3
+	IPVLAN_MODE_L3S
 	IPVLAN_MODE_MAX
 )
 
