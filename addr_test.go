@@ -13,6 +13,7 @@ func TestAddr(t *testing.T) {
 	}
 	// TODO: IFA_F_PERMANENT does not seem to be set by default on older kernels?
 	var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
+	var peer = &net.IPNet{IP: net.IPv4(127, 0, 0, 3), Mask: net.CIDRMask(24, 32)}
 	var addrTests = []struct {
 		addr     *Addr
 		expected *Addr
@@ -36,6 +37,10 @@ func TestAddr(t *testing.T) {
 		{
 			&Addr{IPNet: address, Scope: syscall.RT_SCOPE_NOWHERE},
 			&Addr{IPNet: address, Label: "lo", Flags: syscall.IFA_F_PERMANENT, Scope: syscall.RT_SCOPE_NOWHERE},
+		},
+		{
+			&Addr{IPNet: address, Peer: peer},
+			&Addr{IPNet: address, Peer: peer, Label: "lo", Scope: syscall.RT_SCOPE_UNIVERSE, Flags: syscall.IFA_F_PERMANENT},
 		},
 	}
 
@@ -75,6 +80,12 @@ func TestAddr(t *testing.T) {
 
 		if addrs[0].Scope != tt.expected.Scope {
 			t.Fatalf("Address scope not set properly, got=%d, expected=%d", addrs[0].Scope, tt.expected.Scope)
+		}
+
+		if tt.expected.Peer != nil {
+			if !addrs[0].PeerEqual(*tt.expected) {
+				t.Fatalf("Peer Address ip no set properly, got=%s, expected=%s", addrs[0].Peer, tt.expected.Peer)
+			}
 		}
 
 		// Pass FAMILY_V4, we should get the same results as FAMILY_ALL

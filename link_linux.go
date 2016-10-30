@@ -783,6 +783,10 @@ func (h *Handle) LinkAdd(link Link) error {
 		}
 	} else if gretap, ok := link.(*Gretap); ok {
 		addGretapAttrs(gretap, linkInfo)
+	} else if iptun, ok := link.(*Iptun); ok {
+		addIptunAttrs(iptun, linkInfo)
+	} else if vti, ok := link.(*Vti); ok {
+		addVtiAttrs(vti, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -1006,6 +1010,10 @@ func LinkDeserialize(m []byte) (Link, error) {
 						link = &Macvtap{}
 					case "gretap":
 						link = &Gretap{}
+					case "ipip":
+						link = &Iptun{}
+					case "vti":
+						link = &Vti{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}
@@ -1029,6 +1037,10 @@ func LinkDeserialize(m []byte) (Link, error) {
 						parseMacvtapData(link, data)
 					case "gretap":
 						parseGretapData(link, data)
+					case "ipip":
+						parseIptunData(link, data)
+					case "vti":
+						parseVtiData(link, data)
 					}
 				}
 			}
@@ -1517,4 +1529,80 @@ func parseLinkXdp(data []byte) (*LinkXdp, error) {
 		}
 	}
 	return xdp, nil
+}
+
+func addIptunAttrs(iptun *Iptun, linkInfo *nl.RtAttr) {
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	ip := iptun.Local.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_IPTUN_LOCAL, []byte(ip))
+	}
+
+	ip = iptun.Remote.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_IPTUN_REMOTE, []byte(ip))
+	}
+
+	if iptun.Link != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_IPTUN_LINK, nl.Uint32Attr(iptun.Link))
+	}
+	nl.NewRtAttrChild(data, nl.IFLA_IPTUN_PMTUDISC, nl.Uint8Attr(iptun.PMtuDisc))
+	nl.NewRtAttrChild(data, nl.IFLA_IPTUN_TTL, nl.Uint8Attr(iptun.Ttl))
+	nl.NewRtAttrChild(data, nl.IFLA_IPTUN_TOS, nl.Uint8Attr(iptun.Tos))
+}
+
+func parseIptunData(link Link, data []syscall.NetlinkRouteAttr) {
+	iptun := link.(*Iptun)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_IPTUN_LOCAL:
+			iptun.Local = net.IP(datum.Value[0:4])
+		case nl.IFLA_IPTUN_REMOTE:
+			iptun.Remote = net.IP(datum.Value[0:4])
+		case nl.IFLA_IPTUN_TTL:
+			iptun.Ttl = uint8(datum.Value[0])
+		case nl.IFLA_IPTUN_TOS:
+			iptun.Tos = uint8(datum.Value[0])
+		case nl.IFLA_IPTUN_PMTUDISC:
+			iptun.PMtuDisc = uint8(datum.Value[0])
+		}
+	}
+}
+
+func addVtiAttrs(vti *Vti, linkInfo *nl.RtAttr) {
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	ip := vti.Local.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_VTI_LOCAL, []byte(ip))
+	}
+
+	ip = vti.Remote.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_VTI_REMOTE, []byte(ip))
+	}
+
+	if vti.Link != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_VTI_LINK, nl.Uint32Attr(vti.Link))
+	}
+
+	nl.NewRtAttrChild(data, nl.IFLA_VTI_IKEY, htonl(vti.IKey))
+	nl.NewRtAttrChild(data, nl.IFLA_VTI_OKEY, htonl(vti.OKey))
+}
+
+func parseVtiData(link Link, data []syscall.NetlinkRouteAttr) {
+	vti := link.(*Vti)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_VTI_LOCAL:
+			vti.Local = net.IP(datum.Value[0:4])
+		case nl.IFLA_VTI_REMOTE:
+			vti.Remote = net.IP(datum.Value[0:4])
+		case nl.IFLA_VTI_IKEY:
+			vti.IKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_VTI_OKEY:
+			vti.OKey = ntohl(datum.Value[0:4])
+		}
+	}
 }
