@@ -589,6 +589,41 @@ func (gretap *Gretap) Type() string {
 	return "gretap"
 }
 
+type Iptun struct {
+	LinkAttrs
+	Ttl      uint8
+	Tos      uint8
+	PMtuDisc uint8
+	Link     uint32
+	Local    net.IP
+	Remote   net.IP
+}
+
+func (iptun *Iptun) Attrs() *LinkAttrs {
+	return &iptun.LinkAttrs
+}
+
+func (iptun *Iptun) Type() string {
+	return "ipip"
+}
+
+type Vti struct {
+	LinkAttrs
+	IKey   uint32
+	OKey   uint32
+	Link   uint32
+	Local  net.IP
+	Remote net.IP
+}
+
+func (vti *Vti) Attrs() *LinkAttrs {
+	return &vti.LinkAttrs
+}
+
+func (iptun *Vti) Type() string {
+	return "vti"
+}
+
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
 // bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |

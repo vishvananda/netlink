@@ -21,7 +21,6 @@ func testLinkAddDel(t *testing.T, link Link) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	num := len(links)
 
 	if err := LinkAdd(link); err != nil {
 		t.Fatal(err)
@@ -120,6 +119,20 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if _, ok := link.(*Vti); ok {
+		_, ok := result.(*Vti)
+		if !ok {
+			t.Fatal("Result of create is not a vti")
+		}
+	}
+
+	if _, ok := link.(*Iptun); ok {
+		_, ok := result.(*Iptun)
+		if !ok {
+			t.Fatal("Result of create is not a iptun")
+		}
+	}
+
 	if err = LinkDel(link); err != nil {
 		t.Fatal(err)
 	}
@@ -129,9 +142,10 @@ func testLinkAddDel(t *testing.T, link Link) {
 		t.Fatal(err)
 	}
 
-	if len(links) != num {
-		t.Fatal("Link not removed properly")
-		return
+	for _, l := range links {
+		if l.Attrs().Name == link.Attrs().Name {
+			t.Fatal("Link not removed properly")
+		}
 	}
 }
 
@@ -968,4 +982,27 @@ func TestLinkXdp(t *testing.T) {
 	if err := LinkSetXdpFd(testXdpLink, -1); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestLinkAddDelIptun(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Iptun{
+		LinkAttrs: LinkAttrs{Name: "iptunfoo"},
+		PMtuDisc:  1,
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 1)})
+}
+
+func TestLinkAddDelVti(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Vti{
+		LinkAttrs: LinkAttrs{Name: "vtifoo"},
+		IKey:      0x101,
+		OKey:      0x101,
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 1)})
 }
