@@ -298,6 +298,36 @@ func (h *Handle) LinkSetVfVlan(link Link, vf, vlan int) error {
 	return err
 }
 
+// LinkSetVfTxRate sets the tx rate of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf rate $rate`
+func LinkSetVfTxRate(link Link, vf, rate int) error {
+	return pkgHandle.LinkSetVfTxRate(link, vf, rate)
+}
+
+// LinkSetVfTxRate sets the tx rate of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf rate $rate`
+func (h *Handle) LinkSetVfTxRate(link Link, vf, rate int) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(nl.IFLA_VFINFO_LIST, nil)
+	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
+	vfmsg := nl.VfTxRate{
+		Vf:   uint32(vf),
+		Rate: uint32(rate),
+	}
+	nl.NewRtAttrChild(info, nl.IFLA_VF_TX_RATE, vfmsg.Serialize())
+	req.AddData(data)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetMaster sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
 func LinkSetMaster(link Link, master *Bridge) error {
