@@ -8,7 +8,10 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
+	"time"
+	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
@@ -104,6 +107,48 @@ func TestHandleCreateNetns(t *testing.T) {
 	ll, err = ch.LinkByName(ifName)
 	if err == nil {
 		t.Fatalf("Unexpected link found on netns %s: %v", curNs, ll)
+	}
+}
+
+func TestHandleTimeout(t *testing.T) {
+	h, err := NewHandle()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Delete()
+
+	for _, sh := range h.sockets {
+		verifySockTimeVal(t, sh.Socket.GetFd(), syscall.Timeval{Sec: 0, Usec: 0})
+	}
+
+	h.SetSocketTimeout(2*time.Second + 8*time.Millisecond)
+
+	for _, sh := range h.sockets {
+		verifySockTimeVal(t, sh.Socket.GetFd(), syscall.Timeval{Sec: 2, Usec: 8000})
+	}
+}
+
+func verifySockTimeVal(t *testing.T, fd int, tv syscall.Timeval) {
+	var (
+		tr syscall.Timeval
+		v  = uint32(0x10)
+	)
+	_, _, errno := syscall.Syscall6(syscall.SYS_GETSOCKOPT, uintptr(fd), syscall.SOL_SOCKET, syscall.SO_SNDTIMEO, uintptr(unsafe.Pointer(&tr)), uintptr(unsafe.Pointer(&v)), 0)
+	if errno != 0 {
+		t.Fatal(errno)
+	}
+
+	if tr.Sec != tv.Sec || tr.Usec != tv.Usec {
+		t.Fatalf("Unexpected timeout value read: %v. Expected: %v", tr, tv)
+	}
+
+	_, _, errno = syscall.Syscall6(syscall.SYS_GETSOCKOPT, uintptr(fd), syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, uintptr(unsafe.Pointer(&tr)), uintptr(unsafe.Pointer(&v)), 0)
+	if errno != 0 {
+		t.Fatal(errno)
+	}
+
+	if tr.Sec != tv.Sec || tr.Usec != tv.Usec {
+		t.Fatalf("Unexpected timeout value read: %v. Expected: %v", tr, tv)
 	}
 }
 
