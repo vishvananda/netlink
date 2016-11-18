@@ -949,7 +949,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 		return nil, fmt.Errorf("Link not found")
 
 	case len(msgs) == 1:
-		return linkDeserialize(msgs[0])
+		return LinkDeserialize(msgs[0])
 
 	default:
 		return nil, fmt.Errorf("More than one link found")
@@ -958,7 +958,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 
 // linkDeserialize deserializes a raw message received from netlink into
 // a link object.
-func linkDeserialize(m []byte) (Link, error) {
+func LinkDeserialize(m []byte) (Link, error) {
 	msg := nl.DeserializeIfInfomsg(m)
 
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
@@ -1096,7 +1096,7 @@ func (h *Handle) LinkList() ([]Link, error) {
 
 	var res []Link
 	for _, m := range msgs {
-		link, err := linkDeserialize(m)
+		link, err := LinkDeserialize(m)
 		if err != nil {
 			return nil, err
 		}
@@ -1145,7 +1145,7 @@ func linkSubscribe(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-cha
 			}
 			for _, m := range msgs {
 				ifmsg := nl.DeserializeIfInfomsg(m.Data)
-				link, err := linkDeserialize(m.Data)
+				link, err := LinkDeserialize(m.Data)
 				if err != nil {
 					return
 				}
