@@ -303,3 +303,85 @@ func TestRouteMultiPath(t *testing.T) {
 		t.Fatal("MultiPath Route not added properly")
 	}
 }
+
+func TestFilterDefaultRoute(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// get loopback interface
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// bring the interface up
+	if err = LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	address := &Addr{
+		IPNet: &net.IPNet{
+			IP:   net.IPv4(127, 0, 0, 2),
+			Mask: net.CIDRMask(24, 32),
+		},
+	}
+	if err = AddrAdd(link, address); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add default route
+	gw := net.IPv4(127, 0, 0, 2)
+
+	defaultRoute := Route{
+		Dst: nil,
+		Gw:  gw,
+	}
+
+	if err := RouteAdd(&defaultRoute); err != nil {
+		t.Fatal(err)
+	}
+
+	// add an extra route
+	dst := &net.IPNet{
+		IP:   net.IPv4(192, 168, 0, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+
+	extraRoute := Route{
+		Dst: dst,
+		Gw:  gw,
+	}
+
+	if err := RouteAdd(&extraRoute); err != nil {
+		t.Fatal(err)
+	}
+	var filterTests = []struct {
+		filter   *Route
+		mask     uint64
+		expected net.IP
+	}{
+		{
+			&Route{Dst: nil},
+			RT_FILTER_DST,
+			gw,
+		},
+		{
+			&Route{Dst: dst},
+			RT_FILTER_DST,
+			gw,
+		},
+	}
+
+	for _, f := range filterTests {
+		routes, err := RouteListFiltered(FAMILY_V4, f.filter, f.mask)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(routes) != 1 {
+			t.Fatal("Route not filtered properly")
+		}
+		if !routes[0].Gw.Equal(gw) {
+			t.Fatal("Unexpected Gateway")
+		}
+	}
+
+}
