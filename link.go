@@ -301,31 +301,31 @@ func StringToBondMode(s string) BondMode {
 
 // Possible BondMode
 const (
-	BOND_MODE_802_3AD BondMode = iota
-	BOND_MODE_BALANCE_RR
+	BOND_MODE_BALANCE_RR BondMode = iota
 	BOND_MODE_ACTIVE_BACKUP
 	BOND_MODE_BALANCE_XOR
 	BOND_MODE_BROADCAST
+	BOND_MODE_802_3AD
 	BOND_MODE_BALANCE_TLB
 	BOND_MODE_BALANCE_ALB
 	BOND_MODE_UNKNOWN
 )
 
 var bondModeToString = map[BondMode]string{
-	BOND_MODE_802_3AD:       "802.3ad",
 	BOND_MODE_BALANCE_RR:    "balance-rr",
 	BOND_MODE_ACTIVE_BACKUP: "active-backup",
 	BOND_MODE_BALANCE_XOR:   "balance-xor",
 	BOND_MODE_BROADCAST:     "broadcast",
+	BOND_MODE_802_3AD:       "802.3ad",
 	BOND_MODE_BALANCE_TLB:   "balance-tlb",
 	BOND_MODE_BALANCE_ALB:   "balance-alb",
 }
 var StringToBondModeMap = map[string]BondMode{
-	"802.3ad":       BOND_MODE_802_3AD,
 	"balance-rr":    BOND_MODE_BALANCE_RR,
 	"active-backup": BOND_MODE_ACTIVE_BACKUP,
 	"balance-xor":   BOND_MODE_BALANCE_XOR,
 	"broadcast":     BOND_MODE_BROADCAST,
+	"802.3ad":       BOND_MODE_802_3AD,
 	"balance-tlb":   BOND_MODE_BALANCE_TLB,
 	"balance-alb":   BOND_MODE_BALANCE_ALB,
 }
