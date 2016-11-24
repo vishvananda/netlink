@@ -1006,3 +1006,55 @@ func TestLinkAddDelVti(t *testing.T) {
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 1)})
 }
+
+func TestLinkSubscribeWithProtinfo(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	master := &Bridge{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(master); err != nil {
+		t.Fatal(err)
+	}
+
+	slave := &Veth{
+		LinkAttrs: LinkAttrs{
+			Name:        "bar",
+			TxQLen:      testTxQLen,
+			MTU:         1400,
+			MasterIndex: master.Attrs().Index,
+		},
+		PeerName: "bar-peer",
+	}
+	if err := LinkAdd(slave); err != nil {
+		t.Fatal(err)
+	}
+
+	ch := make(chan LinkUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	if err := LinkSubscribe(ch, done); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkSetHairpin(slave, true); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case update := <-ch:
+		if !(update.Attrs().Name == "bar" && update.Attrs().Protinfo != nil &&
+			update.Attrs().Protinfo.Hairpin) {
+			t.Fatal("Hairpin update not received as expected")
+		}
+	case <-time.After(time.Minute):
+		t.Fatal("Hairpin update timed out")
+	}
+
+	if err := LinkDel(slave); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkDel(master); err != nil {
+		t.Fatal(err)
+	}
+}
