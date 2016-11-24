@@ -35,6 +35,7 @@ type LinkAttrs struct {
 	Promisc      int
 	Xdp          *LinkXdp
 	EncapType    string
+	Protinfo     *Protinfo
 }
 
 // NewLinkAttrs returns LinkAttrs structure filled with default values

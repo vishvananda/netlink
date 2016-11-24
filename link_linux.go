@@ -953,7 +953,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 		return nil, fmt.Errorf("Link not found")
 
 	case len(msgs) == 1:
-		return LinkDeserialize(msgs[0])
+		return LinkDeserialize(nil, msgs[0])
 
 	default:
 		return nil, fmt.Errorf("More than one link found")
@@ -962,7 +962,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 
 // linkDeserialize deserializes a raw message received from netlink into
 // a link object.
-func LinkDeserialize(m []byte) (Link, error) {
+func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 	msg := nl.DeserializeIfInfomsg(m)
 
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
@@ -1074,6 +1074,15 @@ func LinkDeserialize(m []byte) (Link, error) {
 				return nil, err
 			}
 			base.Xdp = xdp
+		case syscall.IFLA_PROTINFO | syscall.NLA_F_NESTED:
+			if hdr != nil && hdr.Type == syscall.RTM_NEWLINK &&
+				msg.Family == syscall.AF_BRIDGE {
+				attrs, err := nl.ParseRouteAttr(attr.Value[:])
+				if err != nil {
+					return nil, err
+				}
+				base.Protinfo = parseProtinfo(attrs)
+			}
 		}
 	}
 	// Links that don't have IFLA_INFO_KIND are hardware devices
@@ -1108,7 +1117,7 @@ func (h *Handle) LinkList() ([]Link, error) {
 
 	var res []Link
 	for _, m := range msgs {
-		link, err := LinkDeserialize(m)
+		link, err := LinkDeserialize(nil, m)
 		if err != nil {
 			return nil, err
 		}
@@ -1157,7 +1166,7 @@ func linkSubscribe(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-cha
 			}
 			for _, m := range msgs {
 				ifmsg := nl.DeserializeIfInfomsg(m.Data)
-				link, err := LinkDeserialize(m.Data)
+				link, err := LinkDeserialize(&m.Header, m.Data)
 				if err != nil {
 					return
 				}
