@@ -36,6 +36,40 @@ type LinkAttrs struct {
 	Xdp          *LinkXdp
 	EncapType    string
 	Protinfo     *Protinfo
+	OperState    LinkOperState
+}
+
+// LinkOperState represents the values of the IFLA_OPERSTATE link
+// attribute, which contains the RFC2863 state of the interface.
+type LinkOperState uint8
+
+const (
+	OperUnknown        = iota // Status can't be determined.
+	OperNotPresent            // Some component is missing.
+	OperDown                  // Down.
+	OperLowerLayerDown        // Down due to state of lower layer.
+	OperTesting               // In some test mode.
+	OperDormant               // Not up but pending an external event.
+	OperUp                    // Up, ready to send packets.
+)
+
+func (s LinkOperState) String() string {
+	switch s {
+	case OperNotPresent:
+		return "not-present"
+	case OperDown:
+		return "down"
+	case OperLowerLayerDown:
+		return "lower-layer-down"
+	case OperTesting:
+		return "testing"
+	case OperDormant:
+		return "dormant"
+	case OperUp:
+		return "up"
+	default:
+		return "unknown"
+	}
 }
 
 // NewLinkAttrs returns LinkAttrs structure filled with default values

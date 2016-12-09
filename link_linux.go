@@ -1083,6 +1083,8 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 				}
 				base.Protinfo = parseProtinfo(attrs)
 			}
+		case syscall.IFLA_OPERSTATE:
+			base.OperState = LinkOperState(uint8(attr.Value[0]))
 		}
 	}
 	// Links that don't have IFLA_INFO_KIND are hardware devices
