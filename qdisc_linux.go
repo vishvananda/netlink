@@ -168,11 +168,13 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		options = nl.NewRtAttr(nl.TCA_OPTIONS, tcmap.Serialize())
 	} else if tbf, ok := qdisc.(*Tbf); ok {
 		opt := nl.TcTbfQopt{}
-		// TODO: handle rate > uint32
 		opt.Rate.Rate = uint32(tbf.Rate)
 		opt.Limit = tbf.Limit
 		opt.Buffer = tbf.Buffer
 		nl.NewRtAttrChild(options, nl.TCA_TBF_PARMS, opt.Serialize())
+		if tbf.Rate >= uint64(1<<32) {
+			nl.NewRtAttrChild(options, nl.TCA_TBF_RATE64, nl.Uint64Attr(tbf.Rate))
+		}
 	} else if htb, ok := qdisc.(*Htb); ok {
 		opt := nl.TcHtbGlob{}
 		opt.Version = htb.Version
