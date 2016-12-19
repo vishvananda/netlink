@@ -143,11 +143,11 @@ func LinkList() ([]Link, error) {
 	return nil, ErrNotImplemented
 }
 
-func AddrAdd(link *Link, addr *Addr) error {
+func AddrAdd(link Link, addr *Addr) error {
 	return ErrNotImplemented
 }
 
-func AddrDel(link *Link, addr *Addr) error {
+func AddrDel(link Link, addr *Addr) error {
 	return ErrNotImplemented
 }
 
