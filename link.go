@@ -659,6 +659,19 @@ func (iptun *Vti) Type() string {
 	return "vti"
 }
 
+type Vrf struct {
+	LinkAttrs
+	Table uint32
+}
+
+func (vrf *Vrf) Attrs() *LinkAttrs {
+	return &vrf.LinkAttrs
+}
+
+func (vrf *Vrf) Type() string {
+	return "vrf"
+}
+
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
 // bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |

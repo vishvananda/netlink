@@ -787,6 +787,8 @@ func (h *Handle) LinkAdd(link Link) error {
 		addIptunAttrs(iptun, linkInfo)
 	} else if vti, ok := link.(*Vti); ok {
 		addVtiAttrs(vti, linkInfo)
+	} else if vrf, ok := link.(*Vrf); ok {
+		addVrfAttrs(vrf, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -1014,6 +1016,8 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 						link = &Iptun{}
 					case "vti":
 						link = &Vti{}
+					case "vrf":
+						link = &Vrf{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}
@@ -1041,6 +1045,8 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 						parseIptunData(link, data)
 					case "vti":
 						parseVtiData(link, data)
+					case "vrf":
+						parseVrfData(link, data)
 					}
 				}
 			}
@@ -1614,6 +1620,23 @@ func parseVtiData(link Link, data []syscall.NetlinkRouteAttr) {
 			vti.IKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_VTI_OKEY:
 			vti.OKey = ntohl(datum.Value[0:4])
+		}
+	}
+}
+
+func addVrfAttrs(vrf *Vrf, linkInfo *nl.RtAttr) {
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+	b := make([]byte, 4)
+	native.PutUint32(b, uint32(vrf.Table))
+	nl.NewRtAttrChild(data, nl.IFLA_VRF_TABLE, b)
+}
+
+func parseVrfData(link Link, data []syscall.NetlinkRouteAttr) {
+	vrf := link.(*Vrf)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_VRF_TABLE:
+			vrf.Table = native.Uint32(datum.Value[0:4])
 		}
 	}
 }

@@ -447,3 +447,8 @@ const (
 	IFLA_VTI_REMOTE
 	IFLA_VTI_MAX = IFLA_VTI_REMOTE
 )
+
+const (
+	IFLA_VRF_UNSPEC = iota
+	IFLA_VRF_TABLE
+)
