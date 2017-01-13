@@ -13,7 +13,11 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-const SizeofLinkStats = 0x5c
+const (
+	SizeofLinkStats   = 0x5c
+	SizeofLinkStats64 = 0xd8
+	IFLA_STATS64      = 0x17 // syscall pkg does not contain this one
+)
 
 const (
 	TUNTAP_MODE_TUN  TuntapMode = syscall.IFF_TUN
@@ -1074,6 +1078,8 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 			base.Alias = string(attr.Value[:len(attr.Value)-1])
 		case syscall.IFLA_STATS:
 			base.Statistics = parseLinkStats(attr.Value[:])
+		case IFLA_STATS64:
+			base.Statistics64 = parseLinkStats64(attr.Value[:])
 		case nl.IFLA_XDP:
 			xdp, err := parseLinkXdp(attr.Value[:])
 			if err != nil {
@@ -1521,6 +1527,10 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 
 func parseLinkStats(data []byte) *LinkStatistics {
 	return (*LinkStatistics)(unsafe.Pointer(&data[0:SizeofLinkStats][0]))
+}
+
+func parseLinkStats64(data []byte) *LinkStatistics64 {
+	return (*LinkStatistics64)(unsafe.Pointer(&data[0:SizeofLinkStats64][0]))
 }
 
 func addXdpAttrs(xdp *LinkXdp, req *nl.NetlinkRequest) {

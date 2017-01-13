@@ -949,11 +949,19 @@ func TestLinkStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Check the 32 bits counter stats
 	v0Stats := veth0.Attrs().Statistics
 	v1Stats := veth1.Attrs().Statistics
 	if v0Stats.RxPackets != v1Stats.TxPackets || v0Stats.TxPackets != v1Stats.RxPackets ||
 		v0Stats.RxBytes != v1Stats.TxBytes || v0Stats.TxBytes != v1Stats.RxBytes {
 		t.Fatalf("veth ends counters differ:\n%v\n%v", v0Stats, v1Stats)
+	}
+	// Check the 64 bits counter stats
+	v0Stats64 := veth0.Attrs().Statistics64
+	v1Stats64 := veth1.Attrs().Statistics64
+	if v0Stats64.RxPackets != v1Stats64.TxPackets || v0Stats64.TxPackets != v1Stats64.RxPackets ||
+		v0Stats64.RxBytes != v1Stats64.TxBytes || v0Stats64.TxBytes != v1Stats64.RxBytes {
+		t.Fatalf("veth ends counters differ:\n%v\n%v", v0Stats64, v1Stats64)
 	}
 }
 
