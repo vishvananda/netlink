@@ -83,29 +83,29 @@ func NewLinkAttrs() LinkAttrs {
 Ref: struct rtnl_link_stats {...}
 */
 type LinkStatistics struct {
-	RxPackets         uint32
-	TxPackets         uint32
-	RxBytes           uint32
-	TxBytes           uint32
-	RxErrors          uint32
-	TxErrors          uint32
-	RxDropped         uint32
-	TxDropped         uint32
-	Multicast         uint32
-	Collisions        uint32
-	RxLengthErrors    uint32
-	RxOverErrors      uint32
-	RxCrcErrors       uint32
-	RxFrameErrors     uint32
-	RxFifoErrors      uint32
-	RxMissedErrors    uint32
-	TxAbortedErrors   uint32
-	TxCarrierErrors   uint32
-	TxFifoErrors      uint32
-	TxHeartbeatErrors uint32
-	TxWindowErrors    uint32
-	RxCompressed      uint32
-	TxCompressed      uint32
+	RxPackets         uint64
+	TxPackets         uint64
+	RxBytes           uint64
+	TxBytes           uint64
+	RxErrors          uint64
+	TxErrors          uint64
+	RxDropped         uint64
+	TxDropped         uint64
+	Multicast         uint64
+	Collisions        uint64
+	RxLengthErrors    uint64
+	RxOverErrors      uint64
+	RxCrcErrors       uint64
+	RxFrameErrors     uint64
+	RxFifoErrors      uint64
+	RxMissedErrors    uint64
+	TxAbortedErrors   uint64
+	TxCarrierErrors   uint64
+	TxFifoErrors      uint64
+	TxHeartbeatErrors uint64
+	TxWindowErrors    uint64
+	RxCompressed      uint64
+	TxCompressed      uint64
 }
 
 type LinkXdp struct {
