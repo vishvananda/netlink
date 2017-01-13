@@ -13,7 +13,11 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-const SizeofLinkStats = 0x5c
+const (
+	SizeofLinkStats32 = 0x5c
+	SizeofLinkStats64 = 0xd8
+	IFLA_STATS64      = 0x17 // syscall pkg does not contain this one
+)
 
 const (
 	TUNTAP_MODE_TUN  TuntapMode = syscall.IFF_TUN
@@ -976,8 +980,12 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 	if msg.Flags&syscall.IFF_PROMISC != 0 {
 		base.Promisc = 1
 	}
-	var link Link
-	linkType := ""
+	var (
+		link     Link
+		stats32  []byte
+		stats64  []byte
+		linkType string
+	)
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case syscall.IFLA_LINKINFO:
@@ -1073,7 +1081,9 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 		case syscall.IFLA_IFALIAS:
 			base.Alias = string(attr.Value[:len(attr.Value)-1])
 		case syscall.IFLA_STATS:
-			base.Statistics = parseLinkStats(attr.Value[:])
+			stats32 = attr.Value[:]
+		case IFLA_STATS64:
+			stats64 = attr.Value[:]
 		case nl.IFLA_XDP:
 			xdp, err := parseLinkXdp(attr.Value[:])
 			if err != nil {
@@ -1093,6 +1103,13 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 			base.OperState = LinkOperState(uint8(attr.Value[0]))
 		}
 	}
+
+	if stats64 != nil {
+		base.Statistics = parseLinkStats64(stats64)
+	} else if stats32 != nil {
+		base.Statistics = parseLinkStats32(stats32)
+	}
+
 	// Links that don't have IFLA_INFO_KIND are hardware devices
 	if link == nil {
 		link = &Device{}
@@ -1519,8 +1536,12 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 	}
 }
 
-func parseLinkStats(data []byte) *LinkStatistics {
-	return (*LinkStatistics)(unsafe.Pointer(&data[0:SizeofLinkStats][0]))
+func parseLinkStats32(data []byte) *LinkStatistics {
+	return (*LinkStatistics)((*LinkStatistics32)(unsafe.Pointer(&data[0:SizeofLinkStats32][0])).to64())
+}
+
+func parseLinkStats64(data []byte) *LinkStatistics {
+	return (*LinkStatistics)((*LinkStatistics64)(unsafe.Pointer(&data[0:SizeofLinkStats64][0])))
 }
 
 func addXdpAttrs(xdp *LinkXdp, req *nl.NetlinkRequest) {
