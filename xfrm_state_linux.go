@@ -241,14 +241,7 @@ func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState
 
 var familyError = fmt.Errorf("family error")
 
-func parseXfrmState(m []byte, family int) (*XfrmState, error) {
-	msg := nl.DeserializeXfrmUsersaInfo(m)
-
-	// This is mainly for the state dump
-	if family != FAMILY_ALL && family != int(msg.Family) {
-		return nil, familyError
-	}
-
+func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	var state XfrmState
 
 	state.Dst = msg.Id.Daddr.ToIP()
@@ -259,6 +252,19 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 	state.Reqid = int(msg.Reqid)
 	state.ReplayWindow = int(msg.ReplayWindow)
 	lftToLimits(&msg.Lft, &state.Limits)
+
+	return &state
+}
+
+func parseXfrmState(m []byte, family int) (*XfrmState, error) {
+	msg := nl.DeserializeXfrmUsersaInfo(m)
+
+	// This is mainly for the state dump
+	if family != FAMILY_ALL && family != int(msg.Family) {
+		return nil, familyError
+	}
+
+	state := xfrmStateFromXfrmUsersaInfo(msg)
 
 	attrs, err := nl.ParseRouteAttr(m[nl.SizeofXfrmUsersaInfo:])
 	if err != nil {
@@ -310,7 +316,7 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 		}
 	}
 
-	return &state, nil
+	return state, nil
 }
 
 // XfrmStateFlush will flush the xfrm state on the system.
