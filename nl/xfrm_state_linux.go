@@ -8,6 +8,7 @@ const (
 	SizeofXfrmUsersaId    = 0x18
 	SizeofXfrmStats       = 0x0c
 	SizeofXfrmUsersaInfo  = 0xe0
+	SizeofXfrmUserSpiInfo = 0xe8
 	SizeofXfrmAlgo        = 0x44
 	SizeofXfrmAlgoAuth    = 0x48
 	SizeofXfrmAlgoAEAD    = 0x48
@@ -118,6 +119,30 @@ func DeserializeXfrmUsersaInfo(b []byte) *XfrmUsersaInfo {
 
 func (msg *XfrmUsersaInfo) Serialize() []byte {
 	return (*(*[SizeofXfrmUsersaInfo]byte)(unsafe.Pointer(msg)))[:]
+}
+
+// struct xfrm_userspi_info {
+// 	struct xfrm_usersa_info		info;
+// 	__u32				min;
+// 	__u32				max;
+// };
+
+type XfrmUserSpiInfo struct {
+	XfrmUsersaInfo XfrmUsersaInfo
+	Min            uint32
+	Max            uint32
+}
+
+func (msg *XfrmUserSpiInfo) Len() int {
+	return SizeofXfrmUserSpiInfo
+}
+
+func DeserializeXfrmUserSpiInfo(b []byte) *XfrmUserSpiInfo {
+	return (*XfrmUserSpiInfo)(unsafe.Pointer(&b[0:SizeofXfrmUserSpiInfo][0]))
+}
+
+func (msg *XfrmUserSpiInfo) Serialize() []byte {
+	return (*(*[SizeofXfrmUserSpiInfo]byte)(unsafe.Pointer(msg)))[:]
 }
 
 // struct xfrm_algo {

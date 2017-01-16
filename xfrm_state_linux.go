@@ -72,6 +72,12 @@ func (h *Handle) XfrmStateAdd(state *XfrmState) error {
 	return h.xfrmStateAddOrUpdate(state, nl.XFRM_MSG_NEWSA)
 }
 
+// XfrmStateAllocSpi will allocate an xfrm state in the system.
+// Equivalent to: `ip xfrm state allocspi`
+func XfrmStateAllocSpi(state *XfrmState) (*XfrmState, error) {
+	return pkgHandle.xfrmStateAllocSpi(state)
+}
+
 // XfrmStateUpdate will update an xfrm state to the system.
 // Equivalent to: `ip xfrm state update $state`
 func XfrmStateUpdate(state *XfrmState) error {
@@ -91,15 +97,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 	}
 	req := h.newNetlinkRequest(nlProto, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
-	msg := &nl.XfrmUsersaInfo{}
-	msg.Family = uint16(nl.GetIPFamily(state.Dst))
-	msg.Id.Daddr.FromIP(state.Dst)
-	msg.Saddr.FromIP(state.Src)
-	msg.Id.Proto = uint8(state.Proto)
-	msg.Mode = uint8(state.Mode)
-	msg.Id.Spi = nl.Swap32(uint32(state.Spi))
-	msg.Reqid = uint32(state.Reqid)
-	msg.ReplayWindow = uint8(state.ReplayWindow)
+	msg := xfrmUsersaInfoFromXfrmState(state)
 	limitsToLft(state.Limits, &msg.Lft)
 	req.AddData(msg)
 
@@ -132,6 +130,35 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 
 	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
 	return err
+}
+
+func (h *Handle) xfrmStateAllocSpi(state *XfrmState) (*XfrmState, error) {
+	req := h.newNetlinkRequest(nl.XFRM_MSG_ALLOCSPI,
+		syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+
+	msg := &nl.XfrmUserSpiInfo{}
+	msg.XfrmUsersaInfo = *(xfrmUsersaInfoFromXfrmState(state))
+	// 1-255 is reserved by IANA for future use
+	msg.Min = 0x100
+	msg.Max = 0xffffffff
+	req.AddData(msg)
+
+	if state.Mark != nil {
+		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
+		req.AddData(out)
+	}
+
+	msgs, err := req.Execute(syscall.NETLINK_XFRM, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := parseXfrmState(msgs[0], FAMILY_ALL)
+	if err != nil {
+		return nil, err
+	}
+
+	return s, err
 }
 
 // XfrmStateDel will delete an xfrm state from the system. Note that
@@ -371,4 +398,18 @@ func limitsToLft(lmts XfrmStateLimits, lft *nl.XfrmLifetimeCfg) {
 
 func lftToLimits(lft *nl.XfrmLifetimeCfg, lmts *XfrmStateLimits) {
 	*lmts = *(*XfrmStateLimits)(unsafe.Pointer(lft))
+}
+
+func xfrmUsersaInfoFromXfrmState(state *XfrmState) *nl.XfrmUsersaInfo {
+	msg := &nl.XfrmUsersaInfo{}
+	msg.Family = uint16(nl.GetIPFamily(state.Dst))
+	msg.Id.Daddr.FromIP(state.Dst)
+	msg.Saddr.FromIP(state.Src)
+	msg.Id.Proto = uint8(state.Proto)
+	msg.Mode = uint8(state.Mode)
+	msg.Id.Spi = nl.Swap32(uint32(state.Spi))
+	msg.Reqid = uint32(state.Reqid)
+	msg.ReplayWindow = uint8(state.ReplayWindow)
+
+	return msg
 }
