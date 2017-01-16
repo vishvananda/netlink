@@ -118,6 +118,33 @@ func (msg *XfrmAlgo) serializeSafe() []byte {
 	return b
 }
 
+func (msg *XfrmUserSpiInfo) write(b []byte) {
+	native := NativeEndian()
+	msg.XfrmUsersaInfo.write(b[0:SizeofXfrmUsersaInfo])
+	native.PutUint32(b[SizeofXfrmUsersaInfo:SizeofXfrmUsersaInfo+4], msg.Min)
+	native.PutUint32(b[SizeofXfrmUsersaInfo+4:SizeofXfrmUsersaInfo+8], msg.Max)
+}
+
+func (msg *XfrmUserSpiInfo) serializeSafe() []byte {
+	b := make([]byte, SizeofXfrmUserSpiInfo)
+	msg.write(b)
+	return b
+}
+
+func deserializeXfrmUserSpiInfoSafe(b []byte) *XfrmUserSpiInfo {
+	var msg = XfrmUserSpiInfo{}
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmUserSpiInfo]), NativeEndian(), &msg)
+	return &msg
+}
+
+func TestXfrmUserSpiInfoDeserializeSerialize(t *testing.T) {
+	var orig = make([]byte, SizeofXfrmUserSpiInfo)
+	rand.Read(orig)
+	safemsg := deserializeXfrmUserSpiInfoSafe(orig)
+	msg := DeserializeXfrmUserSpiInfo(orig)
+	testDeserializeSerialize(t, orig, safemsg, msg)
+}
+
 func deserializeXfrmAlgoSafe(b []byte) *XfrmAlgo {
 	var msg = XfrmAlgo{}
 	copy(msg.AlgName[:], b[0:64])
