@@ -60,6 +60,21 @@ func writeMark(m *XfrmMark) []byte {
 	return mark.Serialize()
 }
 
+func writeReplayEsn(replayWindow int) []byte {
+	replayEsn := &nl.XfrmReplayStateEsn{
+		OSeq:         0,
+		Seq:          0,
+		OSeqHi:       0,
+		SeqHi:        0,
+		ReplayWindow: uint32(replayWindow),
+	}
+
+	// taken from iproute2/ip/xfrm_state.c:
+	replayEsn.BmpLen = uint32((replayWindow + (4 * 8) - 1) / (4 * 8))
+
+	return replayEsn.Serialize()
+}
+
 // XfrmStateAdd will add an xfrm state to the system.
 // Equivalent to: `ip xfrm state add $state`
 func XfrmStateAdd(state *XfrmState) error {
@@ -91,6 +106,7 @@ func (h *Handle) XfrmStateUpdate(state *XfrmState) error {
 }
 
 func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
+
 	// A state with spi 0 can't be deleted so don't allow it to be set
 	if state.Spi == 0 {
 		return fmt.Errorf("Spi must be set when adding xfrm state.")
@@ -98,6 +114,15 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 	req := h.newNetlinkRequest(nlProto, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
 	msg := xfrmUsersaInfoFromXfrmState(state)
+
+	if state.ESN {
+		if state.ReplayWindow == 0 {
+			return fmt.Errorf("ESN flag set without ReplayWindow")
+		}
+		msg.Flags |= nl.XFRM_STATE_ESN
+		msg.ReplayWindow = 0
+	}
+
 	limitsToLft(state.Limits, &msg.Lft)
 	req.AddData(msg)
 
@@ -125,6 +150,10 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 	}
 	if state.Mark != nil {
 		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
+		req.AddData(out)
+	}
+	if state.ESN {
+		out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))
 		req.AddData(out)
 	}
 
