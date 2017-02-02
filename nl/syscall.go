@@ -35,3 +35,9 @@ const (
 	FR_ACT_UNREACHABLE /* Drop with ENETUNREACH */
 	FR_ACT_PROHIBIT    /* Drop with EACCES */
 )
+
+// socket diags related
+const (
+	SOCK_DIAG_BY_FAMILY = 20         /* linux.sock_diag.h */
+	TCPDIAG_NOCOOKIE    = 0xFFFFFFFF /* TCPDIAG_NOCOOKIE in net/ipv4/tcp_diag.h*/
+)

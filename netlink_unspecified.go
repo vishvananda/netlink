@@ -2,14 +2,7 @@
 
 package netlink
 
-import (
-	"errors"
-	"net"
-)
-
-var (
-	ErrNotImplemented = errors.New("not implemented")
-)
+import "net"
 
 func LinkSetUp(link Link) error {
 	return ErrNotImplemented
@@ -212,5 +205,9 @@ func NeighList(linkIndex, family int) ([]Neigh, error) {
 }
 
 func NeighDeserialize(m []byte) (*Neigh, error) {
+	return nil, ErrNotImplemented
+}
+
+func SocketGet(local, remote net.Addr) (*Socket, error) {
 	return nil, ErrNotImplemented
 }
