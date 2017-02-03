@@ -61,7 +61,22 @@ func RouteAdd(route *Route) error {
 // RouteAdd will add a route to the system.
 // Equivalent to: `ip route add $route`
 func (h *Handle) RouteAdd(route *Route) error {
-	req := h.newNetlinkRequest(syscall.RTM_NEWROUTE, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	flags := syscall.NLM_F_CREATE | syscall.NLM_F_EXCL | syscall.NLM_F_ACK
+	req := h.newNetlinkRequest(syscall.RTM_NEWROUTE, flags)
+	return h.routeHandle(route, req, nl.NewRtMsg())
+}
+
+// RouteReplace will add a route to the system.
+// Equivalent to: `ip route replace $route`
+func RouteReplace(route *Route) error {
+	return pkgHandle.RouteReplace(route)
+}
+
+// RouteReplace will add a route to the system.
+// Equivalent to: `ip route replace $route`
+func (h *Handle) RouteReplace(route *Route) error {
+	flags := syscall.NLM_F_CREATE | syscall.NLM_F_REPLACE | syscall.NLM_F_ACK
+	req := h.newNetlinkRequest(syscall.RTM_NEWROUTE, flags)
 	return h.routeHandle(route, req, nl.NewRtMsg())
 }
 
