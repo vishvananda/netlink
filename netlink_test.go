@@ -11,12 +11,16 @@ import (
 
 type tearDownNetlinkTest func()
 
-func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
+func skipUnlessRoot(t *testing.T) {
 	if os.Getuid() != 0 {
 		msg := "Skipped test because it requires root privileges."
 		log.Printf(msg)
 		t.Skip(msg)
 	}
+}
+
+func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
+	skipUnlessRoot(t)
 
 	// new temporary namespace so we don't pollute the host
 	// lock thread since the namespace is thread local

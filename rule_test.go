@@ -7,6 +7,8 @@ import (
 )
 
 func TestRuleAddDel(t *testing.T) {
+	skipUnlessRoot(t)
+
 	srcNet := &net.IPNet{IP: net.IPv4(172, 16, 0, 1), Mask: net.CIDRMask(16, 32)}
 	dstNet := &net.IPNet{IP: net.IPv4(172, 16, 1, 1), Mask: net.CIDRMask(24, 32)}
 

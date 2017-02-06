@@ -862,6 +862,8 @@ func TestLinkSubscribe(t *testing.T) {
 }
 
 func TestLinkSubscribeAt(t *testing.T) {
+	skipUnlessRoot(t)
+
 	// Create an handle on a custom netns
 	newNs, err := netns.New()
 	if err != nil {
