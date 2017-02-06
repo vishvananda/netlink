@@ -39,6 +39,8 @@ func TestHandleCreateDelete(t *testing.T) {
 }
 
 func TestHandleCreateNetns(t *testing.T) {
+	skipUnlessRoot(t)
+
 	id := make([]byte, 4)
 	if _, err := io.ReadFull(rand.Reader, id); err != nil {
 		t.Fatal(err)
@@ -236,6 +238,7 @@ func parallelDone() {
 
 // Do few route and xfrm operation on the two handles in parallel
 func runParallelTests(t *testing.T, thread int) {
+	skipUnlessRoot(t)
 	defer parallelDone()
 
 	t.Parallel()
