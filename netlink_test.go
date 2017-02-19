@@ -36,3 +36,23 @@ func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
 		runtime.UnlockOSThread()
 	}
 }
+
+func setUpMPLSNetlinkTest(t *testing.T) tearDownNetlinkTest {
+	if _, err := os.Stat("/proc/sys/net/mpls/platform_labels"); err != nil {
+		msg := "Skipped test because it requires MPLS support."
+		log.Printf(msg)
+		t.Skip(msg)
+	}
+	f := setUpNetlinkTest(t)
+	setUpF := func(path, value string) {
+		file, err := os.Create(path)
+		defer file.Close()
+		if err != nil {
+			t.Fatalf("Failed to open %s: %s", path, err)
+		}
+		file.WriteString(value)
+	}
+	setUpF("/proc/sys/net/mpls/platform_labels", "1024")
+	setUpF("/proc/sys/net/mpls/conf/lo/input", "1")
+	return f
+}

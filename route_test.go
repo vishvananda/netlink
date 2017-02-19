@@ -449,3 +449,50 @@ func TestFilterDefaultRoute(t *testing.T) {
 	}
 
 }
+
+func TestMPLSRouteAddDel(t *testing.T) {
+	tearDown := setUpMPLSNetlinkTest(t)
+	defer tearDown()
+
+	// get loopback interface
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bring the interface up
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	mplsDst := 100
+	route := Route{
+		LinkIndex: link.Attrs().Index,
+		MPLSDst:   &mplsDst,
+		NewDst: &MPLSDestination{
+			Labels: []int{200, 300},
+		},
+	}
+	if err := RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+	routes, err := RouteList(link, FAMILY_MPLS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatal("Route not added properly")
+	}
+
+	if err := RouteDel(&route); err != nil {
+		t.Fatal(err)
+	}
+	routes, err = RouteList(link, FAMILY_MPLS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 0 {
+		t.Fatal("Route not removed properly")
+	}
+
+}
