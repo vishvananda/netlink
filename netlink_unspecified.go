@@ -64,6 +64,14 @@ func LinkSetXdpFd(link Link, fd int) error {
 	return ErrNotImplemented
 }
 
+func LinkSetARPOff(link Link) error {
+	return ErrNotImplemented
+}
+
+func LinkSetARPOn(link Link) error {
+	return ErrNotImplemented
+}
+
 func LinkByName(name string) (Link, error) {
 	return nil, ErrNotImplemented
 }

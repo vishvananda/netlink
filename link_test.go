@@ -812,6 +812,49 @@ func TestLinkSet(t *testing.T) {
 	}
 }
 
+func TestLinkSetARP(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	iface := &Veth{LinkAttrs: LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1500}, PeerName: "banana"}
+	if err := LinkAdd(iface); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkSetARPOff(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().RawFlags&syscall.IFF_NOARP != uint32(syscall.IFF_NOARP) {
+		t.Fatalf("NOARP was not set!")
+	}
+
+	err = LinkSetARPOn(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().RawFlags&syscall.IFF_NOARP != 0 {
+		t.Fatalf("NOARP is still set!")
+	}
+}
+
 func expectLinkUpdate(ch <-chan LinkUpdate, ifaceName string, up bool) bool {
 	for {
 		timeout := time.After(time.Minute)

@@ -58,6 +58,44 @@ func (h *Handle) ensureIndex(link *LinkAttrs) {
 	}
 }
 
+func (h *Handle) LinkSetARPOff(link Link) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Change |= syscall.IFF_NOARP
+	msg.Flags |= syscall.IFF_NOARP
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func LinkSetARPOff(link Link) error {
+	return pkgHandle.LinkSetARPOff(link)
+}
+
+func (h *Handle) LinkSetARPOn(link Link) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Change |= syscall.IFF_NOARP
+	msg.Flags &= ^uint32(syscall.IFF_NOARP)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+func LinkSetARPOn(link Link) error {
+	return pkgHandle.LinkSetARPOn(link)
+}
+
 func (h *Handle) SetPromiscOn(link Link) error {
 	base := link.Attrs()
 	h.ensureIndex(base)
