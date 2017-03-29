@@ -451,7 +451,7 @@ type NetlinkSocket struct {
 }
 
 func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
-	fd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW, protocol)
+	fd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW|syscall.SOCK_CLOEXEC, protocol)
 	if err != nil {
 		return nil, err
 	}
