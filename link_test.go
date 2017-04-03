@@ -237,7 +237,7 @@ func TestLinkAddDelBridge(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Bridge{LinkAttrs{Name: "foo", MTU: 1400}})
+	testLinkAddDel(t, &Bridge{LinkAttrs: LinkAttrs{Name: "foo", MTU: 1400}})
 }
 
 func TestLinkAddDelGretap(t *testing.T) {
@@ -447,7 +447,7 @@ func TestLinkAddDelBridgeMaster(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	master := &Bridge{LinkAttrs{Name: "foo"}}
+	master := &Bridge{LinkAttrs: LinkAttrs{Name: "foo"}}
 	if err := LinkAdd(master); err != nil {
 		t.Fatal(err)
 	}
@@ -462,12 +462,12 @@ func TestLinkSetUnsetResetMaster(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	master := &Bridge{LinkAttrs{Name: "foo"}}
+	master := &Bridge{LinkAttrs: LinkAttrs{Name: "foo"}}
 	if err := LinkAdd(master); err != nil {
 		t.Fatal(err)
 	}
 
-	newmaster := &Bridge{LinkAttrs{Name: "bar"}}
+	newmaster := &Bridge{LinkAttrs: LinkAttrs{Name: "bar"}}
 	if err := LinkAdd(newmaster); err != nil {
 		t.Fatal(err)
 	}
@@ -477,7 +477,7 @@ func TestLinkSetUnsetResetMaster(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nonexistsmaster := &Bridge{LinkAttrs{Name: "foobar"}}
+	nonexistsmaster := &Bridge{LinkAttrs: LinkAttrs{Name: "foobar"}}
 
 	if err := LinkSetMaster(slave, nonexistsmaster); err == nil {
 		t.Fatal("error expected")
@@ -1066,11 +1066,141 @@ func TestLinkAddDelVti(t *testing.T) {
 		Remote:    net.IPv4(127, 0, 0, 1)})
 }
 
+func TestBridgeCreationWithMulticastSnooping(t *testing.T) {
+	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
+		t.Skipf("Travis CI worker Linux kernel version (3.13) is too old for this test")
+	}
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeWithDefaultMcastSnoopName := "foo"
+	bridgeWithDefaultMcastSnoop := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithDefaultMcastSnoopName}}
+	if err := LinkAdd(bridgeWithDefaultMcastSnoop); err != nil {
+		t.Fatal(err)
+	}
+	expectMcastSnooping(t, bridgeWithDefaultMcastSnoopName, true)
+	if err := LinkDel(bridgeWithDefaultMcastSnoop); err != nil {
+		t.Fatal(err)
+	}
+
+	mcastSnoop := true
+	bridgeWithMcastSnoopOnName := "bar"
+	bridgeWithMcastSnoopOn := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithMcastSnoopOnName}, MulticastSnooping: &mcastSnoop}
+	if err := LinkAdd(bridgeWithMcastSnoopOn); err != nil {
+		t.Fatal(err)
+	}
+	expectMcastSnooping(t, bridgeWithMcastSnoopOnName, true)
+	if err := LinkDel(bridgeWithMcastSnoopOn); err != nil {
+		t.Fatal(err)
+	}
+
+	mcastSnoop = false
+	bridgeWithMcastSnoopOffName := "foobar"
+	bridgeWithMcastSnoopOff := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithMcastSnoopOffName}, MulticastSnooping: &mcastSnoop}
+	if err := LinkAdd(bridgeWithMcastSnoopOff); err != nil {
+		t.Fatal(err)
+	}
+	expectMcastSnooping(t, bridgeWithMcastSnoopOffName, false)
+	if err := LinkDel(bridgeWithMcastSnoopOff); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBridgeSetMcastSnoop(t *testing.T) {
+	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
+		t.Skipf("Travis CI worker Linux kernel version (3.13) is too old for this test")
+	}
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeName := "foo"
+	bridge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeName}}
+	if err := LinkAdd(bridge); err != nil {
+		t.Fatal(err)
+	}
+	expectMcastSnooping(t, bridgeName, true)
+
+	if err := BridgeSetMcastSnoop(bridge, false); err != nil {
+		t.Fatal(err)
+	}
+	expectMcastSnooping(t, bridgeName, false)
+
+	if err := BridgeSetMcastSnoop(bridge, true); err != nil {
+		t.Fatal(err)
+	}
+	expectMcastSnooping(t, bridgeName, true)
+
+	if err := LinkDel(bridge); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func expectMcastSnooping(t *testing.T, linkName string, expected bool) {
+	bridge, err := LinkByName(linkName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual := *bridge.(*Bridge).MulticastSnooping; actual != expected {
+		t.Fatalf("expected %t got %t", expected, actual)
+	}
+}
+
+func TestBridgeCreationWithHelloTime(t *testing.T) {
+	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
+		t.Skipf("Travis CI worker Linux kernel version (3.13) is too old for this test")
+	}
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeWithSpecifiedHelloTimeName := "foo"
+	helloTime := uint32(300)
+	bridgeWithSpecifiedHelloTime := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithSpecifiedHelloTimeName}, HelloTime: &helloTime}
+	if err := LinkAdd(bridgeWithSpecifiedHelloTime); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err := LinkByName(bridgeWithSpecifiedHelloTimeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actualHelloTime := *retrievedBridge.(*Bridge).HelloTime
+	if actualHelloTime != helloTime {
+		t.Fatalf("expected %d got %d", helloTime, actualHelloTime)
+	}
+	if err := LinkDel(bridgeWithSpecifiedHelloTime); err != nil {
+		t.Fatal(err)
+	}
+
+	bridgeWithDefaultHelloTimeName := "bar"
+	bridgeWithDefaultHelloTime := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithDefaultHelloTimeName}}
+	if err := LinkAdd(bridgeWithDefaultHelloTime); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err = LinkByName(bridgeWithDefaultHelloTimeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actualHelloTime = *retrievedBridge.(*Bridge).HelloTime
+	if actualHelloTime != 200 {
+		t.Fatalf("expected %d got %d", 200, actualHelloTime)
+	}
+	if err := LinkDel(bridgeWithDefaultHelloTime); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLinkSubscribeWithProtinfo(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	master := &Bridge{LinkAttrs{Name: "foo"}}
+	master := &Bridge{LinkAttrs: LinkAttrs{Name: "foo"}}
 	if err := LinkAdd(master); err != nil {
 		t.Fatal(err)
 	}
