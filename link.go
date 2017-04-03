@@ -215,6 +215,8 @@ func (ifb *Ifb) Type() string {
 // Bridge links are simple linux bridges
 type Bridge struct {
 	LinkAttrs
+	MulticastSnooping *bool
+	HelloTime         *uint32
 }
 
 func (bridge *Bridge) Attrs() *LinkAttrs {
