@@ -51,6 +51,7 @@ func TestFilterAddDel(t *testing.T) {
 	if !ok {
 		t.Fatal("Qdisc is the wrong type")
 	}
+	classId := MakeHandle(1, 1)
 	filter := &U32{
 		FilterAttrs: FilterAttrs{
 			LinkIndex: link.Attrs().Index,
@@ -59,6 +60,7 @@ func TestFilterAddDel(t *testing.T) {
 			Protocol:  syscall.ETH_P_IP,
 		},
 		RedirIndex: redir.Attrs().Index,
+		ClassId:    classId,
 	}
 	if err := FilterAdd(filter); err != nil {
 		t.Fatal(err)
@@ -69,6 +71,13 @@ func TestFilterAddDel(t *testing.T) {
 	}
 	if len(filters) != 1 {
 		t.Fatal("Failed to add filter")
+	}
+	u32, ok := filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+	if u32.ClassId != classId {
+		t.Fatalf("ClassId of the filter is the wrong value")
 	}
 	if err := FilterDel(filter); err != nil {
 		t.Fatal(err)
@@ -296,6 +305,7 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 	if err != nil {
 		t.Skipf("Loading bpf program failed: %s", err)
 	}
+	classId := MakeHandle(1, 1)
 	filter := &U32{
 		FilterAttrs: FilterAttrs{
 			LinkIndex: link.Attrs().Index,
@@ -303,7 +313,7 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 			Priority:  1,
 			Protocol:  syscall.ETH_P_ALL,
 		},
-		ClassId: MakeHandle(1, 1),
+		ClassId: classId,
 		Actions: []Action{
 			&BpfAction{Fd: fd, Name: "simple"},
 			&MirredAction{
@@ -334,6 +344,9 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 
 	if len(u32.Actions) != 2 {
 		t.Fatalf("Too few Actions in filter")
+	}
+	if u32.ClassId != classId {
+		t.Fatalf("ClassId of the filter is the wrong value")
 	}
 	bpfAction, ok := u32.Actions[0].(*BpfAction)
 	if !ok {
