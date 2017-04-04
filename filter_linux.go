@@ -443,6 +443,8 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 					u32.RedirIndex = int(action.Ifindex)
 				}
 			}
+		case nl.TCA_U32_CLASSID:
+			u32.ClassId = native.Uint32(datum.Value)
 		}
 	}
 	return detailed, nil
