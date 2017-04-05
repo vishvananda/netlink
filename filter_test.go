@@ -101,6 +101,163 @@ func TestFilterAddDel(t *testing.T) {
 	}
 }
 
+func TestAdvancedFilterAddDel(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "baz"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("baz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	index := link.Attrs().Index
+
+	qdiscHandle := MakeHandle(0x1, 0x0)
+	qdiscAttrs := QdiscAttrs{
+		LinkIndex: index,
+		Handle:    qdiscHandle,
+		Parent:    HANDLE_ROOT,
+	}
+
+	qdisc := NewHtb(qdiscAttrs)
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := QdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 1 {
+		t.Fatal("Failed to add qdisc")
+	}
+	_, ok := qdiscs[0].(*Htb)
+	if !ok {
+		t.Fatal("Qdisc is the wrong type")
+	}
+
+	classId := MakeHandle(0x1, 0x46cb)
+	classAttrs := ClassAttrs{
+		LinkIndex: index,
+		Parent:    qdiscHandle,
+		Handle:    classId,
+	}
+	htbClassAttrs := HtbClassAttrs{
+		Rate:   512 * 1024,
+		Buffer: 32 * 1024,
+	}
+	htbClass := NewHtbClass(classAttrs, htbClassAttrs)
+	if err = ClassReplace(htbClass); err != nil {
+		t.Fatalf("Failed to add a HTB class: %v", err)
+	}
+	classes, err := ClassList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(classes) != 1 {
+		t.Fatal("Failed to add class")
+	}
+	_, ok = classes[0].(*HtbClass)
+	if !ok {
+		t.Fatal("Class is the wrong type")
+	}
+
+	u32SelKeys := []TcU32Key{
+		TcU32Key{
+			Mask:    0xff,
+			Val:     80,
+			Off:     20,
+			OffMask: 0,
+		},
+		TcU32Key{
+			Mask:    0xffff,
+			Val:     0x146ca,
+			Off:     32,
+			OffMask: 0,
+		},
+	}
+	filter := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: index,
+			Parent:    qdiscHandle,
+			Priority:  1,
+			Protocol:  syscall.ETH_P_ALL,
+		},
+		Sel: &TcU32Sel{
+			Keys:  u32SelKeys,
+			Flags: TC_U32_TERMINAL,
+		},
+		ClassId: classId,
+		Actions: []Action{},
+	}
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err := FilterList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+
+	u32, ok := filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+	// Endianness checks
+	if u32.Sel.Offmask != filter.Sel.Offmask {
+		t.Fatal("The endianness of TcU32Key.Sel.Offmask is wrong")
+	}
+	if u32.Sel.Hmask != filter.Sel.Hmask {
+		t.Fatal("The endianness of TcU32Key.Sel.Hmask is wrong")
+	}
+	for i, key := range u32.Sel.Keys {
+		if key.Mask != filter.Sel.Keys[i].Mask {
+			t.Fatal("The endianness of TcU32Key.Mask is wrong")
+		}
+		if key.Val != filter.Sel.Keys[i].Val {
+			t.Fatal("The endianness of TcU32Key.Val is wrong")
+		}
+	}
+
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err = ClassDel(htbClass); err != nil {
+		t.Fatalf("Failed to delete a HTP class: %v", err)
+	}
+	classes, err = ClassList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(classes) != 0 {
+		t.Fatal("Failed to remove class")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = QdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 0 {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
+
 func TestFilterFwAddDel(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
