@@ -231,8 +231,7 @@ func TestConntrackTableDelete(t *testing.T) {
 
 	// Create a filter to erase groupB flows
 	filter := &ConntrackFilter{}
-	ip := net.ParseIP("127.0.0.20")
-	filter.AddIP(ConntrackOrigDstIP, &ip)
+	filter.AddIP(ConntrackOrigDstIP, net.ParseIP("127.0.0.20"))
 
 	// Flush entries of groupB
 	var deleted uint
@@ -328,12 +327,10 @@ func TestConntrackFilter(t *testing.T) {
 
 	// SrcIP filter
 	filterV4 := &ConntrackFilter{}
-	ip := net.ParseIP("10.0.0.1")
-	filterV4.AddIP(ConntrackOrigSrcIP, &ip)
+	filterV4.AddIP(ConntrackOrigSrcIP, net.ParseIP("10.0.0.1"))
 
 	filterV6 := &ConntrackFilter{}
-	ip = net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee")
-	filterV6.AddIP(ConntrackOrigSrcIP, &ip)
+	filterV6.AddIP(ConntrackOrigSrcIP, net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"))
 
 	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
@@ -342,12 +339,10 @@ func TestConntrackFilter(t *testing.T) {
 
 	// DstIp filter
 	filterV4 = &ConntrackFilter{}
-	ip = net.ParseIP("20.0.0.1")
-	filterV4.AddIP(ConntrackOrigDstIP, &ip)
+	filterV4.AddIP(ConntrackOrigDstIP, net.ParseIP("20.0.0.1"))
 
 	filterV6 = &ConntrackFilter{}
-	ip = net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd")
-	filterV6.AddIP(ConntrackOrigDstIP, &ip)
+	filterV6.AddIP(ConntrackOrigDstIP, net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
 
 	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
@@ -356,12 +351,10 @@ func TestConntrackFilter(t *testing.T) {
 
 	// SrcIP for NAT
 	filterV4 = &ConntrackFilter{}
-	ip = net.ParseIP("20.0.0.1")
-	filterV4.AddIP(ConntrackNatSrcIP, &ip)
+	filterV4.AddIP(ConntrackNatSrcIP, net.ParseIP("20.0.0.1"))
 
 	filterV6 = &ConntrackFilter{}
-	ip = net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd")
-	filterV6.AddIP(ConntrackNatSrcIP, &ip)
+	filterV6.AddIP(ConntrackNatSrcIP, net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
 
 	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
@@ -370,12 +363,10 @@ func TestConntrackFilter(t *testing.T) {
 
 	// DstIP for NAT
 	filterV4 = &ConntrackFilter{}
-	ip = net.ParseIP("192.168.1.1")
-	filterV4.AddIP(ConntrackNatDstIP, &ip)
+	filterV4.AddIP(ConntrackNatDstIP, net.ParseIP("192.168.1.1"))
 
 	filterV6 = &ConntrackFilter{}
-	ip = net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd")
-	filterV6.AddIP(ConntrackNatDstIP, &ip)
+	filterV6.AddIP(ConntrackNatDstIP, net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
 
 	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 0 {
@@ -384,12 +375,10 @@ func TestConntrackFilter(t *testing.T) {
 
 	// AnyIp for Nat
 	filterV4 = &ConntrackFilter{}
-	ip = net.ParseIP("192.168.1.1")
-	filterV4.AddIP(ConntrackNatAnyIP, &ip)
+	filterV4.AddIP(ConntrackNatAnyIP, net.ParseIP("192.168.1.1"))
 
 	filterV6 = &ConntrackFilter{}
-	ip = net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee")
-	filterV6.AddIP(ConntrackNatAnyIP, &ip)
+	filterV6.AddIP(ConntrackNatAnyIP, net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"))
 
 	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 1 {
