@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"syscall"
 
@@ -22,6 +21,11 @@ const (
 	// ConntrackExpectTable Conntrack expect table
 	// https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h -> #define NFNL_SUBSYS_CTNETLINK_EXP 2
 	ConntrackExpectTable = 2
+)
+
+const (
+	// backward compatibility with golang 1.6 which does not have io.SeekCurrent
+	seekCurrent = 1
 )
 
 // InetFamily Family type
@@ -167,13 +171,13 @@ func parseIpTuple(reader *bytes.Reader, tpl *ipTuple) {
 		}
 	}
 	// Skip the next 4 bytes  nl.NLA_F_NESTED|nl.CTA_TUPLE_PROTO
-	reader.Seek(4, io.SeekCurrent)
+	reader.Seek(4, seekCurrent)
 	_, t, _, v := parseNfAttrTLV(reader)
 	if t == nl.CTA_PROTO_NUM {
 		tpl.Protocol = uint8(v[0])
 	}
 	// Skip some padding 3 bytes
-	reader.Seek(3, io.SeekCurrent)
+	reader.Seek(3, seekCurrent)
 	for i := 0; i < 2; i++ {
 		_, t, _ := parseNfAttrTL(reader)
 		switch t {
@@ -183,7 +187,7 @@ func parseIpTuple(reader *bytes.Reader, tpl *ipTuple) {
 			parseBERaw16(reader, &tpl.DstPort)
 		}
 		// Skip some padding 2 byte
-		reader.Seek(2, io.SeekCurrent)
+		reader.Seek(2, seekCurrent)
 	}
 }
 
@@ -218,7 +222,7 @@ func parseRawData(data []byte) *ConntrackFlow {
 	binary.Read(reader, nl.NativeEndian(), &s.FamilyType)
 
 	// skip rest of the Netfilter header
-	reader.Seek(3, io.SeekCurrent)
+	reader.Seek(3, seekCurrent)
 	// The message structure is the following:
 	// <len, NLA_F_NESTED|CTA_TUPLE_ORIG> 4 bytes
 	// <len, NLA_F_NESTED|CTA_TUPLE_IP> 4 bytes
@@ -240,7 +244,7 @@ func parseRawData(data []byte) *ConntrackFlow {
 				break
 			} else {
 				// Header not recognized skip it
-				reader.Seek(int64(l), io.SeekCurrent)
+				reader.Seek(int64(l), seekCurrent)
 			}
 		}
 	}
@@ -291,14 +295,14 @@ type ConntrackFilter struct {
 }
 
 // AddIP adds an IP to the conntrack filter
-func (f *ConntrackFilter) AddIP(tp ConntrackFilterType, ip *net.IP) error {
+func (f *ConntrackFilter) AddIP(tp ConntrackFilterType, ip net.IP) error {
 	if f.ipFilter == nil {
 		f.ipFilter = make(map[ConntrackFilterType]net.IP)
 	}
 	if _, ok := f.ipFilter[tp]; ok {
 		return errors.New("Filter attribute already present")
 	}
-	f.ipFilter[tp] = *ip
+	f.ipFilter[tp] = ip
 	return nil
 }
 
