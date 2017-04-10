@@ -128,6 +128,16 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if bond, ok := link.(*Bond); ok {
+		other, ok := result.(*Bond)
+		if !ok {
+			t.Fatal("Result of create is not a bond")
+		}
+		if bond.Mode != other.Mode {
+			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, bond.Mode)
+		}
+	}
+
 	if _, ok := link.(*Iptun); ok {
 		_, ok := result.(*Iptun)
 		if !ok {
@@ -335,7 +345,9 @@ func TestLinkAddDelBond(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, NewLinkBond(LinkAttrs{Name: "foo"}))
+	bond := NewLinkBond(LinkAttrs{Name: "foo"})
+	bond.Mode = StringToBondModeMap["802.3ad"]
+	testLinkAddDel(t, bond)
 }
 
 func TestLinkAddVethWithDefaultTxQLen(t *testing.T) {

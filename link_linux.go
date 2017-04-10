@@ -1370,7 +1370,7 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 }
 
 func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
-	bond := NewLinkBond(NewLinkAttrs())
+	bond := link.(*Bond)
 	for i := range data {
 		switch data[i].Attr.Type {
 		case nl.IFLA_BOND_MODE:
