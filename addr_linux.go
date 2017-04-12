@@ -199,6 +199,10 @@ func parseAddr(m []byte) (addr Addr, family, index int, err error) {
 			addr.Label = string(attr.Value[:len(attr.Value)-1])
 		case IFA_FLAGS:
 			addr.Flags = int(native.Uint32(attr.Value[0:4]))
+		case nl.IFA_CACHEINFO:
+			ci := nl.DeserializeIfaCacheInfo(attr.Value)
+			addr.PreferedLft = int(ci.IfaPrefered)
+			addr.ValidLft = int(ci.IfaValid)
 		}
 	}
 
