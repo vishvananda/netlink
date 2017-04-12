@@ -5,12 +5,16 @@ package netlink
 import (
 	"log"
 	"net"
+	"os"
 	"os/user"
 	"strconv"
 	"testing"
 )
 
 func TestSocketGet(t *testing.T) {
+	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
+		t.Skipf("Goroutines + network namespaces == inconsistent results")
+	}
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
 		log.Fatal(err)
