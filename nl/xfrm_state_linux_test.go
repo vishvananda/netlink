@@ -76,7 +76,7 @@ func (msg *XfrmUsersaInfo) write(b []byte) {
 	msg.Lft.write(b[AddressEnd:CfgEnd])
 	msg.Curlft.write(b[CfgEnd:CurEnd])
 	msg.Stats.write(b[CurEnd:StatsEnd])
-	native.PutUint32(b[StatsEnd:StatsEnd+4], msg.Seq)
+	native.PutUint64(b[StatsEnd:StatsEnd+4], msg.Seq)
 	native.PutUint32(b[StatsEnd+4:StatsEnd+8], msg.Reqid)
 	native.PutUint16(b[StatsEnd+8:StatsEnd+10], msg.Family)
 	b[StatsEnd+10] = msg.Mode

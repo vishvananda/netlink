@@ -378,7 +378,7 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 	if req.Sockets != nil {
 		if sh, ok := req.Sockets[sockType]; ok {
 			s = sh.Socket
-			req.Seq = atomic.AddUint32(&sh.Seq, 1)
+			req.Seq = atomic.AddUint64(&sh.Seq, 1)
 		}
 	}
 	sharedSocket := s != nil
@@ -453,7 +453,7 @@ func NewNetlinkRequest(proto, flags int) *NetlinkRequest {
 			Len:   uint32(syscall.SizeofNlMsghdr),
 			Type:  uint16(proto),
 			Flags: syscall.NLM_F_REQUEST | uint16(flags),
-			Seq:   atomic.AddUint32(&nextSeqNr, 1),
+			Seq:   atomic.AddUint64(&nextSeqNr, 1),
 		},
 	}
 }
@@ -703,7 +703,7 @@ func netlinkRouteAttrAndValue(b []byte) (*syscall.RtAttr, []byte, int, error) {
 // SocketHandle contains the netlink socket and the associated
 // sequence counter for a specific netlink family
 type SocketHandle struct {
-	Seq    uint32
+	Seq    uint64
 	Socket *NetlinkSocket
 }
 
