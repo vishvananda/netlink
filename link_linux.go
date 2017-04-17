@@ -103,7 +103,7 @@ func (h *Handle) SetPromiscOn(link Link) error {
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Change = syscall.IFF_PROMISC
-	msg.Flags = syscall.IFF_UP
+	msg.Flags = syscall.IFF_PROMISC
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
@@ -122,7 +122,7 @@ func (h *Handle) SetPromiscOff(link Link) error {
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
 	msg.Change = syscall.IFF_PROMISC
-	msg.Flags = 0 & ^syscall.IFF_UP
+	msg.Flags = 0 & ^syscall.IFF_PROMISC
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
