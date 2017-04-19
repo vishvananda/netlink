@@ -1288,6 +1288,22 @@ func (h *Handle) LinkSetFlood(link Link, mode bool) error {
 	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_UNICAST_FLOOD)
 }
 
+func LinkSetBrProxyArp(link Link, mode bool) error {
+	return pkgHandle.LinkSetBrProxyArp(link, mode)
+}
+
+func (h *Handle) LinkSetBrProxyArp(link Link, mode bool) error {
+	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_PROXYARP)
+}
+
+func LinkSetBrProxyArpWiFi(link Link, mode bool) error {
+	return pkgHandle.LinkSetBrProxyArpWiFi(link, mode)
+}
+
+func (h *Handle) LinkSetBrProxyArpWiFi(link Link, mode bool) error {
+	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_PROXYARP_WIFI)
+}
+
 func (h *Handle) setProtinfoAttr(link Link, mode bool, attr int) error {
 	base := link.Attrs()
 	h.ensureIndex(base)
