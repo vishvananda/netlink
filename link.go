@@ -21,7 +21,7 @@ type (
 // LinkAttrs represents data shared by most link types
 type LinkAttrs struct {
 	Index        int
-	MTU          int
+	MTU          uint32
 	TxQLen       int // Transmit Queue Length
 	Name         string
 	HardwareAddr net.HardwareAddr
