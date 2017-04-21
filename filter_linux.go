@@ -458,10 +458,6 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 					key.Val = native.Uint32(htonl(key.Val))
 				}
 			}
-			// only parse if we have a very basic redirect
-			if sel.Flags&nl.TC_U32_TERMINAL == 0 || sel.Nkeys != 1 {
-				return detailed, nil
-			}
 		case nl.TCA_U32_ACT:
 			tables, err := nl.ParseRouteAttr(datum.Value)
 			if err != nil {
