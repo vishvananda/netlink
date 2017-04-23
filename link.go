@@ -38,6 +38,8 @@ type LinkAttrs struct {
 	Protinfo     *Protinfo
 	OperState    LinkOperState
 	NetNsID      int
+	NumTxQueues  int
+	NumRxQueues  int
 }
 
 // LinkOperState represents the values of the IFLA_OPERSTATE link
@@ -327,26 +329,28 @@ func (generic *GenericLink) Type() string {
 
 type Vxlan struct {
 	LinkAttrs
-	VxlanId      int
-	VtepDevIndex int
-	SrcAddr      net.IP
-	Group        net.IP
-	TTL          int
-	TOS          int
-	Learning     bool
-	Proxy        bool
-	RSC          bool
-	L2miss       bool
-	L3miss       bool
-	UDPCSum      bool
-	NoAge        bool
-	GBP          bool
-	FlowBased    bool
-	Age          int
-	Limit        int
-	Port         int
-	PortLow      int
-	PortHigh     int
+	VxlanId        int
+	VtepDevIndex   int
+	SrcAddr        net.IP
+	Group          net.IP
+	TTL            int
+	TOS            int
+	Learning       bool
+	Proxy          bool
+	RSC            bool
+	L2miss         bool
+	L3miss         bool
+	UDPCSum        bool
+	UDP6ZeroCSumTx bool
+	UDP6ZeroCSumRx bool
+	NoAge          bool
+	GBP            bool
+	FlowBased      bool
+	Age            int
+	Limit          int
+	Port           int
+	PortLow        int
+	PortHigh       int
 }
 
 func (vxlan *Vxlan) Attrs() *LinkAttrs {

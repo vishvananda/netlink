@@ -643,6 +643,8 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_RSC, boolAttr(vxlan.RSC))
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_L2MISS, boolAttr(vxlan.L2miss))
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_L3MISS, boolAttr(vxlan.L3miss))
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_UDP_ZERO_CSUM6_TX, boolAttr(vxlan.UDP6ZeroCSumTx))
+	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_UDP_ZERO_CSUM6_RX, boolAttr(vxlan.UDP6ZeroCSumRx))
 
 	if vxlan.UDPCSum {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_UDP_CSUM, boolAttr(vxlan.UDPCSum))
@@ -883,6 +885,16 @@ func (h *Handle) linkModify(link Link, flags int) error {
 	if base.HardwareAddr != nil {
 		hwaddr := nl.NewRtAttr(unix.IFLA_ADDRESS, []byte(base.HardwareAddr))
 		req.AddData(hwaddr)
+	}
+
+	if base.NumTxQueues > 0 {
+		txqueues := nl.NewRtAttr(nl.IFLA_NUM_TX_QUEUES, nl.Uint32Attr(uint32(base.NumTxQueues)))
+		req.AddData(txqueues)
+	}
+
+	if base.NumRxQueues > 0 {
+		rxqueues := nl.NewRtAttr(nl.IFLA_NUM_RX_QUEUES, nl.Uint32Attr(uint32(base.NumRxQueues)))
+		req.AddData(rxqueues)
 	}
 
 	if base.Namespace != nil {
@@ -1560,6 +1572,10 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 			vxlan.L3miss = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_UDP_CSUM:
 			vxlan.UDPCSum = int8(datum.Value[0]) != 0
+		case nl.IFLA_VXLAN_UDP_ZERO_CSUM6_TX:
+			vxlan.UDP6ZeroCSumTx = int8(datum.Value[0]) != 0
+		case nl.IFLA_VXLAN_UDP_ZERO_CSUM6_RX:
+			vxlan.UDP6ZeroCSumRx = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_GBP:
 			vxlan.GBP = true
 		case nl.IFLA_VXLAN_FLOWBASED:
