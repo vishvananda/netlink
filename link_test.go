@@ -17,6 +17,8 @@ import (
 const (
 	testTxQLen    int = 100
 	defaultTxQLen int = 1000
+	testTxQueues  int = 1
+	testRxQueues  int = 1
 )
 
 func testLinkAddDel(t *testing.T, link Link) {
@@ -250,6 +252,12 @@ func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 	if actual.FlowBased != expected.FlowBased {
 		t.Fatal("Vxlan.FlowBased doesn't match")
 	}
+	if actual.UDP6ZeroCSumTx != expected.UDP6ZeroCSumTx {
+		t.Fatal("Vxlan.UDP6ZeroCSumTx doesn't match")
+	}
+	if actual.UDP6ZeroCSumRx != expected.UDP6ZeroCSumRx {
+		t.Fatal("Vxlan.UDP6ZeroCSumRx doesn't match")
+	}
 	if expected.NoAge {
 		if !actual.NoAge {
 			t.Fatal("Vxlan.NoAge doesn't match")
@@ -431,7 +439,7 @@ func TestLinkAddDelVeth(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	veth := &Veth{LinkAttrs: LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, PeerName: "bar"}
+	veth := &Veth{LinkAttrs: LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400, NumTxQueues: testTxQueues, NumRxQueues: testRxQueues}, PeerName: "bar"}
 	testLinkAddDel(t, veth)
 }
 
@@ -730,6 +738,37 @@ func TestLinkAddDelVxlan(t *testing.T) {
 	}
 }
 
+func TestLinkAddDelVxlanUdpCSum6(t *testing.T) {
+	minKernelRequired(t, 3, 16)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	parent := &Dummy{
+		LinkAttrs{Name: "foo"},
+	}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	vxlan := Vxlan{
+		LinkAttrs: LinkAttrs{
+			Name: "bar",
+		},
+		VxlanId:        10,
+		VtepDevIndex:   parent.Index,
+		Learning:       true,
+		L2miss:         true,
+		L3miss:         true,
+		UDP6ZeroCSumTx: true,
+		UDP6ZeroCSumRx: true,
+	}
+
+	testLinkAddDel(t, &vxlan)
+	if err := LinkDel(parent); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLinkAddDelVxlanGbp(t *testing.T) {
 	minKernelRequired(t, 4, 0)
 
@@ -747,12 +786,14 @@ func TestLinkAddDelVxlanGbp(t *testing.T) {
 		LinkAttrs: LinkAttrs{
 			Name: "bar",
 		},
-		VxlanId:      10,
-		VtepDevIndex: parent.Index,
-		Learning:     true,
-		L2miss:       true,
-		L3miss:       true,
-		GBP:          true,
+		VxlanId:        10,
+		VtepDevIndex:   parent.Index,
+		Learning:       true,
+		L2miss:         true,
+		L3miss:         true,
+		UDP6ZeroCSumTx: true,
+		UDP6ZeroCSumRx: true,
+		GBP:            true,
 	}
 
 	testLinkAddDel(t, &vxlan)
