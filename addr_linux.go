@@ -195,6 +195,8 @@ func parseAddr(m []byte) (addr Addr, family, index int, err error) {
 				Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
 			}
 			addr.IPNet = local
+		case syscall.IFA_BROADCAST:
+			addr.Broadcast = attr.Value
 		case syscall.IFA_LABEL:
 			addr.Label = string(attr.Value[:len(attr.Value)-1])
 		case IFA_FLAGS:
