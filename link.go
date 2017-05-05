@@ -733,6 +733,22 @@ func (vrf *Vrf) Type() string {
 	return "vrf"
 }
 
+type GTP struct {
+	LinkAttrs
+	FD0         int
+	FD1         int
+	Role        int
+	PDPHashsize int
+}
+
+func (gtp *GTP) Attrs() *LinkAttrs {
+	return &gtp.LinkAttrs
+}
+
+func (gtp *GTP) Type() string {
+	return "gtp"
+}
+
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
 // bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |

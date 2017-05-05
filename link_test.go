@@ -1247,3 +1247,36 @@ func TestLinkSubscribeWithProtinfo(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func testGTPLink(t *testing.T) *GTP {
+	conn1, err := net.ListenUDP("udp", &net.UDPAddr{
+		IP:   net.ParseIP("0.0.0.0"),
+		Port: 3386,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn2, err := net.ListenUDP("udp", &net.UDPAddr{
+		IP:   net.ParseIP("0.0.0.0"),
+		Port: 2152,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fd1, _ := conn1.File()
+	fd2, _ := conn2.File()
+	return &GTP{
+		LinkAttrs: LinkAttrs{
+			Name: "gtp0",
+		},
+		FD0: int(fd1.Fd()),
+		FD1: int(fd2.Fd()),
+	}
+}
+
+func TestLinkAddDelGTP(t *testing.T) {
+	tearDown := setUpNetlinkTestWithKModule(t, "gtp")
+	defer tearDown()
+	gtp := testGTPLink(t)
+	testLinkAddDel(t, gtp)
+}
