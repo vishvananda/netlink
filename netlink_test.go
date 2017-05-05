@@ -1,9 +1,12 @@
 package netlink
 
 import (
+	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/vishvananda/netns"
@@ -55,4 +58,26 @@ func setUpMPLSNetlinkTest(t *testing.T) tearDownNetlinkTest {
 	setUpF("/proc/sys/net/mpls/platform_labels", "1024")
 	setUpF("/proc/sys/net/mpls/conf/lo/input", "1")
 	return f
+}
+
+func setUpNetlinkTestWithKModule(t *testing.T, name string) tearDownNetlinkTest {
+	file, err := ioutil.ReadFile("/proc/modules")
+	if err != nil {
+		t.Fatal("Failed to open /proc/modules", err)
+	}
+	found := false
+	for _, line := range strings.Split(string(file), "\n") {
+		n := strings.Split(line, " ")[0]
+		if n == name {
+			found = true
+			break
+		}
+
+	}
+	if !found {
+		msg := fmt.Sprintf("Skipped test because it requres kmodule %s.", name)
+		log.Println(msg)
+		t.Skip(msg)
+	}
+	return setUpNetlinkTest(t)
 }
