@@ -1600,6 +1600,8 @@ func addXdpAttrs(xdp *LinkXdp, req *nl.NetlinkRequest) {
 	b := make([]byte, 4)
 	native.PutUint32(b, uint32(xdp.Fd))
 	nl.NewRtAttrChild(attrs, nl.IFLA_XDP_FD, b)
+	native.PutUint32(b, xdp.Flags)
+	nl.NewRtAttrChild(attrs, nl.IFLA_XDP_FLAGS, b)
 	req.AddData(attrs)
 }
 
@@ -1615,6 +1617,8 @@ func parseLinkXdp(data []byte) (*LinkXdp, error) {
 			xdp.Fd = int(native.Uint32(attr.Value[0:4]))
 		case nl.IFLA_XDP_ATTACHED:
 			xdp.Attached = attr.Value[0] != 0
+		case nl.IFLA_XDP_FLAGS:
+			xdp.Flags = native.Uint32(attr.Value[0:4])
 		}
 	}
 	return xdp, nil

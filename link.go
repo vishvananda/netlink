@@ -170,6 +170,7 @@ type LinkStatistics64 struct {
 type LinkXdp struct {
 	Fd       int
 	Attached bool
+	Flags    uint32
 }
 
 // Device links cannot be created via netlink. These links
