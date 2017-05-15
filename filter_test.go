@@ -3,6 +3,7 @@
 package netlink
 
 import (
+	"reflect"
 	"syscall"
 	"testing"
 )
@@ -193,9 +194,16 @@ func TestAdvancedFilterAddDel(t *testing.T) {
 		ClassId: classId,
 		Actions: []Action{},
 	}
+	// Copy filter.
+	cFilter := *filter
 	if err := FilterAdd(filter); err != nil {
 		t.Fatal(err)
 	}
+	// Check if the filter is identical before and after FilterAdd.
+	if !reflect.DeepEqual(cFilter, *filter) {
+		t.Fatal("U32 %v and %v are not equal", cFilter, *filter)
+	}
+
 	filters, err := FilterList(link, qdiscHandle)
 	if err != nil {
 		t.Fatal(err)
