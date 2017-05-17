@@ -267,6 +267,86 @@ func TestRouteSubscribeAt(t *testing.T) {
 	}
 }
 
+func TestRouteFilterAllTables(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// get loopback interface
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// bring the interface up
+	if err = LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	// add a gateway route
+	dst := &net.IPNet{
+		IP:   net.IPv4(1, 1, 1, 1),
+		Mask: net.CIDRMask(32, 32),
+	}
+
+	tables := []int{1000, 1001, 1002}
+	src := net.IPv4(127, 3, 3, 3)
+	for _, table := range tables {
+		route := Route{
+			LinkIndex: link.Attrs().Index,
+			Dst:       dst,
+			Src:       src,
+			Scope:     syscall.RT_SCOPE_LINK,
+			Priority:  13,
+			Table:     table,
+			Type:      syscall.RTN_UNICAST,
+			Tos:       14,
+		}
+		if err := RouteAdd(&route); err != nil {
+			t.Fatal(err)
+		}
+	}
+	routes, err := RouteListFiltered(FAMILY_V4, &Route{
+		Dst:   dst,
+		Src:   src,
+		Scope: syscall.RT_SCOPE_LINK,
+		Table: syscall.RT_TABLE_UNSPEC,
+		Type:  syscall.RTN_UNICAST,
+		Tos:   14,
+	}, RT_FILTER_DST|RT_FILTER_SRC|RT_FILTER_SCOPE|RT_FILTER_TABLE|RT_FILTER_TYPE|RT_FILTER_TOS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 3 {
+		t.Fatal("Routes not added properly")
+	}
+
+	for _, route := range routes {
+		if route.Scope != syscall.RT_SCOPE_LINK {
+			t.Fatal("Invalid Scope. Route not added properly")
+		}
+		if route.Priority != 13 {
+			t.Fatal("Invalid Priority. Route not added properly")
+		}
+		if !tableIDIn(tables, route.Table) {
+			t.Fatalf("Invalid Table %d. Route not added properly", route.Table)
+		}
+		if route.Type != syscall.RTN_UNICAST {
+			t.Fatal("Invalid Type. Route not added properly")
+		}
+		if route.Tos != 14 {
+			t.Fatal("Invalid Tos. Route not added properly")
+		}
+	}
+}
+
+func tableIDIn(ids []int, id int) bool {
+	for _, v := range ids {
+		if v == id {
+			return true
+		}
+	}
+	return false
+}
+
 func TestRouteExtraFields(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
