@@ -1280,3 +1280,27 @@ func TestLinkAddDelGTP(t *testing.T) {
 	gtp := testGTPLink(t)
 	testLinkAddDel(t, gtp)
 }
+
+func TestLinkByNameWhenLinkIsNotFound(t *testing.T) {
+	_, err := LinkByName("iammissing")
+	if err == nil {
+		t.Fatal("Link not expected to found")
+	}
+
+	_, ok := err.(LinkNotFoundError)
+	if !ok {
+		t.Errorf("Error returned expected to of LinkNotFoundError type: %v", err)
+	}
+}
+
+func TestLinkByAliasWhenLinkIsNotFound(t *testing.T) {
+	_, err := LinkByAlias("iammissing")
+	if err == nil {
+		t.Fatal("Link not expected to found")
+	}
+
+	_, ok := err.(LinkNotFoundError)
+	if !ok {
+		t.Errorf("Error returned expected to of LinkNotFoundError type: %v", err)
+	}
+}
