@@ -755,3 +755,11 @@ func (gtp *GTP) Type() string {
 // bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |
 // gre | gretap | ip6gre | ip6gretap | vti | nlmon |
 // bond_slave | ipvlan
+
+// LinkNotFoundError wraps the various not found errors when
+// getting/reading links. This is intended for better error
+// handling by dependent code so that "not found error" can
+// be distinguished from other errors
+type LinkNotFoundError struct {
+	error
+}

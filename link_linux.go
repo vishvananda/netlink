@@ -903,7 +903,7 @@ func (h *Handle) linkByNameDump(name string) (Link, error) {
 			return link, nil
 		}
 	}
-	return nil, fmt.Errorf("Link %s not found", name)
+	return nil, LinkNotFoundError{fmt.Errorf("Link %s not found", name)}
 }
 
 func (h *Handle) linkByAliasDump(alias string) (Link, error) {
@@ -917,7 +917,7 @@ func (h *Handle) linkByAliasDump(alias string) (Link, error) {
 			return link, nil
 		}
 	}
-	return nil, fmt.Errorf("Link alias %s not found", alias)
+	return nil, LinkNotFoundError{fmt.Errorf("Link alias %s not found", alias)}
 }
 
 // LinkByName finds a link by name and returns a pointer to the object.
@@ -1003,7 +1003,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 	if err != nil {
 		if errno, ok := err.(syscall.Errno); ok {
 			if errno == syscall.ENODEV {
-				return nil, fmt.Errorf("Link not found")
+				return nil, LinkNotFoundError{fmt.Errorf("Link not found")}
 			}
 		}
 		return nil, err
@@ -1011,7 +1011,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 
 	switch {
 	case len(msgs) == 0:
-		return nil, fmt.Errorf("Link not found")
+		return nil, LinkNotFoundError{fmt.Errorf("Link not found")}
 
 	case len(msgs) == 1:
 		return LinkDeserialize(nil, msgs[0])
