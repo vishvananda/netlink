@@ -669,6 +669,18 @@ func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
 	if bond.AdSelect >= 0 {
 		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_SELECT, nl.Uint8Attr(uint8(bond.AdSelect)))
 	}
+	if bond.AdActorSysPrio >= 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_ACTOR_SYS_PRIO, nl.Uint16Attr(uint16(bond.AdActorSysPrio)))
+	}
+	if bond.AdUserPortKey >= 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_USER_PORT_KEY, nl.Uint16Attr(uint16(bond.AdUserPortKey)))
+	}
+	if bond.AdActorSystem != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_AD_ACTOR_SYSTEM, []byte(bond.AdActorSystem))
+	}
+	if bond.TlbDynamicLb >= 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_BOND_TLB_DYNAMIC_LB, nl.Uint8Attr(uint8(bond.TlbDynamicLb)))
+	}
 }
 
 // LinkAdd adds a new link device. The type and features of the device
@@ -1463,6 +1475,14 @@ func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
 			bond.AdSelect = BondAdSelect(data[i].Value[0])
 		case nl.IFLA_BOND_AD_INFO:
 			// TODO: implement
+		case nl.IFLA_BOND_AD_ACTOR_SYS_PRIO:
+			bond.AdActorSysPrio = int(native.Uint16(data[i].Value[0:2]))
+		case nl.IFLA_BOND_AD_USER_PORT_KEY:
+			bond.AdUserPortKey = int(native.Uint16(data[i].Value[0:2]))
+		case nl.IFLA_BOND_AD_ACTOR_SYSTEM:
+			bond.AdActorSystem = net.HardwareAddr(data[i].Value[0:6])
+		case nl.IFLA_BOND_TLB_DYNAMIC_LB:
+			bond.TlbDynamicLb = int(data[i].Value[0])
 		}
 	}
 }

@@ -136,6 +136,30 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if bond.Mode != other.Mode {
 			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, bond.Mode)
 		}
+		// Mode specific checks
+		if os.Getenv("TRAVIS_BUILD_DIR") != "" {
+			t.Log("Kernel in travis is too old for this check")
+		} else {
+			switch mode := bondModeToString[bond.Mode]; mode {
+			case "802.3ad":
+				if bond.AdSelect != other.AdSelect {
+					t.Fatalf("Got unexpected AdSelect: %d, expected: %d", other.AdSelect, bond.AdSelect)
+				}
+				if bond.AdActorSysPrio != other.AdActorSysPrio {
+					t.Fatalf("Got unexpected AdActorSysPrio: %d, expected: %d", other.AdActorSysPrio, bond.AdActorSysPrio)
+				}
+				if bond.AdUserPortKey != other.AdUserPortKey {
+					t.Fatalf("Got unexpected AdUserPortKey: %d, expected: %d", other.AdUserPortKey, bond.AdUserPortKey)
+				}
+				if bytes.Compare(bond.AdActorSystem, other.AdActorSystem) != 0 {
+					t.Fatalf("Got unexpected AdActorSystem: %d, expected: %d", other.AdActorSystem, bond.AdActorSystem)
+				}
+			case "balance-tlb":
+				if bond.TlbDynamicLb != other.TlbDynamicLb {
+					t.Fatalf("Got unexpected TlbDynamicLb: %d, expected: %d", other.TlbDynamicLb, bond.TlbDynamicLb)
+				}
+			}
+		}
 	}
 
 	if _, ok := link.(*Iptun); ok {
@@ -345,9 +369,21 @@ func TestLinkAddDelBond(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	bond := NewLinkBond(LinkAttrs{Name: "foo"})
-	bond.Mode = StringToBondModeMap["802.3ad"]
-	testLinkAddDel(t, bond)
+	modes := []string{"802.3ad", "balance-tlb"}
+	for _, mode := range modes {
+		bond := NewLinkBond(LinkAttrs{Name: "foo"})
+		bond.Mode = StringToBondModeMap[mode]
+		switch mode {
+		case "802.3ad":
+			bond.AdSelect = BondAdSelect(BOND_AD_SELECT_BANDWIDTH)
+			bond.AdActorSysPrio = 1
+			bond.AdUserPortKey = 1
+			bond.AdActorSystem, _ = net.ParseMAC("06:aa:bb:cc:dd:ee")
+		case "balance-tlb":
+			bond.TlbDynamicLb = 1
+		}
+		testLinkAddDel(t, bond)
+	}
 }
 
 func TestLinkAddVethWithDefaultTxQLen(t *testing.T) {
