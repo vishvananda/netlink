@@ -593,7 +593,11 @@ type Bond struct {
 	LacpRate        BondLacpRate
 	AdSelect        BondAdSelect
 	// looking at iproute tool AdInfo can only be retrived. It can't be set.
-	AdInfo *BondAdInfo
+	AdInfo         *BondAdInfo
+	AdActorSysPrio int
+	AdUserPortKey  int
+	AdActorSystem  net.HardwareAddr
+	TlbDynamicLb   int
 }
 
 func NewLinkBond(atr LinkAttrs) *Bond {
@@ -621,6 +625,10 @@ func NewLinkBond(atr LinkAttrs) *Bond {
 		PackersPerSlave: -1,
 		LacpRate:        -1,
 		AdSelect:        -1,
+		AdActorSysPrio:  -1,
+		AdUserPortKey:   -1,
+		AdActorSystem:   nil,
+		TlbDynamicLb:    -1,
 	}
 }
 
