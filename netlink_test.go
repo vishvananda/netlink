@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/vishvananda/netns"
@@ -80,4 +81,14 @@ func setUpNetlinkTestWithKModule(t *testing.T, name string) tearDownNetlinkTest 
 		t.Skip(msg)
 	}
 	return setUpNetlinkTest(t)
+}
+
+func remountSysfs() error {
+	if err := syscall.Mount("", "/", "none", syscall.MS_SLAVE|syscall.MS_REC, ""); err != nil {
+		return err
+	}
+	if err := syscall.Unmount("/sys", syscall.MNT_DETACH); err != nil {
+		return err
+	}
+	return syscall.Mount("", "/sys", "sysfs", 0, "")
 }
