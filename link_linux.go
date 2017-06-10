@@ -528,7 +528,13 @@ type vxlanPortRange struct {
 
 func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	if vxlan.FlowBased {
+		vxlan.VxlanId = 0
+	}
+
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_ID, nl.Uint32Attr(uint32(vxlan.VxlanId)))
+
 	if vxlan.VtepDevIndex != 0 {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_LINK, nl.Uint32Attr(uint32(vxlan.VtepDevIndex)))
 	}
@@ -568,6 +574,9 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	}
 	if vxlan.GBP {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_GBP, []byte{})
+	}
+	if vxlan.FlowBased {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_FLOWBASED, boolAttr(vxlan.FlowBased))
 	}
 	if vxlan.NoAge {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_AGEING, nl.Uint32Attr(0))
@@ -1407,6 +1416,8 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 			vxlan.UDPCSum = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_GBP:
 			vxlan.GBP = true
+		case nl.IFLA_VXLAN_FLOWBASED:
+			vxlan.FlowBased = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_AGEING:
 			vxlan.Age = int(native.Uint32(datum.Value[0:4]))
 			vxlan.NoAge = vxlan.Age == 0
@@ -1547,6 +1558,12 @@ func linkFlags(rawFlags uint32) net.Flags {
 func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 
+	if gretap.FlowBased {
+		// In flow based mode, no other attributes need to be configured
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_COLLECT_METADATA, boolAttr(gretap.FlowBased))
+		return
+	}
+
 	ip := gretap.Local.To4()
 	if ip != nil {
 		nl.NewRtAttrChild(data, nl.IFLA_GRE_LOCAL, []byte(ip))
@@ -1613,6 +1630,8 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.EncapType = native.Uint16(datum.Value[0:2])
 		case nl.IFLA_GRE_ENCAP_FLAGS:
 			gre.EncapFlags = native.Uint16(datum.Value[0:2])
+		case nl.IFLA_GRE_COLLECT_METADATA:
+			gre.FlowBased = int8(datum.Value[0]) != 0
 		}
 	}
 }

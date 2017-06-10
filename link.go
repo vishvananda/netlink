@@ -339,6 +339,7 @@ type Vxlan struct {
 	UDPCSum      bool
 	NoAge        bool
 	GBP          bool
+	FlowBased    bool
 	Age          int
 	Limit        int
 	Port         int
@@ -684,6 +685,7 @@ type Gretap struct {
 	EncapType  uint16
 	EncapFlags uint16
 	Link       uint32
+	FlowBased  bool
 }
 
 func (gretap *Gretap) Attrs() *LinkAttrs {
