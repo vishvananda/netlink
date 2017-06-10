@@ -220,6 +220,9 @@ func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 	if actual.GBP != expected.GBP {
 		t.Fatal("Vxlan.GBP doesn't match")
 	}
+	if actual.FlowBased != expected.FlowBased {
+		t.Fatal("Vxlan.FlowBased doesn't match")
+	}
 	if expected.NoAge {
 		if !actual.NoAge {
 			t.Fatal("Vxlan.NoAge doesn't match")
@@ -275,6 +278,19 @@ func TestLinkAddDelGretap(t *testing.T) {
 		PMtuDisc:  1,
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 1)})
+}
+
+func TestLinkAddDelGretapFlowBased(t *testing.T) {
+	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
+		t.Skipf("Kernel in travis is too old for this test")
+	}
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		FlowBased: true})
 }
 
 func TestLinkAddDelVlan(t *testing.T) {
@@ -691,6 +707,25 @@ func TestLinkAddDelVxlanGbp(t *testing.T) {
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestLinkAddDelVxlanFlowBased(t *testing.T) {
+	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
+		t.Skipf("Kernel in travis is too old for this test")
+	}
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	vxlan := Vxlan{
+		LinkAttrs: LinkAttrs{
+			Name: "foo",
+		},
+		Learning:  false,
+		FlowBased: true,
+	}
+
+	testLinkAddDel(t, &vxlan)
 }
 
 func TestLinkAddDelIPVlanL2(t *testing.T) {
