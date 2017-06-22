@@ -56,7 +56,7 @@ func ConntrackTableFlush(table ConntrackTableType) error {
 
 // ConntrackDeleteFilter deletes entries on the specified table on the base of the filter
 // conntrack -D [table] parameters         Delete conntrack or expectation
-func ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter *ConntrackFilter) (uint, error) {
+func ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
 	return pkgHandle.ConntrackDeleteFilter(table, family, filter)
 }
 
@@ -88,7 +88,7 @@ func (h *Handle) ConntrackTableFlush(table ConntrackTableType) error {
 
 // ConntrackDeleteFilter deletes entries on the specified table on the base of the filter using the netlink handle passed
 // conntrack -D [table] parameters         Delete conntrack or expectation
-func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter *ConntrackFilter) (uint, error) {
+func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
 	res, err := h.dumpConntrackTable(table, family)
 	if err != nil {
 		return 0, err
@@ -290,6 +290,12 @@ const (
 	ConntrackNatAnyIP         // -any-nat ip    Source or destination NAT ip
 )
 
+type CustomConntrackFilter interface {
+	// MatchConntrackFlow applies the filter to the flow and returns true if the flow matches
+	// the filter or false otherwise
+	MatchConntrackFlow(flow *ConntrackFlow) bool
+}
+
 type ConntrackFilter struct {
 	ipFilter map[ConntrackFilterType]net.IP
 }
@@ -342,3 +348,5 @@ func (f *ConntrackFilter) MatchConntrackFlow(flow *ConntrackFlow) bool {
 
 	return match
 }
+
+var _ CustomConntrackFilter = (*ConntrackFilter)(nil)
