@@ -201,7 +201,7 @@ func TestAdvancedFilterAddDel(t *testing.T) {
 	}
 	// Check if the filter is identical before and after FilterAdd.
 	if !reflect.DeepEqual(cFilter, *filter) {
-		t.Fatal("U32 %v and %v are not equal", cFilter, *filter)
+		t.Fatalf("U32 %v and %v are not equal", cFilter, *filter)
 	}
 
 	filters, err := FilterList(link, qdiscHandle)
