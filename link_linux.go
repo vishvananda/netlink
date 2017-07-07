@@ -1668,6 +1668,8 @@ func parseLinkXdp(data []byte) (*LinkXdp, error) {
 			xdp.Attached = attr.Value[0] != 0
 		case nl.IFLA_XDP_FLAGS:
 			xdp.Flags = native.Uint32(attr.Value[0:4])
+		case nl.IFLA_XDP_PROG_ID:
+			xdp.ProgId = native.Uint32(attr.Value[0:4])
 		}
 	}
 	return xdp, nil
