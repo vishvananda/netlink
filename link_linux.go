@@ -415,7 +415,7 @@ func (h *Handle) LinkSetVfSpoofchk(link Link, vf int, check bool) error {
 
 // LinkSetVfTrust enables/disables trust state on a vf for the link.
 // Equivalent to: `ip link set $link vf $vf trust $state`
-func LinkSetTrust(link Link, vf int, state bool) error {
+func LinkSetVfTrust(link Link, vf int, state bool) error {
 	return pkgHandle.LinkSetVfTrust(link, vf, state)
 }
 
