@@ -1440,6 +1440,33 @@ func (h *Handle) setProtinfoAttr(link Link, mode bool, attr int) error {
 	return nil
 }
 
+// LinkSetTxQLen sets the transaction queue length for the link.
+// Equivalent to: `ip link set $link txqlen $qlen`
+func LinkSetTxQLen(link Link, qlen int) error {
+	return pkgHandle.LinkSetTxQLen(link, qlen)
+}
+
+// LinkSetTxQLen sets the transaction queue length for the link.
+// Equivalent to: `ip link set $link txqlen $qlen`
+func (h *Handle) LinkSetTxQLen(link Link, qlen int) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	b := make([]byte, 4)
+	native.PutUint32(b, uint32(qlen))
+
+	data := nl.NewRtAttr(syscall.IFLA_TXQLEN, b)
+	req.AddData(data)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
 func parseVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	vlan := link.(*Vlan)
 	for _, datum := range data {
