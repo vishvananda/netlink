@@ -856,6 +856,20 @@ func TestLinkSet(t *testing.T) {
 		t.Fatal("MTU not changed!")
 	}
 
+	err = LinkSetTxQLen(link, 500)
+	if err != nil {
+		t.Fatalf("Could not set txqlen: %v", err)
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().TxQLen != 500 {
+		t.Fatal("txqlen not changed!")
+	}
+
 	addr, err := net.ParseMAC("00:12:34:56:78:AB")
 	if err != nil {
 		t.Fatal(err)
