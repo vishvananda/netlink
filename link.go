@@ -258,6 +258,9 @@ const (
 type Macvlan struct {
 	LinkAttrs
 	Mode MacvlanMode
+
+	// MACAddrs is only populated for Macvlan SOURCE links
+	MACAddrs []net.HardwareAddr
 }
 
 func (macvlan *Macvlan) Attrs() *LinkAttrs {

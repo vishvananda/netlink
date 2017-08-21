@@ -111,6 +111,75 @@ func (h *Handle) SetPromiscOn(link Link) error {
 	return err
 }
 
+func MacvlanMACAddrAdd(link Link, addr net.HardwareAddr) error {
+	return pkgHandle.MacvlanMACAddrAdd(link, addr)
+}
+
+func (h *Handle) MacvlanMACAddrAdd(link Link, addr net.HardwareAddr) error {
+	return h.macvlanMACAddrChange(link, []net.HardwareAddr{addr}, nl.MACVLAN_MACADDR_ADD)
+}
+
+func MacvlanMACAddrDel(link Link, addr net.HardwareAddr) error {
+	return pkgHandle.MacvlanMACAddrDel(link, addr)
+}
+
+func (h *Handle) MacvlanMACAddrDel(link Link, addr net.HardwareAddr) error {
+	return h.macvlanMACAddrChange(link, []net.HardwareAddr{addr}, nl.MACVLAN_MACADDR_DEL)
+}
+
+func MacvlanMACAddrFlush(link Link) error {
+	return pkgHandle.MacvlanMACAddrFlush(link)
+}
+
+func (h *Handle) MacvlanMACAddrFlush(link Link) error {
+	return h.macvlanMACAddrChange(link, nil, nl.MACVLAN_MACADDR_FLUSH)
+}
+
+func MacvlanMACAddrSet(link Link, addrs []net.HardwareAddr) error {
+	return pkgHandle.MacvlanMACAddrSet(link, addrs)
+}
+
+func (h *Handle) MacvlanMACAddrSet(link Link, addrs []net.HardwareAddr) error {
+	return h.macvlanMACAddrChange(link, addrs, nl.MACVLAN_MACADDR_SET)
+}
+
+func (h *Handle) macvlanMACAddrChange(link Link, addrs []net.HardwareAddr, mode uint32) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	linkInfo := nl.NewRtAttr(syscall.IFLA_LINKINFO, nil)
+	nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_KIND, nl.NonZeroTerminated(link.Type()))
+	inner := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	// IFLA_MACVLAN_MACADDR_MODE = mode
+	b := make([]byte, 4)
+	native.PutUint32(b, mode)
+	nl.NewRtAttrChild(inner, nl.IFLA_MACVLAN_MACADDR_MODE, b)
+
+	// populate message with MAC addrs, if necessary
+	switch mode {
+	case nl.MACVLAN_MACADDR_ADD, nl.MACVLAN_MACADDR_DEL:
+		if len(addrs) == 1 {
+			nl.NewRtAttrChild(inner, nl.IFLA_MACVLAN_MACADDR, []byte(addrs[0]))
+		}
+	case nl.MACVLAN_MACADDR_SET:
+		mad := nl.NewRtAttrChild(inner, nl.IFLA_MACVLAN_MACADDR_DATA, nil)
+		for _, addr := range addrs {
+			nl.NewRtAttrChild(mad, nl.IFLA_MACVLAN_MACADDR, []byte(addr))
+		}
+	}
+
+	req.AddData(linkInfo)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
 func BridgeSetMcastSnoop(link Link, on bool) error {
 	return pkgHandle.BridgeSetMcastSnoop(link, on)
 }
@@ -1584,7 +1653,8 @@ func parseMacvtapData(link Link, data []syscall.NetlinkRouteAttr) {
 func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	macv := link.(*Macvlan)
 	for _, datum := range data {
-		if datum.Attr.Type == nl.IFLA_MACVLAN_MODE {
+		switch datum.Attr.Type {
+		case nl.IFLA_MACVLAN_MODE:
 			switch native.Uint32(datum.Value[0:4]) {
 			case nl.MACVLAN_MODE_PRIVATE:
 				macv.Mode = MACVLAN_MODE_PRIVATE
@@ -1597,7 +1667,16 @@ func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {
 			case nl.MACVLAN_MODE_SOURCE:
 				macv.Mode = MACVLAN_MODE_SOURCE
 			}
-			return
+		case nl.IFLA_MACVLAN_MACADDR_COUNT:
+			macv.MACAddrs = make([]net.HardwareAddr, 0, int(native.Uint32(datum.Value[0:4])))
+		case nl.IFLA_MACVLAN_MACADDR_DATA:
+			macs, err := nl.ParseRouteAttr(datum.Value[:])
+			if err != nil {
+				panic(fmt.Sprintf("failed to ParseRouteAttr for IFLA_MACVLAN_MACADDR_DATA: %v", err))
+			}
+			for _, macDatum := range macs {
+				macv.MACAddrs = append(macv.MACAddrs, net.HardwareAddr(macDatum.Value[0:6]))
+			}
 		}
 	}
 }
