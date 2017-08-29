@@ -732,6 +732,28 @@ func (iptun *Vti) Type() string {
 	return "vti"
 }
 
+type Gretun struct {
+	LinkAttrs
+	Link     uint32
+	IFlags   uint16
+	OFlags   uint16
+	IKey     uint32
+	OKey     uint32
+	Local    net.IP
+	Remote   net.IP
+	Ttl      uint8
+	Tos      uint8
+	PMtuDisc uint8
+}
+
+func (gretun *Gretun) Attrs() *LinkAttrs {
+	return &gretun.LinkAttrs
+}
+
+func (gretun *Gretun) Type() string {
+	return "gre"
+}
+
 type Vrf struct {
 	LinkAttrs
 	Table uint32
