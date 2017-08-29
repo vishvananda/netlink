@@ -933,6 +933,8 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		addGretapAttrs(gretap, linkInfo)
 	} else if iptun, ok := link.(*Iptun); ok {
 		addIptunAttrs(iptun, linkInfo)
+	} else if gretun, ok := link.(*Gretun); ok {
+		addGretunAttrs(gretun, linkInfo)
 	} else if vti, ok := link.(*Vti); ok {
 		addVtiAttrs(vti, linkInfo)
 	} else if vrf, ok := link.(*Vrf); ok {
@@ -1170,6 +1172,8 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 						link = &Gretap{}
 					case "ipip":
 						link = &Iptun{}
+					case "gre":
+						link = &Gretun{}
 					case "vti":
 						link = &Vti{}
 					case "vrf":
@@ -1201,6 +1205,8 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 						parseGretapData(link, data)
 					case "ipip":
 						parseIptunData(link, data)
+					case "gre":
+						parseGretunData(link, data)
 					case "vti":
 						parseVtiData(link, data)
 					case "vrf":
@@ -1727,6 +1733,67 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.EncapFlags = native.Uint16(datum.Value[0:2])
 		case nl.IFLA_GRE_COLLECT_METADATA:
 			gre.FlowBased = int8(datum.Value[0]) != 0
+		}
+	}
+}
+
+func addGretunAttrs(gre *Gretun, linkInfo *nl.RtAttr) {
+	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+
+	ip := gre.Local.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_LOCAL, []byte(ip))
+	}
+	ip = gre.Remote.To4()
+	if ip != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_REMOTE, []byte(ip))
+	}
+
+	if gre.IKey != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_IKEY, htonl(gre.IKey))
+		gre.IFlags |= uint16(nl.GRE_KEY)
+	}
+
+	if gre.OKey != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_OKEY, htonl(gre.OKey))
+		gre.OFlags |= uint16(nl.GRE_KEY)
+	}
+
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_IFLAGS, htons(gre.IFlags))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_OFLAGS, htons(gre.OFlags))
+
+	if gre.Link != 0 {
+		nl.NewRtAttrChild(data, nl.IFLA_GRE_LINK, nl.Uint32Attr(gre.Link))
+	}
+
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_PMTUDISC, nl.Uint8Attr(gre.PMtuDisc))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_TTL, nl.Uint8Attr(gre.Ttl))
+	nl.NewRtAttrChild(data, nl.IFLA_GRE_TOS, nl.Uint8Attr(gre.Tos))
+}
+
+func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
+	gre := link.(*Gretun)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_GRE_OKEY:
+			gre.IKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_IKEY:
+			gre.OKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_LOCAL:
+			gre.Local = net.IP(datum.Value[0:4])
+		case nl.IFLA_GRE_REMOTE:
+			gre.Remote = net.IP(datum.Value[0:4])
+		case nl.IFLA_GRE_IFLAGS:
+			gre.IFlags = ntohs(datum.Value[0:2])
+		case nl.IFLA_GRE_OFLAGS:
+			gre.OFlags = ntohs(datum.Value[0:2])
+
+		case nl.IFLA_GRE_TTL:
+			gre.Ttl = uint8(datum.Value[0])
+		case nl.IFLA_GRE_TOS:
+			gre.Tos = uint8(datum.Value[0])
+		case nl.IFLA_GRE_PMTUDISC:
+			gre.PMtuDisc = uint8(datum.Value[0])
 		}
 	}
 }
