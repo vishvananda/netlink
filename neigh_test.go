@@ -34,6 +34,15 @@ func dumpContains(dump []Neigh, e arpEntry) bool {
 	return false
 }
 
+func dumpContainsNeigh(dump []Neigh, ne Neigh) bool {
+	for _, n := range dump {
+		if n.IP.Equal(ne.IP) && n.LLIPAddr.Equal(ne.LLIPAddr) {
+			return true
+		}
+	}
+	return false
+}
+
 func dumpContainsProxy(dump []Neigh, p proxyEntry) bool {
 	for _, n := range dump {
 		if n.IP.Equal(p.ip) && (n.LinkIndex == p.dev) && (n.Flags&NTF_PROXY) == NTF_PROXY {
@@ -41,6 +50,54 @@ func dumpContainsProxy(dump []Neigh, p proxyEntry) bool {
 		}
 	}
 	return false
+}
+
+func TestNeighAddDelLLIPAddr(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	dummy := Iptun{
+		LinkAttrs: LinkAttrs{Name: "neigh0"},
+		PMtuDisc:  1,
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 1)}
+	if err := LinkAdd(&dummy); err != nil {
+		t.Errorf("Failed to create link: %v", err)
+	}
+	ensureIndex(dummy.Attrs())
+
+	entry := Neigh{
+		LinkIndex: dummy.Index,
+		State:     NUD_PERMANENT,
+		IP:        net.IPv4(198, 51, 100, 2),
+		LLIPAddr:  net.IPv4(198, 51, 100, 1),
+	}
+
+	err := NeighAdd(&entry)
+	if err != nil {
+		t.Errorf("Failed to NeighAdd: %v", err)
+	}
+
+	// Dump and see that all added entries are there
+	dump, err := NeighList(dummy.Index, 0)
+	if err != nil {
+		t.Errorf("Failed to NeighList: %v", err)
+	}
+
+	if !dumpContainsNeigh(dump, entry) {
+		t.Errorf("Dump does not contain: %v: %v", entry, dump)
+
+	}
+
+	// Delete the entry
+	err = NeighDel(&entry)
+	if err != nil {
+		t.Errorf("Failed to NeighDel: %v", err)
+	}
+
+	if err := LinkDel(&dummy); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestNeighAddDel(t *testing.T) {
