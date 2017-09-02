@@ -568,6 +568,12 @@ func (h *Handle) LinkSetNsFd(link Link, fd int) error {
 // LinkSetXdpFd adds a bpf function to the driver. The fd must be a bpf
 // program loaded with bpf(type=BPF_PROG_TYPE_XDP)
 func LinkSetXdpFd(link Link, fd int) error {
+	return LinkSetXdpFdWithFlags(link, fd, 0)
+}
+
+// LinkSetXdpFdWithFlags adds a bpf function to the driver with the given
+// options. The fd must be a bpf program loaded with bpf(type=BPF_PROG_TYPE_XDP)
+func LinkSetXdpFdWithFlags(link Link, fd, flags int) error {
 	base := link.Attrs()
 	ensureIndex(base)
 	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
@@ -576,7 +582,7 @@ func LinkSetXdpFd(link Link, fd int) error {
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
-	addXdpAttrs(&LinkXdp{Fd: fd}, req)
+	addXdpAttrs(&LinkXdp{Fd: fd, Flags: uint32(flags)}, req)
 
 	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
 	return err
