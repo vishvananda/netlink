@@ -1717,8 +1717,10 @@ func addXdpAttrs(xdp *LinkXdp, req *nl.NetlinkRequest) {
 	b := make([]byte, 4)
 	native.PutUint32(b, uint32(xdp.Fd))
 	nl.NewRtAttrChild(attrs, nl.IFLA_XDP_FD, b)
-	native.PutUint32(b, xdp.Flags)
-	nl.NewRtAttrChild(attrs, nl.IFLA_XDP_FLAGS, b)
+	if xdp.Flags != 0 {
+		native.PutUint32(b, xdp.Flags)
+		nl.NewRtAttrChild(attrs, nl.IFLA_XDP_FLAGS, b)
+	}
 	req.AddData(attrs)
 }
 
