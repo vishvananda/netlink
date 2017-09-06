@@ -41,7 +41,7 @@ func TestFilterAddDel(t *testing.T) {
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err := QdiscList(link)
+	qdiscs, err := SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestFilterAddDel(t *testing.T) {
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestAdvancedFilterAddDel(t *testing.T) {
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err := QdiscList(link)
+	qdiscs, err := SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func TestAdvancedFilterAddDel(t *testing.T) {
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +298,7 @@ func TestFilterFwAddDel(t *testing.T) {
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err := QdiscList(link)
+	qdiscs, err := SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -412,7 +412,7 @@ func TestFilterFwAddDel(t *testing.T) {
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -454,7 +454,7 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err := QdiscList(link)
+	qdiscs, err := SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -513,15 +513,21 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 	if u32.ClassId != classId {
 		t.Fatalf("ClassId of the filter is the wrong value")
 	}
+	// actions can be returned in reverse order
 	bpfAction, ok := u32.Actions[0].(*BpfAction)
 	if !ok {
-		t.Fatal("Action[0] is the wrong type")
+		bpfAction, ok = u32.Actions[1].(*BpfAction)
+		if !ok {
+			t.Fatal("Action is the wrong type")
+		}
 	}
 	if bpfAction.Fd != fd {
 		t.Fatal("Action Fd does not match")
 	}
-	if _, ok := u32.Actions[1].(*MirredAction); !ok {
-		t.Fatal("Action[1] is the wrong type")
+	if _, ok := u32.Actions[0].(*MirredAction); !ok {
+		if _, ok := u32.Actions[1].(*MirredAction); !ok {
+			t.Fatal("Action is the wrong type")
+		}
 	}
 
 	if err := FilterDel(filter); err != nil {
@@ -538,7 +544,7 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -573,12 +579,12 @@ func TestFilterClsActBpfAddDel(t *testing.T) {
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Skipf("Failed adding clsact qdisc, unsupported kernel")
 	}
-	qdiscs, err := QdiscList(link)
+	qdiscs, err := SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(qdiscs) != 1 {
-		t.Fatal("Failed to add qdisc")
+		t.Fatal("Failed to add qdisc", len(qdiscs))
 	}
 	if q, ok := qdiscs[0].(*GenericQdisc); !ok || q.Type() != "clsact" {
 		t.Fatal("qdisc is the wrong type")
@@ -642,7 +648,7 @@ func TestFilterClsActBpfAddDel(t *testing.T) {
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}

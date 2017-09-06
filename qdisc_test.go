@@ -32,7 +32,7 @@ func TestTbfAddDel(t *testing.T) {
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err := QdiscList(link)
+	qdiscs, err := SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestTbfAddDel(t *testing.T) {
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestHtbAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	qdiscs, err := QdiscList(link)
+	qdiscs, err := SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestHtbAddDel(t *testing.T) {
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestPrioAddDel(t *testing.T) {
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err := QdiscList(link)
+	qdiscs, err := SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestPrioAddDel(t *testing.T) {
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestTbfAddHtbReplaceDel(t *testing.T) {
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err := QdiscList(link)
+	qdiscs, err := SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +224,7 @@ func TestTbfAddHtbReplaceDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestTbfAddHtbReplaceDel(t *testing.T) {
 	if err := QdiscDel(qdisc2); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +286,7 @@ func TestTbfAddTbfChangeDel(t *testing.T) {
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err := QdiscList(link)
+	qdiscs, err := SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +313,7 @@ func TestTbfAddTbfChangeDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -337,7 +337,7 @@ func TestTbfAddTbfChangeDel(t *testing.T) {
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
-	qdiscs, err = QdiscList(link)
+	qdiscs, err = SafeQdiscList(link)
 	if err != nil {
 		t.Fatal(err)
 	}
