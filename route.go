@@ -110,7 +110,7 @@ func (n *NexthopInfo) String() string {
 		elems = append(elems, fmt.Sprintf("Encap: %s", n.Encap))
 	}
 	elems = append(elems, fmt.Sprintf("Weight: %d", n.Hops+1))
-	elems = append(elems, fmt.Sprintf("Gw: %d", n.Gw))
+	elems = append(elems, fmt.Sprintf("Gw: %s", n.Gw))
 	elems = append(elems, fmt.Sprintf("Flags: %s", n.ListFlags()))
 	return fmt.Sprintf("{%s}", strings.Join(elems, " "))
 }
