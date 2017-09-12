@@ -678,16 +678,16 @@ func (h *Handle) RouteGet(destination net.IP) ([]Route, error) {
 // RouteSubscribe takes a chan down which notifications will be sent
 // when routes are added or deleted. Close the 'done' chan to stop subscription.
 func RouteSubscribe(ch chan<- RouteUpdate, done <-chan struct{}) error {
-	return routeSubscribeAt(netns.None(), netns.None(), ch, done)
+	return routeSubscribeAt(netns.None(), netns.None(), ch, done, nil)
 }
 
 // RouteSubscribeAt works like RouteSubscribe plus it allows the caller
 // to choose the network namespace in which to subscribe (ns).
 func RouteSubscribeAt(ns netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}) error {
-	return routeSubscribeAt(ns, netns.None(), ch, done)
+	return routeSubscribeAt(ns, netns.None(), ch, done, nil)
 }
 
-func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}) error {
+func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}, cberr func(error)) error {
 	s, err := nl.SubscribeAt(newNs, curNs, syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_ROUTE, syscall.RTNLGRP_IPV6_ROUTE)
 	if err != nil {
 		return err
@@ -703,11 +703,17 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 		for {
 			msgs, err := s.Receive()
 			if err != nil {
+				if cberr != nil {
+					cberr(err)
+				}
 				return
 			}
 			for _, m := range msgs {
 				route, err := deserializeRoute(m.Data)
 				if err != nil {
+					if cberr != nil {
+						cberr(err)
+					}
 					return
 				}
 				ch <- RouteUpdate{Type: m.Header.Type, Route: route}
