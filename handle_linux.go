@@ -61,10 +61,14 @@ func (h *Handle) SetSocketTimeout(to time.Duration) error {
 // SetSocketReceiveBufferSize sets the receive buffer size for each
 // socket in the netlink handle. The maximum value is capped by
 // /proc/sys/net/core/rmem_max.
-func (h *Handle) SetSocketReceiveBufferSize(size int) error {
+func (h *Handle) SetSocketReceiveBufferSize(size int, force bool) error {
+	opt := syscall.SO_RCVBUF
+	if force {
+		opt = syscall.SO_RCVBUFFORCE
+	}
 	for _, sh := range h.sockets {
 		fd := sh.Socket.GetFd()
-		err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, size)
+		err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, opt, size)
 		if err != nil {
 			return err
 		}
