@@ -210,6 +210,55 @@ func TestRouteSubscribe(t *testing.T) {
 	}
 }
 
+func TestRouteSubscribeWithOptions(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	ch := make(chan RouteUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	var lastError error
+	defer func() {
+		if lastError != nil {
+			t.Fatalf("Fatal error received during subscription: %v", lastError)
+		}
+	}()
+	if err := RouteSubscribeWithOptions(ch, done, RouteSubscribeOptions{
+		ErrorCallback: func(err error) {
+			lastError = err
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// get loopback interface
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bring the interface up
+	if err = LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	// add a gateway route
+	dst := &net.IPNet{
+		IP:   net.IPv4(192, 168, 0, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+
+	ip := net.IPv4(127, 1, 1, 1)
+	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
+	if err := RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectRouteUpdate(ch, syscall.RTM_NEWROUTE, dst.IP) {
+		t.Fatal("Add update not received as expected")
+	}
+}
+
 func TestRouteSubscribeAt(t *testing.T) {
 	skipUnlessRoot(t)
 
