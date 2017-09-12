@@ -642,6 +642,24 @@ func RouteSubscribeAt(ns netns.NsHandle, ch chan<- RouteUpdate, done <-chan stru
 	return routeSubscribeAt(ns, netns.None(), ch, done, nil)
 }
 
+// RouteSubscribeOptions contains a set of options to use with
+// RouteSubscribeWithOptions.
+type RouteSubscribeOptions struct {
+	Namespace     *netns.NsHandle
+	ErrorCallback func(error)
+}
+
+// RouteSubscribeWithOptions work like RouteSubscribe but enable to
+// provide additional options to modify the behavior. Currently, the
+// namespace can be provided as well as an error callback.
+func RouteSubscribeWithOptions(ch chan<- RouteUpdate, done <-chan struct{}, options RouteSubscribeOptions) error {
+	if options.Namespace == nil {
+		none := netns.None()
+		options.Namespace = &none
+	}
+	return routeSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback)
+}
+
 func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}, cberr func(error)) error {
 	s, err := nl.SubscribeAt(newNs, curNs, syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_ROUTE, syscall.RTNLGRP_IPV6_ROUTE)
 	if err != nil {

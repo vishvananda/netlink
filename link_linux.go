@@ -1328,16 +1328,34 @@ type LinkUpdate struct {
 // LinkSubscribe takes a chan down which notifications will be sent
 // when links change.  Close the 'done' chan to stop subscription.
 func LinkSubscribe(ch chan<- LinkUpdate, done <-chan struct{}) error {
-	return linkSubscribe(netns.None(), netns.None(), ch, done, nil)
+	return linkSubscribeAt(netns.None(), netns.None(), ch, done, nil)
 }
 
 // LinkSubscribeAt works like LinkSubscribe plus it allows the caller
 // to choose the network namespace in which to subscribe (ns).
 func LinkSubscribeAt(ns netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}) error {
-	return linkSubscribe(ns, netns.None(), ch, done, nil)
+	return linkSubscribeAt(ns, netns.None(), ch, done, nil)
 }
 
-func linkSubscribe(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}, cberr func(error)) error {
+// LinkSubscribeOptions contains a set of options to use with
+// LinkSubscribeWithOptions.
+type LinkSubscribeOptions struct {
+	Namespace     *netns.NsHandle
+	ErrorCallback func(error)
+}
+
+// LinkSubscribeWithOptions work like LinkSubscribe but enable to
+// provide additional options to modify the behavior. Currently, the
+// namespace can be provided as well as an error callback.
+func LinkSubscribeWithOptions(ch chan<- LinkUpdate, done <-chan struct{}, options LinkSubscribeOptions) error {
+	if options.Namespace == nil {
+		none := netns.None()
+		options.Namespace = &none
+	}
+	return linkSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback)
+}
+
+func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}, cberr func(error)) error {
 	s, err := nl.SubscribeAt(newNs, curNs, syscall.NETLINK_ROUTE, syscall.RTNLGRP_LINK)
 	if err != nil {
 		return err
