@@ -58,6 +58,38 @@ func (h *Handle) SetSocketTimeout(to time.Duration) error {
 	return nil
 }
 
+// SetSocketReceiveBufferSize sets the receive buffer size for each
+// socket in the netlink handle. The maximum value is capped by
+// /proc/sys/net/core/rmem_max.
+func (h *Handle) SetSocketReceiveBufferSize(size int) error {
+	for _, sh := range h.sockets {
+		fd := sh.Socket.GetFd()
+		err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, size)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// GetSocketReceiveBufferSize gets the receiver buffer size for each
+// socket in the netlink handle. The retrieved value should be the
+// double to the one set for SetSocketReceiveBufferSize.
+func (h *Handle) GetSocketReceiveBufferSize() ([]int, error) {
+	results := make([]int, len(h.sockets))
+	i := 0
+	for _, sh := range h.sockets {
+		fd := sh.Socket.GetFd()
+		size, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+		if err != nil {
+			return nil, err
+		}
+		results[i] = size
+		i++
+	}
+	return results, nil
+}
+
 // NewHandle returns a netlink handle on the network namespace
 // specified by ns. If ns=netns.None(), current network namespace
 // will be assumed
