@@ -2,7 +2,6 @@ package netlink
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"strings"
 	"syscall"
@@ -262,19 +261,16 @@ func addrSubscribe(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-cha
 		for {
 			msgs, err := s.Receive()
 			if err != nil {
-				log.Printf("netlink.AddrSubscribe: Receive() error: %v", err)
 				return
 			}
 			for _, m := range msgs {
 				msgType := m.Header.Type
 				if msgType != syscall.RTM_NEWADDR && msgType != syscall.RTM_DELADDR {
-					log.Printf("netlink.AddrSubscribe: bad message type: %d", msgType)
 					continue
 				}
 
 				addr, _, ifindex, err := parseAddr(m.Data)
 				if err != nil {
-					log.Printf("netlink.AddrSubscribe: could not parse address: %v", err)
 					continue
 				}
 
