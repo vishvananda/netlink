@@ -138,7 +138,7 @@ func TestHandleReceiveBuffer(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer h.Delete()
-	if err := h.SetSocketReceiveBufferSize(65536); err != nil {
+	if err := h.SetSocketReceiveBufferSize(65536, false); err != nil {
 		t.Fatal(err)
 	}
 	sizes, err := h.GetSocketReceiveBufferSize()
