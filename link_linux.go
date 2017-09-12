@@ -1328,16 +1328,16 @@ type LinkUpdate struct {
 // LinkSubscribe takes a chan down which notifications will be sent
 // when links change.  Close the 'done' chan to stop subscription.
 func LinkSubscribe(ch chan<- LinkUpdate, done <-chan struct{}) error {
-	return linkSubscribe(netns.None(), netns.None(), ch, done)
+	return linkSubscribe(netns.None(), netns.None(), ch, done, nil)
 }
 
 // LinkSubscribeAt works like LinkSubscribe plus it allows the caller
 // to choose the network namespace in which to subscribe (ns).
 func LinkSubscribeAt(ns netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}) error {
-	return linkSubscribe(ns, netns.None(), ch, done)
+	return linkSubscribe(ns, netns.None(), ch, done, nil)
 }
 
-func linkSubscribe(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}) error {
+func linkSubscribe(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}, cberr func(error)) error {
 	s, err := nl.SubscribeAt(newNs, curNs, syscall.NETLINK_ROUTE, syscall.RTNLGRP_LINK)
 	if err != nil {
 		return err
@@ -1353,12 +1353,18 @@ func linkSubscribe(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-cha
 		for {
 			msgs, err := s.Receive()
 			if err != nil {
+				if cberr != nil {
+					cberr(err)
+				}
 				return
 			}
 			for _, m := range msgs {
 				ifmsg := nl.DeserializeIfInfomsg(m.Data)
 				link, err := LinkDeserialize(&m.Header, m.Data)
 				if err != nil {
+					if cberr != nil {
+						cberr(err)
+					}
 					return
 				}
 				ch <- LinkUpdate{IfInfomsg: *ifmsg, Header: m.Header, Link: link}
