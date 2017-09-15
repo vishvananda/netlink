@@ -11,6 +11,14 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+// Constants used in TcU32Sel.Flags.
+const (
+	TC_U32_TERMINAL  = nl.TC_U32_TERMINAL
+	TC_U32_OFFSET    = nl.TC_U32_OFFSET
+	TC_U32_VAROFFSET = nl.TC_U32_VAROFFSET
+	TC_U32_EAT       = nl.TC_U32_EAT
+)
+
 // Fw filter filters on firewall marks
 // NOTE: this is in filter_linux because it refers to nl.TcPolice which
 //       is defined in nl/tc_linux.go
