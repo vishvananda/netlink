@@ -86,6 +86,34 @@ func (d *MPLSDestination) String() string {
 	return strings.Join(s, "/")
 }
 
+func (d *MPLSDestination) Equal(x Destination) bool {
+	o, ok := x.(*MPLSDestination)
+	if !ok {
+		return false
+	}
+	if d == nil && o == nil {
+		return true
+	}
+	if d == nil || o == nil {
+		return false
+	}
+	if d.Labels == nil && o.Labels == nil {
+		return true
+	}
+	if d.Labels == nil || o.Labels == nil {
+		return false
+	}
+	if len(d.Labels) != len(o.Labels) {
+		return false
+	}
+	for i := range d.Labels {
+		if d.Labels[i] != o.Labels[i] {
+			return false
+		}
+	}
+	return true
+}
+
 type MPLSEncap struct {
 	Labels []int
 }
@@ -127,6 +155,34 @@ func (e *MPLSEncap) String() string {
 		s = append(s, fmt.Sprintf("%d", l))
 	}
 	return strings.Join(s, "/")
+}
+
+func (e *MPLSEncap) Equal(x Encap) bool {
+	o, ok := x.(*MPLSEncap)
+	if !ok {
+		return false
+	}
+	if e == nil && o == nil {
+		return true
+	}
+	if e == nil || o == nil {
+		return false
+	}
+	if e.Labels == nil && o.Labels == nil {
+		return true
+	}
+	if e.Labels == nil || o.Labels == nil {
+		return false
+	}
+	if len(e.Labels) != len(o.Labels) {
+		return false
+	}
+	for i := range e.Labels {
+		if e.Labels[i] != o.Labels[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // RouteAdd will add a route to the system.
