@@ -421,19 +421,8 @@ func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64)
 				continue
 			case filterMask&RT_FILTER_DST != 0:
 				if filter.MPLSDst == nil || route.MPLSDst == nil || (*filter.MPLSDst) != (*route.MPLSDst) {
-					if filter.Dst == nil {
-						if route.Dst != nil {
-							continue
-						}
-					} else {
-						if route.Dst == nil {
-							continue
-						}
-						aMaskLen, aMaskBits := route.Dst.Mask.Size()
-						bMaskLen, bMaskBits := filter.Dst.Mask.Size()
-						if !(route.Dst.IP.Equal(filter.Dst.IP) && aMaskLen == bMaskLen && aMaskBits == bMaskBits) {
-							continue
-						}
+					if !ipNetEqual(route.Dst, filter.Dst) {
+						continue
 					}
 				}
 			}
