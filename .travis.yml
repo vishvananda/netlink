@@ -9,5 +9,12 @@ before_script:
   - sudo modprobe nf_conntrack_netlink
   - sudo modprobe nf_conntrack_ipv4
   - sudo modprobe nf_conntrack_ipv6
+before_install:
+  - mkdir -p $GOPATH/src/github.com/vishvananda
+  # Symlink to allow builds of pull requests
+  - ln -s $TRAVIS_BUILD_DIR $HOME/gopath/src/github.com/vishvananda/ || true
 install:
   - go get github.com/vishvananda/netns
+  - go get github.com/mattn/goveralls
+script:
+  - sudo goveralls -v
