@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"syscall"
-	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
 )
@@ -129,8 +128,7 @@ func (h *Handle) FilterAdd(filter Filter) error {
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
 	if u32, ok := filter.(*U32); ok {
-		// Convert TcU32Sel into nl.TcU32Sel as it is without copy.
-		sel := (*nl.TcU32Sel)(unsafe.Pointer(u32.Sel))
+		sel := u32.Sel
 		if sel == nil {
 			// match all
 			sel = &nl.TcU32Sel{
@@ -448,7 +446,7 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 		case nl.TCA_U32_SEL:
 			detailed = true
 			sel := nl.DeserializeTcU32Sel(datum.Value)
-			u32.Sel = (*TcU32Sel)(unsafe.Pointer(sel))
+			u32.Sel = sel
 			if native != networkOrder {
 				// Handle the endianness of attributes
 				u32.Sel.Offmask = native.Uint16(htons(sel.Offmask))
