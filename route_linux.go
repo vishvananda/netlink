@@ -125,17 +125,17 @@ func (e *MPLSEncap) Type() int {
 
 func (e *MPLSEncap) Decode(buf []byte) error {
 	if len(buf) < 4 {
-		return fmt.Errorf("Lack of bytes")
+		return fmt.Errorf("lack of bytes")
 	}
 	native := nl.NativeEndian()
 	l := native.Uint16(buf)
 	if len(buf) < int(l) {
-		return fmt.Errorf("Lack of bytes")
+		return fmt.Errorf("lack of bytes")
 	}
 	buf = buf[:l]
 	typ := native.Uint16(buf[2:])
 	if typ != nl.MPLS_IPTUNNEL_DST {
-		return fmt.Errorf("Unknown MPLS Encap Type: %d", typ)
+		return fmt.Errorf("unknown MPLS Encap Type: %d", typ)
 	}
 	e.Labels = nl.DecodeMPLSStack(buf[4:])
 	return nil
@@ -180,6 +180,79 @@ func (e *MPLSEncap) Equal(x Encap) bool {
 	}
 	for i := range e.Labels {
 		if e.Labels[i] != o.Labels[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// SEG6 definitions
+type SEG6Encap struct {
+	Mode     int
+	Segments []net.IP
+}
+
+func (e *SEG6Encap) Type() int {
+	return nl.LWTUNNEL_ENCAP_SEG6
+}
+func (e *SEG6Encap) Decode(buf []byte) error {
+	if len(buf) < 4 {
+		return fmt.Errorf("lack of bytes")
+	}
+	native := nl.NativeEndian()
+	// Get Length(l) & Type(typ) : 2 + 2 bytes
+	l := native.Uint16(buf)
+	if len(buf) < int(l) {
+		return fmt.Errorf("lack of bytes")
+	}
+	buf = buf[:l] // make sure buf size upper limit is Length
+	typ := native.Uint16(buf[2:])
+	if typ != nl.SEG6_IPTUNNEL_SRH {
+		return fmt.Errorf("unknown SEG6 Type: %d", typ)
+	}
+
+	var err error
+	e.Mode, e.Segments, err = nl.DecodeSEG6Encap(buf[4:])
+
+	return err
+}
+func (e *SEG6Encap) Encode() ([]byte, error) {
+	s, err := nl.EncodeSEG6Encap(e.Mode, e.Segments)
+	native := nl.NativeEndian()
+	hdr := make([]byte, 4)
+	native.PutUint16(hdr, uint16(len(s)+4))
+	native.PutUint16(hdr[2:], nl.SEG6_IPTUNNEL_SRH)
+	return append(hdr, s...), err
+}
+func (e *SEG6Encap) String() string {
+	segs := make([]string, 0, len(e.Segments))
+	// append segment backwards (from n to 0) since seg#0 is the last segment.
+	for i := len(e.Segments); i > 0; i-- {
+		segs = append(segs, fmt.Sprintf("%s", e.Segments[i-1]))
+	}
+	str := fmt.Sprintf("mode %s segs %d [ %s ]", nl.SEG6EncapModeString(e.Mode),
+		len(e.Segments), strings.Join(segs, " "))
+	return str
+}
+func (e *SEG6Encap) Equal(x Encap) bool {
+	o, ok := x.(*SEG6Encap)
+	if !ok {
+		return false
+	}
+	if e == o {
+		return true
+	}
+	if e == nil || o == nil {
+		return false
+	}
+	if e.Mode != o.Mode {
+		return false
+	}
+	if len(e.Segments) != len(o.Segments) {
+		return false
+	}
+	for i := range e.Segments {
+		if !e.Segments[i].Equal(o.Segments[i]) {
 			return false
 		}
 	}
@@ -537,11 +610,11 @@ func deserializeRoute(m []byte) (Route, error) {
 		case unix.RTA_MULTIPATH:
 			parseRtNexthop := func(value []byte) (*NexthopInfo, []byte, error) {
 				if len(value) < unix.SizeofRtNexthop {
-					return nil, nil, fmt.Errorf("Lack of bytes")
+					return nil, nil, fmt.Errorf("lack of bytes")
 				}
 				nh := nl.DeserializeRtNexthop(value)
 				if len(value) < int(nh.RtNexthop.Len) {
-					return nil, nil, fmt.Errorf("Lack of bytes")
+					return nil, nil, fmt.Errorf("lack of bytes")
 				}
 				info := &NexthopInfo{
 					LinkIndex: int(nh.RtNexthop.Ifindex),
@@ -621,6 +694,11 @@ func deserializeRoute(m []byte) (Route, error) {
 		switch typ {
 		case nl.LWTUNNEL_ENCAP_MPLS:
 			e = &MPLSEncap{}
+			if err := e.Decode(encap.Value); err != nil {
+				return route, err
+			}
+		case nl.LWTUNNEL_ENCAP_SEG6:
+			e = &SEG6Encap{}
 			if err := e.Decode(encap.Value); err != nil {
 				return route, err
 			}

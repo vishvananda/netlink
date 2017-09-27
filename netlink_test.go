@@ -1,10 +1,12 @@
 package netlink
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
@@ -59,6 +61,42 @@ func setUpMPLSNetlinkTest(t *testing.T) tearDownNetlinkTest {
 	setUpF("/proc/sys/net/mpls/platform_labels", "1024")
 	setUpF("/proc/sys/net/mpls/conf/lo/input", "1")
 	return f
+}
+
+func setUpSEG6NetlinkTest(t *testing.T) tearDownNetlinkTest {
+	// check if SEG6 options are enabled in Kernel Config
+	cmd := exec.Command("uname", "-r")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		t.Fatal("Failed to run: uname -r")
+	}
+	s := []string{"/boot/config-", strings.TrimRight(out.String(), "\n")}
+	filename := strings.Join(s, "")
+
+	grepKey := func(key, fname string) (string, error) {
+		cmd := exec.Command("grep", key, filename)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		err := cmd.Run() // "err != nil" if no line matched with grep
+		return strings.TrimRight(out.String(), "\n"), err
+	}
+	key := string("CONFIG_IPV6_SEG6_LWTUNNEL=y")
+	if _, err := grepKey(key, filename); err != nil {
+		msg := "Skipped test because it requires SEG6_LWTUNNEL support."
+		log.Printf(msg)
+		t.Skip(msg)
+	}
+	key = string("CONFIG_IPV6_SEG6_INLINE=y")
+	if _, err := grepKey(key, filename); err != nil {
+		msg := "Skipped test because it requires SEG6_INLINE support."
+		log.Printf(msg)
+		t.Skip(msg)
+	}
+	// Add CONFIG_IPV6_SEG6_HMAC to support seg6_hamc
+	// key := string("CONFIG_IPV6_SEG6_HMAC=y")
+
+	return setUpNetlinkTest(t)
 }
 
 func setUpNetlinkTestWithKModule(t *testing.T, name string) tearDownNetlinkTest {
