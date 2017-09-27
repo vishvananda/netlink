@@ -176,6 +176,13 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if _, ok := link.(*Sittun); ok {
+		_, ok := result.(*Sittun)
+		if !ok {
+			t.Fatal("Result of create is not a sittun")
+		}
+	}
+
 	if _, ok := link.(*Gretap); ok {
 		_, ok := result.(*Gretap)
 		if !ok {
@@ -1216,6 +1223,17 @@ func TestLinkAddDelIptun(t *testing.T) {
 
 	testLinkAddDel(t, &Iptun{
 		LinkAttrs: LinkAttrs{Name: "iptunfoo"},
+		PMtuDisc:  1,
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 1)})
+}
+
+func TestLinkAddDelSittun(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Sittun{
+		LinkAttrs: LinkAttrs{Name: "sittunfoo"},
 		PMtuDisc:  1,
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 1)})

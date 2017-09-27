@@ -700,12 +700,17 @@ func (gretap *Gretap) Type() string {
 
 type Iptun struct {
 	LinkAttrs
-	Ttl      uint8
-	Tos      uint8
-	PMtuDisc uint8
-	Link     uint32
-	Local    net.IP
-	Remote   net.IP
+	Ttl        uint8
+	Tos        uint8
+	PMtuDisc   uint8
+	Link       uint32
+	Local      net.IP
+	Remote     net.IP
+	EncapSport uint16
+	EncapDport uint16
+	EncapType  uint16
+	EncapFlags uint16
+	FlowBased  bool
 }
 
 func (iptun *Iptun) Attrs() *LinkAttrs {
@@ -714,6 +719,28 @@ func (iptun *Iptun) Attrs() *LinkAttrs {
 
 func (iptun *Iptun) Type() string {
 	return "ipip"
+}
+
+type Sittun struct {
+	LinkAttrs
+	Link       uint32
+	Local      net.IP
+	Remote     net.IP
+	Ttl        uint8
+	Tos        uint8
+	PMtuDisc   uint8
+	EncapType  uint16
+	EncapFlags uint16
+	EncapSport uint16
+	EncapDport uint16
+}
+
+func (sittun *Sittun) Attrs() *LinkAttrs {
+	return &sittun.LinkAttrs
+}
+
+func (sittun *Sittun) Type() string {
+	return "sit"
 }
 
 type Vti struct {
@@ -735,16 +762,20 @@ func (iptun *Vti) Type() string {
 
 type Gretun struct {
 	LinkAttrs
-	Link     uint32
-	IFlags   uint16
-	OFlags   uint16
-	IKey     uint32
-	OKey     uint32
-	Local    net.IP
-	Remote   net.IP
-	Ttl      uint8
-	Tos      uint8
-	PMtuDisc uint8
+	Link       uint32
+	IFlags     uint16
+	OFlags     uint16
+	IKey       uint32
+	OKey       uint32
+	Local      net.IP
+	Remote     net.IP
+	Ttl        uint8
+	Tos        uint8
+	PMtuDisc   uint8
+	EncapType  uint16
+	EncapFlags uint16
+	EncapSport uint16
+	EncapDport uint16
 }
 
 func (gretun *Gretun) Attrs() *LinkAttrs {
