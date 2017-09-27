@@ -45,13 +45,10 @@ func (h *Handle) SetSocketTimeout(to time.Duration) error {
 	}
 	tv := syscall.NsecToTimeval(to.Nanoseconds())
 	for _, sh := range h.sockets {
-		fd := sh.Socket.GetFd()
-		err := syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
-		if err != nil {
+		if err := sh.Socket.SetSendTimeout(&tv); err != nil {
 			return err
 		}
-		err = syscall.SetsockoptTimeval(fd, syscall.SOL_SOCKET, syscall.SO_SNDTIMEO, &tv)
-		if err != nil {
+		if err := sh.Socket.SetReceiveTimeout(&tv); err != nil {
 			return err
 		}
 	}
