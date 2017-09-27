@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
@@ -631,6 +632,8 @@ func TestMPLSRouteAddDel(t *testing.T) {
 
 func TestRouteEqual(t *testing.T) {
 	mplsDst := 100
+	seg6encap := &SEG6Encap{Mode: nl.SEG6_IPTUN_MODE_ENCAP}
+	seg6encap.Segments = []net.IP{net.ParseIP("fc00:a000::11")}
 	cases := []Route{
 		Route{
 			Dst: nil,
@@ -728,6 +731,14 @@ func TestRouteEqual(t *testing.T) {
 			},
 		},
 		Route{
+			LinkIndex: 10,
+			Dst: &net.IPNet{
+				IP:   net.IPv4(10, 0, 0, 102),
+				Mask: net.CIDRMask(32, 32),
+			},
+			Encap: seg6encap,
+		},
+		Route{
 			Dst:       nil,
 			MultiPath: []*NexthopInfo{&NexthopInfo{LinkIndex: 10}, &NexthopInfo{LinkIndex: 20}},
 		},
@@ -755,6 +766,13 @@ func TestRouteEqual(t *testing.T) {
 				NewDst: &MPLSDestination{
 					Labels: []int{200, 300},
 				},
+			}, &NexthopInfo{LinkIndex: 20}},
+		},
+		Route{
+			Dst: nil,
+			MultiPath: []*NexthopInfo{&NexthopInfo{
+				LinkIndex: 10,
+				Encap:     seg6encap,
 			}, &NexthopInfo{LinkIndex: 20}},
 		},
 	}
@@ -812,5 +830,77 @@ func TestIPNetEqual(t *testing.T) {
 					strconv.FormatBool(expected))
 			}
 		}
+	}
+}
+
+func TestSEG6RouteAddDel(t *testing.T) {
+	// add/del IPv4 routes with LWTUNNEL_SEG6 to/from loopback interface.
+	// Test both seg6 modes: encap & inline.
+	tearDown := setUpSEG6NetlinkTest(t)
+	defer tearDown()
+
+	// get loopback interface and bring it up
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	dst1 := &net.IPNet{
+		IP:   net.IPv4(10, 0, 0, 101),
+		Mask: net.CIDRMask(32, 32),
+	}
+	dst2 := &net.IPNet{
+		IP:   net.IPv4(10, 0, 0, 102),
+		Mask: net.CIDRMask(32, 32),
+	}
+	var s1, s2 []net.IP
+	s1 = append(s1, net.ParseIP("::")) // inline requires "::"
+	s1 = append(s1, net.ParseIP("fc00:a000::12"))
+	s1 = append(s1, net.ParseIP("fc00:a000::11"))
+	s2 = append(s2, net.ParseIP("fc00:a000::22"))
+	s2 = append(s2, net.ParseIP("fc00:a000::21"))
+	e1 := &SEG6Encap{Mode: nl.SEG6_IPTUN_MODE_INLINE}
+	e2 := &SEG6Encap{Mode: nl.SEG6_IPTUN_MODE_ENCAP}
+	e1.Segments = s1
+	e2.Segments = s2
+	route1 := Route{LinkIndex: link.Attrs().Index, Dst: dst1, Encap: e1}
+	route2 := Route{LinkIndex: link.Attrs().Index, Dst: dst2, Encap: e2}
+
+	// Add SEG6 routes
+	if err := RouteAdd(&route1); err != nil {
+		t.Fatal(err)
+	}
+	if err := RouteAdd(&route2); err != nil {
+		t.Fatal(err)
+	}
+	routes, err := RouteList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 2 {
+		t.Fatal("SEG6 routes not added properly")
+	}
+	for _, route := range routes {
+		if route.Encap.Type() != nl.LWTUNNEL_ENCAP_SEG6 {
+			t.Fatal("Invalid Type. SEG6 routes not added properly")
+		}
+	}
+
+	// Del (remove) SEG6 routes
+	if err := RouteDel(&route1); err != nil {
+		t.Fatal(err)
+	}
+	if err := RouteDel(&route2); err != nil {
+		t.Fatal(err)
+	}
+	routes, err = RouteList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 0 {
+		t.Fatal("SEG6 routes not removed properly")
 	}
 }
