@@ -851,6 +851,10 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		msg.Change |= syscall.IFF_MULTICAST
 		msg.Flags |= syscall.IFF_MULTICAST
 	}
+	if base.Index != 0 {
+		msg.Index = int32(base.Index)
+	}
+
 	req.AddData(msg)
 
 	if base.ParentIndex != 0 {
