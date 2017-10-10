@@ -38,6 +38,12 @@ func testLinkAddDel(t *testing.T, link Link) {
 
 	rBase := result.Attrs()
 
+	if base.Index != 0 {
+		if base.Index != rBase.Index {
+			t.Fatalf("index is %d, should be %d", rBase.Index, base.Index)
+		}
+	}
+
 	if vlan, ok := link.(*Vlan); ok {
 		other, ok := result.(*Vlan)
 		if !ok {
@@ -258,6 +264,13 @@ func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 			t.Fatal("Vxlan.PortHigh doesn't match")
 		}
 	}
+}
+
+func TestLinkAddDelWithIndex(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Dummy{LinkAttrs{Index: 1000, Name: "foo"}})
 }
 
 func TestLinkAddDelDummy(t *testing.T) {
