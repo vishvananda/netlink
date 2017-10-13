@@ -1268,6 +1268,8 @@ func LinkDeserialize(hdr *syscall.NlMsghdr, m []byte) (Link, error) {
 			}
 		case syscall.IFLA_OPERSTATE:
 			base.OperState = LinkOperState(uint8(attr.Value[0]))
+		case nl.IFLA_LINK_NETNSID:
+			base.NetNsID = int(native.Uint32(attr.Value[0:4]))
 		}
 	}
 
