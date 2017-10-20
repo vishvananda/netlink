@@ -5,9 +5,10 @@ package netlink
 import (
 	"net"
 	"os"
-	"syscall"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 func TestAddrAdd(t *testing.T) {
@@ -31,27 +32,27 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 	}{
 		{
 			&Addr{IPNet: address},
-			&Addr{IPNet: address, Label: "lo", Scope: syscall.RT_SCOPE_UNIVERSE, Flags: syscall.IFA_F_PERMANENT},
+			&Addr{IPNet: address, Label: "lo", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
 		},
 		{
 			&Addr{IPNet: address, Label: "local"},
-			&Addr{IPNet: address, Label: "local", Scope: syscall.RT_SCOPE_UNIVERSE, Flags: syscall.IFA_F_PERMANENT},
+			&Addr{IPNet: address, Label: "local", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
 		},
 		{
-			&Addr{IPNet: address, Flags: syscall.IFA_F_OPTIMISTIC},
-			&Addr{IPNet: address, Label: "lo", Flags: syscall.IFA_F_OPTIMISTIC | syscall.IFA_F_PERMANENT, Scope: syscall.RT_SCOPE_UNIVERSE},
+			&Addr{IPNet: address, Flags: unix.IFA_F_OPTIMISTIC},
+			&Addr{IPNet: address, Label: "lo", Flags: unix.IFA_F_OPTIMISTIC | unix.IFA_F_PERMANENT, Scope: unix.RT_SCOPE_UNIVERSE},
 		},
 		{
-			&Addr{IPNet: address, Flags: syscall.IFA_F_OPTIMISTIC | syscall.IFA_F_DADFAILED},
-			&Addr{IPNet: address, Label: "lo", Flags: syscall.IFA_F_OPTIMISTIC | syscall.IFA_F_DADFAILED | syscall.IFA_F_PERMANENT, Scope: syscall.RT_SCOPE_UNIVERSE},
+			&Addr{IPNet: address, Flags: unix.IFA_F_OPTIMISTIC | unix.IFA_F_DADFAILED},
+			&Addr{IPNet: address, Label: "lo", Flags: unix.IFA_F_OPTIMISTIC | unix.IFA_F_DADFAILED | unix.IFA_F_PERMANENT, Scope: unix.RT_SCOPE_UNIVERSE},
 		},
 		{
-			&Addr{IPNet: address, Scope: syscall.RT_SCOPE_NOWHERE},
-			&Addr{IPNet: address, Label: "lo", Flags: syscall.IFA_F_PERMANENT, Scope: syscall.RT_SCOPE_NOWHERE},
+			&Addr{IPNet: address, Scope: unix.RT_SCOPE_NOWHERE},
+			&Addr{IPNet: address, Label: "lo", Flags: unix.IFA_F_PERMANENT, Scope: unix.RT_SCOPE_NOWHERE},
 		},
 		{
 			&Addr{IPNet: address, Peer: peer},
-			&Addr{IPNet: address, Peer: peer, Label: "lo", Scope: syscall.RT_SCOPE_UNIVERSE, Flags: syscall.IFA_F_PERMANENT},
+			&Addr{IPNet: address, Peer: peer, Label: "lo", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
 		},
 	}
 

@@ -4,8 +4,9 @@ package netlink
 
 import (
 	"net"
-	"syscall"
 	"testing"
+
+	"golang.org/x/sys/unix"
 )
 
 func TestRuleAddDel(t *testing.T) {
@@ -14,13 +15,13 @@ func TestRuleAddDel(t *testing.T) {
 	srcNet := &net.IPNet{IP: net.IPv4(172, 16, 0, 1), Mask: net.CIDRMask(16, 32)}
 	dstNet := &net.IPNet{IP: net.IPv4(172, 16, 1, 1), Mask: net.CIDRMask(24, 32)}
 
-	rulesBegin, err := RuleList(syscall.AF_INET)
+	rulesBegin, err := RuleList(unix.AF_INET)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	rule := NewRule()
-	rule.Table = syscall.RT_TABLE_MAIN
+	rule.Table = unix.RT_TABLE_MAIN
 	rule.Src = srcNet
 	rule.Dst = dstNet
 	rule.Priority = 5
@@ -30,7 +31,7 @@ func TestRuleAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rules, err := RuleList(syscall.AF_INET)
+	rules, err := RuleList(unix.AF_INET)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +60,7 @@ func TestRuleAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rulesEnd, err := RuleList(syscall.AF_INET)
+	rulesEnd, err := RuleList(unix.AF_INET)
 	if err != nil {
 		t.Fatal(err)
 	}

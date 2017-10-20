@@ -3,7 +3,8 @@ DIRS := \
 	nl
 
 DEPS = \
-	github.com/vishvananda/netns
+	github.com/vishvananda/netns \
+	golang.org/x/sys/unix
 
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 testdirs = $(call uniq,$(foreach d,$(1),$(dir $(wildcard $(d)/*_test.go))))
