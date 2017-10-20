@@ -7,10 +7,10 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 )
 
 type tearDownNetlinkTest func()
@@ -84,11 +84,11 @@ func setUpNetlinkTestWithKModule(t *testing.T, name string) tearDownNetlinkTest 
 }
 
 func remountSysfs() error {
-	if err := syscall.Mount("", "/", "none", syscall.MS_SLAVE|syscall.MS_REC, ""); err != nil {
+	if err := unix.Mount("", "/", "none", unix.MS_SLAVE|unix.MS_REC, ""); err != nil {
 		return err
 	}
-	if err := syscall.Unmount("/sys", syscall.MNT_DETACH); err != nil {
+	if err := unix.Unmount("/sys", unix.MNT_DETACH); err != nil {
 		return err
 	}
-	return syscall.Mount("", "/sys", "sysfs", 0, "")
+	return unix.Mount("", "/sys", "sysfs", 0, "")
 }

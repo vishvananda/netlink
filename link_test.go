@@ -6,12 +6,12 @@ import (
 	"bytes"
 	"net"
 	"os"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -981,7 +981,7 @@ func TestLinkSetARP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if link.Attrs().RawFlags&syscall.IFF_NOARP != uint32(syscall.IFF_NOARP) {
+	if link.Attrs().RawFlags&unix.IFF_NOARP != uint32(unix.IFF_NOARP) {
 		t.Fatalf("NOARP was not set!")
 	}
 
@@ -995,7 +995,7 @@ func TestLinkSetARP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if link.Attrs().RawFlags&syscall.IFF_NOARP != 0 {
+	if link.Attrs().RawFlags&unix.IFF_NOARP != 0 {
 		t.Fatalf("NOARP is still set!")
 	}
 }
@@ -1005,7 +1005,7 @@ func expectLinkUpdate(ch <-chan LinkUpdate, ifaceName string, up bool) bool {
 		timeout := time.After(time.Minute)
 		select {
 		case update := <-ch:
-			if ifaceName == update.Link.Attrs().Name && (update.IfInfomsg.Flags&syscall.IFF_UP != 0) == up {
+			if ifaceName == update.Link.Attrs().Name && (update.IfInfomsg.Flags&unix.IFF_UP != 0) == up {
 				return true
 			}
 		case <-timeout:
@@ -1202,7 +1202,7 @@ func TestLinkXdp(t *testing.T) {
 	if err := LinkSetXdpFd(testXdpLink, fd); err != nil {
 		t.Fatal(err)
 	}
-	if err := LinkSetXdpFdWithFlags(testXdpLink, fd, nl.XDP_FLAGS_UPDATE_IF_NOEXIST); err != syscall.EBUSY {
+	if err := LinkSetXdpFdWithFlags(testXdpLink, fd, nl.XDP_FLAGS_UPDATE_IF_NOEXIST); err != unix.EBUSY {
 		t.Fatal(err)
 	}
 	if err := LinkSetXdpFd(testXdpLink, -1); err != nil {

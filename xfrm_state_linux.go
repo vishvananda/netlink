@@ -2,10 +2,10 @@ package netlink
 
 import (
 	"fmt"
-	"syscall"
 	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
+	"golang.org/x/sys/unix"
 )
 
 func writeStateAlgo(a *XfrmStateAlgo) []byte {
@@ -111,7 +111,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 	if state.Spi == 0 {
 		return fmt.Errorf("Spi must be set when adding xfrm state.")
 	}
-	req := h.newNetlinkRequest(nlProto, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+	req := h.newNetlinkRequest(nlProto, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
 
 	msg := xfrmUsersaInfoFromXfrmState(state)
 
@@ -157,13 +157,13 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 		req.AddData(out)
 	}
 
-	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
+	_, err := req.Execute(unix.NETLINK_XFRM, 0)
 	return err
 }
 
 func (h *Handle) xfrmStateAllocSpi(state *XfrmState) (*XfrmState, error) {
 	req := h.newNetlinkRequest(nl.XFRM_MSG_ALLOCSPI,
-		syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
+		unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
 
 	msg := &nl.XfrmUserSpiInfo{}
 	msg.XfrmUsersaInfo = *(xfrmUsersaInfoFromXfrmState(state))
@@ -177,7 +177,7 @@ func (h *Handle) xfrmStateAllocSpi(state *XfrmState) (*XfrmState, error) {
 		req.AddData(out)
 	}
 
-	msgs, err := req.Execute(syscall.NETLINK_XFRM, 0)
+	msgs, err := req.Execute(unix.NETLINK_XFRM, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -216,9 +216,9 @@ func XfrmStateList(family int) ([]XfrmState, error) {
 // Equivalent to: `ip xfrm state show`.
 // The list can be filtered by ip family.
 func (h *Handle) XfrmStateList(family int) ([]XfrmState, error) {
-	req := h.newNetlinkRequest(nl.XFRM_MSG_GETSA, syscall.NLM_F_DUMP)
+	req := h.newNetlinkRequest(nl.XFRM_MSG_GETSA, unix.NLM_F_DUMP)
 
-	msgs, err := req.Execute(syscall.NETLINK_XFRM, nl.XFRM_MSG_NEWSA)
+	msgs, err := req.Execute(unix.NETLINK_XFRM, nl.XFRM_MSG_NEWSA)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func (h *Handle) XfrmStateGet(state *XfrmState) (*XfrmState, error) {
 }
 
 func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState, error) {
-	req := h.newNetlinkRequest(nlProto, syscall.NLM_F_ACK)
+	req := h.newNetlinkRequest(nlProto, unix.NLM_F_ACK)
 
 	msg := &nl.XfrmUsersaId{}
 	msg.Family = uint16(nl.GetIPFamily(state.Dst))
@@ -278,7 +278,7 @@ func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState
 		resType = 0
 	}
 
-	msgs, err := req.Execute(syscall.NETLINK_XFRM, uint16(resType))
+	msgs, err := req.Execute(unix.NETLINK_XFRM, uint16(resType))
 	if err != nil {
 		return nil, err
 	}
@@ -386,11 +386,11 @@ func XfrmStateFlush(proto Proto) error {
 // proto = 0 means any transformation protocols
 // Equivalent to: `ip xfrm state flush [ proto XFRM-PROTO ]`
 func (h *Handle) XfrmStateFlush(proto Proto) error {
-	req := h.newNetlinkRequest(nl.XFRM_MSG_FLUSHSA, syscall.NLM_F_ACK)
+	req := h.newNetlinkRequest(nl.XFRM_MSG_FLUSHSA, unix.NLM_F_ACK)
 
 	req.AddData(&nl.XfrmUsersaFlush{Proto: uint8(proto)})
 
-	_, err := req.Execute(syscall.NETLINK_XFRM, 0)
+	_, err := req.Execute(unix.NETLINK_XFRM, 0)
 	if err != nil {
 		return err
 	}

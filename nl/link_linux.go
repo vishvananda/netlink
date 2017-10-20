@@ -1,14 +1,15 @@
 package nl
 
 import (
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
 	DEFAULT_CHANGE = 0xFFFFFFFF
 	// doesn't exist in syscall
-	IFLA_VFINFO_LIST = syscall.IFLA_IFALIAS + 1 + iota
+	IFLA_VFINFO_LIST = unix.IFLA_IFALIAS + 1 + iota
 	IFLA_STATS64
 	IFLA_VF_PORTS
 	IFLA_PORT_SELF

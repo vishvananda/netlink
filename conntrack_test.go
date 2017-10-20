@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net"
 	"runtime"
-	"syscall"
 	"testing"
 
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 )
 
 func CheckErrorFail(t *testing.T, err error) {
@@ -76,10 +76,10 @@ func applyFilter(flowList []ConntrackFlow, ipv4Filter *ConntrackFilter, ipv6Filt
 func TestConntrackSocket(t *testing.T) {
 	skipUnlessRoot(t)
 
-	h, err := NewHandle(syscall.NETLINK_NETFILTER)
+	h, err := NewHandle(unix.NETLINK_NETFILTER)
 	CheckErrorFail(t, err)
 
-	if h.SupportsNetlinkFamily(syscall.NETLINK_NETFILTER) != true {
+	if h.SupportsNetlinkFamily(unix.NETLINK_NETFILTER) != true {
 		t.Fatal("ERROR not supporting the NETFILTER family")
 	}
 }
@@ -104,7 +104,7 @@ func TestConntrackTableList(t *testing.T) {
 	udpFlowCreateProg(t, 5, 2000, "127.0.0.10", 3000)
 
 	// Fetch the conntrack table
-	flows, err := h.ConntrackTableList(ConntrackTable, syscall.AF_INET)
+	flows, err := h.ConntrackTableList(ConntrackTable, unix.AF_INET)
 	CheckErrorFail(t, err)
 
 	// Check that it is able to find the 5 flows created
@@ -122,7 +122,7 @@ func TestConntrackTableList(t *testing.T) {
 	}
 
 	// Give a try also to the IPv6 version
-	_, err = h.ConntrackTableList(ConntrackTable, syscall.AF_INET6)
+	_, err = h.ConntrackTableList(ConntrackTable, unix.AF_INET6)
 	CheckErrorFail(t, err)
 
 	// Switch back to the original namespace
@@ -145,7 +145,7 @@ func TestConntrackTableFlush(t *testing.T) {
 	udpFlowCreateProg(t, 5, 3000, "127.0.0.10", 4000)
 
 	// Fetch the conntrack table
-	flows, err := h.ConntrackTableList(ConntrackTable, syscall.AF_INET)
+	flows, err := h.ConntrackTableList(ConntrackTable, unix.AF_INET)
 	CheckErrorFail(t, err)
 
 	// Check that it is able to find the 5 flows created
@@ -167,7 +167,7 @@ func TestConntrackTableFlush(t *testing.T) {
 	CheckErrorFail(t, err)
 
 	// Fetch again the flows to validate the flush
-	flows, err = h.ConntrackTableList(ConntrackTable, syscall.AF_INET)
+	flows, err = h.ConntrackTableList(ConntrackTable, unix.AF_INET)
 	CheckErrorFail(t, err)
 
 	// Check if it is still able to find the 5 flows created
@@ -205,7 +205,7 @@ func TestConntrackTableDelete(t *testing.T) {
 	udpFlowCreateProg(t, 5, 7000, "127.0.0.20", 8000)
 
 	// Fetch the conntrack table
-	flows, err := h.ConntrackTableList(ConntrackTable, syscall.AF_INET)
+	flows, err := h.ConntrackTableList(ConntrackTable, unix.AF_INET)
 	CheckErrorFail(t, err)
 
 	// Check that it is able to find the 5 flows created for each group
@@ -235,7 +235,7 @@ func TestConntrackTableDelete(t *testing.T) {
 
 	// Flush entries of groupB
 	var deleted uint
-	if deleted, err = h.ConntrackDeleteFilter(ConntrackTable, syscall.AF_INET, filter); err != nil {
+	if deleted, err = h.ConntrackDeleteFilter(ConntrackTable, unix.AF_INET, filter); err != nil {
 		t.Fatalf("Error during the erase: %s", err)
 	}
 	if deleted != 5 {
@@ -243,7 +243,7 @@ func TestConntrackTableDelete(t *testing.T) {
 	}
 
 	// Check again the table to verify that are gone
-	flows, err = h.ConntrackTableList(ConntrackTable, syscall.AF_INET)
+	flows, err = h.ConntrackTableList(ConntrackTable, unix.AF_INET)
 	CheckErrorFail(t, err)
 
 	// Check if it is able to find the 5 flows of groupA but none of groupB
@@ -274,7 +274,7 @@ func TestConntrackTableDelete(t *testing.T) {
 func TestConntrackFilter(t *testing.T) {
 	var flowList []ConntrackFlow
 	flowList = append(flowList, ConntrackFlow{
-		FamilyType: syscall.AF_INET,
+		FamilyType: unix.AF_INET,
 		Forward: ipTuple{
 			SrcIP:   net.ParseIP("10.0.0.1"),
 			DstIP:   net.ParseIP("20.0.0.1"),
@@ -289,7 +289,7 @@ func TestConntrackFilter(t *testing.T) {
 		},
 	},
 		ConntrackFlow{
-			FamilyType: syscall.AF_INET,
+			FamilyType: unix.AF_INET,
 			Forward: ipTuple{
 				SrcIP:   net.ParseIP("10.0.0.2"),
 				DstIP:   net.ParseIP("20.0.0.2"),
@@ -304,7 +304,7 @@ func TestConntrackFilter(t *testing.T) {
 			},
 		},
 		ConntrackFlow{
-			FamilyType: syscall.AF_INET6,
+			FamilyType: unix.AF_INET6,
 			Forward: ipTuple{
 				SrcIP:   net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"),
 				DstIP:   net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"),

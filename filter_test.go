@@ -4,8 +4,9 @@ package netlink
 
 import (
 	"reflect"
-	"syscall"
 	"testing"
+
+	"golang.org/x/sys/unix"
 )
 
 func TestFilterAddDel(t *testing.T) {
@@ -58,7 +59,7 @@ func TestFilterAddDel(t *testing.T) {
 			LinkIndex: link.Attrs().Index,
 			Parent:    MakeHandle(0xffff, 0),
 			Priority:  1,
-			Protocol:  syscall.ETH_P_IP,
+			Protocol:  unix.ETH_P_IP,
 		},
 		RedirIndex: redir.Attrs().Index,
 		ClassId:    classId,
@@ -185,7 +186,7 @@ func TestAdvancedFilterAddDel(t *testing.T) {
 			LinkIndex: index,
 			Parent:    qdiscHandle,
 			Priority:  1,
-			Protocol:  syscall.ETH_P_ALL,
+			Protocol:  unix.ETH_P_ALL,
 		},
 		Sel: &TcU32Sel{
 			Keys:  u32SelKeys,
@@ -337,7 +338,7 @@ func TestFilterFwAddDel(t *testing.T) {
 		Parent:    MakeHandle(0xffff, 0),
 		Handle:    MakeHandle(0, 0x6),
 		Priority:  1,
-		Protocol:  syscall.ETH_P_IP,
+		Protocol:  unix.ETH_P_IP,
 	}
 	fwattrs := FilterFwAttrs{
 		Buffer:   12345,
@@ -476,7 +477,7 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 			LinkIndex: link.Attrs().Index,
 			Parent:    MakeHandle(0xffff, 0),
 			Priority:  1,
-			Protocol:  syscall.ETH_P_ALL,
+			Protocol:  unix.ETH_P_ALL,
 		},
 		ClassId: classId,
 		Actions: []Action{
@@ -594,7 +595,7 @@ func TestFilterClsActBpfAddDel(t *testing.T) {
 		LinkIndex: link.Attrs().Index,
 		Parent:    HANDLE_MIN_EGRESS,
 		Handle:    MakeHandle(0, 1),
-		Protocol:  syscall.ETH_P_ALL,
+		Protocol:  unix.ETH_P_ALL,
 		Priority:  1,
 	}
 	fd, err := loadSimpleBpf(BPF_PROG_TYPE_SCHED_CLS, 1)

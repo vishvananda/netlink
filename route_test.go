@@ -5,11 +5,11 @@ package netlink
 import (
 	"net"
 	"strconv"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 )
 
 func TestRouteAddDel(t *testing.T) {
@@ -199,13 +199,13 @@ func TestRouteSubscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, syscall.RTM_NEWROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, dst.IP) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, syscall.RTM_DELROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, dst.IP) {
 		t.Fatal("Del update not received as expected")
 	}
 }
@@ -254,7 +254,7 @@ func TestRouteSubscribeWithOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, syscall.RTM_NEWROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, dst.IP) {
 		t.Fatal("Add update not received as expected")
 	}
 }
@@ -306,13 +306,13 @@ func TestRouteSubscribeAt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, syscall.RTM_NEWROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, dst.IP) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := nh.RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, syscall.RTM_DELROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, dst.IP) {
 		t.Fatal("Del update not received as expected")
 	}
 }
@@ -344,10 +344,10 @@ func TestRouteFilterAllTables(t *testing.T) {
 			LinkIndex: link.Attrs().Index,
 			Dst:       dst,
 			Src:       src,
-			Scope:     syscall.RT_SCOPE_LINK,
+			Scope:     unix.RT_SCOPE_LINK,
 			Priority:  13,
 			Table:     table,
-			Type:      syscall.RTN_UNICAST,
+			Type:      unix.RTN_UNICAST,
 			Tos:       14,
 		}
 		if err := RouteAdd(&route); err != nil {
@@ -357,9 +357,9 @@ func TestRouteFilterAllTables(t *testing.T) {
 	routes, err := RouteListFiltered(FAMILY_V4, &Route{
 		Dst:   dst,
 		Src:   src,
-		Scope: syscall.RT_SCOPE_LINK,
-		Table: syscall.RT_TABLE_UNSPEC,
-		Type:  syscall.RTN_UNICAST,
+		Scope: unix.RT_SCOPE_LINK,
+		Table: unix.RT_TABLE_UNSPEC,
+		Type:  unix.RTN_UNICAST,
 		Tos:   14,
 	}, RT_FILTER_DST|RT_FILTER_SRC|RT_FILTER_SCOPE|RT_FILTER_TABLE|RT_FILTER_TYPE|RT_FILTER_TOS)
 	if err != nil {
@@ -370,7 +370,7 @@ func TestRouteFilterAllTables(t *testing.T) {
 	}
 
 	for _, route := range routes {
-		if route.Scope != syscall.RT_SCOPE_LINK {
+		if route.Scope != unix.RT_SCOPE_LINK {
 			t.Fatal("Invalid Scope. Route not added properly")
 		}
 		if route.Priority != 13 {
@@ -379,7 +379,7 @@ func TestRouteFilterAllTables(t *testing.T) {
 		if !tableIDIn(tables, route.Table) {
 			t.Fatalf("Invalid Table %d. Route not added properly", route.Table)
 		}
-		if route.Type != syscall.RTN_UNICAST {
+		if route.Type != unix.RTN_UNICAST {
 			t.Fatal("Invalid Type. Route not added properly")
 		}
 		if route.Tos != 14 {
@@ -422,10 +422,10 @@ func TestRouteExtraFields(t *testing.T) {
 		LinkIndex: link.Attrs().Index,
 		Dst:       dst,
 		Src:       src,
-		Scope:     syscall.RT_SCOPE_LINK,
+		Scope:     unix.RT_SCOPE_LINK,
 		Priority:  13,
-		Table:     syscall.RT_TABLE_MAIN,
-		Type:      syscall.RTN_UNICAST,
+		Table:     unix.RT_TABLE_MAIN,
+		Type:      unix.RTN_UNICAST,
 		Tos:       14,
 	}
 	if err := RouteAdd(&route); err != nil {
@@ -434,9 +434,9 @@ func TestRouteExtraFields(t *testing.T) {
 	routes, err := RouteListFiltered(FAMILY_V4, &Route{
 		Dst:   dst,
 		Src:   src,
-		Scope: syscall.RT_SCOPE_LINK,
-		Table: syscall.RT_TABLE_MAIN,
-		Type:  syscall.RTN_UNICAST,
+		Scope: unix.RT_SCOPE_LINK,
+		Table: unix.RT_TABLE_MAIN,
+		Type:  unix.RTN_UNICAST,
 		Tos:   14,
 	}, RT_FILTER_DST|RT_FILTER_SRC|RT_FILTER_SCOPE|RT_FILTER_TABLE|RT_FILTER_TYPE|RT_FILTER_TOS)
 	if err != nil {
@@ -446,16 +446,16 @@ func TestRouteExtraFields(t *testing.T) {
 		t.Fatal("Route not added properly")
 	}
 
-	if routes[0].Scope != syscall.RT_SCOPE_LINK {
+	if routes[0].Scope != unix.RT_SCOPE_LINK {
 		t.Fatal("Invalid Scope. Route not added properly")
 	}
 	if routes[0].Priority != 13 {
 		t.Fatal("Invalid Priority. Route not added properly")
 	}
-	if routes[0].Table != syscall.RT_TABLE_MAIN {
+	if routes[0].Table != unix.RT_TABLE_MAIN {
 		t.Fatal("Invalid Scope. Route not added properly")
 	}
-	if routes[0].Type != syscall.RTN_UNICAST {
+	if routes[0].Type != unix.RTN_UNICAST {
 		t.Fatal("Invalid Type. Route not added properly")
 	}
 	if routes[0].Tos != 14 {
@@ -693,7 +693,7 @@ func TestRouteEqual(t *testing.T) {
 		},
 		Route{
 			LinkIndex: 10,
-			Scope:     syscall.RT_SCOPE_LINK,
+			Scope:     unix.RT_SCOPE_LINK,
 			Dst: &net.IPNet{
 				IP:   net.IPv4(192, 168, 0, 0),
 				Mask: net.CIDRMask(24, 32),
@@ -707,10 +707,10 @@ func TestRouteEqual(t *testing.T) {
 				Mask: net.CIDRMask(32, 32),
 			},
 			Src:      net.IPv4(127, 3, 3, 3),
-			Scope:    syscall.RT_SCOPE_LINK,
+			Scope:    unix.RT_SCOPE_LINK,
 			Priority: 13,
-			Table:    syscall.RT_TABLE_MAIN,
-			Type:     syscall.RTN_UNICAST,
+			Table:    unix.RT_TABLE_MAIN,
+			Type:     unix.RTN_UNICAST,
 			Tos:      14,
 		},
 		Route{
