@@ -1771,7 +1771,9 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_GRE_ENCAP_FLAGS:
 			gre.EncapFlags = native.Uint16(datum.Value[0:2])
 		case nl.IFLA_GRE_COLLECT_METADATA:
-			gre.FlowBased = int8(datum.Value[0]) != 0
+			if len(datum.Value) > 0 {
+				gre.FlowBased = int8(datum.Value[0]) != 0
+			}
 		}
 	}
 }
