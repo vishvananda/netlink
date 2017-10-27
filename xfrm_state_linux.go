@@ -308,6 +308,7 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	state.Reqid = int(msg.Reqid)
 	state.ReplayWindow = int(msg.ReplayWindow)
 	lftToLimits(&msg.Lft, &state.Limits)
+	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
 
 	return &state
 }
@@ -427,6 +428,16 @@ func limitsToLft(lmts XfrmStateLimits, lft *nl.XfrmLifetimeCfg) {
 
 func lftToLimits(lft *nl.XfrmLifetimeCfg, lmts *XfrmStateLimits) {
 	*lmts = *(*XfrmStateLimits)(unsafe.Pointer(lft))
+}
+
+func curToStats(cur *nl.XfrmLifetimeCur, wstats *nl.XfrmStats, stats *XfrmStateStats) {
+	stats.Bytes = cur.Bytes
+	stats.Packets = cur.Packets
+	stats.AddTime = cur.AddTime
+	stats.UseTime = cur.UseTime
+	stats.ReplayWindow = wstats.ReplayWindow
+	stats.Replay = wstats.Replay
+	stats.Failed = wstats.IntegrityFailed
 }
 
 func xfrmUsersaInfoFromXfrmState(state *XfrmState) *nl.XfrmUsersaInfo {
