@@ -3,6 +3,7 @@ package netlink
 import (
 	"fmt"
 	"net"
+	"os"
 )
 
 // Link represents a link device from netlink. Shared link attributes
@@ -286,8 +287,10 @@ type TuntapFlag uint16
 // Tuntap links created via /dev/tun/tap, but can be destroyed via netlink
 type Tuntap struct {
 	LinkAttrs
-	Mode  TuntapMode
-	Flags TuntapFlag
+	Mode   TuntapMode
+	Flags  TuntapFlag
+	Queues int
+	Fds    []*os.File
 }
 
 func (tuntap *Tuntap) Attrs() *LinkAttrs {

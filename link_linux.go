@@ -21,13 +21,15 @@ const (
 )
 
 const (
-	TUNTAP_MODE_TUN  TuntapMode = unix.IFF_TUN
-	TUNTAP_MODE_TAP  TuntapMode = unix.IFF_TAP
-	TUNTAP_DEFAULTS  TuntapFlag = unix.IFF_TUN_EXCL | unix.IFF_ONE_QUEUE
-	TUNTAP_VNET_HDR  TuntapFlag = unix.IFF_VNET_HDR
-	TUNTAP_TUN_EXCL  TuntapFlag = unix.IFF_TUN_EXCL
-	TUNTAP_NO_PI     TuntapFlag = unix.IFF_NO_PI
-	TUNTAP_ONE_QUEUE TuntapFlag = unix.IFF_ONE_QUEUE
+	TUNTAP_MODE_TUN             TuntapMode = unix.IFF_TUN
+	TUNTAP_MODE_TAP             TuntapMode = unix.IFF_TAP
+	TUNTAP_DEFAULTS             TuntapFlag = unix.IFF_TUN_EXCL | unix.IFF_ONE_QUEUE
+	TUNTAP_VNET_HDR             TuntapFlag = unix.IFF_VNET_HDR
+	TUNTAP_TUN_EXCL             TuntapFlag = unix.IFF_TUN_EXCL
+	TUNTAP_NO_PI                TuntapFlag = unix.IFF_NO_PI
+	TUNTAP_ONE_QUEUE            TuntapFlag = unix.IFF_ONE_QUEUE
+	TUNTAP_MULTI_QUEUE          TuntapFlag = 0x0100
+	TUNTAP_MULTI_QUEUE_DEFAULTS TuntapFlag = TUNTAP_MULTI_QUEUE | TUNTAP_NO_PI
 )
 
 var lookupByDump = false
@@ -769,6 +771,12 @@ func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
 	}
 }
 
+func cleanupFds(fds []*os.File) {
+	for _, f := range fds {
+		f.Close()
+	}
+}
+
 // LinkAdd adds a new link device. The type and features of the device
 // are taken from the parameters in the link object.
 // Equivalent to: `ip link add $link`
@@ -794,39 +802,76 @@ func (h *Handle) linkModify(link Link, flags int) error {
 	if tuntap, ok := link.(*Tuntap); ok {
 		// TODO: support user
 		// TODO: support group
-		// TODO: multi_queue
 		// TODO: support non- persistent
 		if tuntap.Mode < unix.IFF_TUN || tuntap.Mode > unix.IFF_TAP {
 			return fmt.Errorf("Tuntap.Mode %v unknown!", tuntap.Mode)
 		}
-		file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
+
+		queues := tuntap.Queues
+
+		var fds []*os.File
 		var req ifReq
-		if tuntap.Flags == 0 {
-			req.Flags = uint16(TUNTAP_DEFAULTS)
-		} else {
-			req.Flags = uint16(tuntap.Flags)
-		}
-		req.Flags |= uint16(tuntap.Mode)
 		copy(req.Name[:15], base.Name)
-		_, _, errno := unix.Syscall(unix.SYS_IOCTL, file.Fd(), uintptr(unix.TUNSETIFF), uintptr(unsafe.Pointer(&req)))
-		if errno != 0 {
-			return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed, errno %v", errno)
+
+		req.Flags = uint16(tuntap.Flags)
+
+		if queues == 0 { //Legacy compatibility
+			queues = 1
+			if tuntap.Flags == 0 {
+				req.Flags = uint16(TUNTAP_DEFAULTS)
+			}
+		} else {
+			// For best peformance set Flags to TUNTAP_MULTI_QUEUE_DEFAULTS | TUNTAP_VNET_HDR
+			// when a) KVM has support for this ABI and
+			//      b) the value of the flag is queryable using the TUNGETIFF ioctl
+			if tuntap.Flags == 0 {
+				req.Flags = uint16(TUNTAP_MULTI_QUEUE_DEFAULTS)
+			}
 		}
-		_, _, errno = unix.Syscall(unix.SYS_IOCTL, file.Fd(), uintptr(unix.TUNSETPERSIST), 1)
+
+		req.Flags |= uint16(tuntap.Mode)
+
+		for i := 0; i < queues; i++ {
+			localReq := req
+			file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+			if err != nil {
+				cleanupFds(fds)
+				return err
+			}
+
+			fds = append(fds, file)
+			_, _, errno := unix.Syscall(unix.SYS_IOCTL, file.Fd(), uintptr(unix.TUNSETIFF), uintptr(unsafe.Pointer(&localReq)))
+			if errno != 0 {
+				cleanupFds(fds)
+				return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed [%d], errno %v", i, errno)
+			}
+		}
+
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, fds[0].Fd(), uintptr(unix.TUNSETPERSIST), 1)
 		if errno != 0 {
+			cleanupFds(fds)
 			return fmt.Errorf("Tuntap IOCTL TUNSETPERSIST failed, errno %v", errno)
 		}
+
 		h.ensureIndex(base)
 
 		// can't set master during create, so set it afterwards
 		if base.MasterIndex != 0 {
 			// TODO: verify MasterIndex is actually a bridge?
-			return h.LinkSetMasterByIndex(link, base.MasterIndex)
+			err := h.LinkSetMasterByIndex(link, base.MasterIndex)
+			if err != nil {
+				_, _, _ = unix.Syscall(unix.SYS_IOCTL, fds[0].Fd(), uintptr(unix.TUNSETPERSIST), 0)
+				cleanupFds(fds)
+				return err
+			}
 		}
+
+		if tuntap.Queues == 0 {
+			cleanupFds(fds)
+		} else {
+			tuntap.Fds = fds
+		}
+
 		return nil
 	}
 
