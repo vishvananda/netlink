@@ -1489,3 +1489,22 @@ func TestLinkByAliasWhenLinkIsNotFound(t *testing.T) {
 		t.Errorf("Error returned expected to of LinkNotFoundError type: %v", err)
 	}
 }
+
+func TestLinkAddDelTuntap(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Tuntap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Mode:      TUNTAP_MODE_TAP})
+}
+
+func TestLinkAddDelTuntapMq(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Tuntap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Mode:      TUNTAP_MODE_TAP,
+		Queues:    4})
+}
