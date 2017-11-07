@@ -3,7 +3,6 @@ package netlink
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"runtime"
 	"strings"
@@ -17,9 +16,7 @@ type tearDownNetlinkTest func()
 
 func skipUnlessRoot(t *testing.T) {
 	if os.Getuid() != 0 {
-		msg := "Skipped test because it requires root privileges."
-		log.Printf(msg)
-		t.Skip(msg)
+		t.Skip("Test requires root privileges.")
 	}
 }
 
@@ -43,9 +40,7 @@ func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
 
 func setUpMPLSNetlinkTest(t *testing.T) tearDownNetlinkTest {
 	if _, err := os.Stat("/proc/sys/net/mpls/platform_labels"); err != nil {
-		msg := "Skipped test because it requires MPLS support."
-		log.Printf(msg)
-		t.Skip(msg)
+		t.Skip("Test requires MPLS support.")
 	}
 	f := setUpNetlinkTest(t)
 	setUpF := func(path, value string) {
@@ -76,9 +71,7 @@ func setUpNetlinkTestWithKModule(t *testing.T, name string) tearDownNetlinkTest 
 
 	}
 	if !found {
-		msg := fmt.Sprintf("Skipped test because it requres kmodule %s.", name)
-		log.Println(msg)
-		t.Skip(msg)
+		t.Skipf("Test requires kmodule %q.", name)
 	}
 	return setUpNetlinkTest(t)
 }
