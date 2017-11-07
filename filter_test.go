@@ -577,8 +577,10 @@ func TestFilterClsActBpfAddDel(t *testing.T) {
 		QdiscType:  "clsact",
 	}
 	// This feature was added in kernel 4.5
+	minKernelRequired(t, 4, 5)
+
 	if err := QdiscAdd(qdisc); err != nil {
-		t.Skipf("Failed adding clsact qdisc, unsupported kernel")
+		t.Fatal(err)
 	}
 	qdiscs, err := SafeQdiscList(link)
 	if err != nil {

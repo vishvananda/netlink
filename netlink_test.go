@@ -92,3 +92,34 @@ func remountSysfs() error {
 	}
 	return unix.Mount("", "/sys", "sysfs", 0, "")
 }
+
+func minKernelRequired(t *testing.T, kernel, major int) {
+	k, m, err := KernelVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if k < kernel || k == kernel && m < major {
+		t.Skipf("Host Kernel (%d.%d) does not meet test's minimum required version: (%d.%d)",
+			k, m, kernel, major)
+	}
+}
+
+func KernelVersion() (kernel, major int, err error) {
+	uts := unix.Utsname{}
+	if err = unix.Uname(&uts); err != nil {
+		return
+	}
+
+	ba := make([]byte, 0, len(uts.Release))
+	for _, b := range uts.Release {
+		if b == 0 {
+			break
+		}
+		ba = append(ba, byte(b))
+	}
+	var rest string
+	if n, _ := fmt.Sscanf(string(ba), "%d.%d%s", &kernel, &major, &rest); n < 2 {
+		err = fmt.Errorf("can't parse kernel version in %q", string(ba))
+	}
+	return
+}
