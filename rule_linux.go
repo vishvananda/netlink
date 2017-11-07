@@ -8,6 +8,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const FibRuleInvert = 0x2
+
 // RuleAdd adds a rule to the system.
 // Equivalent to: ip rule add
 func RuleAdd(rule *Rule) error {
@@ -30,18 +32,31 @@ func RuleDel(rule *Rule) error {
 // RuleDel deletes a rule from the system.
 // Equivalent to: ip rule del
 func (h *Handle) RuleDel(rule *Rule) error {
-	req := h.newNetlinkRequest(unix.RTM_DELRULE, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+	req := h.newNetlinkRequest(unix.RTM_DELRULE, unix.NLM_F_ACK)
 	return ruleHandle(rule, req)
 }
 
 func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 	msg := nl.NewRtMsg()
 	msg.Family = unix.AF_INET
+	msg.Protocol = unix.RTPROT_BOOT
+	msg.Scope = unix.RT_SCOPE_UNIVERSE
+	msg.Table = unix.RT_TABLE_UNSPEC
+	msg.Type = unix.RTN_UNSPEC
+	if req.NlMsghdr.Flags&unix.NLM_F_CREATE > 0 {
+		msg.Type = unix.RTN_UNICAST
+	}
+	if rule.Invert {
+		msg.Flags |= FibRuleInvert
+	}
 	if rule.Family != 0 {
 		msg.Family = uint8(rule.Family)
 	}
-	var dstFamily uint8
+	if rule.Table >= 0 && rule.Table < 256 {
+		msg.Table = uint8(rule.Table)
+	}
 
+	var dstFamily uint8
 	var rtAttrs []*nl.RtAttr
 	if rule.Dst != nil && rule.Dst.IP != nil {
 		dstLen, _ := rule.Dst.Mask.Size()
@@ -71,13 +86,6 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 			srcData = rule.Src.IP.To16()
 		}
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_SRC, srcData))
-	}
-
-	if rule.Table >= 0 {
-		msg.Table = uint8(rule.Table)
-		if rule.Table >= 256 {
-			msg.Table = unix.RT_TABLE_UNSPEC
-		}
 	}
 
 	req.AddData(msg)
@@ -174,6 +182,8 @@ func (h *Handle) RuleList(family int) ([]Rule, error) {
 		}
 
 		rule := NewRule()
+
+		rule.Invert = msg.Flags&FibRuleInvert > 0
 
 		for j := range attrs {
 			switch attrs[j].Attr.Type {
