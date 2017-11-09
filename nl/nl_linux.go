@@ -278,6 +278,11 @@ func NewRtAttrChild(parent *RtAttr, attrType int, data []byte) *RtAttr {
 	return attr
 }
 
+// AddChild adds an existing RtAttr as a child.
+func (a *RtAttr) AddChild(attr *RtAttr) {
+	a.children = append(a.children, attr)
+}
+
 func (a *RtAttr) Len() int {
 	if len(a.children) == 0 {
 		return (unix.SizeofRtAttr + len(a.Data))

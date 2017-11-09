@@ -454,6 +454,25 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		msg.Type = uint8(route.Type)
 	}
 
+	var metrics []*nl.RtAttr
+	// TODO: support other rta_metric values
+	if route.MTU > 0 {
+		b := nl.Uint32Attr(uint32(route.MTU))
+		metrics = append(metrics, nl.NewRtAttr(unix.RTAX_MTU, b))
+	}
+	if route.AdvMSS > 0 {
+		b := nl.Uint32Attr(uint32(route.AdvMSS))
+		metrics = append(metrics, nl.NewRtAttr(unix.RTAX_ADVMSS, b))
+	}
+
+	if metrics != nil {
+		attr := nl.NewRtAttr(unix.RTA_METRICS, nil)
+		for _, metric := range metrics {
+			attr.AddChild(metric)
+		}
+		rtAttrs = append(rtAttrs, attr)
+	}
+
 	msg.Flags = uint32(route.Flags)
 	msg.Scope = uint8(route.Scope)
 	msg.Family = uint8(family)
@@ -685,6 +704,19 @@ func deserializeRoute(m []byte) (Route, error) {
 			encapType = attr
 		case nl.RTA_ENCAP:
 			encap = attr
+		case unix.RTA_METRICS:
+			metrics, err := nl.ParseRouteAttr(attr.Value)
+			if err != nil {
+				return route, err
+			}
+			for _, metric := range metrics {
+				switch metric.Attr.Type {
+				case unix.RTAX_MTU:
+					route.MTU = int(native.Uint32(metric.Value[0:4]))
+				case unix.RTAX_ADVMSS:
+					route.AdvMSS = int(native.Uint32(metric.Value[0:4]))
+				}
+			}
 		}
 	}
 
