@@ -371,14 +371,6 @@ func TestFilterFwAddDel(t *testing.T) {
 	if fw.Police.Rate.Rate != filter.Police.Rate.Rate {
 		t.Fatal("Police Rate doesn't match")
 	}
-	for i := range fw.Rtab {
-		if fw.Rtab[i] != filter.Rtab[i] {
-			t.Fatal("Rtab doesn't match")
-		}
-		if fw.Ptab[i] != filter.Ptab[i] {
-			t.Fatal("Ptab doesn't match")
-		}
-	}
 	if fw.ClassId != filter.ClassId {
 		t.Fatal("ClassId doesn't match")
 	}
