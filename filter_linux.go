@@ -47,7 +47,7 @@ func NewFw(attrs FilterAttrs, fattrs FilterFwAttrs) (*Fw, error) {
 	if police.Rate.Rate != 0 {
 		police.Rate.Mpu = fattrs.Mpu
 		police.Rate.Overhead = fattrs.Overhead
-		if CalcRtable(&police.Rate, rtab, rcellLog, fattrs.Mtu, linklayer) < 0 {
+		if CalcRtable(&police.Rate, rtab[:], rcellLog, fattrs.Mtu, linklayer) < 0 {
 			return nil, errors.New("TBF: failed to calculate rate table")
 		}
 		police.Burst = uint32(Xmittime(uint64(police.Rate.Rate), uint32(buffer)))
@@ -56,7 +56,7 @@ func NewFw(attrs FilterAttrs, fattrs FilterFwAttrs) (*Fw, error) {
 	if police.PeakRate.Rate != 0 {
 		police.PeakRate.Mpu = fattrs.Mpu
 		police.PeakRate.Overhead = fattrs.Overhead
-		if CalcRtable(&police.PeakRate, ptab, pcellLog, fattrs.Mtu, linklayer) < 0 {
+		if CalcRtable(&police.PeakRate, ptab[:], pcellLog, fattrs.Mtu, linklayer) < 0 {
 			return nil, errors.New("POLICE: failed to calculate peak rate table")
 		}
 	}
@@ -552,7 +552,7 @@ func AdjustSize(sz uint, mpu uint, linklayer int) uint {
 	}
 }
 
-func CalcRtable(rate *nl.TcRateSpec, rtab [256]uint32, cellLog int, mtu uint32, linklayer int) int {
+func CalcRtable(rate *nl.TcRateSpec, rtab []uint32, cellLog int, mtu uint32, linklayer int) int {
 	bps := rate.Rate
 	mpu := rate.Mpu
 	var sz uint
