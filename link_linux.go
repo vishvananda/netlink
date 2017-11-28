@@ -2035,7 +2035,11 @@ func addSittunAttrs(sittun *Sittun, linkInfo *nl.RtAttr) {
 		nl.NewRtAttrChild(data, nl.IFLA_IPTUN_REMOTE, []byte(ip))
 	}
 
-	nl.NewRtAttrChild(data, nl.IFLA_IPTUN_TTL, nl.Uint8Attr(sittun.Ttl))
+	if sittun.Ttl > 0 {
+		// Would otherwise fail on 3.10 kernel
+		nl.NewRtAttrChild(data, nl.IFLA_IPTUN_TTL, nl.Uint8Attr(sittun.Ttl))
+	}
+
 	nl.NewRtAttrChild(data, nl.IFLA_IPTUN_TOS, nl.Uint8Attr(sittun.Tos))
 	nl.NewRtAttrChild(data, nl.IFLA_IPTUN_PMTUDISC, nl.Uint8Attr(sittun.PMtuDisc))
 	nl.NewRtAttrChild(data, nl.IFLA_IPTUN_ENCAP_TYPE, nl.Uint16Attr(sittun.EncapType))
