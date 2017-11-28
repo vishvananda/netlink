@@ -444,6 +444,8 @@ func TestLinkAddDelVeth(t *testing.T) {
 }
 
 func TestLinkAddDelBond(t *testing.T) {
+	minKernelRequired(t, 3, 13)
+
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
