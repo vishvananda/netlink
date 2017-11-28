@@ -63,7 +63,7 @@ func testXfrmStateAddGetDel(t *testing.T, state *XfrmState) {
 }
 
 func TestXfrmStateAllocSpi(t *testing.T) {
-	setUpNetlinkTest(t)()
+	defer setUpNetlinkTest(t)()
 
 	state := getBaseState()
 	state.Spi = 0
@@ -83,7 +83,7 @@ func TestXfrmStateAllocSpi(t *testing.T) {
 }
 
 func TestXfrmStateFlush(t *testing.T) {
-	setUpNetlinkTest(t)()
+	defer setUpNetlinkTest(t)()
 
 	state1 := getBaseState()
 	state2 := getBaseState()
@@ -134,7 +134,7 @@ func TestXfrmStateFlush(t *testing.T) {
 }
 
 func TestXfrmStateUpdateLimits(t *testing.T) {
-	setUpNetlinkTest(t)()
+	defer setUpNetlinkTest(t)()
 
 	// Program state with limits
 	state := getBaseState()
@@ -182,7 +182,7 @@ func TestXfrmStateUpdateLimits(t *testing.T) {
 }
 
 func TestXfrmStateStats(t *testing.T) {
-	setUpNetlinkTest(t)()
+	defer setUpNetlinkTest(t)()
 
 	// Program state and record time
 	state := getBaseState()
