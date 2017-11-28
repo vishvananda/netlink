@@ -43,6 +43,29 @@ func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
 	}
 }
 
+func setUpNetlinkTestWithLoopback(t *testing.T) tearDownNetlinkTest {
+	skipUnlessRoot(t)
+
+	runtime.LockOSThread()
+	ns, err := netns.New()
+	if err != nil {
+		t.Fatal("Failed to create new netns", ns)
+	}
+
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatalf("Failed to find \"lo\" in new netns: %v", err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatalf("Failed to bring up \"lo\" in new netns: %v", err)
+	}
+
+	return func() {
+		ns.Close()
+		runtime.UnlockOSThread()
+	}
+}
+
 func setUpMPLSNetlinkTest(t *testing.T) tearDownNetlinkTest {
 	if _, err := os.Stat("/proc/sys/net/mpls/platform_labels"); err != nil {
 		t.Skip("Test requires MPLS support.")
