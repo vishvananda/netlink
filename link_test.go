@@ -1544,3 +1544,130 @@ func TestLinkAddDelTuntapMq(t *testing.T) {
 		Queues:    4,
 		Flags:     TUNTAP_MULTI_QUEUE_DEFAULTS | TUNTAP_VNET_HDR})
 }
+
+func TestVethPeerIndex(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	const (
+		vethPeer1 = "vethOne"
+		vethPeer2 = "vethTwo"
+	)
+
+	link := &Veth{
+		LinkAttrs: LinkAttrs{
+			Name:  vethPeer1,
+			MTU:   1500,
+			Flags: net.FlagUp,
+		},
+		PeerName: vethPeer2,
+	}
+
+	if err := LinkAdd(link); err != nil {
+		t.Fatal(err)
+	}
+
+	linkOne, err := LinkByName("vethOne")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	linkTwo, err := LinkByName("vethTwo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	peerIndexOne, err := VethPeerIndex(&Veth{LinkAttrs: *linkOne.Attrs()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	peerIndexTwo, err := VethPeerIndex(&Veth{LinkAttrs: *linkTwo.Attrs()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if peerIndexOne != linkTwo.Attrs().Index {
+		t.Errorf("VethPeerIndex(%s) mismatch %d != %d", linkOne.Attrs().Name, peerIndexOne, linkTwo.Attrs().Index)
+	}
+
+	if peerIndexTwo != linkOne.Attrs().Index {
+		t.Errorf("VethPeerIndex(%s) mismatch %d != %d", linkTwo.Attrs().Name, peerIndexTwo, linkOne.Attrs().Index)
+	}
+}
+
+func TestLinkSetBondSlave(t *testing.T) {
+	minKernelRequired(t, 3, 13)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	const (
+		bondName     = "foo"
+		slaveOneName = "fooFoo"
+		slaveTwoName = "fooBar"
+	)
+
+	bond := NewLinkBond(LinkAttrs{Name: bondName})
+	bond.Mode = StringToBondModeMap["802.3ad"]
+	bond.AdSelect = BondAdSelect(BOND_AD_SELECT_BANDWIDTH)
+	bond.AdActorSysPrio = 1
+	bond.AdUserPortKey = 1
+	bond.AdActorSystem, _ = net.ParseMAC("06:aa:bb:cc:dd:ee")
+
+	if err := LinkAdd(bond); err != nil {
+		t.Fatal(err)
+	}
+
+	bondLink, err := LinkByName(bondName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(bondLink)
+
+	if err := LinkAdd(&Dummy{LinkAttrs{Name: slaveOneName}}); err != nil {
+		t.Fatal(err)
+	}
+
+	slaveOneLink, err := LinkByName(slaveOneName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(slaveOneLink)
+
+	if err := LinkAdd(&Dummy{LinkAttrs{Name: slaveTwoName}}); err != nil {
+		t.Fatal(err)
+	}
+	slaveTwoLink, err := LinkByName(slaveTwoName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(slaveTwoLink)
+
+	if err := LinkSetBondSlave(slaveOneLink, &Bond{LinkAttrs: *bondLink.Attrs()}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkSetBondSlave(slaveTwoLink, &Bond{LinkAttrs: *bondLink.Attrs()}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Update info about interfaces
+	slaveOneLink, err = LinkByName(slaveOneName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	slaveTwoLink, err = LinkByName(slaveTwoName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if slaveOneLink.Attrs().MasterIndex != bondLink.Attrs().Index {
+		t.Errorf("For %s expected %s to be master", slaveOneLink.Attrs().Name, bondLink.Attrs().Name)
+	}
+
+	if slaveTwoLink.Attrs().MasterIndex != bondLink.Attrs().Index {
+		t.Errorf("For %s expected %s to be master", slaveTwoLink.Attrs().Name, bondLink.Attrs().Name)
+	}
+}
