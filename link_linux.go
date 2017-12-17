@@ -2011,6 +2011,7 @@ func addXdpAttrs(xdp *LinkXdp, req *nl.NetlinkRequest) {
 	native.PutUint32(b, uint32(xdp.Fd))
 	nl.NewRtAttrChild(attrs, nl.IFLA_XDP_FD, b)
 	if xdp.Flags != 0 {
+		b := make([]byte, 4)
 		native.PutUint32(b, xdp.Flags)
 		nl.NewRtAttrChild(attrs, nl.IFLA_XDP_FLAGS, b)
 	}
