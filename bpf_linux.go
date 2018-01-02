@@ -39,7 +39,7 @@ func loadSimpleBpf(progType BpfProgType, ret uint32) (int, error) {
 	attr := BPFAttr{
 		ProgType: uint32(progType),
 		InsnCnt:  uint32(len(insns)),
-		Insns:    uintptr(unsafe.Pointer(&insns)),
+		Insns:    uintptr(unsafe.Pointer(&insns[0])),
 		License:  uintptr(unsafe.Pointer(&license[0])),
 	}
 	fd, _, errno := unix.Syscall(unix.SYS_BPF,
