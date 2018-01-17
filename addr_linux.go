@@ -102,18 +102,20 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 		}
 	}
 
-	if addr.Broadcast == nil {
-		calcBroadcast := make(net.IP, masklen/8)
-		for i := range localAddrData {
-			calcBroadcast[i] = localAddrData[i] | ^addr.Mask[i]
+	if family == FAMILY_V4 {
+		if addr.Broadcast == nil {
+			calcBroadcast := make(net.IP, masklen/8)
+			for i := range localAddrData {
+				calcBroadcast[i] = localAddrData[i] | ^addr.Mask[i]
+			}
+			addr.Broadcast = calcBroadcast
 		}
-		addr.Broadcast = calcBroadcast
-	}
-	req.AddData(nl.NewRtAttr(unix.IFA_BROADCAST, addr.Broadcast))
+		req.AddData(nl.NewRtAttr(unix.IFA_BROADCAST, addr.Broadcast))
 
-	if addr.Label != "" {
-		labelData := nl.NewRtAttr(unix.IFA_LABEL, nl.ZeroTerminated(addr.Label))
-		req.AddData(labelData)
+		if addr.Label != "" {
+			labelData := nl.NewRtAttr(unix.IFA_LABEL, nl.ZeroTerminated(addr.Label))
+			req.AddData(labelData)
+		}
 	}
 
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
