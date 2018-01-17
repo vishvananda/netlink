@@ -118,6 +118,17 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 		}
 	}
 
+	// 0 is the default value for these attributes. However, 0 means "expired", while the least-surprising default
+	// value should be "forever". To compensate for that, only add the attributes if at least one of the values is
+	// non-zero, which means the caller has explicitly set them
+	if addr.ValidLft > 0 || addr.PreferedLft > 0 {
+		cachedata := nl.IfaCacheInfo{
+			IfaValid:    uint32(addr.ValidLft),
+			IfaPrefered: uint32(addr.PreferedLft),
+		}
+		req.AddData(nl.NewRtAttr(unix.IFA_CACHEINFO, cachedata.Serialize()))
+	}
+
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	return err
 }
