@@ -314,12 +314,20 @@ func TestLinkAddDelGretap(t *testing.T) {
 	defer tearDown()
 
 	testLinkAddDel(t, &Gretap{
-		LinkAttrs: LinkAttrs{Name: "foo"},
+		LinkAttrs: LinkAttrs{Name: "foo4"},
 		IKey:      0x101,
 		OKey:      0x101,
 		PMtuDisc:  1,
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 1)})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "foo6"},
+		IKey:      0x101,
+		OKey:      0x101,
+		PMtuDisc:  1,
+		Local:     net.ParseIP("2001:db8:abcd::1"),
+		Remote:    net.ParseIP("2001:db8:ef33::2")})
 }
 
 func TestLinkAddDelGretun(t *testing.T) {
@@ -327,9 +335,14 @@ func TestLinkAddDelGretun(t *testing.T) {
 	defer tearDown()
 
 	testLinkAddDel(t, &Gretun{
-		LinkAttrs: LinkAttrs{Name: "foo"},
+		LinkAttrs: LinkAttrs{Name: "foo4"},
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 1)})
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "foo6"},
+		Local:     net.ParseIP("2001:db8:abcd::1"),
+		Remote:    net.ParseIP("2001:db8:ef33::2")})
 }
 
 func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
@@ -341,10 +354,15 @@ func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
 		Local:     net.IPv4(127, 0, 0, 1),
 		IKey:      1234,
 		OKey:      1234})
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "foo6"},
+		Local:     net.ParseIP("2001:db8:1234::4"),
+		IKey:      5678,
+		OKey:      7890})
 }
 
 func TestLinkAddDelGretapFlowBased(t *testing.T) {
-	t.Skip("Fails with \"link_test.go:29: numerical result out of range\". Need to investigate.")
 	minKernelRequired(t, 4, 3)
 
 	tearDown := setUpNetlinkTest(t)

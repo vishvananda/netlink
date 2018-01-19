@@ -1310,11 +1310,15 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						link = &Macvtap{}
 					case "gretap":
 						link = &Gretap{}
+					case "ip6gretap":
+						link = &Gretap{}
 					case "ipip":
 						link = &Iptun{}
 					case "sit":
 						link = &Sittun{}
 					case "gre":
+						link = &Gretun{}
+					case "ip6gre":
 						link = &Gretun{}
 					case "vti":
 						link = &Vti{}
@@ -1345,11 +1349,15 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						parseMacvtapData(link, data)
 					case "gretap":
 						parseGretapData(link, data)
+					case "ip6gretap":
+						parseGretapData(link, data)
 					case "ipip":
 						parseIptunData(link, data)
 					case "sit":
 						parseSittunData(link, data)
 					case "gre":
+						parseGretunData(link, data)
+					case "ip6gre":
 						parseGretunData(link, data)
 					case "vti":
 						parseVtiData(link, data)
@@ -1850,12 +1858,17 @@ func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
 		return
 	}
 
-	ip := gretap.Local.To4()
-	if ip != nil {
+	if ip := gretap.Local; ip != nil {
+		if ip.To4() != nil {
+			ip = ip.To4()
+		}
 		nl.NewRtAttrChild(data, nl.IFLA_GRE_LOCAL, []byte(ip))
 	}
-	ip = gretap.Remote.To4()
-	if ip != nil {
+
+	if ip := gretap.Remote; ip != nil {
+		if ip.To4() != nil {
+			ip = ip.To4()
+		}
 		nl.NewRtAttrChild(data, nl.IFLA_GRE_REMOTE, []byte(ip))
 	}
 
@@ -1894,9 +1907,9 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_GRE_IKEY:
 			gre.OKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_LOCAL:
-			gre.Local = net.IP(datum.Value[0:4])
+			gre.Local = net.IP(datum.Value[0:16])
 		case nl.IFLA_GRE_REMOTE:
-			gre.Remote = net.IP(datum.Value[0:4])
+			gre.Remote = net.IP(datum.Value[0:16])
 		case nl.IFLA_GRE_ENCAP_SPORT:
 			gre.EncapSport = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_ENCAP_DPORT:
@@ -1927,12 +1940,17 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 func addGretunAttrs(gre *Gretun, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 
-	ip := gre.Local.To4()
-	if ip != nil {
+	if ip := gre.Local; ip != nil {
+		if ip.To4() != nil {
+			ip = ip.To4()
+		}
 		nl.NewRtAttrChild(data, nl.IFLA_GRE_LOCAL, []byte(ip))
 	}
-	ip = gre.Remote.To4()
-	if ip != nil {
+
+	if ip := gre.Remote; ip != nil {
+		if ip.To4() != nil {
+			ip = ip.To4()
+		}
 		nl.NewRtAttrChild(data, nl.IFLA_GRE_REMOTE, []byte(ip))
 	}
 
@@ -1971,9 +1989,9 @@ func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_GRE_IKEY:
 			gre.OKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_LOCAL:
-			gre.Local = net.IP(datum.Value[0:4])
+			gre.Local = net.IP(datum.Value[0:16])
 		case nl.IFLA_GRE_REMOTE:
-			gre.Remote = net.IP(datum.Value[0:4])
+			gre.Remote = net.IP(datum.Value[0:16])
 		case nl.IFLA_GRE_IFLAGS:
 			gre.IFlags = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_OFLAGS:
