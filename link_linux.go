@@ -1476,13 +1476,13 @@ type LinkUpdate struct {
 // LinkSubscribe takes a chan down which notifications will be sent
 // when links change.  Close the 'done' chan to stop subscription.
 func LinkSubscribe(ch chan<- LinkUpdate, done <-chan struct{}) error {
-	return linkSubscribeAt(netns.None(), netns.None(), ch, done, nil)
+	return linkSubscribeAt(netns.None(), netns.None(), ch, done, nil, false)
 }
 
 // LinkSubscribeAt works like LinkSubscribe plus it allows the caller
 // to choose the network namespace in which to subscribe (ns).
 func LinkSubscribeAt(ns netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}) error {
-	return linkSubscribeAt(ns, netns.None(), ch, done, nil)
+	return linkSubscribeAt(ns, netns.None(), ch, done, nil, false)
 }
 
 // LinkSubscribeOptions contains a set of options to use with
@@ -1490,6 +1490,7 @@ func LinkSubscribeAt(ns netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct
 type LinkSubscribeOptions struct {
 	Namespace     *netns.NsHandle
 	ErrorCallback func(error)
+	ListExisting  bool
 }
 
 // LinkSubscribeWithOptions work like LinkSubscribe but enable to
@@ -1500,10 +1501,10 @@ func LinkSubscribeWithOptions(ch chan<- LinkUpdate, done <-chan struct{}, option
 		none := netns.None()
 		options.Namespace = &none
 	}
-	return linkSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback)
+	return linkSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback, options.ListExisting)
 }
 
-func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}, cberr func(error)) error {
+func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}, cberr func(error), listExisting bool) error {
 	s, err := nl.SubscribeAt(newNs, curNs, unix.NETLINK_ROUTE, unix.RTNLGRP_LINK)
 	if err != nil {
 		return err
@@ -1513,6 +1514,15 @@ func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-c
 			<-done
 			s.Close()
 		}()
+	}
+	if listExisting {
+		req := pkgHandle.newNetlinkRequest(unix.RTM_GETLINK,
+			unix.NLM_F_DUMP)
+		msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+		req.AddData(msg)
+		if err := s.Send(req); err != nil {
+			return err
+		}
 	}
 	go func() {
 		defer close(ch)
@@ -1525,6 +1535,20 @@ func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-c
 				return
 			}
 			for _, m := range msgs {
+				if m.Header.Type == unix.NLMSG_DONE {
+					continue
+				}
+				if m.Header.Type == unix.NLMSG_ERROR {
+					native := nl.NativeEndian()
+					error := int32(native.Uint32(m.Data[0:4]))
+					if error == 0 {
+						continue
+					}
+					if cberr != nil {
+						cberr(syscall.Errno(-error))
+					}
+					return
+				}
 				ifmsg := nl.DeserializeIfInfomsg(m.Data)
 				header := unix.NlMsghdr(m.Header)
 				link, err := LinkDeserialize(&header, m.Data)

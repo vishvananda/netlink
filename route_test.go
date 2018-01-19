@@ -157,7 +157,9 @@ func expectRouteUpdate(ch <-chan RouteUpdate, t uint16, dst net.IP) bool {
 		timeout := time.After(time.Minute)
 		select {
 		case update := <-ch:
-			if update.Type == t && update.Route.Dst.IP.Equal(dst) {
+			if update.Type == t &&
+				update.Route.Dst != nil &&
+				update.Route.Dst.IP.Equal(dst) {
 				return true
 			}
 		case <-timeout:
@@ -314,6 +316,88 @@ func TestRouteSubscribeAt(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, dst.IP) {
+		t.Fatal("Del update not received as expected")
+	}
+}
+
+func TestRouteSubscribeListExisting(t *testing.T) {
+	skipUnlessRoot(t)
+
+	// Create an handle on a custom netns
+	newNs, err := netns.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer newNs.Close()
+
+	nh, err := NewHandleAt(newNs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nh.Delete()
+
+	// get loopback interface
+	link, err := nh.LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bring the interface up
+	if err = nh.LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	// add a gateway route before subscribing
+	dst10 := &net.IPNet{
+		IP:   net.IPv4(10, 10, 10, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+
+	ip := net.IPv4(127, 100, 1, 1)
+	route10 := Route{LinkIndex: link.Attrs().Index, Dst: dst10, Src: ip}
+	if err := nh.RouteAdd(&route10); err != nil {
+		t.Fatal(err)
+	}
+
+	// Subscribe for Route events including existing routes
+	ch := make(chan RouteUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	if err := RouteSubscribeWithOptions(ch, done, RouteSubscribeOptions{
+		Namespace:    &newNs,
+		ListExisting: true},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, dst10.IP) {
+		t.Fatal("Existing add update not received as expected")
+	}
+
+	// add a gateway route
+	dst := &net.IPNet{
+		IP:   net.IPv4(192, 169, 0, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+
+	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
+	if err := nh.RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, dst.IP) {
+		t.Fatal("Add update not received as expected")
+	}
+	if err := nh.RouteDel(&route); err != nil {
+		t.Fatal(err)
+	}
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, dst.IP) {
+		t.Fatal("Del update not received as expected")
+	}
+	if err := nh.RouteDel(&route10); err != nil {
+		t.Fatal(err)
+	}
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, dst10.IP) {
 		t.Fatal("Del update not received as expected")
 	}
 }
