@@ -230,3 +230,36 @@ func (qdisc *GenericQdisc) Attrs() *QdiscAttrs {
 func (qdisc *GenericQdisc) Type() string {
 	return qdisc.QdiscType
 }
+
+// Fq is a classless packet scheduler meant to be mostly used for locally generated traffic.
+type Fq struct {
+	QdiscAttrs
+	PacketLimit     uint32
+	FlowPacketLimit uint32
+	// In bytes
+	Quantum        uint32
+	InitialQuantum uint32
+	// called RateEnable under the hood
+	Pacing          uint32
+	FlowDefaultRate uint32
+	FlowMaxRate     uint32
+	// called BucketsLog under the hood
+	Buckets          uint32
+	FlowRefillDelay  uint32
+	LowRateThreshold uint32
+}
+
+func NewFq(attrs QdiscAttrs) *Fq {
+	return &Fq{
+		QdiscAttrs: attrs,
+		Pacing:     1,
+	}
+}
+
+func (qdisc *Fq) Attrs() *QdiscAttrs {
+	return &qdisc.QdiscAttrs
+}
+
+func (qdisc *Fq) Type() string {
+	return "fq"
+}
