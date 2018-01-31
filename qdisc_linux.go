@@ -232,6 +232,21 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		if qdisc.Attrs().Parent != HANDLE_INGRESS {
 			return fmt.Errorf("Ingress filters must set Parent to HANDLE_INGRESS")
 		}
+	case *FqCodel:
+		nl.NewRtAttrChild(options, nl.TCA_FQ_CODEL_ECN, nl.Uint32Attr((uint32(qdisc.ECN))))
+		if qdisc.Limit > 0 {
+			nl.NewRtAttrChild(options, nl.TCA_FQ_CODEL_LIMIT, nl.Uint32Attr((uint32(qdisc.Limit))))
+		}
+		if qdisc.Interval > 0 {
+			nl.NewRtAttrChild(options, nl.TCA_FQ_CODEL_INTERVAL, nl.Uint32Attr((uint32(qdisc.Interval))))
+		}
+		if qdisc.Flows > 0 {
+			nl.NewRtAttrChild(options, nl.TCA_FQ_CODEL_FLOWS, nl.Uint32Attr((uint32(qdisc.Flows))))
+		}
+		if qdisc.Quantum > 0 {
+			nl.NewRtAttrChild(options, nl.TCA_FQ_CODEL_QUANTUM, nl.Uint32Attr((uint32(qdisc.Quantum))))
+		}
+
 	case *Fq:
 		nl.NewRtAttrChild(options, nl.TCA_FQ_RATE_ENABLE, nl.Uint32Attr((uint32(qdisc.Pacing))))
 
@@ -333,6 +348,8 @@ func (h *Handle) QdiscList(link Link) ([]Qdisc, error) {
 					qdisc = &Htb{}
 				case "fq":
 					qdisc = &Fq{}
+				case "fq_codel":
+					qdisc = &FqCodel{}
 				case "netem":
 					qdisc = &Netem{}
 				default:
@@ -372,6 +389,14 @@ func (h *Handle) QdiscList(link Link) ([]Qdisc, error) {
 						return nil, err
 					}
 					if err := parseFqData(qdisc, data); err != nil {
+						return nil, err
+					}
+				case "fq_codel":
+					data, err := nl.ParseRouteAttr(attr.Value)
+					if err != nil {
+						return nil, err
+					}
+					if err := parseFqCodelData(qdisc, data); err != nil {
 						return nil, err
 					}
 				case "netem":
@@ -421,6 +446,29 @@ func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 		case nl.TCA_HTB_DIRECT_QLEN:
 			// TODO
 			//htb.DirectQlen = native.uint32(datum.Value)
+		}
+	}
+	return nil
+}
+
+func parseFqCodelData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
+	native = nl.NativeEndian()
+	fqCodel := qdisc.(*FqCodel)
+	for _, datum := range data {
+
+		switch datum.Attr.Type {
+		case nl.TCA_FQ_CODEL_TARGET:
+			fqCodel.Target = native.Uint32(datum.Value)
+		case nl.TCA_FQ_CODEL_LIMIT:
+			fqCodel.Limit = native.Uint32(datum.Value)
+		case nl.TCA_FQ_CODEL_INTERVAL:
+			fqCodel.Interval = native.Uint32(datum.Value)
+		case nl.TCA_FQ_CODEL_ECN:
+			fqCodel.ECN = native.Uint32(datum.Value)
+		case nl.TCA_FQ_CODEL_FLOWS:
+			fqCodel.Flows = native.Uint32(datum.Value)
+		case nl.TCA_FQ_CODEL_QUANTUM:
+			fqCodel.Quantum = native.Uint32(datum.Value)
 		}
 	}
 	return nil
