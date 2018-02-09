@@ -1838,6 +1838,9 @@ func linkFlags(rawFlags uint32) net.Flags {
 	if rawFlags&unix.IFF_MULTICAST != 0 {
 		f |= net.FlagMulticast
 	}
+	if rawFlags&syscall.IFF_RUNNING != 0 {
+		f |= syscall.IFF_RUNNING
+	}
 	return f
 }
 
