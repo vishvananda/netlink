@@ -17,7 +17,6 @@ import (
 const (
 	SizeofLinkStats32 = 0x5c
 	SizeofLinkStats64 = 0xd8
-	IFLA_STATS64      = 0x17 // syscall pkg does not contain this one
 )
 
 const (
@@ -378,7 +377,7 @@ func (h *Handle) LinkSetVfHardwareAddr(link Link, vf int, hwaddr net.HardwareAdd
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
-	data := nl.NewRtAttr(nl.IFLA_VFINFO_LIST, nil)
+	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
 	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
 	vfmsg := nl.VfMac{
 		Vf: uint32(vf),
@@ -408,7 +407,7 @@ func (h *Handle) LinkSetVfVlan(link Link, vf, vlan int) error {
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
-	data := nl.NewRtAttr(nl.IFLA_VFINFO_LIST, nil)
+	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
 	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
 	vfmsg := nl.VfVlan{
 		Vf:   uint32(vf),
@@ -438,7 +437,7 @@ func (h *Handle) LinkSetVfTxRate(link Link, vf, rate int) error {
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
-	data := nl.NewRtAttr(nl.IFLA_VFINFO_LIST, nil)
+	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
 	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
 	vfmsg := nl.VfTxRate{
 		Vf:   uint32(vf),
@@ -469,7 +468,7 @@ func (h *Handle) LinkSetVfSpoofchk(link Link, vf int, check bool) error {
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
-	data := nl.NewRtAttr(nl.IFLA_VFINFO_LIST, nil)
+	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
 	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
 	if check {
 		setting = 1
@@ -503,7 +502,7 @@ func (h *Handle) LinkSetVfTrust(link Link, vf int, state bool) error {
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
-	data := nl.NewRtAttr(nl.IFLA_VFINFO_LIST, nil)
+	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
 	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
 	if state {
 		setting = 1
@@ -630,7 +629,7 @@ func (h *Handle) LinkSetNsFd(link Link, fd int) error {
 	b := make([]byte, 4)
 	native.PutUint32(b, uint32(fd))
 
-	data := nl.NewRtAttr(nl.IFLA_NET_NS_FD, b)
+	data := nl.NewRtAttr(unix.IFLA_NET_NS_FD, b)
 	req.AddData(data)
 
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
@@ -1002,12 +1001,12 @@ func (h *Handle) linkModify(link Link, flags int) error {
 	}
 
 	if base.NumTxQueues > 0 {
-		txqueues := nl.NewRtAttr(nl.IFLA_NUM_TX_QUEUES, nl.Uint32Attr(uint32(base.NumTxQueues)))
+		txqueues := nl.NewRtAttr(unix.IFLA_NUM_TX_QUEUES, nl.Uint32Attr(uint32(base.NumTxQueues)))
 		req.AddData(txqueues)
 	}
 
 	if base.NumRxQueues > 0 {
-		rxqueues := nl.NewRtAttr(nl.IFLA_NUM_RX_QUEUES, nl.Uint32Attr(uint32(base.NumRxQueues)))
+		rxqueues := nl.NewRtAttr(unix.IFLA_NUM_RX_QUEUES, nl.Uint32Attr(uint32(base.NumRxQueues)))
 		req.AddData(rxqueues)
 	}
 
@@ -1019,7 +1018,7 @@ func (h *Handle) linkModify(link Link, flags int) error {
 			attr = nl.NewRtAttr(unix.IFLA_NET_NS_PID, val)
 		case NsFd:
 			val := nl.Uint32Attr(uint32(base.Namespace.(NsFd)))
-			attr = nl.NewRtAttr(nl.IFLA_NET_NS_FD, val)
+			attr = nl.NewRtAttr(unix.IFLA_NET_NS_FD, val)
 		}
 
 		req.AddData(attr)
@@ -1394,9 +1393,9 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			base.Alias = string(attr.Value[:len(attr.Value)-1])
 		case unix.IFLA_STATS:
 			stats32 = attr.Value[:]
-		case IFLA_STATS64:
+		case unix.IFLA_STATS64:
 			stats64 = attr.Value[:]
-		case nl.IFLA_XDP:
+		case unix.IFLA_XDP:
 			xdp, err := parseLinkXdp(attr.Value[:])
 			if err != nil {
 				return nil, err
@@ -1413,7 +1412,7 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			}
 		case unix.IFLA_OPERSTATE:
 			base.OperState = LinkOperState(uint8(attr.Value[0]))
-		case nl.IFLA_LINK_NETNSID:
+		case unix.IFLA_LINK_NETNSID:
 			base.NetNsID = int(native.Uint32(attr.Value[0:4]))
 		}
 	}
@@ -2048,7 +2047,7 @@ func parseLinkStats64(data []byte) *LinkStatistics {
 }
 
 func addXdpAttrs(xdp *LinkXdp, req *nl.NetlinkRequest) {
-	attrs := nl.NewRtAttr(nl.IFLA_XDP|unix.NLA_F_NESTED, nil)
+	attrs := nl.NewRtAttr(unix.IFLA_XDP|unix.NLA_F_NESTED, nil)
 	b := make([]byte, 4)
 	native.PutUint32(b, uint32(xdp.Fd))
 	nl.NewRtAttrChild(attrs, nl.IFLA_XDP_FD, b)
