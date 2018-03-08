@@ -65,6 +65,15 @@ const (
 )
 
 const (
+	TCA_STATS_UNSPEC = iota
+	TCA_STATS_BASIC
+	TCA_STATS_RATE_EST
+	TCA_STATS_QUEUE
+	TCA_STATS_APP
+	TCA_STATS_MAX = TCA_STATS_APP
+)
+
+const (
 	SizeofTcMsg          = 0x14
 	SizeofTcActionMsg    = 0x04
 	SizeofTcPrioMap      = 0x14
