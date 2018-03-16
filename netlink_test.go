@@ -66,21 +66,22 @@ func setUpNetlinkTestWithLoopback(t *testing.T) tearDownNetlinkTest {
 	}
 }
 
+func setUpF(t *testing.T, path, value string) {
+	file, err := os.Create(path)
+	defer file.Close()
+	if err != nil {
+		t.Fatalf("Failed to open %s: %s", path, err)
+	}
+	file.WriteString(value)
+}
+
 func setUpMPLSNetlinkTest(t *testing.T) tearDownNetlinkTest {
 	if _, err := os.Stat("/proc/sys/net/mpls/platform_labels"); err != nil {
 		t.Skip("Test requires MPLS support.")
 	}
 	f := setUpNetlinkTest(t)
-	setUpF := func(path, value string) {
-		file, err := os.Create(path)
-		defer file.Close()
-		if err != nil {
-			t.Fatalf("Failed to open %s: %s", path, err)
-		}
-		file.WriteString(value)
-	}
-	setUpF("/proc/sys/net/mpls/platform_labels", "1024")
-	setUpF("/proc/sys/net/mpls/conf/lo/input", "1")
+	setUpF(t, "/proc/sys/net/mpls/platform_labels", "1024")
+	setUpF(t, "/proc/sys/net/mpls/conf/lo/input", "1")
 	return f
 }
 
