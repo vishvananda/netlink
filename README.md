@@ -1,6 +1,8 @@
 # netlink - netlink library for go #
 
-[![Build Status](https://travis-ci.org/vishvananda/netlink.png?branch=master)](https://travis-ci.org/vishvananda/netlink) [![GoDoc](https://godoc.org/github.com/vishvananda/netlink?status.svg)](https://godoc.org/github.com/vishvananda/netlink)
+[![Build Status](https://travis-ci.org/vishvananda/netlink.png?branch=master)](https://travis-ci.org/vishvananda/netlink)
+[![Coverage Status](https://coveralls.io/repos/vishvananda/netlink/badge.svg?branch=master&service=github)](https://coveralls.io/github/vishvananda/netlink?branch=master)
+[![GoDoc](https://godoc.org/github.com/vishvananda/netlink?status.svg)](https://godoc.org/github.com/vishvananda/netlink)
 
 The netlink package provides a simple netlink library for go. Netlink
 is the interface a user-space program in linux uses to communicate with
