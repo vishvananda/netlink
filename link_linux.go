@@ -518,6 +518,50 @@ func (h *Handle) LinkSetVfTrust(link Link, vf int, state bool) error {
 	return err
 }
 
+// LinkSetVfNodeGUID sets the node GUID of a vf for the link.
+// Equivalent to: `ip link set dev $link vf $vf node_guid $nodeguid`
+func LinkSetVfNodeGUID(link Link, vf int, nodeguid net.HardwareAddr) error {
+	return pkgHandle.LinkSetVfGUID(link, vf, nodeguid, nl.IFLA_VF_IB_NODE_GUID)
+}
+
+// LinkSetVfPortGUID sets the port GUID of a vf for the link.
+// Equivalent to: `ip link set dev $link vf $vf port_guid $portguid`
+func LinkSetVfPortGUID(link Link, vf int, portguid net.HardwareAddr) error {
+	return pkgHandle.LinkSetVfGUID(link, vf, portguid, nl.IFLA_VF_IB_PORT_GUID)
+}
+
+// LinkSetVfGUID sets the node or port GUID of a vf for the link.
+func (h *Handle) LinkSetVfGUID(link Link, vf int, vfGuid net.HardwareAddr, guidType int) error {
+	var err error
+	var guid uint64
+
+	buf := bytes.NewBuffer(vfGuid)
+	err = binary.Read(buf, binary.LittleEndian, &guid)
+	if err != nil {
+		return err
+	}
+
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
+	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
+	vfmsg := nl.VfGUID{
+		Vf:   uint32(vf),
+		GUID: guid,
+	}
+	nl.NewRtAttrChild(info, guidType, vfmsg.Serialize())
+	req.AddData(data)
+
+	_, err = req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetMaster sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
 func LinkSetMaster(link Link, master *Bridge) error {
