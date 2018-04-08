@@ -176,6 +176,13 @@ type Netem struct {
 	CorruptCorr   uint32
 }
 
+func (netem *Netem) String() string {
+	return fmt.Sprintf(
+		"{Latency: %v, Limit: %v, Loss: %v, Gap: %v, Duplicate: %v, Jitter: %v}",
+		netem.Latency, netem.Limit, netem.Loss, netem.Gap, netem.Duplicate, netem.Jitter,
+	)
+}
+
 func (qdisc *Netem) Attrs() *QdiscAttrs {
 	return &qdisc.QdiscAttrs
 }
@@ -249,6 +256,13 @@ type Fq struct {
 	LowRateThreshold uint32
 }
 
+func (fq *Fq) String() string {
+	return fmt.Sprintf(
+		"{PacketLimit: %v, FlowPacketLimit: %v, Quantum: %v, InitalQuantum: %v, Pacing: %v, FlowDefaultRate: %v, FlowMaxRate: %v, Buckets: %v, FlowRefillDelay: %v,  LowRateTreshold: %v}",
+		fq.PacketLimit, fq.FlowPacketLimit, fq.Quantum, fq.InitialQuantum, fq.Pacing, fq.FlowDefaultRate, fq.FlowMaxRate, fq.Buckets, fq.FlowRefillDelay, fq.LowRateThreshold,
+	)
+}
+
 func NewFq(attrs QdiscAttrs) *Fq {
 	return &Fq{
 		QdiscAttrs: attrs,
@@ -274,6 +288,13 @@ type FqCodel struct {
 	Flows    uint32
 	Quantum  uint32
 	// There are some more attributes here, but support for them seems not ubiquitous
+}
+
+func (fqcodel *FqCodel) String() string {
+	return fmt.Sprintf(
+		"{Target: %v, Limit: %v, Interval: %v, ECM: %v, Flows: %v, Quantum: %v}",
+		fqcodel.Target, fqcodel.Limit, fqcodel.Interval, fqcodel.ECN, fqcodel.Flows, fqcodel.Quantum,
+	)
 }
 
 func NewFqCodel(attrs QdiscAttrs) *FqCodel {
