@@ -178,6 +178,9 @@ func (h *Handle) FilterAdd(filter Filter) error {
 			}
 			nl.NewRtAttrChild(options, nl.TCA_U32_DIVISOR, nl.Uint32Attr(filter.Divisor))
 		}
+		if filter.Hash != 0 {
+			nl.NewRtAttrChild(options, nl.TCA_U32_HASH, nl.Uint32Attr(filter.Hash))
+		}
 		actionsAttr := nl.NewRtAttrChild(options, nl.TCA_U32_ACT, nil)
 		// backwards compatibility
 		if filter.RedirIndex != 0 {
@@ -508,6 +511,8 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 			u32.ClassId = native.Uint32(datum.Value)
 		case nl.TCA_U32_DIVISOR:
 			u32.Divisor = native.Uint32(datum.Value)
+		case nl.TCA_U32_HASH:
+			u32.Hash = native.Uint32(datum.Value)
 		}
 	}
 	return detailed, nil
