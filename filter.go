@@ -213,6 +213,7 @@ type U32 struct {
 	FilterAttrs
 	ClassId    uint32
 	Divisor    uint32 // Divisor MUST be power of 2.
+	Hash       uint32
 	RedirIndex int
 	Sel        *TcU32Sel
 	Actions    []Action

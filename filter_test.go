@@ -202,9 +202,12 @@ func TestAdvancedFilterAddDel(t *testing.T) {
 			OffMask: 0,
 		},
 	}
+
+	handle := MakeHandle(0x0000, 0001)
 	filter := &U32{
 		FilterAttrs: FilterAttrs{
 			LinkIndex: index,
+			Handle:    handle,
 			Parent:    qdiscHandle,
 			Priority:  1,
 			Protocol:  unix.ETH_P_ALL,
@@ -214,6 +217,7 @@ func TestAdvancedFilterAddDel(t *testing.T) {
 			Flags: TC_U32_TERMINAL,
 		},
 		ClassId: classId,
+		Hash:    htid,
 		Actions: []Action{},
 	}
 	// Copy filter.
@@ -253,8 +257,15 @@ func TestAdvancedFilterAddDel(t *testing.T) {
 			t.Fatal("The endianness of TcU32Key.Val is wrong")
 		}
 	}
+	if u32.Handle != (handle | htid) {
+		t.Fatalf("The handle is wrong. expected %v but actually %v",
+			(handle | htid), u32.Handle)
+	}
+	if u32.Hash != htid {
+		t.Fatal("The hash table ID is wrong")
+	}
 
-	if err := FilterDel(filter); err != nil {
+	if err := FilterDel(u32); err != nil {
 		t.Fatal(err)
 	}
 	filters, err = FilterList(link, qdiscHandle)
