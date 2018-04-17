@@ -167,6 +167,27 @@ func TestAdvancedFilterAddDel(t *testing.T) {
 		t.Fatal("Class is the wrong type")
 	}
 
+	htid := MakeHandle(0x0010, 0000)
+	divisor := uint32(1)
+	hashTable := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: index,
+			Handle:    htid,
+			Parent:    qdiscHandle,
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		Divisor: divisor,
+	}
+	cHashTable := *hashTable
+	if err := FilterAdd(hashTable); err != nil {
+		t.Fatal(err)
+	}
+	// Check if the hash table is identical before and after FilterAdd.
+	if !reflect.DeepEqual(cHashTable, *hashTable) {
+		t.Fatalf("Hash table %v and %v are not equal", cHashTable, *hashTable)
+	}
+
 	u32SelKeys := []TcU32Key{
 		{
 			Mask:    0xff,
