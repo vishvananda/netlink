@@ -41,6 +41,18 @@ type LinkAttrs struct {
 	NetNsID      int
 	NumTxQueues  int
 	NumRxQueues  int
+	Vfs          []VfInfo // virtual functions available on link
+}
+
+// VfInfo represents configuration of virtual function
+type VfInfo struct {
+	ID        int
+	Mac       net.HardwareAddr
+	Vlan      int
+	Qos       int
+	TxRate    int
+	Spoofchk  bool
+	LinkState uint32
 }
 
 // LinkOperState represents the values of the IFLA_OPERSTATE link
