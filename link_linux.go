@@ -1262,6 +1262,9 @@ func (h *Handle) LinkByName(name string) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	req.AddData(msg)
 
+	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+	req.AddData(attr)
+
 	nameData := nl.NewRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(name))
 	req.AddData(nameData)
 
@@ -1294,6 +1297,9 @@ func (h *Handle) LinkByAlias(alias string) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	req.AddData(msg)
 
+	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+	req.AddData(attr)
+
 	nameData := nl.NewRtAttr(unix.IFLA_IFALIAS, nl.ZeroTerminated(alias))
 	req.AddData(nameData)
 
@@ -1320,6 +1326,8 @@ func (h *Handle) LinkByIndex(index int) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	msg.Index = int32(index)
 	req.AddData(msg)
+	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+	req.AddData(attr)
 
 	return execGetLink(req)
 }
@@ -1506,6 +1514,16 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			base.OperState = LinkOperState(uint8(attr.Value[0]))
 		case unix.IFLA_LINK_NETNSID:
 			base.NetNsID = int(native.Uint32(attr.Value[0:4]))
+		case unix.IFLA_VFINFO_LIST:
+			data, err := nl.ParseRouteAttr(attr.Value)
+			if err != nil {
+				return nil, err
+			}
+			vfs, err := parseVfInfoList(data)
+			if err != nil {
+				return nil, err
+			}
+			base.Vfs = vfs
 		}
 	}
 
@@ -1539,6 +1557,8 @@ func (h *Handle) LinkList() ([]Link, error) {
 
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	req.AddData(msg)
+	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+	req.AddData(attr)
 
 	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWLINK)
 	if err != nil {
@@ -2387,6 +2407,47 @@ func parseGTPData(link Link, data []syscall.NetlinkRouteAttr) {
 			gtp.Role = int(native.Uint32(datum.Value))
 		}
 	}
+}
+
+func parseVfInfoList(data []syscall.NetlinkRouteAttr) ([]VfInfo, error) {
+	var vfs []VfInfo
+
+	for i, element := range data {
+		if element.Attr.Type != nl.IFLA_VF_INFO {
+			return nil, fmt.Errorf("Incorrect element type in vf info list: %d", element.Attr.Type)
+		}
+		vfAttrs, err := nl.ParseRouteAttr(element.Value)
+		if err != nil {
+			return nil, err
+		}
+		vfs = append(vfs, parseVfInfo(vfAttrs, i))
+	}
+	return vfs, nil
+}
+
+func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) VfInfo {
+	vf := VfInfo{ID: id}
+	for _, element := range data {
+		switch element.Attr.Type {
+		case nl.IFLA_VF_MAC:
+			mac := nl.DeserializeVfMac(element.Value[:])
+			vf.Mac = mac.Mac[:6]
+		case nl.IFLA_VF_VLAN:
+			vl := nl.DeserializeVfVlan(element.Value[:])
+			vf.Vlan = int(vl.Vlan)
+			vf.Qos = int(vl.Qos)
+		case nl.IFLA_VF_TX_RATE:
+			txr := nl.DeserializeVfTxRate(element.Value[:])
+			vf.TxRate = int(txr.Rate)
+		case nl.IFLA_VF_SPOOFCHK:
+			sp := nl.DeserializeVfSpoofchk(element.Value[:])
+			vf.Spoofchk = sp.Setting != 0
+		case nl.IFLA_VF_LINK_STATE:
+			ls := nl.DeserializeVfLinkState(element.Value[:])
+			vf.LinkState = ls.LinkState
+		}
+	}
+	return vf
 }
 
 // LinkSetBondSlave add slave to bond link via ioctl interface.
