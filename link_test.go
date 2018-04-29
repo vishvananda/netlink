@@ -185,17 +185,20 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
-	if _, ok := link.(*Gretap); ok {
-		_, ok := result.(*Gretap)
+	if gretap, ok := link.(*Gretap); ok {
+		other, ok := result.(*Gretap)
 		if !ok {
 			t.Fatal("Result of create is not a Gretap")
 		}
+		compareGretap(t, gretap, other)
 	}
-	if _, ok := link.(*Gretun); ok {
-		_, ok := result.(*Gretun)
+
+	if gretun, ok := link.(*Gretun); ok {
+		other, ok := result.(*Gretun)
 		if !ok {
 			t.Fatal("Result of create is not a Gretun")
 		}
+		compareGretun(t, gretun, other)
 	}
 
 	if err = LinkDel(link); err != nil {
@@ -211,6 +214,131 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if l.Attrs().Name == link.Attrs().Name {
 			t.Fatal("Link not removed properly")
 		}
+	}
+}
+
+func compareGretap(t *testing.T, expected, actual *Gretap) {
+	if actual.IKey != expected.IKey {
+		t.Fatal("Gretap.IKey doesn't match")
+	}
+
+	if actual.OKey != expected.OKey {
+		t.Fatal("Gretap.OKey doesn't match")
+	}
+
+	if actual.EncapSport != expected.EncapSport {
+		t.Fatal("Gretap.EncapSport doesn't match")
+	}
+
+	if actual.EncapDport != expected.EncapDport {
+		t.Fatal("Gretap.EncapDport doesn't match")
+	}
+
+	if expected.Local != nil && !actual.Local.Equal(expected.Local) {
+		t.Fatal("Gretap.Local doesn't match")
+	}
+
+	if expected.Remote != nil && !actual.Remote.Equal(expected.Remote) {
+		t.Fatal("Gretap.Remote doesn't match")
+	}
+
+	if actual.IFlags != expected.IFlags {
+		t.Fatal("Gretap.IFlags doesn't match")
+	}
+
+	if actual.OFlags != expected.OFlags {
+		t.Fatal("Gretap.OFlags doesn't match")
+	}
+
+	if actual.PMtuDisc != expected.PMtuDisc {
+		t.Fatal("Gretap.PMtuDisc doesn't match")
+	}
+
+	if actual.Ttl != expected.Ttl {
+		t.Fatal("Gretap.Ttl doesn't match")
+	}
+
+	if actual.Tos != expected.Tos {
+		t.Fatal("Gretap.Tos doesn't match")
+	}
+
+	if actual.EncapType != expected.EncapType {
+		t.Fatal("Gretap.EncapType doesn't match")
+	}
+
+	if actual.EncapFlags != expected.EncapFlags {
+		t.Fatal("Gretap.EncapFlags doesn't match")
+	}
+
+	if actual.Link != expected.Link {
+		t.Fatal("Gretap.Link doesn't match")
+	}
+
+	/*
+		 * NOTE: setting the FlowBased flag doesn't seem to work, but by lack of
+		 * a proper way to debug this, this test is disabled for now
+
+		 if actual.FlowBased != expected.FlowBased {
+			t.Fatal("Gretap.FlowBased doesn't match")
+		 }
+	*/
+}
+
+func compareGretun(t *testing.T, expected, actual *Gretun) {
+	if actual.Link != expected.Link {
+		t.Fatal("Gretun.Link doesn't match")
+	}
+
+	if actual.IFlags != expected.IFlags {
+		t.Fatal("Gretun.IFlags doesn't match")
+	}
+
+	if actual.OFlags != expected.OFlags {
+		t.Fatal("Gretun.OFlags doesn't match")
+	}
+
+	if actual.IKey != expected.IKey {
+		t.Fatal("Gretun.IKey doesn't match")
+	}
+
+	if actual.OKey != expected.OKey {
+		t.Fatal("Gretun.OKey doesn't match")
+	}
+
+	if expected.Local != nil && !actual.Local.Equal(expected.Local) {
+		t.Fatal("Gretun.Local doesn't match")
+	}
+
+	if expected.Remote != nil && !actual.Remote.Equal(expected.Remote) {
+		t.Fatal("Gretun.Remote doesn't match")
+	}
+
+	if actual.Ttl != expected.Ttl {
+		t.Fatal("Gretun.Ttl doesn't match")
+	}
+
+	if actual.Tos != expected.Tos {
+		t.Fatal("Gretun.Tos doesn't match")
+	}
+
+	if actual.PMtuDisc != expected.PMtuDisc {
+		t.Fatal("Gretun.PMtuDisc doesn't match")
+	}
+
+	if actual.EncapType != expected.EncapType {
+		t.Fatal("Gretun.EncapType doesn't match")
+	}
+
+	if actual.EncapFlags != expected.EncapFlags {
+		t.Fatal("Gretun.EncapFlags doesn't match")
+	}
+
+	if actual.EncapSport != expected.EncapSport {
+		t.Fatal("Gretun.EncapSport doesn't match")
+	}
+
+	if actual.EncapDport != expected.EncapDport {
+		t.Fatal("Gretun.EncapDport doesn't match")
 	}
 }
 
@@ -325,7 +453,6 @@ func TestLinkAddDelGretap(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "foo6"},
 		IKey:      0x101,
 		OKey:      0x101,
-		PMtuDisc:  1,
 		Local:     net.ParseIP("2001:db8:abcd::1"),
 		Remote:    net.ParseIP("2001:db8:ef33::2")})
 }
