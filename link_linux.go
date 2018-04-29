@@ -1974,9 +1974,9 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_GRE_IKEY:
 			gre.OKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_LOCAL:
-			gre.Local = net.IP(datum.Value[0:16])
+			gre.Local = net.IP(datum.Value)
 		case nl.IFLA_GRE_REMOTE:
-			gre.Remote = net.IP(datum.Value[0:16])
+			gre.Remote = net.IP(datum.Value)
 		case nl.IFLA_GRE_ENCAP_SPORT:
 			gre.EncapSport = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_ENCAP_DPORT:
@@ -1985,7 +1985,6 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.IFlags = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_OFLAGS:
 			gre.OFlags = ntohs(datum.Value[0:2])
-
 		case nl.IFLA_GRE_TTL:
 			gre.Ttl = uint8(datum.Value[0])
 		case nl.IFLA_GRE_TOS:
@@ -2051,19 +2050,18 @@ func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
 	gre := link.(*Gretun)
 	for _, datum := range data {
 		switch datum.Attr.Type {
-		case nl.IFLA_GRE_OKEY:
-			gre.IKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_IKEY:
+			gre.IKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_OKEY:
 			gre.OKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_LOCAL:
-			gre.Local = net.IP(datum.Value[0:16])
+			gre.Local = net.IP(datum.Value)
 		case nl.IFLA_GRE_REMOTE:
-			gre.Remote = net.IP(datum.Value[0:16])
+			gre.Remote = net.IP(datum.Value)
 		case nl.IFLA_GRE_IFLAGS:
 			gre.IFlags = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_OFLAGS:
 			gre.OFlags = ntohs(datum.Value[0:2])
-
 		case nl.IFLA_GRE_TTL:
 			gre.Ttl = uint8(datum.Value[0])
 		case nl.IFLA_GRE_TOS:
