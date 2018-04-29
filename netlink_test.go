@@ -109,12 +109,6 @@ func setUpSEG6NetlinkTest(t *testing.T) tearDownNetlinkTest {
 		log.Printf(msg)
 		t.Skip(msg)
 	}
-	key = string("CONFIG_IPV6_SEG6_INLINE=y")
-	if _, err := grepKey(key, filename); err != nil {
-		msg := "Skipped test because it requires SEG6_INLINE support."
-		log.Printf(msg)
-		t.Skip(msg)
-	}
 	// Add CONFIG_IPV6_SEG6_HMAC to support seg6_hamc
 	// key := string("CONFIG_IPV6_SEG6_HMAC=y")
 
