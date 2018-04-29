@@ -918,8 +918,8 @@ func TestIPNetEqual(t *testing.T) {
 }
 
 func TestSEG6RouteAddDel(t *testing.T) {
-	// add/del IPv4 routes with LWTUNNEL_SEG6 to/from loopback interface.
-	// Test both seg6 modes: encap & inline.
+	// add/del routes with LWTUNNEL_SEG6 to/from loopback interface.
+	// Test both seg6 modes: encap (IPv4) & inline (IPv6).
 	tearDown := setUpSEG6NetlinkTest(t)
 	defer tearDown()
 
@@ -932,9 +932,9 @@ func TestSEG6RouteAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dst1 := &net.IPNet{
-		IP:   net.IPv4(10, 0, 0, 101),
-		Mask: net.CIDRMask(32, 32),
+	dst1 := &net.IPNet{ // INLINE mode must be IPv6 route
+		IP:   net.ParseIP("2001:db8::1"),
+		Mask: net.CIDRMask(128, 128),
 	}
 	dst2 := &net.IPNet{
 		IP:   net.IPv4(10, 0, 0, 102),
@@ -960,16 +960,30 @@ func TestSEG6RouteAddDel(t *testing.T) {
 	if err := RouteAdd(&route2); err != nil {
 		t.Fatal(err)
 	}
-	routes, err := RouteList(link, FAMILY_V4)
+	// SEG6_IPTUN_MODE_INLINE
+	routes, err := RouteList(link, FAMILY_V6)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 2 {
+	if len(routes) != 1 {
 		t.Fatal("SEG6 routes not added properly")
 	}
 	for _, route := range routes {
 		if route.Encap.Type() != nl.LWTUNNEL_ENCAP_SEG6 {
-			t.Fatal("Invalid Type. SEG6 routes not added properly")
+			t.Fatal("Invalid Type. SEG6_IPTUN_MODE_INLINE routes not added properly")
+		}
+	}
+	// SEG6_IPTUN_MODE_ENCAP
+	routes, err = RouteList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatal("SEG6 routes not added properly")
+	}
+	for _, route := range routes {
+		if route.Encap.Type() != nl.LWTUNNEL_ENCAP_SEG6 {
+			t.Fatal("Invalid Type. SEG6_IPTUN_MODE_ENCAP routes not added properly")
 		}
 	}
 
