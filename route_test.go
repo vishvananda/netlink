@@ -992,6 +992,105 @@ func TestIPNetEqual(t *testing.T) {
 	}
 }
 
+func TestSEG6LocalEqual(t *testing.T) {
+	// Different attributes exists in different Actions. For example, Action
+	// SEG6_LOCAL_ACTION_END_X has In6Addr, SEG6_LOCAL_ACTION_END_T has Table etc.
+	segs := []net.IP{net.ParseIP("fc00:a000::11")}
+	// set flags for each actions.
+	var flags_end [nl.SEG6_LOCAL_MAX]bool
+	flags_end[nl.SEG6_LOCAL_ACTION] = true
+	var flags_end_x [nl.SEG6_LOCAL_MAX]bool
+	flags_end_x[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_x[nl.SEG6_LOCAL_NH6] = true
+	var flags_end_t [nl.SEG6_LOCAL_MAX]bool
+	flags_end_t[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_t[nl.SEG6_LOCAL_TABLE] = true
+	var flags_end_dx2 [nl.SEG6_LOCAL_MAX]bool
+	flags_end_dx2[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_dx2[nl.SEG6_LOCAL_OIF] = true
+	var flags_end_dx6 [nl.SEG6_LOCAL_MAX]bool
+	flags_end_dx6[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_dx6[nl.SEG6_LOCAL_NH6] = true
+	var flags_end_dx4 [nl.SEG6_LOCAL_MAX]bool
+	flags_end_dx4[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_dx4[nl.SEG6_LOCAL_NH4] = true
+	var flags_end_dt6 [nl.SEG6_LOCAL_MAX]bool
+	flags_end_dt6[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_dt6[nl.SEG6_LOCAL_TABLE] = true
+	var flags_end_dt4 [nl.SEG6_LOCAL_MAX]bool
+	flags_end_dt4[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_dt4[nl.SEG6_LOCAL_TABLE] = true
+	var flags_end_b6 [nl.SEG6_LOCAL_MAX]bool
+	flags_end_b6[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_b6[nl.SEG6_LOCAL_SRH] = true
+	var flags_end_b6_encaps [nl.SEG6_LOCAL_MAX]bool
+	flags_end_b6_encaps[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_b6_encaps[nl.SEG6_LOCAL_SRH] = true
+
+	cases := []SEG6LocalEncap{
+		{
+			Flags:  flags_end,
+			Action: nl.SEG6_LOCAL_ACTION_END,
+		},
+		{
+			Flags:   flags_end_x,
+			Action:  nl.SEG6_LOCAL_ACTION_END_X,
+			In6Addr: net.ParseIP("2001:db8::1"),
+		},
+		{
+			Flags:  flags_end_t,
+			Action: nl.SEG6_LOCAL_ACTION_END_T,
+			Table:  10,
+		},
+		{
+			Flags:  flags_end_dx2,
+			Action: nl.SEG6_LOCAL_ACTION_END_DX2,
+			Oif:    20,
+		},
+		{
+			Flags:   flags_end_dx6,
+			Action:  nl.SEG6_LOCAL_ACTION_END_DX6,
+			In6Addr: net.ParseIP("2001:db8::1"),
+		},
+		{
+			Flags:  flags_end_dx4,
+			Action: nl.SEG6_LOCAL_ACTION_END_DX4,
+			InAddr: net.IPv4(192, 168, 10, 10),
+		},
+		{
+			Flags:  flags_end_dt6,
+			Action: nl.SEG6_LOCAL_ACTION_END_DT6,
+			Table:  30,
+		},
+		{
+			Flags:  flags_end_dt4,
+			Action: nl.SEG6_LOCAL_ACTION_END_DT4,
+			Table:  40,
+		},
+		{
+			Flags:    flags_end_b6,
+			Action:   nl.SEG6_LOCAL_ACTION_END_B6,
+			Segments: segs,
+		},
+		{
+			Flags:    flags_end_b6_encaps,
+			Action:   nl.SEG6_LOCAL_ACTION_END_B6_ENCAPS,
+			Segments: segs,
+		},
+	}
+	for i1 := range cases {
+		for i2 := range cases {
+			got := cases[i1].Equal(&cases[i2])
+			expected := i1 == i2
+			if got != expected {
+				t.Errorf("Equal(%v,%v) == %s but expected %s",
+					cases[i1], cases[i2],
+					strconv.FormatBool(got),
+					strconv.FormatBool(expected))
+			}
+		}
+	}
+}
 func TestSEG6RouteAddDel(t *testing.T) {
 	// add/del routes with LWTUNNEL_SEG6 to/from loopback interface.
 	// Test both seg6 modes: encap (IPv4) & inline (IPv6).
@@ -1075,6 +1174,85 @@ func TestSEG6RouteAddDel(t *testing.T) {
 	}
 	if len(routes) != 0 {
 		t.Fatal("SEG6 routes not removed properly")
+	}
+}
+
+// add/del routes with LWTUNNEL_ENCAP_SEG6_LOCAL to/from dummy interface.
+func TestSEG6LocalRoute6AddDel(t *testing.T) {
+	minKernelRequired(t, 4, 14)
+	tearDown := setUpSEG6NetlinkTest(t)
+	defer tearDown()
+
+	// create dummy interface
+	// IPv6 route added to loopback interface will be unreachable
+	la := NewLinkAttrs()
+	la.Name = "dummy_route6"
+	la.TxQLen = 1500
+	dummy := &Dummy{LinkAttrs: la}
+	if err := LinkAdd(dummy); err != nil {
+		t.Fatal(err)
+	}
+	// get dummy interface and bring it up
+	link, err := LinkByName("dummy_route6")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	dst1 := &net.IPNet{
+		IP:   net.ParseIP("2001:db8::1"),
+		Mask: net.CIDRMask(128, 128),
+	}
+
+	// Create Route including Action SEG6_LOCAL_ACTION_END_B6.
+	// Could be any Action but thought better to have seg list.
+	var s1 []net.IP
+	s1 = append(s1, net.ParseIP("fc00:a000::12"))
+	s1 = append(s1, net.ParseIP("fc00:a000::11"))
+	var flags_end_b6_encaps [nl.SEG6_LOCAL_MAX]bool
+	flags_end_b6_encaps[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_b6_encaps[nl.SEG6_LOCAL_SRH] = true
+	e1 := &SEG6LocalEncap{
+		Flags:    flags_end_b6_encaps,
+		Action:   nl.SEG6_LOCAL_ACTION_END_B6,
+		Segments: s1,
+	}
+	route1 := Route{LinkIndex: link.Attrs().Index, Dst: dst1, Encap: e1}
+
+	// Add SEG6Local routes
+	if err := RouteAdd(&route1); err != nil {
+		t.Fatal(err)
+	}
+
+	// typically one route (fe80::/64) will be created when dummy_route6 is created.
+	// Thus you cannot use RouteList() to find the route entry just added.
+	// Lookup route and confirm it's SEG6Local route just added.
+	routesFound, err := RouteGet(dst1.IP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routesFound) != 1 { // should only find 1 route entry
+		t.Fatal("SEG6Local route not added correctly")
+	}
+	if !e1.Equal(routesFound[0].Encap) {
+		t.Fatal("Encap does not match the original SEG6LocalEncap")
+	}
+
+	// Del SEG6Local routes
+	if err := RouteDel(&route1); err != nil {
+		t.Fatal(err)
+	}
+	// Confirm route is deleted.
+	routesFound, err = RouteGet(dst1.IP)
+	if err == nil {
+		t.Fatal("SEG6Local route still exists.")
+	}
+
+	// cleanup dummy interface created for the test
+	if err := LinkDel(link); err != nil {
+		t.Fatal(err)
 	}
 }
 
