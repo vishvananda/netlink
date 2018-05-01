@@ -69,6 +69,81 @@ func TestRouteAddDel(t *testing.T) {
 
 }
 
+func TestRoute6AddDel(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// create dummy interface
+	// IPv6 route added to loopback interface will be unreachable
+	la := NewLinkAttrs()
+	la.Name = "dummy_route6"
+	la.TxQLen = 1500
+	dummy := &Dummy{LinkAttrs: la}
+	if err := LinkAdd(dummy); err != nil {
+		t.Fatal(err)
+	}
+
+	// get dummy interface
+	link, err := LinkByName("dummy_route6")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bring the interface up
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	// remember number of routes before adding
+	// typically one route (fe80::/64) will be created when dummy_route6 is created
+	routes, err := RouteList(link, FAMILY_V6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nroutes := len(routes)
+
+	// add a gateway route
+	dst := &net.IPNet{
+		IP:   net.ParseIP("2001:db8::0"),
+		Mask: net.CIDRMask(64, 128),
+	}
+	route := Route{LinkIndex: link.Attrs().Index, Dst: dst}
+	if err := RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+	routes, err = RouteList(link, FAMILY_V6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != nroutes+1 {
+		t.Fatal("Route not added properly")
+	}
+
+	dstIP := net.ParseIP("2001:db8::1")
+	routeToDstIP, err := RouteGet(dstIP)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// cleanup route and dummy interface created for the test
+	if len(routeToDstIP) == 0 {
+		t.Fatal("Route not present")
+	}
+	if err := RouteDel(&route); err != nil {
+		t.Fatal(err)
+	}
+	routes, err = RouteList(link, FAMILY_V6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != nroutes {
+		t.Fatal("Route not removed properly")
+	}
+	if err := LinkDel(link); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRouteReplace(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
