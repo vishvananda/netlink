@@ -1869,3 +1869,60 @@ func TestLinkSetBondSlave(t *testing.T) {
 		t.Errorf("For %s expected %s to be master", slaveTwoLink.Attrs().Name, bondLink.Attrs().Name)
 	}
 }
+
+func TestLinkSetAllmulticast(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	iface := &Veth{LinkAttrs: LinkAttrs{Name: "foo"}, PeerName: "bar"}
+	if err := LinkAdd(iface); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawFlagsStart := link.Attrs().RawFlags
+
+	if err := LinkSetAllmulticastOn(link); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().RawFlags&unix.IFF_ALLMULTI != uint32(unix.IFF_ALLMULTI) {
+		t.Fatal("IFF_ALLMULTI was not set!")
+	}
+
+	if err := LinkSetAllmulticastOff(link); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().RawFlags&unix.IFF_ALLMULTI != 0 {
+		t.Fatal("IFF_ALLMULTI is still set!")
+	}
+
+	rawFlagsEnd := link.Attrs().RawFlags
+	if rawFlagsStart != rawFlagsEnd {
+		t.Fatalf("RawFlags start value:%d differs from end value:%d", rawFlagsStart, rawFlagsEnd)
+	}
+}
