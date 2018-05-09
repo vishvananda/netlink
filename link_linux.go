@@ -152,8 +152,6 @@ func (h *Handle) LinkSetAllmulticastOff(link Link) error {
 
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	msg.Change = unix.IFF_ALLMULTI
-	msg.Flags = 0
-
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
@@ -251,7 +249,6 @@ func (h *Handle) SetPromiscOff(link Link) error {
 
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	msg.Change = unix.IFF_PROMISC
-	msg.Flags = 0 & ^unix.IFF_PROMISC
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
@@ -301,7 +298,6 @@ func (h *Handle) LinkSetDown(link Link) error {
 
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	msg.Change = unix.IFF_UP
-	msg.Flags = 0 & ^unix.IFF_UP
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
