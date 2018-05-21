@@ -4,10 +4,17 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // Scope is an enum representing a route scope.
 type Scope uint8
+
+type Protocol int
+
+type Type int
 
 type NextHopFlag int
 
@@ -36,10 +43,10 @@ type Route struct {
 	Src        net.IP
 	Gw         net.IP
 	MultiPath  []*NexthopInfo
-	Protocol   int
+	Protocol   Protocol
 	Priority   int
 	Table      int
-	Type       int
+	Type       Type
 	Tos        int
 	Flags      int
 	MPLSDst    *int
@@ -101,6 +108,72 @@ func (r *Route) SetFlag(flag NextHopFlag) {
 
 func (r *Route) ClearFlag(flag NextHopFlag) {
 	r.Flags &^= int(flag)
+}
+
+func (s Scope) String() string {
+	switch s {
+	case SCOPE_HOST:
+		return "host"
+	case SCOPE_LINK:
+		return "link"
+	case SCOPE_NOWHERE:
+		return "nowhere"
+	case SCOPE_SITE:
+		return "site"
+	case SCOPE_UNIVERSE:
+		return "global"
+	default:
+		return "unknown"
+	}
+}
+
+func (s Protocol) String() string {
+	switch s {
+	case syscall.RTPROT_UNSPEC:
+		return "unspec"
+	case syscall.RTPROT_REDIRECT:
+		return "redirect"
+	case syscall.RTPROT_KERNEL:
+		return "kernel"
+	case syscall.RTPROT_BOOT:
+		return "boot"
+	case syscall.RTPROT_STATIC:
+		return "static"
+	default:
+		return "unknown"
+	}
+}
+
+func (s Type) String() string {
+	// rtm_map.c from iproute2 used as reference
+	switch s {
+	case unix.RTN_UNSPEC:
+		return "none"
+	case unix.RTN_UNICAST:
+		return "unicast"
+	case unix.RTN_LOCAL:
+		return "local"
+	case unix.RTN_BROADCAST:
+		return "broadcast"
+	case unix.RTN_ANYCAST:
+		return "anycast"
+	case unix.RTN_MULTICAST:
+		return "multicast"
+	case unix.RTN_BLACKHOLE:
+		return "blackhole"
+	case unix.RTN_UNREACHABLE:
+		return "unreachable"
+	case unix.RTN_PROHIBIT:
+		return "prohibit"
+	case unix.RTN_THROW:
+		return "throw"
+	case unix.RTN_NAT:
+		return "nat"
+	case unix.RTN_XRESOLVE:
+		return "xresolve"
+	default:
+		return "unknown"
+	}
 }
 
 type flagString struct {

@@ -163,7 +163,7 @@ func (h *Handle) AddrList(link Link, family int) ([]Addr, error) {
 
 	var res []Addr
 	for _, m := range msgs {
-		addr, msgFamily, ifindex, err := parseAddr(m)
+		addr, msgFamily, ifindex, err := DeserializeAddr(m)
 		if err != nil {
 			return res, err
 		}
@@ -183,7 +183,7 @@ func (h *Handle) AddrList(link Link, family int) ([]Addr, error) {
 	return res, nil
 }
 
-func parseAddr(m []byte) (addr Addr, family, index int, err error) {
+func DeserializeAddr(m []byte) (addr Addr, family, index int, err error) {
 	msg := nl.DeserializeIfAddrmsg(m)
 
 	family = -1
@@ -331,7 +331,7 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					return
 				}
 
-				addr, _, ifindex, err := parseAddr(m.Data)
+				addr, _, ifindex, err := DeserializeAddr(m.Data)
 				if err != nil {
 					if cberr != nil {
 						cberr(fmt.Errorf("could not parse address: %v", err))
