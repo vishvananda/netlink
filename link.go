@@ -781,8 +781,12 @@ func (vti *Vti) Attrs() *LinkAttrs {
 	return &vti.LinkAttrs
 }
 
-func (iptun *Vti) Type() string {
-	return "vti"
+func (vti *Vti) Type() string {
+	if vti.Local.To4() == nil {
+		return "vti6"
+	} else {
+		return "vti"
+	}
 }
 
 type Gretun struct {
@@ -846,7 +850,7 @@ func (gtp *GTP) Type() string {
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
 // bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |
-// gre | gretap | ip6gre | ip6gretap | vti | nlmon |
+// gre | gretap | ip6gre | ip6gretap | vti | vti6 | nlmon |
 // bond_slave | ipvlan
 
 // LinkNotFoundError wraps the various not found errors when
