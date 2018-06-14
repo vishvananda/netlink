@@ -1415,7 +1415,7 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						link = &Gretun{}
 					case "ip6gre":
 						link = &Gretun{}
-					case "vti":
+					case "vti", "vti6":
 						link = &Vti{}
 					case "vrf":
 						link = &Vrf{}
@@ -1454,7 +1454,7 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						parseGretunData(link, data)
 					case "ip6gre":
 						parseGretunData(link, data)
-					case "vti":
+					case "vti", "vti6":
 						parseVtiData(link, data)
 					case "vrf":
 						parseVrfData(link, data)
@@ -2304,12 +2304,27 @@ func parseSittunData(link Link, data []syscall.NetlinkRouteAttr) {
 func addVtiAttrs(vti *Vti, linkInfo *nl.RtAttr) {
 	data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 
-	ip := vti.Local.To4()
+	family := FAMILY_V4
+	if vti.Local.To4() == nil {
+		family = FAMILY_V6
+	}
+
+	var ip net.IP
+
+	if family == FAMILY_V4 {
+		ip = vti.Local.To4()
+	} else {
+		ip = vti.Local
+	}
 	if ip != nil {
 		nl.NewRtAttrChild(data, nl.IFLA_VTI_LOCAL, []byte(ip))
 	}
 
-	ip = vti.Remote.To4()
+	if family == FAMILY_V4 {
+		ip = vti.Remote.To4()
+	} else {
+		ip = vti.Remote
+	}
 	if ip != nil {
 		nl.NewRtAttrChild(data, nl.IFLA_VTI_REMOTE, []byte(ip))
 	}
@@ -2327,9 +2342,9 @@ func parseVtiData(link Link, data []syscall.NetlinkRouteAttr) {
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.IFLA_VTI_LOCAL:
-			vti.Local = net.IP(datum.Value[0:4])
+			vti.Local = net.IP(datum.Value)
 		case nl.IFLA_VTI_REMOTE:
-			vti.Remote = net.IP(datum.Value[0:4])
+			vti.Remote = net.IP(datum.Value)
 		case nl.IFLA_VTI_IKEY:
 			vti.IKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_VTI_OKEY:

@@ -1482,6 +1482,13 @@ func TestLinkAddDelVti(t *testing.T) {
 		OKey:      0x101,
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 1)})
+
+	testLinkAddDel(t, &Vti{
+		LinkAttrs: LinkAttrs{Name: "vtibar"},
+		IKey:      0x101,
+		OKey:      0x101,
+		Local:     net.IPv6loopback,
+		Remote:    net.IPv6loopback})
 }
 
 func TestBridgeCreationWithMulticastSnooping(t *testing.T) {

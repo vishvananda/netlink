@@ -24,7 +24,7 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 		t.Skipf("Fails in travis with: addr_test.go:68: Address flags not set properly, got=0, expected=128")
 	}
 	// TODO: IFA_F_PERMANENT does not seem to be set by default on older kernels?
-	var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
+	var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(32, 32)}
 	var peer = &net.IPNet{IP: net.IPv4(127, 0, 0, 3), Mask: net.CIDRMask(24, 32)}
 	var addrTests = []struct {
 		addr     *Addr
