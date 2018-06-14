@@ -784,9 +784,8 @@ func (vti *Vti) Attrs() *LinkAttrs {
 func (vti *Vti) Type() string {
 	if vti.Local.To4() == nil {
 		return "vti6"
-	} else {
-		return "vti"
 	}
+	return "vti"
 }
 
 type Gretun struct {
