@@ -242,59 +242,59 @@ func parseByteAndPacketCounters(r *bytes.Reader) (bytes, packets uint64) {
 }
 
 func parseRawData(data []byte) *ConntrackFlow {
-    s := &ConntrackFlow{}
-    var proto uint8
-    // First there is the Nfgenmsg header
-    // consume only the family field
-    reader := bytes.NewReader(data)
-    binary.Read(reader, nl.NativeEndian(), &s.FamilyType)
+  s := &ConntrackFlow{}
+  var proto uint8
+  // First there is the Nfgenmsg header
+  // consume only the family field
+  reader := bytes.NewReader(data)
+  binary.Read(reader, nl.NativeEndian(), &s.FamilyType)
 
-    // skip rest of the Netfilter header
-    reader.Seek(3, seekCurrent)
-    // The message structure is the following:
-    // <len, NLA_F_NESTED|CTA_TUPLE_ORIG> 4 bytes
-    // <len, NLA_F_NESTED|CTA_TUPLE_IP> 4 bytes
-    // flow information of the forward flow
-    // <len, NLA_F_NESTED|CTA_TUPLE_REPLY> 4 bytes
-    // <len, NLA_F_NESTED|CTA_TUPLE_IP> 4 bytes
-    // flow information of the reverse flow
-    for reader.Len() > 0 {
-        nested, t, l := parseNfAttrTL(reader)
-        if nested && t == nl.CTA_TUPLE_ORIG {
-            if nested, t, _ = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
-                proto = parseIpTuple(reader, &s.Forward)
-            }
-        } else if nested && t == nl.CTA_TUPLE_REPLY {
-            if nested, t, _ = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
-                parseIpTuple(reader, &s.Reverse)
+  // skip rest of the Netfilter header
+  reader.Seek(3, seekCurrent)
+  // The message structure is the following:
+  // <len, NLA_F_NESTED|CTA_TUPLE_ORIG> 4 bytes
+  // <len, NLA_F_NESTED|CTA_TUPLE_IP> 4 bytes
+  // flow information of the forward flow
+  // <len, NLA_F_NESTED|CTA_TUPLE_REPLY> 4 bytes
+  // <len, NLA_F_NESTED|CTA_TUPLE_IP> 4 bytes
+  // flow information of the reverse flow
+  for reader.Len() > 0 {
+      nested, t, l := parseNfAttrTL(reader)
+      if nested && t == nl.CTA_TUPLE_ORIG {
+          if nested, t, _ = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
+              proto = parseIpTuple(reader, &s.Forward)
+          }
+      } else if nested && t == nl.CTA_TUPLE_REPLY {
+          if nested, t, _ = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
+              parseIpTuple(reader, &s.Reverse)
 
-                // Got all the useful information stop parsing
-                break
-            } else {
-                // Header not recognized skip it
-                reader.Seek(int64(l), seekCurrent)
-            }
-        } else if nested && t == nl.CTA_COUNTERS_ORIG {
-            s.Forward.Bytes, s.Forward.Packets = parseByteAndPacketCounters(reader)
-        } else if nested && t == nl.CTA_COUNTERS_REPLY {
-            s.Reverse.Bytes, s.Reverse.Packets = parseByteAndPacketCounters(reader)
-        }
-    }
+              // Got all the useful information stop parsing
+              break
+          } else {
+              // Header not recognized skip it
+              reader.Seek(int64(l), seekCurrent)
+          }
+      } else if nested && t == nl.CTA_COUNTERS_ORIG {
+          s.Forward.Bytes, s.Forward.Packets = parseByteAndPacketCounters(reader)
+      } else if nested && t == nl.CTA_COUNTERS_REPLY {
+          s.Reverse.Bytes, s.Reverse.Packets = parseByteAndPacketCounters(reader)
+      }
+  }
 
-    if proto == TCP_PROTO {
-        reader.Seek(64, seekCurrent)
-        _, t, _, v := parseNfAttrTLV(reader)
-        if t == nl.CTA_MARK {
-            s.Mark = uint32(v[3])
-        }
-    } else if proto == UDP_PROTO {
-        reader.Seek(16, seekCurrent)
-        _, t, _, v := parseNfAttrTLV(reader)
-        if t == nl.CTA_MARK {
-            s.Mark = uint32(v[3])
-        }
-    }
-    return s
+  if proto == TCP_PROTO {
+      reader.Seek(64, seekCurrent)
+      _, t, _, v := parseNfAttrTLV(reader)
+      if t == nl.CTA_MARK {
+          s.Mark = uint32(v[3])
+      }
+  } else if proto == UDP_PROTO {
+      reader.Seek(16, seekCurrent)
+      _, t, _, v := parseNfAttrTLV(reader)
+      if t == nl.CTA_MARK {
+          s.Mark = uint32(v[3])
+      }
+  }
+  return s
 }
 // Conntrack parameters and options:
 //   -n, --src-nat ip                      source NAT ip
