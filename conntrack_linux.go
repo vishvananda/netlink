@@ -279,20 +279,20 @@ func parseRawData(data []byte) *ConntrackFlow {
 				}
 			}
 	}
-		if proto == TCP_PROTO {
-			reader.Seek(64, seekCurrent)
-			_, t, _, v := parseNfAttrTLV(reader)
-			if t == nl.CTA_MARK {
-				s.Mark = uint32(v[3])
-			}
-		} else if proto == UDP_PROTO {
-			reader.Seek(16, seekCurrent)
-			_, t, _, v := parseNfAttrTLV(reader)
-			if t == nl.CTA_MARK {
-				s.Mark = uint32(v[3])
-			}
+	if proto == TCP_PROTO {
+		reader.Seek(64, seekCurrent)
+		_, t, _, v := parseNfAttrTLV(reader)
+		if t == nl.CTA_MARK {
+			s.Mark = uint32(v[3])
 		}
-		return s
+	} else if proto == UDP_PROTO {
+		reader.Seek(16, seekCurrent)
+		_, t, _, v := parseNfAttrTLV(reader)
+		if t == nl.CTA_MARK {
+			s.Mark = uint32(v[3])
+		}
+	}
+	return s
 }
 
 // Conntrack parameters and options:
