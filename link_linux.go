@@ -2398,6 +2398,9 @@ func addBridgeAttrs(bridge *Bridge, linkInfo *nl.RtAttr) {
 	if bridge.HelloTime != nil {
 		nl.NewRtAttrChild(data, nl.IFLA_BR_HELLO_TIME, nl.Uint32Attr(*bridge.HelloTime))
 	}
+	if bridge.VlanFiltering != nil {
+		nl.NewRtAttrChild(data, nl.IFLA_BR_VLAN_FILTERING, boolToByte(*bridge.VlanFiltering))
+	}
 }
 
 func parseBridgeData(bridge Link, data []syscall.NetlinkRouteAttr) {
@@ -2410,6 +2413,9 @@ func parseBridgeData(bridge Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_BR_MCAST_SNOOPING:
 			mcastSnooping := datum.Value[0] == 1
 			br.MulticastSnooping = &mcastSnooping
+		case nl.IFLA_BR_VLAN_FILTERING:
+			vlanFiltering := datum.Value[0] == 1
+			br.VlanFiltering = &vlanFiltering
 		}
 	}
 }
