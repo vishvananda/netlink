@@ -235,6 +235,7 @@ type Bridge struct {
 	LinkAttrs
 	MulticastSnooping *bool
 	HelloTime         *uint32
+	VlanFiltering     *bool
 }
 
 func (bridge *Bridge) Attrs() *LinkAttrs {
