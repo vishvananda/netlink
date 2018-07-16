@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -941,7 +942,7 @@ func LinkAdd(link Link) error {
 }
 
 // LinkAdd adds a new link device. The type and features of the device
-// are taken fromt the parameters in the link object.
+// are taken from the parameters in the link object.
 // Equivalent to: `ip link add $link`
 func (h *Handle) LinkAdd(link Link) error {
 	return h.linkModify(link, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
@@ -951,14 +952,16 @@ func (h *Handle) linkModify(link Link, flags int) error {
 	// TODO: support extra data for macvlan
 	base := link.Attrs()
 
-	if base.Name == "" {
+	// if tuntap, then the name can be empty, OS will provide a name
+	tuntap, isTuntap := link.(*Tuntap)
+
+	if base.Name == "" && !isTuntap {
 		return fmt.Errorf("LinkAttrs.Name cannot be empty!")
 	}
 
-	if tuntap, ok := link.(*Tuntap); ok {
+	if isTuntap {
 		// TODO: support user
 		// TODO: support group
-		// TODO: support non- persistent
 		if tuntap.Mode < unix.IFF_TUN || tuntap.Mode > unix.IFF_TAP {
 			return fmt.Errorf("Tuntap.Mode %v unknown!", tuntap.Mode)
 		}
@@ -1001,12 +1004,25 @@ func (h *Handle) linkModify(link Link, flags int) error {
 				cleanupFds(fds)
 				return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed [%d], errno %v", i, errno)
 			}
+			// 1) we only care for the name of the first tap in the multi queue set
+			// 2) if the original name was empty, the localReq has now the actual name
+			//
+			// In addition:
+			// This ensures that the link name is always identical to what the kernel returns.
+			// Not only in case of an empty name, but also when using name templates.
+			// e.g. when the provided name is "tap%d", the kernel replaces %d with the next available number.
+			if i == 0 {
+				link.Attrs().Name = strings.Trim(string(localReq.Name[:]), "\x00")
+			}
 		}
 
-		_, _, errno := unix.Syscall(unix.SYS_IOCTL, fds[0].Fd(), uintptr(unix.TUNSETPERSIST), 1)
-		if errno != 0 {
-			cleanupFds(fds)
-			return fmt.Errorf("Tuntap IOCTL TUNSETPERSIST failed, errno %v", errno)
+		// only persist interface if NonPersist is NOT set
+		if !tuntap.NonPersist {
+			_, _, errno := unix.Syscall(unix.SYS_IOCTL, fds[0].Fd(), uintptr(unix.TUNSETPERSIST), 1)
+			if errno != 0 {
+				cleanupFds(fds)
+				return fmt.Errorf("Tuntap IOCTL TUNSETPERSIST failed, errno %v", errno)
+			}
 		}
 
 		h.ensureIndex(base)
@@ -1016,7 +1032,11 @@ func (h *Handle) linkModify(link Link, flags int) error {
 			// TODO: verify MasterIndex is actually a bridge?
 			err := h.LinkSetMasterByIndex(link, base.MasterIndex)
 			if err != nil {
-				_, _, _ = unix.Syscall(unix.SYS_IOCTL, fds[0].Fd(), uintptr(unix.TUNSETPERSIST), 0)
+				// un-persist (e.g. allow the interface to be removed) the tuntap
+				// should not hurt if not set prior, condition might be not needed
+				if !tuntap.NonPersist {
+					_, _, _ = unix.Syscall(unix.SYS_IOCTL, fds[0].Fd(), uintptr(unix.TUNSETPERSIST), 0)
+				}
 				cleanupFds(fds)
 				return err
 			}
