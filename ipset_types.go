@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/vishvananda/netlink/nl"
 )
@@ -22,15 +23,155 @@ type IPSetPortRange struct {
 }
 
 type IPSetInfoData struct {
-	Bytes string
+	Counters   bool
+	Comment    bool
+	Skbinfo    bool
+	Forceadd   bool
+	Timeout    time.Duration
+	HashSize   uint32
+	MaxElem    uint32
+	NetMask    net.IPMask
+	MarkMask   uint32
+	Elements   int
+	References int
+	MemSize    int
+}
+
+func (d *IPSetInfoData) setAttr(id uint16, data []byte) {
+	switch id {
+	case IPSET_ATTR_CADT_FLAGS | syscallNLA_F_NET_BYTEORDER:
+		flags := binary.BigEndian.Uint32(data[:4])
+		d.Counters = flags&IPSET_FLAG_WITH_COUNTERS > 0
+		d.Comment = flags&IPSET_FLAG_WITH_COMMENT > 0
+		d.Skbinfo = flags&IPSET_FLAG_WITH_SKBINFO > 0
+		d.Forceadd = flags&IPSET_FLAG_WITH_FORCEADD > 0
+
+	case IPSET_ATTR_TIMEOUT | syscallNLA_F_NET_BYTEORDER:
+		d.Timeout = time.Second * time.Duration(binary.BigEndian.Uint32(data[:4]))
+
+	case IPSET_ATTR_HASHSIZE | syscallNLA_F_NET_BYTEORDER:
+		d.HashSize = binary.BigEndian.Uint32(data[:4])
+
+	case IPSET_ATTR_MAXELEM | syscallNLA_F_NET_BYTEORDER:
+		d.MaxElem = binary.BigEndian.Uint32(data[:4])
+
+	case IPSET_ATTR_NETMASK:
+		d.NetMask = net.CIDRMask(int(data[0]), 32)
+
+	case IPSET_ATTR_MARKMASK | syscallNLA_F_NET_BYTEORDER:
+		d.MarkMask = binary.BigEndian.Uint32(data[:4])
+
+	case IPSET_ATTR_ELEMENTS | syscallNLA_F_NET_BYTEORDER:
+		d.Elements = int(binary.BigEndian.Uint32(data[:4]))
+
+	case IPSET_ATTR_REFERENCES | syscallNLA_F_NET_BYTEORDER:
+		d.References = int(binary.BigEndian.Uint32(data[:4]))
+
+	case IPSET_ATTR_MEMSIZE | syscallNLA_F_NET_BYTEORDER:
+		d.MemSize = int(binary.BigEndian.Uint32(data[:4]))
+
+	default:
+		panic(
+			fmt.Errorf(
+				"unknown field %d (%d), %d bytes: %q",
+				id,
+				id&^syscallNLA_F_NET_BYTEORDER,
+				len(data),
+				data,
+			),
+		)
+	}
 }
 
 type IPSetInfoADT struct {
-	Bytes string
+	Data []IPSetInfoADTData
+}
+
+func (a *IPSetInfoADT) setAttr(id uint16, data []byte) {
+	switch id {
+	case IPSET_ATTR_DATA | NLA_F_NESTED:
+		d, err := parseIPSetInfoADTData(data)
+		if err != nil {
+			panic(err)
+		}
+		a.Data = append(a.Data, d)
+
+	default:
+		panic(
+			fmt.Errorf(
+				"unknown field %d (%d), %d bytes: %q",
+				id,
+				id&^NLA_F_NESTED,
+				len(data),
+				data,
+			),
+		)
+	}
+}
+
+type IPSetInfoADTData struct {
+	IP      IPSetInfoADTDataIP
+	Mask    net.IPMask
+	Packets int
+	Bytes   int
+}
+
+func (d *IPSetInfoADTData) setAttr(id uint16, data []byte) {
+	switch id {
+	case IPSET_ATTR_IP | NLA_F_NESTED:
+		var err error
+		d.IP, err = parseIPSetInfoADTDataIP(data)
+		if err != nil {
+			panic(err)
+		}
+
+	case IPSET_ATTR_CIDR:
+		d.Mask = net.CIDRMask(int(data[0]), 32)
+
+	case IPSET_ATTR_BYTES | syscallNLA_F_NET_BYTEORDER:
+		d.Bytes = int(binary.BigEndian.Uint64(data[:8]))
+
+	case IPSET_ATTR_PACKETS | syscallNLA_F_NET_BYTEORDER:
+		d.Packets = int(binary.BigEndian.Uint64(data[:8]))
+
+	default:
+		panic(
+			fmt.Errorf(
+				"unknown field %d (%d or %d), %d bytes: %q",
+				id,
+				id&^NLA_F_NESTED,
+				id&^syscallNLA_F_NET_BYTEORDER,
+				len(data),
+				data,
+			),
+		)
+	}
+}
+
+type IPSetInfoADTDataIP struct {
+	Addr net.IP
+}
+
+func (d *IPSetInfoADTDataIP) setAttr(id uint16, data []byte) {
+	switch id {
+	case IPSET_ATTR_IP:
+		d.Addr = net.IPv4(data[0], data[1], data[2], data[3])
+
+	default:
+		panic(
+			fmt.Errorf(
+				"unknown field %d (%d), %d bytes: %q",
+				id,
+				id&^NLA_F_NESTED,
+				len(data),
+				data,
+			),
+		)
+	}
 }
 
 type IPSetInfo struct {
-	Header   NfGenHdr
+	Header   nl.Nfgenmsg
 	Name     string
 	Type     string
 	Revision uint8
@@ -39,13 +180,6 @@ type IPSetInfo struct {
 	ADT      IPSetInfoADT
 	Proto    uint8
 	Flags    uint32
-}
-
-// General address family dependent message header
-type NfGenHdr struct {
-	Family  uint8  // AF_XXX
-	Version uint8  // nfnetlink version
-	ResID   uint16 // resource id
 }
 
 func parseIPSetInfo(data []byte) (IPSetInfo, error) {
@@ -104,70 +238,107 @@ func nlaAlignOf(attrlen int) int {
 }
 
 func (i *IPSetInfo) setAttr(id uint16, data []byte) {
-	nested := id&NLA_F_NESTED > 0
-	id = id & ^uint16(NLA_F_NESTED)
-
 	switch id {
 	case IPSET_ATTR_PROTOCOL:
-		i.Proto, _ = readUint8(data)
+		i.Proto = data[0]
 
 	case IPSET_ATTR_SETNAME:
-		i.Name, _ = readZeroTerminated(data)
+		i.Name = readZeroTerminated(data)
 
 	case IPSET_ATTR_TYPENAME:
-		i.Type, _ = readZeroTerminated(data)
+		i.Type = readZeroTerminated(data)
 
 	case IPSET_ATTR_REVISION:
-		i.Revision, _ = readUint8(data)
+		i.Revision = data[0]
 
 	case IPSET_ATTR_FAMILY:
-		i.Family, _ = readUint8(data)
+		i.Family = data[0]
 
 	case IPSET_ATTR_FLAGS:
-		i.Flags, _ = readUint32(data)
-		//i.Counters = i.Flags&IPSET_FLAG_WITH_COUNTERS > 0
-		//i.Comment = i.Flags&IPSET_FLAG_WITH_COMMENT > 0
-		//i.Skbinfo = i.Flags&IPSET_FLAG_WITH_SKBINFO > 0
-		//i.Forceadd = i.Flags&IPSET_FLAG_WITH_FORCEADD > 0
+		i.Flags = nl.NativeEndian().Uint32(data[:4])
 
-	case IPSET_ATTR_DATA:
-		if !nested {
-			panic("not nested data")
+	case IPSET_ATTR_DATA | NLA_F_NESTED:
+		var err error
+		i.Data, err = parseIPSetInfoData(data)
+		if err != nil {
+			panic(err)
 		}
-		i.Data, _ = readIPSetData(data)
 
-	case IPSET_ATTR_ADT:
-		if !nested {
-			panic("not nested ADT")
+	case IPSET_ATTR_ADT | NLA_F_NESTED:
+		var err error
+		i.ADT, err = parseIPSetInfoADT(data)
+		if err != nil {
+			panic(err)
 		}
-		i.ADT, _ = readIPSetADT(data)
 
 	default:
-		panic(fmt.Sprintf("unknown field%d: %q", id, data))
+		panic(fmt.Sprintf("unknown field %d (%d), %d bytes: %q", id&^NLA_F_NESTED, id, len(data), data))
 	}
 }
 
-func readUint8(data []byte) (uint8, []byte) {
-	return data[0], data[1:]
+func parseIPSetInfoData(data []byte) (IPSetInfoData, error) {
+	d := IPSetInfoData{}
+	r := bytes.NewReader(data)
+
+	for r.Len() >= syscallNLA_HDRLEN {
+		id, val, err := parseIPSetInfoAttr(r)
+		if err != nil {
+			return d, err
+		}
+		d.setAttr(id, val)
+	}
+
+	return d, nil
 }
 
-func readUint16(data []byte) (uint16, []byte) {
-	return nl.NativeEndian().Uint16(data[:2]), data[2:]
+func parseIPSetInfoADT(data []byte) (IPSetInfoADT, error) {
+	a := IPSetInfoADT{
+		Data: make([]IPSetInfoADTData, 0, 256),
+	}
+	r := bytes.NewReader(data)
+
+	for r.Len() >= syscallNLA_HDRLEN {
+		id, val, err := parseIPSetInfoAttr(r)
+		if err != nil {
+			return a, err
+		}
+		a.setAttr(id, val)
+	}
+
+	return a, nil
 }
 
-func readUint32(data []byte) (uint32, []byte) {
-	return nl.NativeEndian().Uint32(data[:4]), data[4:]
+func parseIPSetInfoADTData(data []byte) (IPSetInfoADTData, error) {
+	ad := IPSetInfoADTData{}
+	r := bytes.NewReader(data)
+
+	for r.Len() >= syscallNLA_HDRLEN {
+		id, val, err := parseIPSetInfoAttr(r)
+		if err != nil {
+			return ad, err
+		}
+		ad.setAttr(id, val)
+	}
+
+	return ad, nil
 }
 
-func readZeroTerminated(data []byte) (string, []byte) {
+func parseIPSetInfoADTDataIP(data []byte) (IPSetInfoADTDataIP, error) {
+	ip := IPSetInfoADTDataIP{}
+	r := bytes.NewReader(data)
+
+	for r.Len() >= syscallNLA_HDRLEN {
+		id, val, err := parseIPSetInfoAttr(r)
+		if err != nil {
+			return ip, err
+		}
+		ip.setAttr(id, val)
+	}
+
+	return ip, nil
+}
+
+func readZeroTerminated(data []byte) string {
 	zeroPos := bytes.Index(data, []byte{0})
-	return string(data[:zeroPos]), data[zeroPos+1:]
-}
-
-func readIPSetData(data []byte) (IPSetInfoData, []byte) {
-	return IPSetInfoData{Bytes: string(data)}, data
-}
-
-func readIPSetADT(data []byte) (IPSetInfoADT, []byte) {
-	return IPSetInfoADT{Bytes: string(data)}, data
+	return string(data[:zeroPos])
 }
