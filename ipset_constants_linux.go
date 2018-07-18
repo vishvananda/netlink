@@ -10,4 +10,6 @@ const (
 	unixNLM_F_ACK              = unix.NLM_F_ACK
 	unixNETLINK_NETFILTER      = unix.NETLINK_NETFILTER
 	syscallNLA_F_NET_BYTEORDER = syscall.NLA_F_NET_BYTEORDER
+	syscallNLA_HDRLEN          = syscall.NLA_HDRLEN
+	syscallNLA_ALIGNTO         = syscall.NLA_ALIGNTO
 )

@@ -35,3 +35,11 @@ const (
 	NFPROTO_IPV4 ipsetFamilyEnum = 2
 	NFPROTO_IPV6 ipsetFamilyEnum = 10
 )
+
+type ipsetProtoEnum uint8
+
+const (
+	IPSetPortRangeAny ipsetProtoEnum = 0
+	IPSetPortRangeTCP ipsetProtoEnum = TCP_PROTO
+	IPSetPortRangeUDP ipsetProtoEnum = UDP_PROTO
+)

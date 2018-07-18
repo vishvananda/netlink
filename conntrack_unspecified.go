@@ -2,6 +2,12 @@
 
 package netlink
 
+const (
+	// For Parsing Mark
+	TCP_PROTO = 6
+	UDP_PROTO = 17
+)
+
 // ConntrackTableType Conntrack table for the netlink operation
 type ConntrackTableType uint8
 

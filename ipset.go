@@ -1,11 +1,10 @@
 package netlink
 
 import (
-	"encoding/binary"
 	"fmt"
+	"net"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/vishvananda/netlink/nl"
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
@@ -44,33 +43,69 @@ import (
 //
 // ipset -
 
+var (
+	ErrNameRequired = fmt.Errorf("ipset: name required")
+	ErrNameTooLong  = fmt.Errorf("ipset: name too long")
+)
+
 // IPSetCreate create a new ipset just like `ipset create` does
 func IPSetCreate(
 	setName string,
 	setType ipsetTypeEnum,
-	family ipsetFamilyEnum,
 	timeout time.Duration,
+	counters bool,
+	comment bool,
+	skbinfo bool,
 	hashsize uint32,
 	maxelem uint32,
+	family ipsetFamilyEnum,
+	forceadd bool,
+	netmask net.IPMask,
+	markmask uint32,
+	// ipRange *IPSetIPRange,
+	// portRange *IPSetPortRange,
 ) error {
-	return pkgHandle.IPSetCreate(setName, setType, family, timeout, hashsize, maxelem)
+	return pkgHandle.IPSetCreate(
+		setName,
+		setType,
+		timeout,
+		counters,
+		comment,
+		skbinfo,
+		hashsize,
+		maxelem,
+		family,
+		forceadd,
+		netmask,
+		markmask,
+		// ipRange,
+		// portRange,
+	)
 }
 
 // IPSetCreate create a new ipset just like `ipset create` does
 func (h *Handle) IPSetCreate(
 	setName string,
 	setType ipsetTypeEnum,
-	family ipsetFamilyEnum,
 	timeout time.Duration,
+	counters bool,
+	comment bool,
+	skbinfo bool,
 	hashsize uint32,
 	maxelem uint32,
+	family ipsetFamilyEnum,
+	forceadd bool,
+	netmask net.IPMask,
+	markmask uint32,
+	// ipRange *IPSetIPRange,
+	// portRange *IPSetPortRange,
 ) error {
 	if len(setName) == 0 {
-		return fmt.Errorf("ipset: name required")
+		return ErrNameRequired
 	}
 
 	if len(setName) > IPSET_MAXNAMELEN-1 {
-		return fmt.Errorf("ipset: name too long")
+		return ErrNameTooLong
 	}
 
 	req := nl.NewNetlinkRequest(IPSET_CMD_CREATE|(NFNL_SUBSYS_IPSET<<8), unixNLM_F_ACK)
@@ -89,21 +124,49 @@ func (h *Handle) IPSetCreate(
 
 	data := nl.NewRtAttr(IPSET_ATTR_DATA|NLA_F_NESTED, nil)
 
+	flags := ternaryUint32(counters, IPSET_FLAG_WITH_COUNTERS, 0)
+	flags |= ternaryUint32(comment, IPSET_FLAG_WITH_COMMENT, 0)
+	flags |= ternaryUint32(skbinfo, IPSET_FLAG_WITH_SKBINFO, 0)
+	flags |= ternaryUint32(forceadd, IPSET_FLAG_WITH_FORCEADD, 0)
+
+	if flags != 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_CADT_FLAGS|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(flags))
+	}
+
 	if timeout > 0 {
-		nl.NewRtAttrChild(data, IPSET_ATTR_TIMEOUT|syscallNLA_F_NET_BYTEORDER, Uint32AttrNetworkOrder(uint32(timeout.Seconds())))
+		nl.NewRtAttrChild(data, IPSET_ATTR_TIMEOUT|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(uint32(timeout.Seconds())))
 	}
 
 	if hashsize > 0 {
-		nl.NewRtAttrChild(data, IPSET_ATTR_HASHSIZE|syscallNLA_F_NET_BYTEORDER, Uint32AttrNetworkOrder(hashsize))
+		nl.NewRtAttrChild(data, IPSET_ATTR_HASHSIZE|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(hashsize))
 	}
 
 	if maxelem > 0 {
-		nl.NewRtAttrChild(data, IPSET_ATTR_MAXELEM|syscallNLA_F_NET_BYTEORDER, Uint32AttrNetworkOrder(maxelem))
+		nl.NewRtAttrChild(data, IPSET_ATTR_MAXELEM|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(maxelem))
 	}
 
-	req.AddData(data)
+	//if ipRange != nil {
+	//	nl.NewRtAttrChild(data, IPSET_ATTR_IP_FROM, ipRange.From.To4())
+	//	nl.NewRtAttrChild(data, IPSET_ATTR_IP_TO, ipRange.To.To4())
+	//}
+	//
+	//if portRange != nil {
+	//	nl.NewRtAttrChild(data, IPSET_ATTR_PORT_FROM|syscallNLA_F_NET_BYTEORDER, po.From.To4())
+	//	nl.NewRtAttrChild(data, IPSET_ATTR_PORT_TO|syscallNLA_F_NET_BYTEORDER, ipRange.To.To4())
+	//}
 
-	zap.L().Debug("here", zap.String("req", spew.Sprintf("%#v", data)))
+	if netmask != nil {
+		ones, _ := netmask.Size()
+		nl.NewRtAttrChild(data, IPSET_ATTR_NETMASK, nl.Uint8Attr(uint8(ones)))
+	}
+
+	if markmask != 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_NETMASK|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(markmask))
+	}
+
+	if data.Len() > 0 {
+		req.AddData(data)
+	}
 
 	_, err := req.Execute(unixNETLINK_NETFILTER, 0)
 
@@ -122,7 +185,7 @@ func (h *Handle) IPSetDestroy(setName string) error {
 	}
 
 	if len(setName) > IPSET_MAXNAMELEN-1 {
-		return fmt.Errorf("ipset: name too long")
+		return ErrNameTooLong
 	}
 
 	req := nl.NewNetlinkRequest(IPSET_CMD_DESTROY|(NFNL_SUBSYS_IPSET<<8), unixNLM_F_ACK)
@@ -153,7 +216,7 @@ func (h *Handle) IPSetFlush(setName string) error {
 	}
 
 	if len(setName) > IPSET_MAXNAMELEN-1 {
-		return fmt.Errorf("ipset: name too long")
+		return ErrNameTooLong
 	}
 
 	req := nl.NewNetlinkRequest(IPSET_CMD_FLUSH|(NFNL_SUBSYS_IPSET<<8), unixNLM_F_ACK)
@@ -173,12 +236,12 @@ func (h *Handle) IPSetFlush(setName string) error {
 }
 
 // IPSetList flushes all entries from the specified set
-func IPSetList(setName string) error {
-	return pkgHandle.IPSetList()
+func IPSetList(setName string) ([]IPSetInfo, error) {
+	return pkgHandle.IPSetList(setName)
 }
 
 // IPSetList flushes all entries from the specified set
-func (h *Handle) IPSetList() error {
+func (h *Handle) IPSetList(setName string) ([]IPSetInfo, error) {
 	req := nl.NewNetlinkRequest(IPSET_CMD_LIST|(NFNL_SUBSYS_IPSET<<8), unixNLM_F_ACK)
 	req.AddData(
 		&nl.Nfgenmsg{
@@ -189,13 +252,50 @@ func (h *Handle) IPSetList() error {
 	)
 	req.AddData(nl.NewRtAttr(IPSET_ATTR_PROTOCOL, nl.Uint8Attr(IPSET_PROTOCOL)))
 
-	_, err := req.Execute(unixNETLINK_NETFILTER, 0)
+	if setName != "" {
+		if len(setName) > IPSET_MAXNAMELEN-1 {
+			return nil, ErrNameTooLong
+		}
 
-	return err
+		req.AddData(nl.NewRtAttr(IPSET_ATTR_SETNAME, nl.ZeroTerminated(setName)))
+	}
+
+	msgs, err := req.Execute(unixNETLINK_NETFILTER, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	// resp:	attr:	IPSET_ATTR_SETNAME
+	// IPSET_ATTR_TYPENAME
+	// IPSET_ATTR_REVISION
+	// IPSET_ATTR_FAMILY
+	// IPSET_ATTR_DATA
+	// 	create-specific-data
+	// IPSET_ATTR_ADT
+	// 	IPSET_ATTR_DATA
+	// 		adt-specific-data
+	// 	...
+
+	resp := make([]IPSetInfo, 0, 256)
+
+	for _, m := range msgs {
+		info, err := parseIPSetInfo(m)
+		if err != nil {
+			return nil, err
+		}
+
+		zap.L().Debug("here", zap.Reflect("info", info))
+
+		resp = append(resp, info)
+	}
+
+	return resp, nil
 }
 
-func Uint32AttrNetworkOrder(v uint32) []byte {
-	bytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(bytes, v)
-	return bytes
+func ternaryUint32(cond bool, ifTrue uint32, ifFalse uint32) uint32 {
+	if cond {
+		return ifTrue
+	}
+
+	return ifFalse
 }

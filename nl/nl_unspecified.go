@@ -285,6 +285,10 @@ func Uint64Attr(v uint64) []byte {
 	panic("not implemented")
 }
 
+func Uint32AttrNetEndian(v uint32) []byte {
+	panic("not implemented")
+}
+
 // func ParseRouteAttr(b []byte) ([]syscall.NetlinkRouteAttr, error) {
 // 	panic("not implemented")
 // }

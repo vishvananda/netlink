@@ -11,6 +11,9 @@ const IPSET_PROTOCOL = 6
 // IPSET_MAXNAMELEN The max length of strings including NUL: set and type identifiers
 const IPSET_MAXNAMELEN = 32
 
+/* The maximum permissible comment length we will accept over netlink */
+const IPSET_MAX_COMMENT_SIZE = 255
+
 // ipset of my arch linux vbox, makes revision 4
 const IPSET_ATTR_REVISION_VALUE = 4
 
@@ -59,57 +62,6 @@ const (
 	NLA_F_NESTED = (1 << 15)
 )
 
-/* Keywords */
-const (
-	IPSET_ARG_NONE = iota
-	/* Family and aliases */
-	IPSET_ARG_FAMILY /* family */
-	IPSET_ARG_INET   /* -4 */
-	IPSET_ARG_INET6  /* -6 */
-	/* Hash types */
-	IPSET_ARG_HASHSIZE /* hashsize */
-	IPSET_ARG_MAXELEM  /* maxelem */
-	/* Ignored options: backward compatibilty */
-	IPSET_ARG_PROBES          /* probes */
-	IPSET_ARG_RESIZE          /* resize */
-	IPSET_ARG_GC              /* gc */
-	IPSET_ARG_IGNORED_FROM    /* from */
-	IPSET_ARG_IGNORED_TO      /* to */
-	IPSET_ARG_IGNORED_NETWORK /* network */
-	/* List type */
-	IPSET_ARG_SIZE /* size */
-	/* IP-type elements */
-	IPSET_ARG_IPRANGE /* range */
-	IPSET_ARG_NETMASK /* netmask */
-	/* Port-type elements */
-	IPSET_ARG_PORTRANGE /* range */
-	/* Setname type elements */
-	IPSET_ARG_BEFORE /* before */
-	IPSET_ARG_AFTER  /* after */
-	/* Backward compatibility */
-	IPSET_ARG_FROM_IP   /* from */
-	IPSET_ARG_TO_IP     /* to */
-	IPSET_ARG_NETWORK   /* network */
-	IPSET_ARG_FROM_PORT /* from */
-	IPSET_ARG_TO_PORT   /* to */
-	/* Extra flags, options */
-	IPSET_ARG_FORCEADD /* forceadd */
-	IPSET_ARG_MARKMASK /* markmask */
-	IPSET_ARG_NOMATCH  /* nomatch */
-	/* Extensions */
-	IPSET_ARG_TIMEOUT     /* timeout */
-	IPSET_ARG_COUNTERS    /* counters */
-	IPSET_ARG_PACKETS     /* packets */
-	IPSET_ARG_BYTES       /* bytes */
-	IPSET_ARG_COMMENT     /* comment */
-	IPSET_ARG_ADT_COMMENT /* comment */
-	IPSET_ARG_SKBINFO     /* skbinfo */
-	IPSET_ARG_SKBMARK     /* skbmark */
-	IPSET_ARG_SKBPRIO     /* skbprio */
-	IPSET_ARG_SKBQUEUE    /* skbqueue */
-	IPSET_ARG_MAX
-)
-
 /* CADT specific attributes */
 const (
 	IPSET_ATTR_IP = IPSET_ATTR_UNSPEC + 1
@@ -147,4 +99,42 @@ const (
 	IPSET_ATTR_ELEMENTS
 	IPSET_ATTR_REFERENCES
 	IPSET_ATTR_MEMSIZE
+)
+
+/* Flags at CADT attribute level, upper half of cmdattrs */
+const (
+	IPSET_FLAG_BIT_BEFORE        = 0
+	IPSET_FLAG_BEFORE            = (1 << IPSET_FLAG_BIT_BEFORE)
+	IPSET_FLAG_BIT_PHYSDEV       = 1
+	IPSET_FLAG_PHYSDEV           = (1 << IPSET_FLAG_BIT_PHYSDEV)
+	IPSET_FLAG_BIT_NOMATCH       = 2
+	IPSET_FLAG_NOMATCH           = (1 << IPSET_FLAG_BIT_NOMATCH)
+	IPSET_FLAG_BIT_WITH_COUNTERS = 3
+	IPSET_FLAG_WITH_COUNTERS     = (1 << IPSET_FLAG_BIT_WITH_COUNTERS)
+	IPSET_FLAG_BIT_WITH_COMMENT  = 4
+	IPSET_FLAG_WITH_COMMENT      = (1 << IPSET_FLAG_BIT_WITH_COMMENT)
+	IPSET_FLAG_BIT_WITH_FORCEADD = 5
+	IPSET_FLAG_WITH_FORCEADD     = (1 << IPSET_FLAG_BIT_WITH_FORCEADD)
+	IPSET_FLAG_BIT_WITH_SKBINFO  = 6
+	IPSET_FLAG_WITH_SKBINFO      = (1 << IPSET_FLAG_BIT_WITH_SKBINFO)
+	IPSET_FLAG_CADT_MAX          = 15
+)
+
+/* ADT specific attributes */
+const (
+	IPSET_ATTR_ETHER = IPSET_ATTR_CADT_MAX + 1 + iota
+	IPSET_ATTR_NAME
+	IPSET_ATTR_NAMEREF
+	IPSET_ATTR_IP2
+	IPSET_ATTR_CIDR2
+	IPSET_ATTR_IP2_TO
+	IPSET_ATTR_IFACE
+	IPSET_ATTR_BYTES
+	IPSET_ATTR_PACKETS
+	IPSET_ATTR_COMMENT
+	IPSET_ATTR_SKBMARK
+	IPSET_ATTR_SKBPRIO
+	IPSET_ATTR_SKBQUEUE
+	IPSET_ATTR_PAD
+	__IPSET_ATTR_ADT_MAX
 )
