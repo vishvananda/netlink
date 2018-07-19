@@ -60,6 +60,7 @@ type IPSetInfoADT struct {
 type IPSetInfoADTData struct {
 	IP       IPSetInfoADTDataIP
 	Mask     net.IPMask
+	Line     int
 	Packets  int
 	Bytes    int
 	Timeout  time.Duration

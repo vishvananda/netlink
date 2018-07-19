@@ -717,6 +717,12 @@ func Uint32AttrNetEndian(v uint32) []byte {
 	return bytes
 }
 
+func Uint64AttrNetEndian(v uint64) []byte {
+	bytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(bytes, v)
+	return bytes
+}
+
 func ParseZeroTerminated(data []byte) string {
 	zeroPos := bytes.Index(data, []byte{0})
 	return string(data[:zeroPos])

@@ -293,6 +293,10 @@ func Uint32AttrNetEndian(v uint32) []byte {
 	panic("not implemented")
 }
 
+func Uint64AttrNetEndian(v uint64) []byte {
+	panic("not implemented")
+}
+
 func ParseZeroTerminated(data []byte) string {
 	panic("not implemented")
 }

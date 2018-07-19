@@ -354,21 +354,16 @@ func (h *Handle) IPSetAdd(setName string, entry IPSetInfoADTData) error {
 	}
 
 	flags := ternaryUint32(entry.Nomatch, IPSET_FLAG_NOMATCH, 0)
-
-	if entry.Packets >= 0 {
-		nl.NewRtAttrChild(data, IPSET_ATTR_PACKETS|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(uint32(entry.Packets)))
+	if entry.Packets > 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_PACKETS|syscallNLA_F_NET_BYTEORDER, nl.Uint64AttrNetEndian(uint64(entry.Packets)))
 	}
 
-	if entry.Bytes >= 0 {
-		nl.NewRtAttrChild(data, IPSET_ATTR_BYTES|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(uint32(entry.Bytes)))
+	if entry.Bytes > 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_BYTES|syscallNLA_F_NET_BYTEORDER, nl.Uint64AttrNetEndian(uint64(entry.Bytes)))
 	}
 
 	if entry.Timeout > 0 {
 		nl.NewRtAttrChild(data, IPSET_ATTR_TIMEOUT|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(uint32(entry.Timeout.Seconds())))
-	}
-
-	if flags != 0 {
-		nl.NewRtAttrChild(data, IPSET_ATTR_FLAGS|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(flags))
 	}
 
 	if entry.Comment != "" {
@@ -385,6 +380,14 @@ func (h *Handle) IPSetAdd(setName string, entry IPSetInfoADTData) error {
 
 	if entry.SkbQueue > 0 {
 		nl.NewRtAttrChild(data, IPSET_ATTR_SKBQUEUE|syscallNLA_F_NET_BYTEORDER, nl.Uint16AttrNetEndian(entry.SkbQueue))
+	}
+
+	if entry.Line > 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_LINENO|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(uint32(entry.Line)))
+	}
+
+	if flags != 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_FLAGS|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(flags))
 	}
 
 	req.AddData(data)
