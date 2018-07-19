@@ -311,12 +311,12 @@ func (h *Handle) IPSetList(setName string) ([]IPSetInfo, error) {
 	return resp, nil
 }
 
-// IPSetList returns an info for the specified setName or all sets in case seName is empty
+// IPSetAdd adds a specified entry to the specified set
 func IPSetAdd(setName string, entry IPSetInfoADTData) error {
 	return pkgHandle.IPSetAdd(setName, entry)
 }
 
-// IPSetList returns an info for the specified setName or all sets in case seName is empty
+// IPSetAdd adds a specified entry to the specified set
 func (h *Handle) IPSetAdd(setName string, entry IPSetInfoADTData) error {
 	if len(setName) == 0 {
 		return ErrNameRequired
@@ -389,6 +389,52 @@ func (h *Handle) IPSetAdd(setName string, entry IPSetInfoADTData) error {
 	if flags != 0 {
 		nl.NewRtAttrChild(data, IPSET_ATTR_FLAGS|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(flags))
 	}
+
+	req.AddData(data)
+
+	_, err := req.Execute(unixNETLINK_NETFILTER, 0)
+
+	return err
+}
+
+// IPSetDel removes a specified entry to the specified set
+// Note: IPSetDel would not report entry-does-not-exist error in eny case
+func IPSetDel(setName string, entry IPSetInfoADTData) error {
+	return pkgHandle.IPSetDel(setName, entry)
+}
+
+// IPSetDel removes a specified entry to the specified set
+// Note: IPSetDel would not report entry-does-not-exist error in eny case
+func (h *Handle) IPSetDel(setName string, entry IPSetInfoADTData) error {
+	if len(setName) == 0 {
+		return ErrNameRequired
+	}
+
+	if len(setName) > IPSET_MAXNAMELEN-1 {
+		return ErrNameTooLong
+	}
+
+	req := nl.NewNetlinkRequest(IPSET_CMD_DEL|(NFNL_SUBSYS_IPSET<<8), unixNLM_F_ACK)
+	req.AddData(
+		&nl.Nfgenmsg{
+			NfgenFamily: uint8(unix.AF_INET),
+			Version:     nl.NFNETLINK_V0,
+			ResId:       0,
+		},
+	)
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_PROTOCOL, nl.Uint8Attr(IPSET_PROTOCOL)))
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_SETNAME, nl.ZeroTerminated(setName)))
+
+	data := nl.NewRtAttr(IPSET_ATTR_DATA|NLA_F_NESTED, nil)
+
+	addr := nl.NewRtAttr(IPSET_ATTR_IP|NLA_F_NESTED, nil)
+	if entry.IP.Addr.To4 != nil {
+		nl.NewRtAttrChild(addr, IPSET_ATTR_IP|syscallNLA_F_NET_BYTEORDER, entry.IP.Addr.To4())
+	} else {
+		nl.NewRtAttrChild(addr, IPSET_ATTR_IP|syscallNLA_F_NET_BYTEORDER, entry.IP.Addr.To16())
+	}
+
+	data.AddChild(addr)
 
 	req.AddData(data)
 
