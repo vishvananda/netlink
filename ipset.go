@@ -6,43 +6,10 @@ import (
 	"time"
 
 	"github.com/vishvananda/netlink/nl"
-	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
 )
 
-// ipset [ OPTIONS ] COMMAND [ COMMAND-OPTIONS ]
-// COMMANDS := { create | add | del | test | destroy | list | save | restore | flush | rename | swap | help | version | - }
-//
-// OPTIONS := { -exist | -output { plain | save | xml } | -quiet | -resolve | -sorted | -name | -terse | -file filename }
-//
-// ipset create SETNAME TYPENAME [ CREATE-OPTIONS ]
-//
-// ipset add SETNAME ADD-ENTRY [ ADD-OPTIONS ]
-//
-// ipset del SETNAME DEL-ENTRY [ DEL-OPTIONS ]
-//
-// ipset test SETNAME TEST-ENTRY [ TEST-OPTIONS ]
-//
-// ipset destroy [ SETNAME ]
-//
-// ipset list [ SETNAME ]
-//
-// ipset save [ SETNAME ]
-//
-// ipset restore
-//
-// ipset flush [ SETNAME ]
-//
-// ipset rename SETNAME-FROM SETNAME-TO
-//
-// ipset swap SETNAME-FROM SETNAME-TO
-//
-// ipset help [ TYPENAME ]
-//
-// ipset version
-//
-// ipset -
-
+// static errors might be returned by IPSET methods
 var (
 	ErrNameRequired = fmt.Errorf("ipset: name required")
 	ErrNameTooLong  = fmt.Errorf("ipset: name too long")
@@ -84,6 +51,7 @@ func IPSetCreate(
 }
 
 // IPSetCreate create a new ipset just like `ipset create` does
+// Note: range patrameter is not supported (yet?), so all the types requires it are not creatable.
 func (h *Handle) IPSetCreate(
 	setName string,
 	setType ipsetTypeEnum,
@@ -173,15 +141,15 @@ func (h *Handle) IPSetCreate(
 	return err
 }
 
-// IPSetDestroy removes an ipset just like `ipset create` does
+// IPSetDestroy removes an ipset just like `ipset destroy` does
 func IPSetDestroy(setName string) error {
 	return pkgHandle.IPSetDestroy(setName)
 }
 
-// IPSetDestroy removes an ipset just like `ipset create` does
+// IPSetDestroy removes an ipset just like `ipset destroy` does
 func (h *Handle) IPSetDestroy(setName string) error {
 	if len(setName) == 0 {
-		return fmt.Errorf("ipset: name required")
+		return ErrNameRequired
 	}
 
 	if len(setName) > IPSET_MAXNAMELEN-1 {
@@ -204,6 +172,70 @@ func (h *Handle) IPSetDestroy(setName string) error {
 	return err
 }
 
+// IPSetRename renames an ipset just like `ipset destroy` does
+func IPSetRename(srcName string, dstName string) error {
+	return pkgHandle.IPSetRename(srcName, dstName)
+}
+
+// IPSetRename renames an ipset just like `ipset rename` does
+func (h *Handle) IPSetRename(srcName string, dstName string) error {
+	if len(srcName) == 0 || len(dstName) == 0 {
+		return ErrNameRequired
+	}
+
+	if len(srcName) > IPSET_MAXNAMELEN-1 || len(dstName) > IPSET_MAXNAMELEN-1 {
+		return ErrNameTooLong
+	}
+
+	req := nl.NewNetlinkRequest(IPSET_CMD_RENAME|(NFNL_SUBSYS_IPSET<<8), unixNLM_F_ACK)
+	req.AddData(
+		&nl.Nfgenmsg{
+			NfgenFamily: uint8(unix.AF_INET),
+			Version:     nl.NFNETLINK_V0,
+			ResId:       0,
+		},
+	)
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_PROTOCOL, nl.Uint8Attr(IPSET_PROTOCOL)))
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_SETNAME, nl.ZeroTerminated(srcName)))
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_SETNAME2, nl.ZeroTerminated(dstName)))
+
+	_, err := req.Execute(unixNETLINK_NETFILTER, 0)
+
+	return err
+}
+
+// IPSetSwap swaps two ipsets just like `ipset swap` does
+func IPSetSwap(srcName string, dstName string) error {
+	return pkgHandle.IPSetSwap(srcName, dstName)
+}
+
+// IPSetSwap swaps two ipsets just like `ipset swap` does
+func (h *Handle) IPSetSwap(srcName string, dstName string) error {
+	if len(srcName) == 0 || len(dstName) == 0 {
+		return ErrNameRequired
+	}
+
+	if len(srcName) > IPSET_MAXNAMELEN-1 || len(dstName) > IPSET_MAXNAMELEN-1 {
+		return ErrNameTooLong
+	}
+
+	req := nl.NewNetlinkRequest(IPSET_CMD_SWAP|(NFNL_SUBSYS_IPSET<<8), unixNLM_F_ACK)
+	req.AddData(
+		&nl.Nfgenmsg{
+			NfgenFamily: uint8(unix.AF_INET),
+			Version:     nl.NFNETLINK_V0,
+			ResId:       0,
+		},
+	)
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_PROTOCOL, nl.Uint8Attr(IPSET_PROTOCOL)))
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_SETNAME, nl.ZeroTerminated(srcName)))
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_SETNAME2, nl.ZeroTerminated(dstName)))
+
+	_, err := req.Execute(unixNETLINK_NETFILTER, 0)
+
+	return err
+}
+
 // IPSetFlush flushes all entries from the specified set
 func IPSetFlush(setName string) error {
 	return pkgHandle.IPSetFlush(setName)
@@ -212,7 +244,7 @@ func IPSetFlush(setName string) error {
 // IPSetFlush flushes all entries from the specified set
 func (h *Handle) IPSetFlush(setName string) error {
 	if len(setName) == 0 {
-		return fmt.Errorf("ipset: name required")
+		return ErrNameRequired
 	}
 
 	if len(setName) > IPSET_MAXNAMELEN-1 {
@@ -235,12 +267,12 @@ func (h *Handle) IPSetFlush(setName string) error {
 	return err
 }
 
-// IPSetList flushes all entries from the specified set
+// IPSetList returns an info for the specified setName or all sets in case seName is empty
 func IPSetList(setName string) ([]IPSetInfo, error) {
 	return pkgHandle.IPSetList(setName)
 }
 
-// IPSetList flushes all entries from the specified set
+// IPSetList returns an info for the specified setName or all sets in case seName is empty
 func (h *Handle) IPSetList(setName string) ([]IPSetInfo, error) {
 	req := nl.NewNetlinkRequest(IPSET_CMD_LIST|(NFNL_SUBSYS_IPSET<<8), unixNLM_F_ACK)
 	req.AddData(
@@ -265,17 +297,6 @@ func (h *Handle) IPSetList(setName string) ([]IPSetInfo, error) {
 		return nil, err
 	}
 
-	// resp:	attr:	IPSET_ATTR_SETNAME
-	// IPSET_ATTR_TYPENAME
-	// IPSET_ATTR_REVISION
-	// IPSET_ATTR_FAMILY
-	// IPSET_ATTR_DATA
-	// 	create-specific-data
-	// IPSET_ATTR_ADT
-	// 	IPSET_ATTR_DATA
-	// 		adt-specific-data
-	// 	...
-
 	resp := make([]IPSetInfo, 0, 256)
 
 	for _, m := range msgs {
@@ -284,14 +305,96 @@ func (h *Handle) IPSetList(setName string) ([]IPSetInfo, error) {
 			return nil, err
 		}
 
-		zap.L().Debug("here", zap.Reflect("info", info))
-
 		resp = append(resp, info)
 	}
 
 	return resp, nil
 }
 
+// IPSetList returns an info for the specified setName or all sets in case seName is empty
+func IPSetAdd(setName string, entry IPSetInfoADTData) error {
+	return pkgHandle.IPSetAdd(setName, entry)
+}
+
+// IPSetList returns an info for the specified setName or all sets in case seName is empty
+func (h *Handle) IPSetAdd(setName string, entry IPSetInfoADTData) error {
+	if len(setName) == 0 {
+		return ErrNameRequired
+	}
+
+	if len(setName) > IPSET_MAXNAMELEN-1 {
+		return ErrNameTooLong
+	}
+
+	req := nl.NewNetlinkRequest(IPSET_CMD_ADD|(NFNL_SUBSYS_IPSET<<8), unixNLM_F_ACK)
+	req.AddData(
+		&nl.Nfgenmsg{
+			NfgenFamily: uint8(unix.AF_INET),
+			Version:     nl.NFNETLINK_V0,
+			ResId:       0,
+		},
+	)
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_PROTOCOL, nl.Uint8Attr(IPSET_PROTOCOL)))
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_SETNAME, nl.ZeroTerminated(setName)))
+
+	data := nl.NewRtAttr(IPSET_ATTR_DATA|NLA_F_NESTED, nil)
+
+	addr := nl.NewRtAttr(IPSET_ATTR_IP|NLA_F_NESTED, nil)
+	if entry.IP.Addr.To4 != nil {
+		nl.NewRtAttrChild(addr, IPSET_ATTR_IP|syscallNLA_F_NET_BYTEORDER, entry.IP.Addr.To4())
+	} else {
+		nl.NewRtAttrChild(addr, IPSET_ATTR_IP|syscallNLA_F_NET_BYTEORDER, entry.IP.Addr.To16())
+	}
+
+	data.AddChild(addr)
+
+	if entry.Mask != nil {
+		ones, _ := entry.Mask.Size()
+		nl.NewRtAttrChild(data, IPSET_ATTR_CIDR, nl.Uint8Attr(uint8(ones)))
+	}
+
+	flags := ternaryUint32(entry.Nomatch, IPSET_FLAG_NOMATCH, 0)
+
+	if entry.Packets >= 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_PACKETS|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(uint32(entry.Packets)))
+	}
+
+	if entry.Bytes >= 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_BYTES|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(uint32(entry.Bytes)))
+	}
+
+	if entry.Timeout > 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_TIMEOUT|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(uint32(entry.Timeout.Seconds())))
+	}
+
+	if flags != 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_FLAGS|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(flags))
+	}
+
+	if entry.Comment != "" {
+		nl.NewRtAttrChild(data, IPSET_ATTR_COMMENT, nl.ZeroTerminated(entry.Comment))
+	}
+
+	if entry.SkbMark > 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_SKBMARK|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(entry.SkbMark))
+	}
+
+	if entry.SkbPrio > 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_SKBPRIO|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(entry.SkbPrio))
+	}
+
+	if entry.SkbQueue > 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_SKBQUEUE|syscallNLA_F_NET_BYTEORDER, nl.Uint16AttrNetEndian(entry.SkbQueue))
+	}
+
+	req.AddData(data)
+
+	_, err := req.Execute(unixNETLINK_NETFILTER, 0)
+
+	return err
+}
+
+/////////////////////////////////////////////////////////////////////
 func ternaryUint32(cond bool, ifTrue uint32, ifFalse uint32) uint32 {
 	if cond {
 		return ifTrue

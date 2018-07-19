@@ -42,6 +42,8 @@ const (
 	IPSET_ATTR_SETNAME  /* 2: Name of the set */
 	IPSET_ATTR_TYPENAME /* 3: Typename */
 )
+
+/* Attributes at command level */
 const (
 	IPSET_ATTR_SETNAME2     = IPSET_ATTR_TYPENAME + iota /* Setname at rename/swap */
 	IPSET_ATTR_REVISION                                  /* 4: Settype revision */
@@ -52,6 +54,8 @@ const (
 	IPSET_ATTR_LINENO                                    /* 9: Restore lineno */
 	IPSET_ATTR_PROTOCOL_MIN                              /* 10: Minimal supported version number */
 )
+
+/* Attributes at command level */
 const (
 	IPSET_ATTR_REVISION_MIN = IPSET_ATTR_PROTOCOL_MIN + iota /* type rev min */
 	__IPSET_ATTR_CMD_MAX
@@ -66,12 +70,16 @@ const (
 const (
 	IPSET_ATTR_IP = IPSET_ATTR_UNSPEC + 1
 )
+
+/* CADT specific attributes */
 const (
 	IPSET_ATTR_IP_FROM = IPSET_ATTR_IP + iota
 	IPSET_ATTR_IP_TO   /* 2 */
 	IPSET_ATTR_CIDR    /* 3 */
 	IPSET_ATTR_PORT    /* 4 */
 )
+
+/* CADT specific attributes */
 const (
 	IPSET_ATTR_PORT_FROM  = IPSET_ATTR_PORT + iota
 	IPSET_ATTR_PORT_TO    /* 5 */
@@ -79,11 +87,15 @@ const (
 	IPSET_ATTR_PROTO      /* 7 */
 	IPSET_ATTR_CADT_FLAGS /* 8 */
 )
+
+/* CADT specific attributes */
 const (
 	IPSET_ATTR_CADT_LINENO = IPSET_ATTR_LINENO + iota /* 9 */
 	IPSET_ATTR_MARK                                   /* 10 */
 	IPSET_ATTR_MARKMASK                               /* 11 */
 )
+
+/* CADT specific attributes */
 const (
 	/* Reserve empty slots */
 	IPSET_ATTR_CADT_MAX = 16 + iota

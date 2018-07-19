@@ -11,30 +11,68 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
-type IPSetIPRange struct {
-	From net.IP
-	To   net.IP
+//type IPSetIPRange struct {
+//	From net.IP
+//	To   net.IP
+//}
+//
+//type IPSetPortRange struct {
+//	Proto ipsetProtoEnum
+//	From  int
+//	To    int
+//}
+
+// IPSetInfo is a IPSET one set info representation
+type IPSetInfo struct {
+	Header   nl.Nfgenmsg
+	Name     string
+	Type     ipsetTypeEnum
+	Revision uint8
+	Family   ipsetFamilyEnum
+	Proto    ipsetProtoEnum
+	Flags    uint32
+	Data     IPSetInfoData
+	ADT      IPSetInfoADT
 }
 
-type IPSetPortRange struct {
-	Proto ipsetProtoEnum
-	From  int
-	To    int
-}
-
+// IPSetInfoData is a IPSET set data representation
 type IPSetInfoData struct {
 	Counters   bool
 	Comment    bool
 	Skbinfo    bool
 	Forceadd   bool
 	Timeout    time.Duration
-	HashSize   uint32
-	MaxElem    uint32
+	HashSize   int
+	MaxElem    int
 	NetMask    net.IPMask
 	MarkMask   uint32
 	Elements   int
 	References int
 	MemSize    int
+}
+
+// IPSetInfoADT is a IPSET set ADT representation
+type IPSetInfoADT struct {
+	Data []IPSetInfoADTData
+}
+
+// IPSetInfoADTData is a IPSET set ADT one entry data representation
+type IPSetInfoADTData struct {
+	IP       IPSetInfoADTDataIP
+	Mask     net.IPMask
+	Packets  int
+	Bytes    int
+	Timeout  time.Duration
+	Nomatch  bool
+	Comment  string
+	SkbMark  uint32
+	SkbPrio  uint32
+	SkbQueue uint16
+}
+
+// IPSetInfoADTDataIP is a IPSET set ADT one entry IP address data representation
+type IPSetInfoADTDataIP struct {
+	Addr net.IP
 }
 
 func (d *IPSetInfoData) setAttr(id uint16, data []byte) {
@@ -50,10 +88,10 @@ func (d *IPSetInfoData) setAttr(id uint16, data []byte) {
 		d.Timeout = time.Second * time.Duration(binary.BigEndian.Uint32(data[:4]))
 
 	case IPSET_ATTR_HASHSIZE | syscallNLA_F_NET_BYTEORDER:
-		d.HashSize = binary.BigEndian.Uint32(data[:4])
+		d.HashSize = int(binary.BigEndian.Uint32(data[:4]))
 
 	case IPSET_ATTR_MAXELEM | syscallNLA_F_NET_BYTEORDER:
-		d.MaxElem = binary.BigEndian.Uint32(data[:4])
+		d.MaxElem = int(binary.BigEndian.Uint32(data[:4]))
 
 	case IPSET_ATTR_NETMASK:
 		d.NetMask = net.CIDRMask(int(data[0]), 32)
@@ -83,10 +121,6 @@ func (d *IPSetInfoData) setAttr(id uint16, data []byte) {
 	}
 }
 
-type IPSetInfoADT struct {
-	Data []IPSetInfoADTData
-}
-
 func (a *IPSetInfoADT) setAttr(id uint16, data []byte) {
 	switch id {
 	case IPSET_ATTR_DATA | NLA_F_NESTED:
@@ -109,13 +143,6 @@ func (a *IPSetInfoADT) setAttr(id uint16, data []byte) {
 	}
 }
 
-type IPSetInfoADTData struct {
-	IP      IPSetInfoADTDataIP
-	Mask    net.IPMask
-	Packets int
-	Bytes   int
-}
-
 func (d *IPSetInfoADTData) setAttr(id uint16, data []byte) {
 	switch id {
 	case IPSET_ATTR_IP | NLA_F_NESTED:
@@ -134,6 +161,21 @@ func (d *IPSetInfoADTData) setAttr(id uint16, data []byte) {
 	case IPSET_ATTR_PACKETS | syscallNLA_F_NET_BYTEORDER:
 		d.Packets = int(binary.BigEndian.Uint64(data[:8]))
 
+	case IPSET_ATTR_TIMEOUT | syscallNLA_F_NET_BYTEORDER:
+		d.Timeout = time.Second * time.Duration(binary.BigEndian.Uint32(data[:4]))
+
+	case IPSET_ATTR_COMMENT:
+		d.Comment = nl.ParseZeroTerminated(data)
+
+	case IPSET_ATTR_SKBMARK | syscallNLA_F_NET_BYTEORDER:
+		d.SkbMark = binary.BigEndian.Uint32(data[:4])
+
+	case IPSET_ATTR_SKBPRIO | syscallNLA_F_NET_BYTEORDER:
+		d.SkbPrio = binary.BigEndian.Uint32(data[:4])
+
+	case IPSET_ATTR_SKBQUEUE | syscallNLA_F_NET_BYTEORDER:
+		d.SkbQueue = binary.BigEndian.Uint16(data[:2])
+
 	default:
 		panic(
 			fmt.Errorf(
@@ -146,10 +188,6 @@ func (d *IPSetInfoADTData) setAttr(id uint16, data []byte) {
 			),
 		)
 	}
-}
-
-type IPSetInfoADTDataIP struct {
-	Addr net.IP
 }
 
 func (d *IPSetInfoADTDataIP) setAttr(id uint16, data []byte) {
@@ -168,18 +206,6 @@ func (d *IPSetInfoADTDataIP) setAttr(id uint16, data []byte) {
 			),
 		)
 	}
-}
-
-type IPSetInfo struct {
-	Header   nl.Nfgenmsg
-	Name     string
-	Type     string
-	Revision uint8
-	Family   uint8
-	Data     IPSetInfoData
-	ADT      IPSetInfoADT
-	Proto    uint8
-	Flags    uint32
 }
 
 func parseIPSetInfo(data []byte) (IPSetInfo, error) {
@@ -240,19 +266,19 @@ func nlaAlignOf(attrlen int) int {
 func (i *IPSetInfo) setAttr(id uint16, data []byte) {
 	switch id {
 	case IPSET_ATTR_PROTOCOL:
-		i.Proto = data[0]
+		i.Proto = ipsetProtoEnumFromByte(data[0])
 
 	case IPSET_ATTR_SETNAME:
-		i.Name = readZeroTerminated(data)
+		i.Name = nl.ParseZeroTerminated(data)
 
 	case IPSET_ATTR_TYPENAME:
-		i.Type = readZeroTerminated(data)
+		i.Type = ipsetTypeEnumFromString(nl.ParseZeroTerminated(data))
 
 	case IPSET_ATTR_REVISION:
 		i.Revision = data[0]
 
 	case IPSET_ATTR_FAMILY:
-		i.Family = data[0]
+		i.Family = ipsetFamilyEnumFromByte(data[0])
 
 	case IPSET_ATTR_FLAGS:
 		i.Flags = nl.NativeEndian().Uint32(data[:4])
@@ -336,9 +362,4 @@ func parseIPSetInfoADTDataIP(data []byte) (IPSetInfoADTDataIP, error) {
 	}
 
 	return ip, nil
-}
-
-func readZeroTerminated(data []byte) string {
-	zeroPos := bytes.Index(data, []byte{0})
-	return string(data[:zeroPos])
 }
