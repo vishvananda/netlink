@@ -1615,6 +1615,52 @@ func TestBridgeCreationWithHelloTime(t *testing.T) {
 	}
 }
 
+func TestBridgeCreationWithVlanFiltering(t *testing.T) {
+	minKernelRequired(t, 3, 18)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeWithVlanFilteringEnabledName := "foo"
+	vlanFiltering := true
+	bridgeWithVlanFilteringEnabled := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithVlanFilteringEnabledName}, VlanFiltering: &vlanFiltering}
+	if err := LinkAdd(bridgeWithVlanFilteringEnabled); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err := LinkByName(bridgeWithVlanFilteringEnabledName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedVlanFilteringState := *retrievedBridge.(*Bridge).VlanFiltering
+	if retrievedVlanFilteringState != vlanFiltering {
+		t.Fatalf("expected %t got %t", vlanFiltering, retrievedVlanFilteringState)
+	}
+	if err := LinkDel(bridgeWithVlanFilteringEnabled); err != nil {
+		t.Fatal(err)
+	}
+
+	bridgeWithDefaultVlanFilteringName := "bar"
+	bridgeWIthDefaultVlanFiltering := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithDefaultVlanFilteringName}}
+	if err := LinkAdd(bridgeWIthDefaultVlanFiltering); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err = LinkByName(bridgeWithDefaultVlanFilteringName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedVlanFilteringState = *retrievedBridge.(*Bridge).VlanFiltering
+	if retrievedVlanFilteringState != false {
+		t.Fatalf("expected %t got %t", false, retrievedVlanFilteringState)
+	}
+	if err := LinkDel(bridgeWIthDefaultVlanFiltering); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLinkSubscribeWithProtinfo(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
