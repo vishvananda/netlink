@@ -371,10 +371,10 @@ func TestConntrackFilter(t *testing.T) {
 
 	// SrcIP for NAT
 	filterV4 = &ConntrackFilter{}
-	filterV4.AddIP(ConntrackNatSrcIP, net.ParseIP("20.0.0.1"))
+	filterV4.AddIP(ConntrackReplySrcIP, net.ParseIP("20.0.0.1"))
 
 	filterV6 = &ConntrackFilter{}
-	filterV6.AddIP(ConntrackNatSrcIP, net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
+	filterV6.AddIP(ConntrackReplySrcIP, net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
 
 	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
@@ -383,10 +383,10 @@ func TestConntrackFilter(t *testing.T) {
 
 	// DstIP for NAT
 	filterV4 = &ConntrackFilter{}
-	filterV4.AddIP(ConntrackNatDstIP, net.ParseIP("192.168.1.1"))
+	filterV4.AddIP(ConntrackReplyDstIP, net.ParseIP("192.168.1.1"))
 
 	filterV6 = &ConntrackFilter{}
-	filterV6.AddIP(ConntrackNatDstIP, net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
+	filterV6.AddIP(ConntrackReplyDstIP, net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
 
 	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 0 {
@@ -395,10 +395,10 @@ func TestConntrackFilter(t *testing.T) {
 
 	// AnyIp for Nat
 	filterV4 = &ConntrackFilter{}
-	filterV4.AddIP(ConntrackNatAnyIP, net.ParseIP("192.168.1.1"))
+	filterV4.AddIP(ConntrackReplyAnyIP, net.ParseIP("192.168.1.1"))
 
 	filterV6 = &ConntrackFilter{}
-	filterV6.AddIP(ConntrackNatAnyIP, net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"))
+	filterV6.AddIP(ConntrackReplyAnyIP, net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"))
 
 	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 1 {
