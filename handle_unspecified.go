@@ -9,6 +9,8 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+var pkgHandle = &Handle{}
+
 type Handle struct{}
 
 func NewHandle(nlFamilies ...int) (*Handle, error) {

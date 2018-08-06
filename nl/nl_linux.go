@@ -705,6 +705,29 @@ func Uint64Attr(v uint64) []byte {
 	return bytes
 }
 
+func Uint16AttrNetEndian(v uint16) []byte {
+	bytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(bytes, v)
+	return bytes
+}
+
+func Uint32AttrNetEndian(v uint32) []byte {
+	bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(bytes, v)
+	return bytes
+}
+
+func Uint64AttrNetEndian(v uint64) []byte {
+	bytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(bytes, v)
+	return bytes
+}
+
+func ParseZeroTerminated(data []byte) string {
+	zeroPos := bytes.Index(data, []byte{0})
+	return string(data[:zeroPos])
+}
+
 func ParseRouteAttr(b []byte) ([]syscall.NetlinkRouteAttr, error) {
 	var attrs []syscall.NetlinkRouteAttr
 	for len(b) >= unix.SizeofRtAttr {
