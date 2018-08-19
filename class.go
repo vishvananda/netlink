@@ -154,33 +154,48 @@ type HfscClass struct {
 
 // SetUsc sets the Usc curve
 func (hfsc *HfscClass) SetUsc(m1 uint32, d uint32, m2 uint32) {
-	hfsc.Usc = ServiceCurve{m1: m1 / 8, d: d, m2: m2 / 8}
+	hfsc.Usc = ServiceCurve{m1: m1, d: d, m2: m2}
 }
 
 // SetFsc sets the Fsc curve
 func (hfsc *HfscClass) SetFsc(m1 uint32, d uint32, m2 uint32) {
-	hfsc.Fsc = ServiceCurve{m1: m1 / 8, d: d, m2: m2 / 8}
+	hfsc.Fsc = ServiceCurve{m1: m1, d: d, m2: m2}
 }
 
 // SetRsc sets the Rsc curve
 func (hfsc *HfscClass) SetRsc(m1 uint32, d uint32, m2 uint32) {
-	hfsc.Rsc = ServiceCurve{m1: m1 / 8, d: d, m2: m2 / 8}
+	hfsc.Rsc = ServiceCurve{m1: m1, d: d, m2: m2}
 }
 
 // SetSC implements the SC from the tc CLI
 func (hfsc *HfscClass) SetSC(m1 uint32, d uint32, m2 uint32) {
-	hfsc.Rsc = ServiceCurve{m1: m1 / 8, d: d, m2: m2 / 8}
-	hfsc.Fsc = ServiceCurve{m1: m1 / 8, d: d, m2: m2 / 8}
+	hfsc.Rsc = ServiceCurve{m1: m1, d: d, m2: m2}
+	hfsc.Fsc = ServiceCurve{m1: m1, d: d, m2: m2}
+}
+
+// SetSCRate is the tc implementation tc cli hfsc sc rate <vale>
+func (hfsc *HfscClass) SetSCRate(rate uint32) {
+	hfsc.SetSC(0, 0, rate)
 }
 
 // SetUL implements the UL from the tc CLI
 func (hfsc *HfscClass) SetUL(m1 uint32, d uint32, m2 uint32) {
-	hfsc.Usc = ServiceCurve{m1: m1 / 8, d: d, m2: m2 / 8}
+	hfsc.Usc = ServiceCurve{m1: m1, d: d, m2: m2}
+}
+
+// SetULRate is the tc implementation tc cli hfsc ul rate <vale>
+func (hfsc *HfscClass) SetULRate(rate uint32) {
+	hfsc.SetUL(0, 0, rate)
 }
 
 // SetLS implemtens the LS from the tc CLI
 func (hfsc *HfscClass) SetLS(m1 uint32, d uint32, m2 uint32) {
-	hfsc.Fsc = ServiceCurve{m1: m1 / 8, d: d, m2: m2 / 8}
+	hfsc.Fsc = ServiceCurve{m1: m1, d: d, m2: m2}
+}
+
+// SetLSRate is the tc implementation tc cli hfsc ls rate <vale>
+func (hfsc *HfscClass) SetLSRate(rate uint32) {
+	hfsc.SetLS(0, 0, rate)
 }
 
 // NewHfscClass returns a new HFSC struct with the set parameters

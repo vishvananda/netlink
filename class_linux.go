@@ -179,9 +179,12 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 	case "hfsc":
 		hfsc := class.(*HfscClass)
 		opt := nl.HfscCopt{}
-		opt.Rsc.Set(hfsc.Rsc.Attrs())
-		opt.Fsc.Set(hfsc.Fsc.Attrs())
-		opt.Usc.Set(hfsc.Usc.Attrs())
+		rm1, rd, rm2 := hfsc.Rsc.Attrs()
+		opt.Rsc.Set(rm1/8, rd/8, rm2/8)
+		fm1, fd, fm2 := hfsc.Rsc.Attrs()
+		opt.Fsc.Set(fm1/8, fd/8, fm2/8)
+		um1, ud, um2 := hfsc.Rsc.Attrs()
+		opt.Usc.Set(um1/8, ud/8, um2/8)
 		nl.NewRtAttrChild(options, nl.TCA_HFSC_RSC, nl.SerializeHfscCurve(&opt.Rsc))
 		nl.NewRtAttrChild(options, nl.TCA_HFSC_FSC, nl.SerializeHfscCurve(&opt.Fsc))
 		nl.NewRtAttrChild(options, nl.TCA_HFSC_USC, nl.SerializeHfscCurve(&opt.Usc))
@@ -315,11 +318,11 @@ func parseHfscClassData(class Class, data []syscall.NetlinkRouteAttr) (bool, err
 		m1, d, m2 := nl.DeserializeHfscCurve(datum.Value).Attrs()
 		switch datum.Attr.Type {
 		case nl.TCA_HFSC_RSC:
-			hfsc.Rsc = ServiceCurve{m1: m1, d: d, m2: m2}
+			hfsc.Rsc = ServiceCurve{m1: m1 * 8, d: d, m2: m2 * 8}
 		case nl.TCA_HFSC_FSC:
-			hfsc.Fsc = ServiceCurve{m1: m1, d: d, m2: m2}
+			hfsc.Fsc = ServiceCurve{m1: m1 * 8, d: d, m2: m2 * 8}
 		case nl.TCA_HFSC_USC:
-			hfsc.Usc = ServiceCurve{m1: m1, d: d, m2: m2}
+			hfsc.Usc = ServiceCurve{m1: m1 * 8, d: d, m2: m2 * 8}
 		}
 	}
 	return detailed, nil

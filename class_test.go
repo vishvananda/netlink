@@ -499,12 +499,13 @@ func TestClassHfsc(t *testing.T) {
 	}
 
 	// Adding some HFSC classes
-	classAttrs := ClassAttrs{
-		LinkIndex: link.Attrs().Index,
-		Parent:    MakeHandle(1, 0),
-		Handle:    MakeHandle(1, 1),
+	hfscClass := &HfscClass{
+		ClassAttrs: ClassAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(1, 1),
+			Parent:    MakeHandle(1, 0),
+		},
 	}
-	hfscClass := NewHfscClass(classAttrs)
 	hfscClass.SetLS(5e6, 10, 5e6)
 
 	err = ClassAdd(hfscClass)
