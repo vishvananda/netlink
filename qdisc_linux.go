@@ -278,9 +278,13 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		if qdisc.FlowDefaultRate > 0 {
 			nl.NewRtAttrChild(options, nl.TCA_FQ_FLOW_DEFAULT_RATE, nl.Uint32Attr((uint32(qdisc.FlowDefaultRate))))
 		}
+	default:
+		options = nil
 	}
 
-	req.AddData(options)
+	if options != nil {
+		req.AddData(options)
+	}
 	return nil
 }
 
