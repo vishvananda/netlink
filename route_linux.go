@@ -32,6 +32,7 @@ const (
 	RT_FILTER_SRC
 	RT_FILTER_GW
 	RT_FILTER_TABLE
+	RT_FILTER_HOPLIMIT
 )
 
 const (
@@ -647,6 +648,10 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		b := nl.Uint32Attr(uint32(route.AdvMSS))
 		metrics = append(metrics, nl.NewRtAttr(unix.RTAX_ADVMSS, b))
 	}
+	if route.Hoplimit > 0 {
+		b := nl.Uint32Attr(uint32(route.Hoplimit))
+		metrics = append(metrics, nl.NewRtAttr(unix.RTAX_HOPLIMIT, b))
+	}
 
 	if metrics != nil {
 		attr := nl.NewRtAttr(unix.RTA_METRICS, nil)
@@ -757,6 +762,8 @@ func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64)
 						continue
 					}
 				}
+			case filterMask&RT_FILTER_HOPLIMIT != 0 && route.Hoplimit != filter.Hoplimit:
+				continue
 			}
 		}
 		res = append(res, route)
@@ -898,6 +905,8 @@ func deserializeRoute(m []byte) (Route, error) {
 					route.MTU = int(native.Uint32(metric.Value[0:4]))
 				case unix.RTAX_ADVMSS:
 					route.AdvMSS = int(native.Uint32(metric.Value[0:4]))
+				case unix.RTAX_HOPLIMIT:
+					route.Hoplimit = int(native.Uint32(metric.Value[0:4]))
 				}
 			}
 		}
