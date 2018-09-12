@@ -143,6 +143,61 @@ func TestConntrackTableList(t *testing.T) {
 	netns.Set(*origns)
 }
 
+// TestConntrackTableListZeroCounters tests zeroing counters while listing the
+// conntrack table.
+// Creates some flows and then calls `ConntrackTableList` with the
+// `ZeroCounters` parameter set to true. Then re-list the conntrack table to
+// make sure all flow statistics are reset.
+func TestConntrackTableListZeroCounters(t *testing.T) {
+	skipUnlessRoot(t)
+	setUpNetlinkTestWithKModule(t, "nf_conntrack")
+	setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink")
+	setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv4")
+	setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv6")
+
+	// Creates a new namespace and bring up the loopback interface
+	origns, ns, h := nsCreateAndEnter(t)
+	defer netns.Set(*origns)
+	defer origns.Close()
+	defer ns.Close()
+	defer runtime.UnlockOSThread()
+
+	setUpF(t, "/proc/sys/net/netfilter/nf_conntrack_acct", "1")
+
+	// Flush the table to start fresh
+	err := h.ConntrackTableFlush(ConntrackTable)
+	CheckErrorFail(t, err)
+
+	// Create 5 udp
+	udpFlowCreateProg(t, 5, 2000, "127.0.0.10", 3000)
+
+	// Fetch the conntrack table and zero out the counters
+	zeroCountersFunc := func(params *ConntrackParameters) {
+		params.ZeroCounters = true
+	}
+	flows, err := h.ConntrackTableList(ConntrackTable, unix.AF_INET, zeroCountersFunc)
+	CheckErrorFail(t, err)
+	// Make sure the counters of returned flows are non-zero
+	for _, flow := range flows {
+		if flow.Forward.Bytes == 0 && flow.Forward.Packets == 0 && flow.Reverse.Bytes == 0 && flow.Reverse.Packets == 0 {
+			t.Error("No traffic statistics are collected")
+		}
+	}
+
+	// Re-list the conntrack table.
+	flows, err = h.ConntrackTableList(ConntrackTable, unix.AF_INET)
+	CheckErrorFail(t, err)
+	// Make sure the counters of returned flows are reset.
+	for _, flow := range flows {
+		if flow.Forward.Bytes != 0 || flow.Forward.Packets != 0 || flow.Reverse.Bytes != 0 || flow.Reverse.Packets != 0 {
+			t.Error("Packets/bytes counters are not reset to zero")
+		}
+	}
+
+	// Switch back to the original namespace
+	netns.Set(*origns)
+}
+
 // TestConntrackTableFlush test the conntrack table flushing
 // Creates some flows and then call the table flush
 func TestConntrackTableFlush(t *testing.T) {

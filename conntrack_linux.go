@@ -14,6 +14,13 @@ import (
 // ConntrackTableType Conntrack table for the netlink operation
 type ConntrackTableType uint8
 
+// ConntrackParameters defines the optional parameters to interact with the
+// connection tracking subsystem.
+type ConntrackParameters struct {
+	// Atomically zero counters after reading them.
+	ZeroCounters bool
+}
+
 const (
 	// ConntrackTable Conntrack table
 	// https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h -> #define NFNL_SUBSYS_CTNETLINK		 1
@@ -47,8 +54,8 @@ type InetFamily uint8
 
 // ConntrackTableList returns the flow list of a table of a specific family
 // conntrack -L [table] [options]          List conntrack or expectation table
-func ConntrackTableList(table ConntrackTableType, family InetFamily) ([]*ConntrackFlow, error) {
-	return pkgHandle.ConntrackTableList(table, family)
+func ConntrackTableList(table ConntrackTableType, family InetFamily, options ...func(*ConntrackParameters)) ([]*ConntrackFlow, error) {
+	return pkgHandle.ConntrackTableList(table, family, options...)
 }
 
 // ConntrackTableFlush flushes all the flows of a specified table
@@ -66,8 +73,13 @@ func ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter C
 
 // ConntrackTableList returns the flow list of a table of a specific family using the netlink handle passed
 // conntrack -L [table] [options]          List conntrack or expectation table
-func (h *Handle) ConntrackTableList(table ConntrackTableType, family InetFamily) ([]*ConntrackFlow, error) {
-	res, err := h.dumpConntrackTable(table, family)
+func (h *Handle) ConntrackTableList(table ConntrackTableType, family InetFamily, options ...func(*ConntrackParameters)) ([]*ConntrackFlow, error) {
+	params := &ConntrackParameters{}
+	for _, option := range options {
+		option(params)
+	}
+
+	res, err := h.dumpConntrackTable(table, family, params)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +105,7 @@ func (h *Handle) ConntrackTableFlush(table ConntrackTableType) error {
 // ConntrackDeleteFilter deletes entries on the specified table on the base of the filter using the netlink handle passed
 // conntrack -D [table] parameters         Delete conntrack or expectation
 func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
-	res, err := h.dumpConntrackTable(table, family)
+	res, err := h.dumpConntrackTable(table, family, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -126,8 +138,12 @@ func (h *Handle) newConntrackRequest(table ConntrackTableType, family InetFamily
 	return req
 }
 
-func (h *Handle) dumpConntrackTable(table ConntrackTableType, family InetFamily) ([][]byte, error) {
-	req := h.newConntrackRequest(table, family, nl.IPCTNL_MSG_CT_GET, unix.NLM_F_DUMP)
+func (h *Handle) dumpConntrackTable(table ConntrackTableType, family InetFamily, params *ConntrackParameters) ([][]byte, error) {
+	operation := nl.IPCTNL_MSG_CT_GET
+	if params != nil && params.ZeroCounters {
+		operation = nl.IPCTNL_MSG_CT_GET_CTRZERO
+	}
+	req := h.newConntrackRequest(table, family, operation, unix.NLM_F_DUMP)
 	return req.Execute(unix.NETLINK_NETFILTER, 0)
 }
 

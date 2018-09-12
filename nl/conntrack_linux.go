@@ -31,8 +31,9 @@ var L4ProtoMap = map[uint8]string{
 // 	IPCTNL_MSG_MAX
 // };
 const (
-	IPCTNL_MSG_CT_GET    = 1
-	IPCTNL_MSG_CT_DELETE = 2
+	IPCTNL_MSG_CT_GET         = 1
+	IPCTNL_MSG_CT_DELETE      = 2
+	IPCTNL_MSG_CT_GET_CTRZERO = 3
 )
 
 // #define NFNETLINK_V0	0
