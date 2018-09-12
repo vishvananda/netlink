@@ -23,3 +23,9 @@ type Neigh struct {
 func (neigh *Neigh) String() string {
 	return fmt.Sprintf("%s %s", neigh.IP, neigh.HardwareAddr)
 }
+
+//a struct to record neighbor table change 
+type NeighUpdate struct {
+     Type uint16
+     Neigh
+}
