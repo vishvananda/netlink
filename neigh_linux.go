@@ -6,6 +6,10 @@ import (
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"syscall"
+	"github.com/vishvananda/netns"
+
 )
 
 const (
@@ -286,4 +290,63 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 	}
 
 	return &neigh, nil
+}
+
+func NeighSubscribe(ch chan<- NeighUpdate, done <-chan struct{}) error {
+	return neighSubscribeAt(netns.None(), netns.None(), ch, done, nil)
+}
+
+
+func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <-chan struct{}, cberr func(error)) error {
+
+     	s, err := nl.SubscribeAt(newNs, curNs, unix.RTNLGRP_NEIGH)
+	if err != nil {
+		return err
+	}
+
+	if done != nil {
+		go func() {
+			<-done
+			s.Close()
+		}()
+	}
+
+	go func() {
+		defer close(ch)
+		for {
+			msgs, err := s.Receive()
+			if err != nil {
+				if cberr != nil {
+					cberr(err)
+				}
+				return
+			}
+			for _, m := range msgs {
+				if m.Header.Type == unix.NLMSG_DONE {
+					continue
+				}
+				if m.Header.Type == unix.NLMSG_ERROR {
+					native := nl.NativeEndian()
+					error := int32(native.Uint32(m.Data[0:4]))
+					if error == 0 {
+						continue
+					}
+					if cberr != nil {
+						cberr(syscall.Errno(-error))
+					}
+					return
+				}
+				neigh, err := NeighDeserialize(m.Data)
+				if err != nil {
+					if cberr != nil {
+						cberr(err)
+					}
+					return
+				}
+				ch <- NeighUpdate{Type: m.Header.Type, Neigh: *neigh}
+			}
+		}
+	}()
+
+	return nil
 }
