@@ -299,7 +299,7 @@ func NeighSubscribe(ch chan<- NeighUpdate, done <-chan struct{}) error {
 
 func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <-chan struct{}, cberr func(error)) error {
 
-     	s, err := nl.SubscribeAt(newNs, curNs, unix.RTNLGRP_NEIGH)
+     	s, err := nl.SubscribeAt(newNs, curNs, unix.NETLINK_ROUTE, unix.RTNLGRP_NEIGH)
 	if err != nil {
 		return err
 	}
