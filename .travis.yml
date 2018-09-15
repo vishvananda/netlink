@@ -15,5 +15,5 @@ before_script:
   - sudo modprobe nf_conntrack_ipv6
   - sudo modprobe sch_hfsc
 install:
-  - go get github.com/vishvananda/netns
+  - go get -v -t ./...
 go_import_path: github.com/vishvananda/netlink
