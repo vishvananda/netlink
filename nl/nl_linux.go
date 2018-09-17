@@ -282,8 +282,8 @@ func NewRtAttrChild(parent *RtAttr, attrType int, data []byte) *RtAttr {
 	return attr
 }
 
-// AddChild adds an existing RtAttr as a child.
-func (a *RtAttr) AddChild(attr *RtAttr) {
+// AddChild adds an existing NetlinkRequestData as a child.
+func (a *RtAttr) AddChild(attr NetlinkRequestData) {
 	a.children = append(a.children, attr)
 }
 
