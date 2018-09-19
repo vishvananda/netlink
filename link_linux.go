@@ -1364,16 +1364,21 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 		return nil, LinkNotFoundError{fmt.Errorf("Link not found")}
 
 	case len(msgs) == 1:
-		return LinkDeserialize(nil, msgs[0])
+		return DeserializeLink(nil, msgs[0])
 
 	default:
 		return nil, fmt.Errorf("More than one link found")
 	}
 }
 
-// linkDeserialize deserializes a raw message received from netlink into
-// a link object.
+// LinkDeserialize kept for backwards compatibility
 func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
+	return DeserializeLink(hdr, m)
+}
+
+// DeserializeLink deserializes a raw message received from netlink into
+// a link object.
+func DeserializeLink(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 	msg := nl.DeserializeIfInfomsg(m)
 
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
@@ -1517,6 +1522,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 				return nil, err
 			}
 			base.Xdp = xdp
+		case unix.IFLA_QDISC:
+			base.Qdisc = string(attr.Value[:len(attr.Value)-1])
 		case unix.IFLA_PROTINFO | unix.NLA_F_NESTED:
 			if hdr != nil && hdr.Type == unix.RTM_NEWLINK &&
 				msg.Family == unix.AF_BRIDGE {
@@ -1583,7 +1590,7 @@ func (h *Handle) LinkList() ([]Link, error) {
 
 	var res []Link
 	for _, m := range msgs {
-		link, err := LinkDeserialize(nil, m)
+		link, err := DeserializeLink(nil, m)
 		if err != nil {
 			return nil, err
 		}
@@ -1678,7 +1685,7 @@ func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-c
 				}
 				ifmsg := nl.DeserializeIfInfomsg(m.Data)
 				header := unix.NlMsghdr(m.Header)
-				link, err := LinkDeserialize(&header, m.Data)
+				link, err := DeserializeLink(&header, m.Data)
 				if err != nil {
 					if cberr != nil {
 						cberr(err)

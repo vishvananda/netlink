@@ -37,6 +37,7 @@ type LinkAttrs struct {
 	Xdp          *LinkXdp
 	EncapType    string
 	Protinfo     *Protinfo
+	Qdisc        string
 	OperState    LinkOperState
 	NetNsID      int
 	NumTxQueues  int
