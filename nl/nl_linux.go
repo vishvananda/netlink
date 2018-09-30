@@ -371,16 +371,12 @@ func (req *NetlinkRequest) Serialize() []byte {
 }
 
 func (req *NetlinkRequest) AddData(data NetlinkRequestData) {
-	if data != nil {
-		req.Data = append(req.Data, data)
-	}
+	req.Data = append(req.Data, data)
 }
 
 // AddRawData adds raw bytes to the end of the NetlinkRequest object during serialization
 func (req *NetlinkRequest) AddRawData(data []byte) {
-	if data != nil {
-		req.RawData = append(req.RawData, data...)
-	}
+	req.RawData = append(req.RawData, data...)
 }
 
 // Execute the request against a the given sockType.

@@ -1524,7 +1524,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 				if err != nil {
 					return nil, err
 				}
-				base.Protinfo = parseProtinfo(attrs)
+				protinfo := parseProtinfo(attrs)
+				base.Protinfo = &protinfo
 			}
 		case unix.IFLA_OPERSTATE:
 			base.OperState = LinkOperState(uint8(attr.Value[0]))
