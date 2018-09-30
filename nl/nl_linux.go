@@ -275,10 +275,17 @@ func NewRtAttr(attrType int, data []byte) *RtAttr {
 	}
 }
 
-// Create a new RtAttr obj anc add it as a child of an existing object
+// NewRtAttrChild adds an RtAttr as a child to the parent and returns the new attribute
+//
+// Deprecated: Use AddRtAttr() on the parent object
 func NewRtAttrChild(parent *RtAttr, attrType int, data []byte) *RtAttr {
+	return parent.AddRtAttr(attrType, data)
+}
+
+// AddRtAttr adds an RtAttr as a child and returns the new attribute
+func (a *RtAttr) AddRtAttr(attrType int, data []byte) *RtAttr {
 	attr := NewRtAttr(attrType, data)
-	parent.children = append(parent.children, attr)
+	a.children = append(a.children, attr)
 	return attr
 }
 
