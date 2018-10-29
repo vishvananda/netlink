@@ -956,14 +956,14 @@ func (h *Handle) linkModify(link Link, flags int) error {
 	tuntap, isTuntap := link.(*Tuntap)
 
 	if base.Name == "" && !isTuntap {
-		return fmt.Errorf("LinkAttrs.Name cannot be empty!")
+		return fmt.Errorf("LinkAttrs.Name cannot be empty")
 	}
 
 	if isTuntap {
 		// TODO: support user
 		// TODO: support group
 		if tuntap.Mode < unix.IFF_TUN || tuntap.Mode > unix.IFF_TAP {
-			return fmt.Errorf("Tuntap.Mode %v unknown!", tuntap.Mode)
+			return fmt.Errorf("Tuntap.Mode %v unknown", tuntap.Mode)
 		}
 
 		queues := tuntap.Queues

@@ -1087,7 +1087,7 @@ func TestLinkSet(t *testing.T) {
 	}
 
 	if link.Attrs().MTU != 1400 {
-		t.Fatal("MTU not changed!")
+		t.Fatal("MTU not changed")
 	}
 
 	err = LinkSetTxQLen(link, 500)
@@ -1101,7 +1101,7 @@ func TestLinkSet(t *testing.T) {
 	}
 
 	if link.Attrs().TxQLen != 500 {
-		t.Fatal("txqlen not changed!")
+		t.Fatal("txqlen not changed")
 	}
 
 	addr, err := net.ParseMAC("00:12:34:56:78:AB")
@@ -1120,7 +1120,7 @@ func TestLinkSet(t *testing.T) {
 	}
 
 	if !bytes.Equal(link.Attrs().HardwareAddr, addr) {
-		t.Fatalf("hardware address not changed!")
+		t.Fatalf("hardware address not changed")
 	}
 
 	err = LinkSetAlias(link, "barAlias")
@@ -1134,7 +1134,7 @@ func TestLinkSet(t *testing.T) {
 	}
 
 	if link.Attrs().Alias != "barAlias" {
-		t.Fatalf("alias not changed!")
+		t.Fatalf("alias not changed")
 	}
 
 	link, err = LinkByAlias("barAlias")
@@ -1168,7 +1168,7 @@ func TestLinkSetARP(t *testing.T) {
 	}
 
 	if link.Attrs().RawFlags&unix.IFF_NOARP != uint32(unix.IFF_NOARP) {
-		t.Fatalf("NOARP was not set!")
+		t.Fatalf("NOARP was not set")
 	}
 
 	err = LinkSetARPOn(link)
@@ -1182,7 +1182,7 @@ func TestLinkSetARP(t *testing.T) {
 	}
 
 	if link.Attrs().RawFlags&unix.IFF_NOARP != 0 {
-		t.Fatalf("NOARP is still set!")
+		t.Fatalf("NOARP is still set")
 	}
 }
 
@@ -1958,7 +1958,7 @@ func TestLinkSetAllmulticast(t *testing.T) {
 	}
 
 	if link.Attrs().RawFlags&unix.IFF_ALLMULTI != uint32(unix.IFF_ALLMULTI) {
-		t.Fatal("IFF_ALLMULTI was not set!")
+		t.Fatal("IFF_ALLMULTI was not set")
 	}
 
 	if err := LinkSetAllmulticastOff(link); err != nil {
@@ -1971,7 +1971,7 @@ func TestLinkSetAllmulticast(t *testing.T) {
 	}
 
 	if link.Attrs().RawFlags&unix.IFF_ALLMULTI != 0 {
-		t.Fatal("IFF_ALLMULTI is still set!")
+		t.Fatal("IFF_ALLMULTI is still set")
 	}
 
 	rawFlagsEnd := link.Attrs().RawFlags

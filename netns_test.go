@@ -56,7 +56,7 @@ func TestNetNsIdByPid(t *testing.T) {
 	defer func() {
 		err := netns.Set(origNs)
 		if err != nil {
-			panic("failed to restore network ns, bailing!")
+			panic("failed to restore network ns, bailing")
 		}
 		runtime.UnlockOSThread()
 	}()
