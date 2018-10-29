@@ -174,7 +174,7 @@ func (h *Handle) FilterAdd(filter Filter) error {
 		}
 		if filter.Divisor != 0 {
 			if (filter.Divisor-1)&filter.Divisor != 0 {
-				return fmt.Errorf("illegal divisor %d. Must be a power of 2.", filter.Divisor)
+				return fmt.Errorf("illegal divisor %d. Must be a power of 2", filter.Divisor)
 			}
 			options.AddRtAttr(nl.TCA_U32_DIVISOR, nl.Uint32Attr(filter.Divisor))
 		}
