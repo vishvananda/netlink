@@ -38,7 +38,7 @@ type Route struct {
 	MultiPath  []*NexthopInfo
 	Protocol   int
 	Priority   int
-	Table      int
+	Table      uint32
 	Type       int
 	Tos        int
 	Flags      int

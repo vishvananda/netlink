@@ -9,7 +9,7 @@ import (
 type Rule struct {
 	Priority          int
 	Family            int
-	Table             int
+	Table             uint32
 	Mark              int
 	Mask              int
 	TunID             uint

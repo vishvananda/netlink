@@ -497,7 +497,7 @@ func TestRouteFilterAllTables(t *testing.T) {
 		Mask: net.CIDRMask(32, 32),
 	}
 
-	tables := []int{1000, 1001, 1002}
+	tables := []uint32{1000, 1001, 1002}
 	src := net.IPv4(127, 3, 3, 3)
 	for _, table := range tables {
 		route := Route{
@@ -553,7 +553,7 @@ func TestRouteFilterAllTables(t *testing.T) {
 	}
 }
 
-func tableIDIn(ids []int, id int) bool {
+func tableIDIn(ids []uint32, id uint32) bool {
 	for _, v := range ids {
 		if v == id {
 			return true

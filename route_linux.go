@@ -266,7 +266,7 @@ type SEG6LocalEncap struct {
 	Flags    [nl.SEG6_LOCAL_MAX]bool
 	Action   int
 	Segments []net.IP // from SRH in seg6_local_lwt
-	Table    int      // table id for End.T and End.DT6
+	Table    uint32   // table id for End.T and End.DT6
 	InAddr   net.IP
 	In6Addr  net.IP
 	Iif      int
@@ -291,7 +291,7 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 			e.Segments, err = nl.DecodeSEG6Srh(attr.Value[:])
 			e.Flags[nl.SEG6_LOCAL_SRH] = true
 		case nl.SEG6_LOCAL_TABLE:
-			e.Table = int(native.Uint32(attr.Value[0:4]))
+			e.Table = native.Uint32(attr.Value[0:4])
 			e.Flags[nl.SEG6_LOCAL_TABLE] = true
 		case nl.SEG6_LOCAL_NH4:
 			e.InAddr = net.IP(attr.Value[0:4])
@@ -781,7 +781,7 @@ func deserializeRoute(m []byte) (Route, error) {
 	route := Route{
 		Scope:    Scope(msg.Scope),
 		Protocol: int(msg.Protocol),
-		Table:    int(msg.Table),
+		Table:    uint32(msg.Table),
 		Type:     int(msg.Type),
 		Tos:      int(msg.Tos),
 		Flags:    int(msg.Flags),
@@ -815,7 +815,7 @@ func deserializeRoute(m []byte) (Route, error) {
 		case unix.RTA_PRIORITY:
 			route.Priority = int(native.Uint32(attr.Value[0:4]))
 		case unix.RTA_TABLE:
-			route.Table = int(native.Uint32(attr.Value[0:4]))
+			route.Table = native.Uint32(attr.Value[0:4])
 		case unix.RTA_MULTIPATH:
 			parseRtNexthop := func(value []byte) (*NexthopInfo, []byte, error) {
 				if len(value) < unix.SizeofRtNexthop {

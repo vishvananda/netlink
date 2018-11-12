@@ -188,7 +188,7 @@ func (h *Handle) RuleList(family int) ([]Rule, error) {
 		for j := range attrs {
 			switch attrs[j].Attr.Type {
 			case unix.RTA_TABLE:
-				rule.Table = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.Table = native.Uint32(attrs[j].Value[0:4])
 			case nl.FRA_SRC:
 				rule.Src = &net.IPNet{
 					IP:   attrs[j].Value,
