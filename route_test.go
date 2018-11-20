@@ -227,6 +227,7 @@ func TestRouteAddIncomplete(t *testing.T) {
 	}
 }
 
+// expectNeighUpdate returns whether the expected updated is received within one minute.
 func expectRouteUpdate(ch <-chan RouteUpdate, t uint16, dst net.IP) bool {
 	for {
 		timeout := time.After(time.Minute)
