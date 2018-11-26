@@ -331,9 +331,9 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 			msgs, from, err := s.Receive()
 			if err != nil {
 				if cberr != nil {
-					cberr(err)
+					cberr(fmt.Errorf("Receive: %v", err))
 				}
-				return
+				continue
 			}
 			if from.Pid != nl.PidKernel {
 				if cberr != nil {
