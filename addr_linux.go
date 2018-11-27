@@ -344,11 +344,11 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					return
 				}
 				msgType := m.Header.Type
-				if msgType != unix.RTM_NEWADDR && msgType != unix.RTM_DELADDR && msgType != unix.RTM_GETADDR {
+				if msgType != unix.RTM_NEWADDR && msgType != unix.RTM_DELADDR {
 					if cberr != nil {
 						cberr(fmt.Errorf("bad message type: %d", msgType))
 					}
-					return
+					continue
 				}
 
 				addr, _, ifindex, err := parseAddr(m.Data)
@@ -361,7 +361,7 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 
 				ch <- AddrUpdate{LinkAddress: *addr.IPNet,
 					LinkIndex:   ifindex,
-					NewAddr:     msgType != unix.RTM_DELADDR,
+					NewAddr:     msgType == unix.RTM_NEWADDR,
 					Flags:       addr.Flags,
 					Scope:       addr.Scope,
 					PreferedLft: addr.PreferedLft,
