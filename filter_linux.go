@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"syscall"
-	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
@@ -19,6 +18,35 @@ const (
 	TC_U32_VAROFFSET = nl.TC_U32_VAROFFSET
 	TC_U32_EAT       = nl.TC_U32_EAT
 )
+
+// Sel of the U32 filters that contains multiple TcU32Key. This is the type
+// alias and the frontend representation of nl.TcU32Sel. It is serialized into
+// canonical nl.TcU32Sel with the appropriate endianness.
+type TcU32Sel = nl.TcU32Sel
+
+// TcU32Key contained of Sel in the U32 filters. This is the type alias and the
+// frontend representation of nl.TcU32Key. It is serialized into chanonical
+// nl.TcU32Sel with the appropriate endianness.
+type TcU32Key = nl.TcU32Key
+
+// U32 filters on many packet related properties
+type U32 struct {
+	FilterAttrs
+	ClassId    uint32
+	Divisor    uint32 // Divisor MUST be power of 2.
+	Hash       uint32
+	RedirIndex int
+	Sel        *TcU32Sel
+	Actions    []Action
+}
+
+func (filter *U32) Attrs() *FilterAttrs {
+	return &filter.FilterAttrs
+}
+
+func (filter *U32) Type() string {
+	return "u32"
+}
 
 // Fw filter filters on firewall marks
 // NOTE: this is in filter_linux because it refers to nl.TcPolice which
@@ -140,8 +168,7 @@ func (h *Handle) FilterAdd(filter Filter) error {
 
 	switch filter := filter.(type) {
 	case *U32:
-		// Convert TcU32Sel into nl.TcU32Sel as it is without copy.
-		sel := (*nl.TcU32Sel)(unsafe.Pointer(filter.Sel))
+		sel := filter.Sel
 		if sel == nil {
 			// match all
 			sel = &nl.TcU32Sel{
@@ -483,7 +510,7 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 		case nl.TCA_U32_SEL:
 			detailed = true
 			sel := nl.DeserializeTcU32Sel(datum.Value)
-			u32.Sel = (*TcU32Sel)(unsafe.Pointer(sel))
+			u32.Sel = sel
 			if native != networkOrder {
 				// Handle the endianness of attributes
 				u32.Sel.Offmask = native.Uint16(htons(sel.Offmask))
