@@ -2,6 +2,8 @@
 
 package netlink
 
+import "net"
+
 const (
 	RT_FILTER_PROTOCOL uint64 = 1 << (1 + iota)
 	RT_FILTER_SCOPE
@@ -26,5 +28,11 @@ func (n *NexthopInfo) ListFlags() []string {
 // RouteListFiltered gets a list of routes in the system filtered with specified rules.
 // All rules must be defined in RouteFilter struct
 func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
+	return nil, ErrNotImplemented
+}
+
+// RouteGet gets a route to a specific destination from the host system.
+// Equivalent to: 'ip route get'.
+func RouteGet(destination net.IP) ([]Route, error) {
 	return nil, ErrNotImplemented
 }
