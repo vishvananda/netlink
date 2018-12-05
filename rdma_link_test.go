@@ -32,3 +32,22 @@ func TestRdmaGetRdmaLink(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRdmaSetRdmaLinkName(t *testing.T) {
+	minKernelRequired(t, 4, 19)
+	setupRdmaKModule(t, "ib_core")
+	link, err := RdmaLinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Set new name
+	err = RdmaLinkSetName(link, "bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Revert back to old name
+	err = RdmaLinkSetName(link, "foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+}

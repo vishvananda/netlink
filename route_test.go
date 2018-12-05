@@ -509,19 +509,21 @@ func TestRouteFilterAllTables(t *testing.T) {
 			Table:     table,
 			Type:      unix.RTN_UNICAST,
 			Tos:       14,
+			Hoplimit:  100,
 		}
 		if err := RouteAdd(&route); err != nil {
 			t.Fatal(err)
 		}
 	}
 	routes, err := RouteListFiltered(FAMILY_V4, &Route{
-		Dst:   dst,
-		Src:   src,
-		Scope: unix.RT_SCOPE_LINK,
-		Table: unix.RT_TABLE_UNSPEC,
-		Type:  unix.RTN_UNICAST,
-		Tos:   14,
-	}, RT_FILTER_DST|RT_FILTER_SRC|RT_FILTER_SCOPE|RT_FILTER_TABLE|RT_FILTER_TYPE|RT_FILTER_TOS)
+		Dst:      dst,
+		Src:      src,
+		Scope:    unix.RT_SCOPE_LINK,
+		Table:    unix.RT_TABLE_UNSPEC,
+		Type:     unix.RTN_UNICAST,
+		Tos:      14,
+		Hoplimit: 100,
+	}, RT_FILTER_DST|RT_FILTER_SRC|RT_FILTER_SCOPE|RT_FILTER_TABLE|RT_FILTER_TYPE|RT_FILTER_TOS|RT_FILTER_HOPLIMIT)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -544,6 +546,9 @@ func TestRouteFilterAllTables(t *testing.T) {
 		}
 		if route.Tos != 14 {
 			t.Fatal("Invalid Tos. Route not added properly")
+		}
+		if route.Hoplimit != 100 {
+			t.Fatal("Invalid Hoplimit. Route not added properly")
 		}
 	}
 }
@@ -587,18 +592,20 @@ func TestRouteExtraFields(t *testing.T) {
 		Table:     unix.RT_TABLE_MAIN,
 		Type:      unix.RTN_UNICAST,
 		Tos:       14,
+		Hoplimit:  100,
 	}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
 	}
 	routes, err := RouteListFiltered(FAMILY_V4, &Route{
-		Dst:   dst,
-		Src:   src,
-		Scope: unix.RT_SCOPE_LINK,
-		Table: unix.RT_TABLE_MAIN,
-		Type:  unix.RTN_UNICAST,
-		Tos:   14,
-	}, RT_FILTER_DST|RT_FILTER_SRC|RT_FILTER_SCOPE|RT_FILTER_TABLE|RT_FILTER_TYPE|RT_FILTER_TOS)
+		Dst:      dst,
+		Src:      src,
+		Scope:    unix.RT_SCOPE_LINK,
+		Table:    unix.RT_TABLE_MAIN,
+		Type:     unix.RTN_UNICAST,
+		Tos:      14,
+		Hoplimit: 100,
+	}, RT_FILTER_DST|RT_FILTER_SRC|RT_FILTER_SCOPE|RT_FILTER_TABLE|RT_FILTER_TYPE|RT_FILTER_TOS|RT_FILTER_HOPLIMIT)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -620,6 +627,9 @@ func TestRouteExtraFields(t *testing.T) {
 	}
 	if routes[0].Tos != 14 {
 		t.Fatal("Invalid Tos. Route not added properly")
+	}
+	if routes[0].Hoplimit != 100 {
+		t.Fatal("Invalid Hoplimit. Route not added properly")
 	}
 }
 
@@ -842,6 +852,12 @@ func TestRouteEqual(t *testing.T) {
 		{
 			LinkIndex: 20,
 			Dst:       nil,
+			Hoplimit:  1,
+			Gw:        net.IPv4(1, 1, 1, 1),
+		},
+		{
+			LinkIndex: 20,
+			Dst:       nil,
 			Flags:     int(FLAG_ONLINK),
 			Gw:        net.IPv4(1, 1, 1, 1),
 		},
@@ -874,6 +890,19 @@ func TestRouteEqual(t *testing.T) {
 			Table:    unix.RT_TABLE_MAIN,
 			Type:     unix.RTN_UNICAST,
 			Tos:      14,
+		},
+		{
+			LinkIndex: 3,
+			Dst: &net.IPNet{
+				IP:   net.IPv4(1, 1, 1, 1),
+				Mask: net.CIDRMask(32, 32),
+			},
+			Src:      net.IPv4(127, 3, 3, 3),
+			Scope:    unix.RT_SCOPE_LINK,
+			Priority: 13,
+			Table:    unix.RT_TABLE_MAIN,
+			Type:     unix.RTN_UNICAST,
+			Hoplimit: 100,
 		},
 		{
 			LinkIndex: 10,

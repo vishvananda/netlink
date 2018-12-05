@@ -168,20 +168,20 @@ func (h *Handle) FilterAdd(filter Filter) error {
 			}
 		}
 		sel.Nkeys = uint8(len(sel.Keys))
-		nl.NewRtAttrChild(options, nl.TCA_U32_SEL, sel.Serialize())
+		options.AddRtAttr(nl.TCA_U32_SEL, sel.Serialize())
 		if filter.ClassId != 0 {
-			nl.NewRtAttrChild(options, nl.TCA_U32_CLASSID, nl.Uint32Attr(filter.ClassId))
+			options.AddRtAttr(nl.TCA_U32_CLASSID, nl.Uint32Attr(filter.ClassId))
 		}
 		if filter.Divisor != 0 {
 			if (filter.Divisor-1)&filter.Divisor != 0 {
-				return fmt.Errorf("illegal divisor %d. Must be a power of 2.", filter.Divisor)
+				return fmt.Errorf("illegal divisor %d. Must be a power of 2", filter.Divisor)
 			}
-			nl.NewRtAttrChild(options, nl.TCA_U32_DIVISOR, nl.Uint32Attr(filter.Divisor))
+			options.AddRtAttr(nl.TCA_U32_DIVISOR, nl.Uint32Attr(filter.Divisor))
 		}
 		if filter.Hash != 0 {
-			nl.NewRtAttrChild(options, nl.TCA_U32_HASH, nl.Uint32Attr(filter.Hash))
+			options.AddRtAttr(nl.TCA_U32_HASH, nl.Uint32Attr(filter.Hash))
 		}
-		actionsAttr := nl.NewRtAttrChild(options, nl.TCA_U32_ACT, nil)
+		actionsAttr := options.AddRtAttr(nl.TCA_U32_ACT, nil)
 		// backwards compatibility
 		if filter.RedirIndex != 0 {
 			filter.Actions = append([]Action{NewMirredAction(filter.RedirIndex)}, filter.Actions...)
@@ -193,51 +193,51 @@ func (h *Handle) FilterAdd(filter Filter) error {
 		if filter.Mask != 0 {
 			b := make([]byte, 4)
 			native.PutUint32(b, filter.Mask)
-			nl.NewRtAttrChild(options, nl.TCA_FW_MASK, b)
+			options.AddRtAttr(nl.TCA_FW_MASK, b)
 		}
 		if filter.InDev != "" {
-			nl.NewRtAttrChild(options, nl.TCA_FW_INDEV, nl.ZeroTerminated(filter.InDev))
+			options.AddRtAttr(nl.TCA_FW_INDEV, nl.ZeroTerminated(filter.InDev))
 		}
 		if (filter.Police != nl.TcPolice{}) {
 
-			police := nl.NewRtAttrChild(options, nl.TCA_FW_POLICE, nil)
-			nl.NewRtAttrChild(police, nl.TCA_POLICE_TBF, filter.Police.Serialize())
+			police := options.AddRtAttr(nl.TCA_FW_POLICE, nil)
+			police.AddRtAttr(nl.TCA_POLICE_TBF, filter.Police.Serialize())
 			if (filter.Police.Rate != nl.TcRateSpec{}) {
 				payload := SerializeRtab(filter.Rtab)
-				nl.NewRtAttrChild(police, nl.TCA_POLICE_RATE, payload)
+				police.AddRtAttr(nl.TCA_POLICE_RATE, payload)
 			}
 			if (filter.Police.PeakRate != nl.TcRateSpec{}) {
 				payload := SerializeRtab(filter.Ptab)
-				nl.NewRtAttrChild(police, nl.TCA_POLICE_PEAKRATE, payload)
+				police.AddRtAttr(nl.TCA_POLICE_PEAKRATE, payload)
 			}
 		}
 		if filter.ClassId != 0 {
 			b := make([]byte, 4)
 			native.PutUint32(b, filter.ClassId)
-			nl.NewRtAttrChild(options, nl.TCA_FW_CLASSID, b)
+			options.AddRtAttr(nl.TCA_FW_CLASSID, b)
 		}
 	case *BpfFilter:
 		var bpfFlags uint32
 		if filter.ClassId != 0 {
-			nl.NewRtAttrChild(options, nl.TCA_BPF_CLASSID, nl.Uint32Attr(filter.ClassId))
+			options.AddRtAttr(nl.TCA_BPF_CLASSID, nl.Uint32Attr(filter.ClassId))
 		}
 		if filter.Fd >= 0 {
-			nl.NewRtAttrChild(options, nl.TCA_BPF_FD, nl.Uint32Attr((uint32(filter.Fd))))
+			options.AddRtAttr(nl.TCA_BPF_FD, nl.Uint32Attr((uint32(filter.Fd))))
 		}
 		if filter.Name != "" {
-			nl.NewRtAttrChild(options, nl.TCA_BPF_NAME, nl.ZeroTerminated(filter.Name))
+			options.AddRtAttr(nl.TCA_BPF_NAME, nl.ZeroTerminated(filter.Name))
 		}
 		if filter.DirectAction {
 			bpfFlags |= nl.TCA_BPF_FLAG_ACT_DIRECT
 		}
-		nl.NewRtAttrChild(options, nl.TCA_BPF_FLAGS, nl.Uint32Attr(bpfFlags))
+		options.AddRtAttr(nl.TCA_BPF_FLAGS, nl.Uint32Attr(bpfFlags))
 	case *MatchAll:
-		actionsAttr := nl.NewRtAttrChild(options, nl.TCA_MATCHALL_ACT, nil)
+		actionsAttr := options.AddRtAttr(nl.TCA_MATCHALL_ACT, nil)
 		if err := EncodeActions(actionsAttr, filter.Actions); err != nil {
 			return err
 		}
 		if filter.ClassId != 0 {
-			nl.NewRtAttrChild(options, nl.TCA_MATCHALL_CLASSID, nl.Uint32Attr(filter.ClassId))
+			options.AddRtAttr(nl.TCA_MATCHALL_CLASSID, nl.Uint32Attr(filter.ClassId))
 		}
 	}
 
@@ -375,34 +375,34 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 		default:
 			return fmt.Errorf("unknown action type %s", action.Type())
 		case *MirredAction:
-			table := nl.NewRtAttrChild(attr, tabIndex, nil)
+			table := attr.AddRtAttr(tabIndex, nil)
 			tabIndex++
-			nl.NewRtAttrChild(table, nl.TCA_ACT_KIND, nl.ZeroTerminated("mirred"))
-			aopts := nl.NewRtAttrChild(table, nl.TCA_ACT_OPTIONS, nil)
+			table.AddRtAttr(nl.TCA_ACT_KIND, nl.ZeroTerminated("mirred"))
+			aopts := table.AddRtAttr(nl.TCA_ACT_OPTIONS, nil)
 			mirred := nl.TcMirred{
 				Eaction: int32(action.MirredAction),
 				Ifindex: uint32(action.Ifindex),
 			}
 			toTcGen(action.Attrs(), &mirred.TcGen)
-			nl.NewRtAttrChild(aopts, nl.TCA_MIRRED_PARMS, mirred.Serialize())
+			aopts.AddRtAttr(nl.TCA_MIRRED_PARMS, mirred.Serialize())
 		case *BpfAction:
-			table := nl.NewRtAttrChild(attr, tabIndex, nil)
+			table := attr.AddRtAttr(tabIndex, nil)
 			tabIndex++
-			nl.NewRtAttrChild(table, nl.TCA_ACT_KIND, nl.ZeroTerminated("bpf"))
-			aopts := nl.NewRtAttrChild(table, nl.TCA_ACT_OPTIONS, nil)
+			table.AddRtAttr(nl.TCA_ACT_KIND, nl.ZeroTerminated("bpf"))
+			aopts := table.AddRtAttr(nl.TCA_ACT_OPTIONS, nil)
 			gen := nl.TcGen{}
 			toTcGen(action.Attrs(), &gen)
-			nl.NewRtAttrChild(aopts, nl.TCA_ACT_BPF_PARMS, gen.Serialize())
-			nl.NewRtAttrChild(aopts, nl.TCA_ACT_BPF_FD, nl.Uint32Attr(uint32(action.Fd)))
-			nl.NewRtAttrChild(aopts, nl.TCA_ACT_BPF_NAME, nl.ZeroTerminated(action.Name))
+			aopts.AddRtAttr(nl.TCA_ACT_BPF_PARMS, gen.Serialize())
+			aopts.AddRtAttr(nl.TCA_ACT_BPF_FD, nl.Uint32Attr(uint32(action.Fd)))
+			aopts.AddRtAttr(nl.TCA_ACT_BPF_NAME, nl.ZeroTerminated(action.Name))
 		case *GenericAction:
-			table := nl.NewRtAttrChild(attr, tabIndex, nil)
+			table := attr.AddRtAttr(tabIndex, nil)
 			tabIndex++
-			nl.NewRtAttrChild(table, nl.TCA_ACT_KIND, nl.ZeroTerminated("gact"))
-			aopts := nl.NewRtAttrChild(table, nl.TCA_ACT_OPTIONS, nil)
+			table.AddRtAttr(nl.TCA_ACT_KIND, nl.ZeroTerminated("gact"))
+			aopts := table.AddRtAttr(nl.TCA_ACT_OPTIONS, nil)
 			gen := nl.TcGen{}
 			toTcGen(action.Attrs(), &gen)
-			nl.NewRtAttrChild(aopts, nl.TCA_GACT_PARMS, gen.Serialize())
+			aopts.AddRtAttr(nl.TCA_GACT_PARMS, gen.Serialize())
 		}
 	}
 	return nil

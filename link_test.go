@@ -1087,7 +1087,7 @@ func TestLinkSet(t *testing.T) {
 	}
 
 	if link.Attrs().MTU != 1400 {
-		t.Fatal("MTU not changed!")
+		t.Fatal("MTU not changed")
 	}
 
 	err = LinkSetTxQLen(link, 500)
@@ -1101,7 +1101,7 @@ func TestLinkSet(t *testing.T) {
 	}
 
 	if link.Attrs().TxQLen != 500 {
-		t.Fatal("txqlen not changed!")
+		t.Fatal("txqlen not changed")
 	}
 
 	addr, err := net.ParseMAC("00:12:34:56:78:AB")
@@ -1120,7 +1120,7 @@ func TestLinkSet(t *testing.T) {
 	}
 
 	if !bytes.Equal(link.Attrs().HardwareAddr, addr) {
-		t.Fatalf("hardware address not changed!")
+		t.Fatalf("hardware address not changed")
 	}
 
 	err = LinkSetAlias(link, "barAlias")
@@ -1134,7 +1134,7 @@ func TestLinkSet(t *testing.T) {
 	}
 
 	if link.Attrs().Alias != "barAlias" {
-		t.Fatalf("alias not changed!")
+		t.Fatalf("alias not changed")
 	}
 
 	link, err = LinkByAlias("barAlias")
@@ -1168,7 +1168,7 @@ func TestLinkSetARP(t *testing.T) {
 	}
 
 	if link.Attrs().RawFlags&unix.IFF_NOARP != uint32(unix.IFF_NOARP) {
-		t.Fatalf("NOARP was not set!")
+		t.Fatalf("NOARP was not set")
 	}
 
 	err = LinkSetARPOn(link)
@@ -1182,7 +1182,7 @@ func TestLinkSetARP(t *testing.T) {
 	}
 
 	if link.Attrs().RawFlags&unix.IFF_NOARP != 0 {
-		t.Fatalf("NOARP is still set!")
+		t.Fatalf("NOARP is still set")
 	}
 }
 
@@ -1615,6 +1615,52 @@ func TestBridgeCreationWithHelloTime(t *testing.T) {
 	}
 }
 
+func TestBridgeCreationWithVlanFiltering(t *testing.T) {
+	minKernelRequired(t, 3, 18)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeWithVlanFilteringEnabledName := "foo"
+	vlanFiltering := true
+	bridgeWithVlanFilteringEnabled := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithVlanFilteringEnabledName}, VlanFiltering: &vlanFiltering}
+	if err := LinkAdd(bridgeWithVlanFilteringEnabled); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err := LinkByName(bridgeWithVlanFilteringEnabledName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedVlanFilteringState := *retrievedBridge.(*Bridge).VlanFiltering
+	if retrievedVlanFilteringState != vlanFiltering {
+		t.Fatalf("expected %t got %t", vlanFiltering, retrievedVlanFilteringState)
+	}
+	if err := LinkDel(bridgeWithVlanFilteringEnabled); err != nil {
+		t.Fatal(err)
+	}
+
+	bridgeWithDefaultVlanFilteringName := "bar"
+	bridgeWIthDefaultVlanFiltering := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithDefaultVlanFilteringName}}
+	if err := LinkAdd(bridgeWIthDefaultVlanFiltering); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err = LinkByName(bridgeWithDefaultVlanFilteringName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedVlanFilteringState = *retrievedBridge.(*Bridge).VlanFiltering
+	if retrievedVlanFilteringState != false {
+		t.Fatalf("expected %t got %t", false, retrievedVlanFilteringState)
+	}
+	if err := LinkDel(bridgeWIthDefaultVlanFiltering); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLinkSubscribeWithProtinfo(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
@@ -1912,7 +1958,7 @@ func TestLinkSetAllmulticast(t *testing.T) {
 	}
 
 	if link.Attrs().RawFlags&unix.IFF_ALLMULTI != uint32(unix.IFF_ALLMULTI) {
-		t.Fatal("IFF_ALLMULTI was not set!")
+		t.Fatal("IFF_ALLMULTI was not set")
 	}
 
 	if err := LinkSetAllmulticastOff(link); err != nil {
@@ -1925,7 +1971,7 @@ func TestLinkSetAllmulticast(t *testing.T) {
 	}
 
 	if link.Attrs().RawFlags&unix.IFF_ALLMULTI != 0 {
-		t.Fatal("IFF_ALLMULTI is still set!")
+		t.Fatal("IFF_ALLMULTI is still set")
 	}
 
 	rawFlagsEnd := link.Attrs().RawFlags

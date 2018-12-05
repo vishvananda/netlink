@@ -1,6 +1,7 @@
 package nl
 
 import (
+	"encoding/binary"
 	"unsafe"
 )
 
@@ -421,6 +422,57 @@ func (x *TcHtbGlob) Serialize() []byte {
 	return (*(*[SizeofTcHtbGlob]byte)(unsafe.Pointer(x)))[:]
 }
 
+// HFSC
+
+type Curve struct {
+	m1 uint32
+	d  uint32
+	m2 uint32
+}
+
+type HfscCopt struct {
+	Rsc Curve
+	Fsc Curve
+	Usc Curve
+}
+
+func (c *Curve) Attrs() (uint32, uint32, uint32) {
+	return c.m1, c.d, c.m2
+}
+
+func (c *Curve) Set(m1 uint32, d uint32, m2 uint32) {
+	c.m1 = m1
+	c.d = d
+	c.m2 = m2
+}
+
+func DeserializeHfscCurve(b []byte) *Curve {
+	return &Curve{
+		m1: binary.LittleEndian.Uint32(b[0:4]),
+		d:  binary.LittleEndian.Uint32(b[4:8]),
+		m2: binary.LittleEndian.Uint32(b[8:12]),
+	}
+}
+
+func SerializeHfscCurve(c *Curve) (b []byte) {
+	t := make([]byte, binary.MaxVarintLen32)
+	binary.LittleEndian.PutUint32(t, c.m1)
+	b = append(b, t[:4]...)
+	binary.LittleEndian.PutUint32(t, c.d)
+	b = append(b, t[:4]...)
+	binary.LittleEndian.PutUint32(t, c.m2)
+	b = append(b, t[:4]...)
+	return b
+}
+
+type TcHfscOpt struct {
+	Defcls uint16
+}
+
+func (x *TcHfscOpt) Serialize() []byte {
+	return (*(*[2]byte)(unsafe.Pointer(x)))[:]
+}
+
 const (
 	TCA_U32_UNSPEC = iota
 	TCA_U32_CLASSID
@@ -716,4 +768,11 @@ const (
 	TCA_FQ_CODEL_CE_THRESHOLD
 	TCA_FQ_CODEL_DROP_BATCH_SIZE
 	TCA_FQ_CODEL_MEMORY_LIMIT
+)
+
+const (
+	TCA_HFSC_UNSPEC = iota
+	TCA_HFSC_RSC
+	TCA_HFSC_FSC
+	TCA_HFSC_USC
 )
