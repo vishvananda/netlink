@@ -189,7 +189,7 @@ func (d *IPSetInfoADTData) setAttr(id uint16, data []byte) {
 	case IPSET_ATTR_PORT_TO | syscallNLA_F_NET_BYTEORDER:
 		d.PortTo = int(binary.BigEndian.Uint16(data[:2]))
 
-	case IPSET_ATTR_PROTO | syscallNLA_F_NET_BYTEORDER:
+	case IPSET_ATTR_PROTO:
 		d.Proto = ipsetProtoEnumFromByte(data[0])
 
 	default:
