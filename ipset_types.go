@@ -69,6 +69,11 @@ type IPSetInfoADTData struct {
 	SkbMark  uint32
 	SkbPrio  uint32
 	SkbQueue uint16
+	Port     int
+	PortTo   int
+	Proto    ipsetProtoEnum
+
+	tmpMask byte
 }
 
 // IPSetInfoADTDataIP is a IPSET set ADT one entry IP address data representation
@@ -154,7 +159,8 @@ func (d *IPSetInfoADTData) setAttr(id uint16, data []byte) {
 		}
 
 	case IPSET_ATTR_CIDR:
-		d.Mask = net.CIDRMask(int(data[0]), 32)
+		// d.Mask = net.CIDRMask(int(data[0]), 32)
+		d.tmpMask = data[0]
 
 	case IPSET_ATTR_BYTES | syscallNLA_F_NET_BYTEORDER:
 		d.Bytes = int(binary.BigEndian.Uint64(data[:8]))
@@ -176,6 +182,15 @@ func (d *IPSetInfoADTData) setAttr(id uint16, data []byte) {
 
 	case IPSET_ATTR_SKBQUEUE | syscallNLA_F_NET_BYTEORDER:
 		d.SkbQueue = binary.BigEndian.Uint16(data[:2])
+
+	case IPSET_ATTR_PORT | syscallNLA_F_NET_BYTEORDER:
+		d.Port = int(binary.BigEndian.Uint16(data[:2]))
+
+	case IPSET_ATTR_PORT_TO | syscallNLA_F_NET_BYTEORDER:
+		d.PortTo = int(binary.BigEndian.Uint16(data[:2]))
+
+	case IPSET_ATTR_PROTO | syscallNLA_F_NET_BYTEORDER:
+		d.Proto = ipsetProtoEnumFromByte(data[0])
 
 	default:
 		panic(
@@ -345,6 +360,12 @@ func parseIPSetInfoADTData(data []byte) (IPSetInfoADTData, error) {
 			return ad, err
 		}
 		ad.setAttr(id, val)
+	}
+
+	if ad.IP.Addr.To4() != nil {
+		ad.Mask = net.CIDRMask(int(ad.tmpMask), 32)
+	} else {
+		ad.Mask = net.CIDRMask(int(ad.tmpMask), 128)
 	}
 
 	return ad, nil
