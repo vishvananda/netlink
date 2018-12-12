@@ -345,15 +345,24 @@ func (h *Handle) IPSetAdd(setName string, entry IPSetInfoADTData) error {
 	} else {
 		nl.NewRtAttrChild(addr, IPSET_ATTR_IP|syscallNLA_F_NET_BYTEORDER, entry.IP.Addr.To16())
 	}
+	if entry.Mask != nil {
+		ones, _ := entry.Mask.Size()
+		nl.NewRtAttrChild(addr, IPSET_ATTR_CIDR, nl.Uint8Attr(uint8(ones)))
+	}
+	if entry.Proto != 0 {
+		nl.NewRtAttrChild(addr, IPSET_ATTR_PROTO, nl.Uint8Attr(uint8(entry.Proto)))
+	}
+	if entry.Port != 0 {
+		nl.NewRtAttrChild(addr, IPSET_ATTR_PORT, nl.Uint16Attr(uint16(entry.Port)))
+	}
+	if entry.PortTo != 0 {
+		nl.NewRtAttrChild(addr, IPSET_ATTR_PORT_TO, nl.Uint16Attr(uint16(entry.PortTo)))
+	}
 
 	data.AddChild(addr)
 
-	if entry.Mask != nil {
-		ones, _ := entry.Mask.Size()
-		nl.NewRtAttrChild(data, IPSET_ATTR_CIDR, nl.Uint8Attr(uint8(ones)))
-	}
-
 	flags := ternaryUint32(entry.Nomatch, IPSET_FLAG_NOMATCH, 0)
+
 	if entry.Packets > 0 {
 		nl.NewRtAttrChild(data, IPSET_ATTR_PACKETS|syscallNLA_F_NET_BYTEORDER, nl.Uint64AttrNetEndian(uint64(entry.Packets)))
 	}
