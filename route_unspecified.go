@@ -5,6 +5,14 @@ package netlink
 import "net"
 
 const (
+	SCOPE_UNIVERSE Scope = 0
+	SCOPE_SITE     Scope = 0
+	SCOPE_LINK     Scope = 0
+	SCOPE_HOST     Scope = 0
+	SCOPE_NOWHERE  Scope = 0
+)
+
+const (
 	RT_FILTER_PROTOCOL uint64 = 1 << (1 + iota)
 	RT_FILTER_SCOPE
 	RT_FILTER_TYPE
@@ -15,6 +23,11 @@ const (
 	RT_FILTER_SRC
 	RT_FILTER_GW
 	RT_FILTER_TABLE
+)
+
+const (
+	FLAG_ONLINK    NextHopFlag = 0
+	FLAG_PERVASIVE NextHopFlag = 0
 )
 
 func (r *Route) ListFlags() []string {
