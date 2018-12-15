@@ -15,64 +15,36 @@ var (
 	ErrNameTooLong  = fmt.Errorf("ipset: name too long")
 )
 
+// IPSetCreateInfo is a IPSetCreate parameters container
+type IPSetCreateInfo struct {
+	Name     string
+	Type     IpsetTypeEnum
+	Family   IpsetFamilyEnum
+	Proto    IpsetProtoEnum
+	Counters bool
+	Comment  bool
+	SkbInfo  bool
+	ForceAdd bool
+	Timeout  time.Duration
+	HashSize uint32
+	MaxElem  uint32
+	NetMask  net.IPMask
+	MarkMask uint32
+}
+
 // IPSetCreate create a new ipset just like `ipset create` does
-func IPSetCreate(
-	setName string,
-	setType ipsetTypeEnum,
-	timeout time.Duration,
-	counters bool,
-	comment bool,
-	skbinfo bool,
-	hashsize uint32,
-	maxelem uint32,
-	family ipsetFamilyEnum,
-	forceadd bool,
-	netmask net.IPMask,
-	markmask uint32,
-	// ipRange *IPSetIPRange,
-	// portRange *IPSetPortRange,
-) error {
-	return pkgHandle.IPSetCreate(
-		setName,
-		setType,
-		timeout,
-		counters,
-		comment,
-		skbinfo,
-		hashsize,
-		maxelem,
-		family,
-		forceadd,
-		netmask,
-		markmask,
-		// ipRange,
-		// portRange,
-	)
+func IPSetCreate(info IPSetCreateInfo) error {
+	return pkgHandle.IPSetCreate(info)
 }
 
 // IPSetCreate create a new ipset just like `ipset create` does
 // Note: range patrameter is not supported (yet?), so all the types requires it are not creatable.
-func (h *Handle) IPSetCreate(
-	setName string,
-	setType ipsetTypeEnum,
-	timeout time.Duration,
-	counters bool,
-	comment bool,
-	skbinfo bool,
-	hashsize uint32,
-	maxelem uint32,
-	family ipsetFamilyEnum,
-	forceadd bool,
-	netmask net.IPMask,
-	markmask uint32,
-	// ipRange *IPSetIPRange,
-	// portRange *IPSetPortRange,
-) error {
-	if len(setName) == 0 {
+func (h *Handle) IPSetCreate(info IPSetCreateInfo) error {
+	if len(info.Name) == 0 {
 		return ErrNameRequired
 	}
 
-	if len(setName) > IPSET_MAXNAMELEN-1 {
+	if len(info.Name) > IPSET_MAXNAMELEN-1 {
 		return ErrNameTooLong
 	}
 
@@ -85,32 +57,32 @@ func (h *Handle) IPSetCreate(
 		},
 	)
 	req.AddData(nl.NewRtAttr(IPSET_ATTR_PROTOCOL, nl.Uint8Attr(IPSET_PROTOCOL)))
-	req.AddData(nl.NewRtAttr(IPSET_ATTR_SETNAME, nl.ZeroTerminated(setName)))
-	req.AddData(nl.NewRtAttr(IPSET_ATTR_TYPENAME, nl.ZeroTerminated(setType.toString())))
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_SETNAME, nl.ZeroTerminated(info.Name)))
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_TYPENAME, nl.ZeroTerminated(info.Type.toString())))
 	req.AddData(nl.NewRtAttr(IPSET_ATTR_REVISION, nl.Uint8Attr(IPSET_ATTR_REVISION_VALUE)))
-	req.AddData(nl.NewRtAttr(IPSET_ATTR_FAMILY, nl.Uint8Attr(family.toUint8())))
+	req.AddData(nl.NewRtAttr(IPSET_ATTR_FAMILY, nl.Uint8Attr(info.Family.toUint8())))
 
 	data := nl.NewRtAttr(IPSET_ATTR_DATA|NLA_F_NESTED, nil)
 
-	flags := ternaryUint32(counters, IPSET_FLAG_WITH_COUNTERS, 0)
-	flags |= ternaryUint32(comment, IPSET_FLAG_WITH_COMMENT, 0)
-	flags |= ternaryUint32(skbinfo, IPSET_FLAG_WITH_SKBINFO, 0)
-	flags |= ternaryUint32(forceadd, IPSET_FLAG_WITH_FORCEADD, 0)
+	flags := ternaryUint32(info.Counters, IPSET_FLAG_WITH_COUNTERS, 0)
+	flags |= ternaryUint32(info.Comment, IPSET_FLAG_WITH_COMMENT, 0)
+	flags |= ternaryUint32(info.SkbInfo, IPSET_FLAG_WITH_SKBINFO, 0)
+	flags |= ternaryUint32(info.ForceAdd, IPSET_FLAG_WITH_FORCEADD, 0)
 
 	if flags != 0 {
 		nl.NewRtAttrChild(data, IPSET_ATTR_CADT_FLAGS|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(flags))
 	}
 
-	if timeout > 0 {
-		nl.NewRtAttrChild(data, IPSET_ATTR_TIMEOUT|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(uint32(timeout.Seconds())))
+	if info.Timeout > 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_TIMEOUT|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(uint32(info.Timeout.Seconds())))
 	}
 
-	if hashsize > 0 {
-		nl.NewRtAttrChild(data, IPSET_ATTR_HASHSIZE|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(hashsize))
+	if info.HashSize > 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_HASHSIZE|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(info.HashSize))
 	}
 
-	if maxelem > 0 {
-		nl.NewRtAttrChild(data, IPSET_ATTR_MAXELEM|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(maxelem))
+	if info.MaxElem > 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_MAXELEM|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(info.MaxElem))
 	}
 
 	//if ipRange != nil {
@@ -123,13 +95,13 @@ func (h *Handle) IPSetCreate(
 	//	nl.NewRtAttrChild(data, IPSET_ATTR_PORT_TO|syscallNLA_F_NET_BYTEORDER, ipRange.To.To4())
 	//}
 
-	if netmask != nil {
-		ones, _ := netmask.Size()
+	if info.NetMask != nil {
+		ones, _ := info.NetMask.Size()
 		nl.NewRtAttrChild(data, IPSET_ATTR_NETMASK, nl.Uint8Attr(uint8(ones)))
 	}
 
-	if markmask != 0 {
-		nl.NewRtAttrChild(data, IPSET_ATTR_NETMASK|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(markmask))
+	if info.MarkMask != 0 {
+		nl.NewRtAttrChild(data, IPSET_ATTR_NETMASK|syscallNLA_F_NET_BYTEORDER, nl.Uint32AttrNetEndian(info.MarkMask))
 	}
 
 	if data.Len() > 0 {

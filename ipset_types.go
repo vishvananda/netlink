@@ -17,7 +17,7 @@ import (
 //}
 //
 //type IPSetPortRange struct {
-//	Proto ipsetProtoEnum
+//	Proto IpsetProtoEnum
 //	From  int
 //	To    int
 //}
@@ -26,10 +26,10 @@ import (
 type IPSetInfo struct {
 	Header   nl.Nfgenmsg
 	Name     string
-	Type     ipsetTypeEnum
+	Type     IpsetTypeEnum
 	Revision uint8
-	Family   ipsetFamilyEnum
-	Proto    ipsetProtoEnum
+	Family   IpsetFamilyEnum
+	Proto    IpsetProtoEnum
 	Flags    uint32
 	Data     IPSetInfoData
 	ADT      IPSetInfoADT
@@ -71,7 +71,7 @@ type IPSetInfoADTData struct {
 	SkbQueue uint16
 	Port     int
 	PortTo   int
-	Proto    ipsetProtoEnum
+	Proto    IpsetProtoEnum
 
 	tmpMask byte
 }
@@ -190,7 +190,7 @@ func (d *IPSetInfoADTData) setAttr(id uint16, data []byte) {
 		d.PortTo = int(binary.BigEndian.Uint16(data[:2]))
 
 	case IPSET_ATTR_PROTO:
-		d.Proto = ipsetProtoEnumFromByte(data[0])
+		d.Proto = IpsetProtoEnumFromByte(data[0])
 
 	default:
 		panic(
@@ -282,19 +282,19 @@ func nlaAlignOf(attrlen int) int {
 func (i *IPSetInfo) setAttr(id uint16, data []byte) {
 	switch id {
 	case IPSET_ATTR_PROTOCOL:
-		i.Proto = ipsetProtoEnumFromByte(data[0])
+		i.Proto = IpsetProtoEnumFromByte(data[0])
 
 	case IPSET_ATTR_SETNAME:
 		i.Name = nl.ParseZeroTerminated(data)
 
 	case IPSET_ATTR_TYPENAME:
-		i.Type = ipsetTypeEnumFromString(nl.ParseZeroTerminated(data))
+		i.Type = IpsetTypeEnumFromString(nl.ParseZeroTerminated(data))
 
 	case IPSET_ATTR_REVISION:
 		i.Revision = data[0]
 
 	case IPSET_ATTR_FAMILY:
-		i.Family = ipsetFamilyEnumFromByte(data[0])
+		i.Family = IpsetFamilyEnumFromByte(data[0])
 
 	case IPSET_ATTR_FLAGS:
 		i.Flags = nl.NativeEndian().Uint32(data[:4])
