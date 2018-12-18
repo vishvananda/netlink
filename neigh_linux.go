@@ -262,14 +262,6 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 		return nil, err
 	}
 
-	// This should be cached for perfomance
-	// once per table dump
-	link, err := LinkByIndex(neigh.LinkIndex)
-	if err != nil {
-		return nil, err
-	}
-	encapType := link.Attrs().EncapType
-
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case NDA_DST:
@@ -279,13 +271,16 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 			// #define RTA_LENGTH(len) (RTA_ALIGN(sizeof(struct rtattr)) + (len))
 			// #define RTA_PAYLOAD(rta) ((int)((rta)->rta_len) - RTA_LENGTH(0))
 			attrLen := attr.Attr.Len - unix.SizeofRtAttr
-			if attrLen == 4 && (encapType == "ipip" ||
-				encapType == "sit" ||
-				encapType == "gre") {
+			if attrLen == 4 {
 				neigh.LLIPAddr = net.IP(attr.Value)
-			} else if attrLen == 16 &&
-				encapType == "tunnel6" {
-				neigh.IP = net.IP(attr.Value)
+			} else if attrLen == 16 {
+				// Can be IPv6 or FireWire HWAddr
+				link, err := LinkByIndex(neigh.LinkIndex)
+				if err == nil && link.Attrs().EncapType == "tunnel6" {
+					neigh.IP = net.IP(attr.Value)
+				} else {
+					neigh.HardwareAddr = net.HardwareAddr(attr.Value)
+				}
 			} else {
 				neigh.HardwareAddr = net.HardwareAddr(attr.Value)
 			}
