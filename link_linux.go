@@ -229,6 +229,21 @@ func (h *Handle) macvlanMACAddrChange(link Link, addrs []net.HardwareAddr, mode 
 	return err
 }
 
+
+// LinkSetHardwareAddr sets the hardware address of the link device.
+// Equivalent to: `ip link set $link address $hwaddr`
+func BridgeSetGroupFwdMask(link Link, mask uint16) error {
+	return pkgHandle.BridgeSetGroupFwdMask(link, mask)
+}
+
+// LinkSetHardwareAddr sets the hardware address of the link device.
+// Equivalent to: `ip link set $link address $hwaddr`
+func (h *Handle) BridgeSetGroupFwdMask(link Link, mask uint16) error {
+	bridge := link.(*Bridge)
+	bridge.GroupFwdMask = &mask
+	return h.linkModify(bridge, unix.NLM_F_ACK)
+}
+
 func BridgeSetMcastSnoop(link Link, on bool) error {
 	return pkgHandle.BridgeSetMcastSnoop(link, on)
 }
@@ -2401,6 +2416,9 @@ func addBridgeAttrs(bridge *Bridge, linkInfo *nl.RtAttr) {
 	}
 	if bridge.VlanFiltering != nil {
 		data.AddRtAttr(nl.IFLA_BR_VLAN_FILTERING, boolToByte(*bridge.VlanFiltering))
+	}
+	if bridge.GroupFwdMask != nil {
+		data.AddRtAttr(nl.IFLA_BR_GROUP_FWD_MASK, nl.Uint16Attr(*bridge.GroupFwdMask))
 	}
 }
 
