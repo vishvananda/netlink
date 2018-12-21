@@ -20,7 +20,10 @@ const (
 	NDA_PORT
 	NDA_VNI
 	NDA_IFINDEX
-	NDA_MAX = NDA_IFINDEX
+	NDA_MASTER
+	NDA_LINK_NETNSID
+	NDA_SRC_VNI
+	NDA_MAX = NDA_SRC_VNI
 )
 
 // Neighbor Cache Entry States.
@@ -173,6 +176,11 @@ func neighHandle(neigh *Neigh, req *nl.NetlinkRequest) error {
 		req.AddData(vniData)
 	}
 
+	if neigh.MasterIndex != 0 {
+		masterData := nl.NewRtAttr(NDA_MASTER, nl.Uint32Attr(uint32(neigh.MasterIndex)))
+		req.AddData(masterData)
+	}
+
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	return err
 }
@@ -288,6 +296,8 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 			neigh.Vlan = int(native.Uint16(attr.Value[0:2]))
 		case NDA_VNI:
 			neigh.VNI = int(native.Uint32(attr.Value[0:4]))
+		case NDA_MASTER:
+			neigh.MasterIndex = int(native.Uint32(attr.Value[0:4]))
 		}
 	}
 
@@ -327,6 +337,16 @@ func NeighSubscribeWithOptions(ch chan<- NeighUpdate, done <-chan struct{}, opti
 
 func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <-chan struct{}, cberr func(error), listExisting bool) error {
 	s, err := nl.SubscribeAt(newNs, curNs, unix.NETLINK_ROUTE, unix.RTNLGRP_NEIGH)
+	makeRequest := func(family int) error {
+		req := pkgHandle.newNetlinkRequest(unix.RTM_GETNEIGH,
+			unix.NLM_F_DUMP)
+		infmsg := nl.NewIfInfomsg(family)
+		req.AddData(infmsg)
+		if err := s.Send(req); err != nil {
+			return err
+		}
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -337,13 +357,10 @@ func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <
 		}()
 	}
 	if listExisting {
-		req := pkgHandle.newNetlinkRequest(unix.RTM_GETNEIGH,
-			unix.NLM_F_DUMP)
-		infmsg := nl.NewIfInfomsg(unix.AF_UNSPEC)
-		req.AddData(infmsg)
-		if err := s.Send(req); err != nil {
+		if err := makeRequest(unix.AF_UNSPEC); err != nil {
 			return err
 		}
+		// We have to wait for NLMSG_DONE before making AF_BRIDGE request
 	}
 	go func() {
 		defer close(ch)
@@ -357,6 +374,18 @@ func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <
 			}
 			for _, m := range msgs {
 				if m.Header.Type == unix.NLMSG_DONE {
+					if listExisting {
+						// This will be called after handling AF_UNSPEC
+						// list request, we have to wait for NLMSG_DONE
+						// before making another request
+						if err := makeRequest(unix.AF_BRIDGE); err != nil {
+							if cberr != nil {
+								cberr(err)
+							}
+							return
+						}
+						listExisting = false
+					}
 					continue
 				}
 				if m.Header.Type == unix.NLMSG_ERROR {
