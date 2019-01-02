@@ -201,6 +201,14 @@ func testLinkAddDel(t *testing.T, link Link) {
 		compareGretun(t, gretun, other)
 	}
 
+	if xfrmi, ok := link.(*Xfrmi); ok {
+		other, ok := result.(*Xfrmi)
+		if !ok {
+			t.Fatal("Result of create is not a xfrmi")
+		}
+		compareXfrmi(t, xfrmi, other)
+	}
+
 	if err = LinkDel(link); err != nil {
 		t.Fatal(err)
 	}
@@ -406,6 +414,12 @@ func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 		if actual.PortHigh != expected.PortHigh {
 			t.Fatal("Vxlan.PortHigh doesn't match")
 		}
+	}
+}
+
+func compareXfrmi(t *testing.T, expected, actual *Xfrmi) {
+	if expected.Ifid != actual.Ifid {
+		t.Fatal("Xfrmi.Ifid doesn't match")
 	}
 }
 
@@ -1744,6 +1758,27 @@ func TestLinkAddDelGTP(t *testing.T) {
 	defer tearDown()
 	gtp := testGTPLink(t)
 	testLinkAddDel(t, gtp)
+}
+
+func TestLinkAddDelXfrmi(t *testing.T) {
+	minKernelRequired(t, 4, 19)
+	defer setUpNetlinkTest(t)()
+
+	lo, _ := LinkByName("lo")
+
+	testLinkAddDel(t, &Xfrmi{
+		LinkAttrs: LinkAttrs{Name: "xfrm123", ParentIndex: lo.Attrs().Index},
+		Ifid:      123})
+}
+
+func TestLinkAddDelXfrmiNoId(t *testing.T) {
+	minKernelRequired(t, 4, 19)
+	defer setUpNetlinkTest(t)()
+
+	lo, _ := LinkByName("lo")
+
+	testLinkAddDel(t, &Xfrmi{
+		LinkAttrs: LinkAttrs{Name: "xfrm0", ParentIndex: lo.Attrs().Index}})
 }
 
 func TestLinkByNameWhenLinkIsNotFound(t *testing.T) {
