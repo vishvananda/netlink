@@ -17,7 +17,7 @@ import (
 
 const (
 	SizeofLinkStats32 = 0x5c
-	SizeofLinkStats64 = 0xd8
+	SizeofLinkStats64 = 0xb8
 )
 
 const (
