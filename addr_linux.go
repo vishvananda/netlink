@@ -324,9 +324,9 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 			msgs, err := s.Receive()
 			if err != nil {
 				if cberr != nil {
-					cberr(err)
+					cberr(fmt.Errorf("Receive %v", err))
 				}
-				return
+				continue
 			}
 			for _, m := range msgs {
 				if m.Header.Type == unix.NLMSG_DONE {
@@ -339,9 +339,10 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 						continue
 					}
 					if cberr != nil {
-						cberr(syscall.Errno(-error))
+						cberr(fmt.Errorf("error message %v",
+							syscall.Errno(-error)))
 					}
-					return
+					continue
 				}
 				msgType := m.Header.Type
 				if msgType != unix.RTM_NEWADDR && msgType != unix.RTM_DELADDR {
@@ -356,7 +357,7 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					if cberr != nil {
 						cberr(fmt.Errorf("could not parse address: %v", err))
 					}
-					return
+					continue
 				}
 
 				ch <- AddrUpdate{LinkAddress: *addr.IPNet,
