@@ -270,21 +270,22 @@ type AddrUpdate struct {
 // AddrSubscribe takes a chan down which notifications will be sent
 // when addresses change.  Close the 'done' chan to stop subscription.
 func AddrSubscribe(ch chan<- AddrUpdate, done <-chan struct{}) error {
-	return addrSubscribeAt(netns.None(), netns.None(), ch, done, nil, false)
+	return addrSubscribeAt(netns.None(), netns.None(), ch, done, nil, false, 0)
 }
 
 // AddrSubscribeAt works like AddrSubscribe plus it allows the caller
 // to choose the network namespace in which to subscribe (ns).
 func AddrSubscribeAt(ns netns.NsHandle, ch chan<- AddrUpdate, done <-chan struct{}) error {
-	return addrSubscribeAt(ns, netns.None(), ch, done, nil, false)
+	return addrSubscribeAt(ns, netns.None(), ch, done, nil, false, 0)
 }
 
 // AddrSubscribeOptions contains a set of options to use with
 // AddrSubscribeWithOptions.
 type AddrSubscribeOptions struct {
-	Namespace     *netns.NsHandle
-	ErrorCallback func(error)
-	ListExisting  bool
+	Namespace         *netns.NsHandle
+	ErrorCallback     func(error)
+	ListExisting      bool
+	ReceiveBufferSize imt
 }
 
 // AddrSubscribeWithOptions work like AddrSubscribe but enable to
@@ -295,10 +296,10 @@ func AddrSubscribeWithOptions(ch chan<- AddrUpdate, done <-chan struct{}, option
 		none := netns.None()
 		options.Namespace = &none
 	}
-	return addrSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback, options.ListExisting)
+	return addrSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback, options.ListExisting, options.ReceiveBufferSize)
 }
 
-func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-chan struct{}, cberr func(error), listExisting bool) error {
+func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-chan struct{}, cberr func(error), listExisting bool, rcvbuf int) error {
 	s, err := nl.SubscribeAt(newNs, curNs, unix.NETLINK_ROUTE, unix.RTNLGRP_IPV4_IFADDR, unix.RTNLGRP_IPV6_IFADDR)
 	if err != nil {
 		return err
@@ -308,6 +309,12 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 			<-done
 			s.Close()
 		}()
+	}
+	if rcvbuf != 0 {
+		err = pkgHandle.SetSocketReceiveBufferSize(rcvbuf, false)
+		if err != nil {
+			return err
+		}
 	}
 	if listExisting {
 		req := pkgHandle.newNetlinkRequest(unix.RTM_GETADDR,
