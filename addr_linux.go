@@ -285,7 +285,7 @@ type AddrSubscribeOptions struct {
 	Namespace         *netns.NsHandle
 	ErrorCallback     func(error)
 	ListExisting      bool
-	ReceiveBufferSize imt
+	ReceiveBufferSize int
 }
 
 // AddrSubscribeWithOptions work like AddrSubscribe but enable to
