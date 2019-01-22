@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 )
 
 // Link represents a link device from netlink. Shared link attributes
@@ -42,6 +43,7 @@ type LinkAttrs struct {
 	NumTxQueues  int
 	NumRxQueues  int
 	Vfs          []VfInfo // virtual functions available on link
+	BondSlave    *BondSlave
 }
 
 // VfInfo represents configuration of virtual function
@@ -692,6 +694,65 @@ func (bond *Bond) Attrs() *LinkAttrs {
 // Type implementation fro Vxlan.
 func (bond *Bond) Type() string {
 	return "bond"
+}
+
+// BondSlaveState represents the values of the IFLA_BOND_SLAVE_STATE bond slave
+// attribute, which contains the state of the bond slave.
+type BondSlaveState uint8
+
+const (
+	BondStateActive = iota // Link is active.
+	BondStateBackup        // Link is backup.
+)
+
+func (s BondSlaveState) String() string {
+	switch s {
+	case BondStateActive:
+		return "active"
+	case BondStateBackup:
+		return "backup"
+	default:
+		return strconv.Itoa(int(s))
+	}
+}
+
+// BondSlaveState represents the values of the IFLA_BOND_SLAVE_MII_STATUS bond slave
+// attribute, which contains the status of MII link monitoring
+type BondSlaveMiiStatus uint8
+
+const (
+	BondLinkUp   = iota // link is up and running.
+	BondLinkFail        // link has just gone down.
+	BondLinkDown        // link has been down for too long time.
+	BondLinkBack        // link is going back.
+)
+
+func (s BondSlaveMiiStatus) String() string {
+	switch s {
+	case BondLinkUp:
+		return "up"
+	case BondLinkFail:
+		return "going-down"
+	case BondLinkDown:
+		return "down"
+	case BondLinkBack:
+		return "going-back"
+	default:
+		return strconv.Itoa(int(s))
+	}
+}
+
+// Bond slave representation
+type BondSlave struct {
+	Type                   string
+	State                  BondSlaveState
+	MiiStatus              BondSlaveMiiStatus
+	LinkFailureCount       int
+	PermHardwareAddr       net.HardwareAddr
+	QueueId                int
+	AggregatorId           int
+	AdActorOperPortState   int
+	AdPartnerOperPortState int
 }
 
 // Gretap devices must specify LocalIP and RemoteIP on create

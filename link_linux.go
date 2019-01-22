@@ -1194,6 +1194,11 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		addXfrmiAttrs(link, linkInfo)
 	}
 
+	if base.BondSlave != nil {
+		linkInfo.AddRtAttr(nl.IFLA_INFO_SLAVE_KIND, nl.NonZeroTerminated(base.BondSlave.Type))
+		addBondSlaveAttrs(base.BondSlave, linkInfo)
+	}
+
 	req.AddData(linkInfo)
 
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
@@ -1388,10 +1393,11 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 		base.Promisc = 1
 	}
 	var (
-		link     Link
-		stats32  []byte
-		stats64  []byte
-		linkType string
+		link      Link
+		stats32   []byte
+		stats64   []byte
+		linkType  string
+		slaveType string
 	)
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
@@ -1489,6 +1495,15 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 					case "xfrm":
 						parseXfrmiData(link, data)
 					}
+				case nl.IFLA_INFO_SLAVE_DATA:
+					data, err := nl.ParseRouteAttr(info.Value)
+					if err != nil {
+						return nil, err
+					}
+					base.BondSlave = &BondSlave{Type: slaveType}
+					parseBondSlaveData(base.BondSlave, data)
+				case nl.IFLA_INFO_SLAVE_KIND:
+					slaveType = string(info.Value[:len(info.Value)-1])
 				}
 			}
 		case unix.IFLA_ADDRESS:
@@ -1936,6 +1951,45 @@ func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
 			bond.AdActorSystem = net.HardwareAddr(data[i].Value[0:6])
 		case nl.IFLA_BOND_TLB_DYNAMIC_LB:
 			bond.TlbDynamicLb = int(data[i].Value[0])
+		}
+	}
+}
+
+func addBondSlaveAttrs(bondSlave *BondSlave, linkInfo *nl.RtAttr) {
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_SLAVE_DATA, nil)
+
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_STATE, nl.Uint8Attr(uint8(bondSlave.State)))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_MII_STATUS, nl.Uint8Attr(uint8(bondSlave.MiiStatus)))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_LINK_FAILURE_COUNT, nl.Uint32Attr(uint32(bondSlave.LinkFailureCount)))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_QUEUE_ID, nl.Uint16Attr(uint16(bondSlave.QueueId)))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_AGGREGATOR_ID, nl.Uint16Attr(uint16(bondSlave.AggregatorId)))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE, nl.Uint8Attr(uint8(bondSlave.AdActorOperPortState)))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE, nl.Uint16Attr(uint16(bondSlave.AdPartnerOperPortState)))
+
+	if mac := bondSlave.PermHardwareAddr; mac != nil {
+		data.AddRtAttr(nl.IFLA_BOND_SLAVE_PERM_HWADDR, []byte(mac))
+	}
+}
+
+func parseBondSlaveData(bondSlave *BondSlave, data []syscall.NetlinkRouteAttr) {
+	for i := range data {
+		switch data[i].Attr.Type {
+		case nl.IFLA_BOND_SLAVE_STATE:
+			bondSlave.State = BondSlaveState(data[i].Value[0])
+		case nl.IFLA_BOND_SLAVE_MII_STATUS:
+			bondSlave.MiiStatus = BondSlaveMiiStatus(data[i].Value[0])
+		case nl.IFLA_BOND_SLAVE_LINK_FAILURE_COUNT:
+			bondSlave.LinkFailureCount = int(native.Uint32(data[i].Value[0:4]))
+		case nl.IFLA_BOND_SLAVE_PERM_HWADDR:
+			bondSlave.PermHardwareAddr = net.HardwareAddr(data[i].Value[0:6])
+		case nl.IFLA_BOND_SLAVE_QUEUE_ID:
+			bondSlave.QueueId = int(native.Uint16(data[i].Value[0:2]))
+		case nl.IFLA_BOND_SLAVE_AD_AGGREGATOR_ID:
+			bondSlave.AggregatorId = int(native.Uint16(data[i].Value[0:2]))
+		case nl.IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE:
+			bondSlave.AdActorOperPortState = int(data[i].Value[0])
+		case nl.IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE:
+			bondSlave.AdPartnerOperPortState = int(native.Uint16(data[i].Value[0:2]))
 		}
 	}
 }
