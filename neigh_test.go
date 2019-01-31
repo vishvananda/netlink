@@ -3,7 +3,6 @@
 package netlink
 
 import (
-	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -257,26 +256,17 @@ func TestNeighAddDelProxy(t *testing.T) {
 	}
 }
 
-func expectNeighUpdate(ch <-chan NeighUpdate, t uint16, state int, ip net.IP) error {
+// expectNeighUpdate returns whether the expected updated is received within one second.
+func expectNeighUpdate(ch <-chan NeighUpdate, t uint16, state int, ip net.IP) bool {
 	for {
 		timeout := time.After(time.Second)
 		select {
 		case update := <-ch:
-			if update.Type != t {
-				return fmt.Errorf("want %d got %d", t, update.Type)
+			if update.Type == t && update.Neigh.State == state && update.Neigh.IP != nil && update.Neigh.IP.Equal(ip) {
+				return true
 			}
-			if update.Neigh.State != state {
-				return fmt.Errorf("want %d got %d", state, update.State)
-			}
-			if update.Neigh.IP == nil {
-				return fmt.Errorf("Neigh.IP is nil")
-			}
-			if !update.Neigh.IP.Equal(ip) {
-				return fmt.Errorf("Neigh.IP: want %s got %s", ip, update.Neigh.IP)
-			}
-			return nil
 		case <-timeout:
-			return fmt.Errorf("timeout")
+			return false
 		}
 	}
 }
@@ -313,14 +303,14 @@ func TestNeighSubscribe(t *testing.T) {
 	if err := NeighAdd(entry); err != nil {
 		t.Errorf("Failed to NeighAdd: %v", err)
 	}
-	if err := expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_REACHABLE, entry.IP); err != nil {
-		t.Fatalf("Add update not received as expected: %s", err)
+	if !expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_REACHABLE, entry.IP) {
+		t.Fatalf("Add update not received as expected")
 	}
 	if err := NeighDel(entry); err != nil {
 		t.Fatal(err)
 	}
-	if err := expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_FAILED, entry.IP); err != nil {
-		t.Fatalf("Del update not received as expected: %s", err)
+	if !expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_FAILED, entry.IP) {
+		t.Fatalf("Del update not received as expected")
 	}
 }
 
@@ -367,8 +357,8 @@ func TestNeighSubscribeWithOptions(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to NeighAdd: %v", err)
 	}
-	if err := expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_REACHABLE, entry.IP); err != nil {
-		t.Fatalf("Add update not received as expected: %s", err)
+	if !expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_REACHABLE, entry.IP) {
+		t.Fatalf("Add update not received as expected")
 	}
 }
 
@@ -418,8 +408,8 @@ func TestNeighSubscribeAt(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to NeighAdd: %v", err)
 	}
-	if err := expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_REACHABLE, entry.IP); err != nil {
-		t.Fatalf("Add update not received as expected: %s", err)
+	if !expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_REACHABLE, entry.IP) {
+		t.Fatalf("Add update not received as expected")
 	}
 }
 
@@ -473,8 +463,8 @@ func TestNeighSubscribeListExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_REACHABLE, entry1.IP); err != nil {
-		t.Fatalf("Existing add update not received as expected: %s", err)
+	if !expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_REACHABLE, entry1.IP) {
+		t.Fatalf("Existing add update not received as expected")
 	}
 
 	entry2 := &Neigh{
@@ -489,7 +479,7 @@ func TestNeighSubscribeListExisting(t *testing.T) {
 		t.Errorf("Failed to NeighAdd: %v", err)
 	}
 
-	if err := expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_PERMANENT, entry2.IP); err != nil {
-		t.Fatalf("Existing add update not received as expected: %s", err)
+	if !expectNeighUpdate(ch, unix.RTM_NEWNEIGH, NUD_PERMANENT, entry2.IP) {
+		t.Fatalf("Existing add update not received as expected")
 	}
 }

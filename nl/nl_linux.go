@@ -622,16 +622,17 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, error) {
 	if fd < 0 {
 		return nil, fmt.Errorf("Receive called on a closed socket")
 	}
-	rb := make([]byte, RECEIVE_BUFFER_SIZE)
-	nr, _, err := unix.Recvfrom(fd, rb, 0)
+	var rb [RECEIVE_BUFFER_SIZE]byte
+	nr, _, err := unix.Recvfrom(fd, rb[:], 0)
 	if err != nil {
 		return nil, err
 	}
 	if nr < unix.NLMSG_HDRLEN {
 		return nil, fmt.Errorf("Got short response from netlink")
 	}
-	rb = rb[:nr]
-	return syscall.ParseNetlinkMessage(rb)
+	rb2 := make([]byte, nr)
+	copy(rb2, rb[:nr])
+	return syscall.ParseNetlinkMessage(rb2)
 }
 
 // SetSendTimeout allows to set a send timeout on the socket
