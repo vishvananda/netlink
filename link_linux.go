@@ -1120,12 +1120,12 @@ func (h *Handle) linkModify(link Link, flags int) error {
 
 	if base.Namespace != nil {
 		var attr *nl.RtAttr
-		switch base.Namespace.(type) {
+		switch ns := base.Namespace.(type) {
 		case NsPid:
-			val := nl.Uint32Attr(uint32(base.Namespace.(NsPid)))
+			val := nl.Uint32Attr(uint32(ns))
 			attr = nl.NewRtAttr(unix.IFLA_NET_NS_PID, val)
 		case NsFd:
-			val := nl.Uint32Attr(uint32(base.Namespace.(NsFd)))
+			val := nl.Uint32Attr(uint32(ns))
 			attr = nl.NewRtAttr(unix.IFLA_NET_NS_FD, val)
 		}
 
