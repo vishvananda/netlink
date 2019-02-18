@@ -501,7 +501,7 @@ func LinkSetVfSpoofchk(link Link, vf int, check bool) error {
 	return pkgHandle.LinkSetVfSpoofchk(link, vf, check)
 }
 
-// LinkSetVfSpookfchk enables/disables spoof check on a vf for the link.
+// LinkSetVfSpoofchk enables/disables spoof check on a vf for the link.
 // Equivalent to: `ip link set $link vf $vf spoofchk $check`
 func (h *Handle) LinkSetVfSpoofchk(link Link, vf int, check bool) error {
 	var setting uint32
