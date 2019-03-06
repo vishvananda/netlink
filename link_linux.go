@@ -559,6 +559,36 @@ func (h *Handle) LinkSetVfRate(link Link, vf, minRate, maxRate int) error {
 	return err
 }
 
+// LinkSetVfState enables/disables virtual link state on a vf.
+// Equivalent to: `ip link set $link vf $vf state $state`
+func LinkSetVfState(link Link, vf int, state uint32) error {
+	return pkgHandle.LinkSetVfState(link, vf, state)
+}
+
+// LinkSetVfState enables/disables virtual link state on a vf.
+// Equivalent to: `ip link set $link vf $vf state $state`
+func (h *Handle) LinkSetVfState(link Link, vf int, state uint32) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
+	info := data.AddRtAttr(nl.IFLA_VF_INFO, nil)
+	vfmsg := nl.VfLinkState{
+		Vf:        uint32(vf),
+		LinkState: state,
+	}
+	info.AddRtAttr(nl.IFLA_VF_LINK_STATE, vfmsg.Serialize())
+	req.AddData(data)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetVfSpoofchk enables/disables spoof check on a vf for the link.
 // Equivalent to: `ip link set $link vf $vf spoofchk $check`
 func LinkSetVfSpoofchk(link Link, vf int, check bool) error {
