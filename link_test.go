@@ -694,6 +694,36 @@ func TestLinkAddVethWithZeroTxQLen(t *testing.T) {
 	}
 }
 
+func TestLinkAddDelDummyWithGSO(t *testing.T) {
+	const (
+		gsoMaxSegs = 16
+		gsoMaxSize = 1 << 14
+	)
+	minKernelRequired(t, 4, 16)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	dummy := &Dummy{LinkAttrs: LinkAttrs{Name: "foo", GSOMaxSize: gsoMaxSize, GSOMaxSegs: gsoMaxSegs}}
+	if err := LinkAdd(dummy); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dummy, ok := link.(*Dummy)
+	if !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	}
+
+	if dummy.GSOMaxSize != gsoMaxSize {
+		t.Fatalf("GSOMaxSize is %d, should be %d", dummy.GSOMaxSize, gsoMaxSize)
+	}
+	if dummy.GSOMaxSegs != gsoMaxSegs {
+		t.Fatalf("GSOMaxSeg is %d, should be %d", dummy.GSOMaxSegs, gsoMaxSegs)
+	}
+}
+
 func TestLinkAddDummyWithTxQLen(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
