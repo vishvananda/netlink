@@ -3,6 +3,7 @@ package netlink
 import (
 	"syscall"
 
+	"fmt"
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 )
@@ -40,6 +41,16 @@ func parseDevLinkDeviceList(msgs [][]byte) ([]*DevlinkDevice, error) {
 		devices = append(devices, dev)
 	}
 	return devices, nil
+}
+
+func eswitchStringToMode(modeName string) (uint16, error) {
+	if modeName == "legacy" {
+		return nl.DEVLINK_ESWITCH_MODE_LEGACY, nil
+	} else if modeName == "switchdev" {
+		return nl.DEVLINK_ESWITCH_MODE_SWITCHDEV, nil
+	} else {
+		return 0xffff, fmt.Errorf("invalid switchdev mode")
+	}
 }
 
 func parseEswitchMode(mode uint16) string {
@@ -229,4 +240,33 @@ func (h *Handle) DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevi
 // otherwise returns an error code.
 func DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevice, error) {
 	return pkgHandle.DevLinkGetDeviceByName(Bus, Device)
+}
+
+// DevLinkSetEswitchMode sets eswitch mode if able to set successfully or
+// returns an error code.
+// Equivalent to: `devlink dev eswitch set $dev mode switchdev`
+// Equivalent to: `devlink dev eswitch set $dev mode legacy`
+func (h *Handle) DevLinkSetEswitchMode(Dev *DevlinkDevice, NewMode string) error {
+	mode, err := eswitchStringToMode(NewMode)
+	if err != nil {
+		return err
+	}
+
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_ESWITCH_SET, Dev.BusName, Dev.DeviceName)
+	if err != nil {
+		return err
+	}
+
+	req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_ESWITCH_MODE, nl.Uint16Attr(mode)))
+
+	_, err = req.Execute(unix.NETLINK_GENERIC, 0)
+	return err
+}
+
+// DevLinkSetEswitchMode sets eswitch mode if able to set successfully or
+// returns an error code.
+// Equivalent to: `devlink dev eswitch set $dev mode switchdev`
+// Equivalent to: `devlink dev eswitch set $dev mode legacy`
+func DevLinkSetEswitchMode(Dev *DevlinkDevice, NewMode string) error {
+	return pkgHandle.DevLinkSetEswitchMode(Dev, NewMode)
 }
