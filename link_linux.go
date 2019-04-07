@@ -1155,6 +1155,10 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		native.PutUint16(b, uint16(link.VlanId))
 		data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
 		data.AddRtAttr(nl.IFLA_VLAN_ID, b)
+
+		if link.VlanProtocol != VLAN_PROTOCOL_UNKNOWN {
+			data.AddRtAttr(nl.IFLA_VLAN_PROTOCOL, htons(uint16(link.VlanProtocol)))
+		}
 	case *Veth:
 		data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
 		peer := data.AddRtAttr(nl.VETH_INFO_PEER, nil)
@@ -1830,6 +1834,8 @@ func parseVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 		switch datum.Attr.Type {
 		case nl.IFLA_VLAN_ID:
 			vlan.VlanId = int(native.Uint16(datum.Value[0:2]))
+		case nl.IFLA_VLAN_PROTOCOL:
+			vlan.VlanProtocol = VlanProtocol(int(ntohs(datum.Value[0:2])))
 		}
 	}
 }

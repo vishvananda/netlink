@@ -523,7 +523,7 @@ func TestLinkAddDelVlan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testLinkAddDel(t, &Vlan{LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index}, 900})
+	testLinkAddDel(t, &Vlan{LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index}, 900, VLAN_PROTOCOL_8021Q})
 
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)
