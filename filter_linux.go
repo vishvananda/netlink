@@ -3,6 +3,7 @@ package netlink
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"syscall"
@@ -627,6 +628,10 @@ func parseBpfData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 			if (flags & nl.TCA_BPF_FLAG_ACT_DIRECT) != 0 {
 				bpf.DirectAction = true
 			}
+		case nl.TCA_BPF_ID:
+			bpf.Id = int(native.Uint32(datum.Value[0:4]))
+		case nl.TCA_BPF_TAG:
+			bpf.Tag = hex.EncodeToString(datum.Value[:len(datum.Value)-1])
 		}
 	}
 	return detailed, nil
