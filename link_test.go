@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"net"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -207,6 +208,14 @@ func testLinkAddDel(t *testing.T, link Link) {
 			t.Fatal("Result of create is not a xfrmi")
 		}
 		compareXfrmi(t, xfrmi, other)
+	}
+
+	if tuntap, ok := link.(*Tuntap); ok {
+		other, ok := result.(*Tuntap)
+		if !ok {
+			t.Fatal("Result of create is not a tuntap")
+		}
+		compareTuntap(t, tuntap, other)
 	}
 
 	if err = LinkDel(link); err != nil {
@@ -420,6 +429,24 @@ func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 func compareXfrmi(t *testing.T, expected, actual *Xfrmi) {
 	if expected.Ifid != actual.Ifid {
 		t.Fatal("Xfrmi.Ifid doesn't match")
+	}
+}
+
+func compareTuntap(t *testing.T, expected, actual *Tuntap) {
+	if expected.Mode != actual.Mode {
+		t.Fatalf("Tuntap.Mode doesn't match: expected : %+v, got %+v", expected.Mode, actual.Mode)
+	}
+
+	if expected.Owner != actual.Owner {
+		t.Fatal("Tuntap.Owner doesn't match")
+	}
+
+	if expected.Group != actual.Group {
+		t.Fatal("Tuntap.Group doesn't match")
+	}
+
+	if expected.NonPersist != actual.NonPersist {
+		t.Fatal("Tuntap.Group doesn't match")
 	}
 }
 
@@ -1839,15 +1866,36 @@ func TestLinkAddDelTuntap(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
+	// Mount sysfs so that sysfs gets the namespace tag of the current network namespace
+	// This is necessary so that /sys shows the network interfaces of the current namespace.
+	if err := syscall.Mount("sysfs", "/sys", "sysfs", syscall.MS_RDONLY, ""); err != nil {
+		t.Fatal("Cannot mount sysfs")
+	}
+
+	defer func() {
+		if err := syscall.Unmount("/sys", 0); err != nil {
+			t.Fatal("Cannot umount /sys")
+		}
+	}()
+
 	testLinkAddDel(t, &Tuntap{
 		LinkAttrs: LinkAttrs{Name: "foo"},
 		Mode:      TUNTAP_MODE_TAP})
-
 }
 
 func TestLinkAddDelTuntapMq(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
+
+	if err := syscall.Mount("sysfs", "/sys", "sysfs", syscall.MS_RDONLY, ""); err != nil {
+		t.Fatal("Cannot mount sysfs")
+	}
+
+	defer func() {
+		if err := syscall.Unmount("/sys", 0); err != nil {
+			t.Fatal("Cannot umount /sys")
+		}
+	}()
 
 	testLinkAddDel(t, &Tuntap{
 		LinkAttrs: LinkAttrs{Name: "foo"},
