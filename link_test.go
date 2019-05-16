@@ -523,7 +523,7 @@ func TestLinkAddDelVlan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testLinkAddDel(t, &Vlan{LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index}, 900})
+	testLinkAddDel(t, &Vlan{LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index}, 900, VLAN_PROTOCOL_8021Q})
 
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)
@@ -691,6 +691,36 @@ func TestLinkAddVethWithZeroTxQLen(t *testing.T) {
 		if veth.TxQLen != 0 {
 			t.Fatalf("TxQLen is %d, should be %d", veth.TxQLen, 0)
 		}
+	}
+}
+
+func TestLinkAddDelDummyWithGSO(t *testing.T) {
+	const (
+		gsoMaxSegs = 16
+		gsoMaxSize = 1 << 14
+	)
+	minKernelRequired(t, 4, 16)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	dummy := &Dummy{LinkAttrs: LinkAttrs{Name: "foo", GSOMaxSize: gsoMaxSize, GSOMaxSegs: gsoMaxSegs}}
+	if err := LinkAdd(dummy); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dummy, ok := link.(*Dummy)
+	if !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	}
+
+	if dummy.GSOMaxSize != gsoMaxSize {
+		t.Fatalf("GSOMaxSize is %d, should be %d", dummy.GSOMaxSize, gsoMaxSize)
+	}
+	if dummy.GSOMaxSegs != gsoMaxSegs {
+		t.Fatalf("GSOMaxSeg is %d, should be %d", dummy.GSOMaxSegs, gsoMaxSegs)
 	}
 }
 
