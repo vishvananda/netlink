@@ -244,8 +244,23 @@ func IPSetList(setName string) ([]IPSetInfo, error) {
 	return pkgHandle.IPSetList(setName)
 }
 
+// IPSetListBrief returns a brief (no content) info for the specified setName or all sets in case seName is empty
+func IPSetListBrief(setName string) ([]IPSetInfo, error) {
+	return pkgHandle.IPSetListBrief(setName)
+}
+
 // IPSetList returns an info for the specified setName or all sets in case seName is empty
 func (h *Handle) IPSetList(setName string) ([]IPSetInfo, error) {
+	return h.ipsetList(setName, true)
+}
+
+// IPSetListBrief returns a brief (no content) info for the specified setName or all sets in case seName is empty
+func (h *Handle) IPSetListBrief(setName string) ([]IPSetInfo, error) {
+	return h.ipsetList(setName, false)
+}
+
+// IPSetList returns an info for the specified setName or all sets in case seName is empty
+func (h *Handle) ipsetList(setName string, full bool) ([]IPSetInfo, error) {
 	req := nl.NewNetlinkRequest(IPSET_CMD_LIST|(NFNL_SUBSYS_IPSET<<8), unixNLM_F_ACK)
 	req.AddData(
 		&nl.Nfgenmsg{
@@ -272,7 +287,7 @@ func (h *Handle) IPSetList(setName string) ([]IPSetInfo, error) {
 	resp := make([]IPSetInfo, 0, 256)
 
 	for _, m := range msgs {
-		info, err := parseIPSetInfo(m)
+		info, err := parseIPSetInfo(m, full)
 		if err != nil {
 			return nil, err
 		}
