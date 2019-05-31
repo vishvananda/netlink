@@ -483,8 +483,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						switch adatum.Attr.Type {
 						case nl.TCA_MIRRED_PARMS:
 							mirred := *nl.DeserializeTcMirred(adatum.Value)
-							toAttrs(&mirred.TcGen, action.Attrs())
 							action.(*MirredAction).ActionAttrs = ActionAttrs{}
+							toAttrs(&mirred.TcGen, action.Attrs())
 							action.(*MirredAction).Ifindex = int(mirred.Ifindex)
 							action.(*MirredAction).MirredAction = MirredAct(mirred.Eaction)
 						}
@@ -502,8 +502,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						switch adatum.Attr.Type {
 						case nl.TCA_CONNMARK_PARMS:
 							connmark := *nl.DeserializeTcConnmark(adatum.Value)
-							toAttrs(&connmark.TcGen, action.Attrs())
 							action.(*ConnmarkAction).ActionAttrs = ActionAttrs{}
+							toAttrs(&connmark.TcGen, action.Attrs())
 							action.(*ConnmarkAction).Zone = connmark.Zone
 						}
 					case "gact":
