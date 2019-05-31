@@ -672,17 +672,30 @@ func TestFilterU32ConnmarkAddDel(t *testing.T) {
 	if u32.ClassId != classId {
 		t.Fatalf("ClassId of the filter is the wrong value")
 	}
+
 	// actions can be returned in reverse order
-	if _, ok := u32.Actions[0].(*ConnmarkAction); !ok {
-		if _, ok := u32.Actions[1].(*ConnmarkAction); !ok {
-			t.Fatal("Action is the wrong type")
+	cma, ok := u32.Actions[0].(*ConnmarkAction)
+	if !ok {
+		cma, ok = u32.Actions[1].(*ConnmarkAction)
+		if !ok {
+			t.Fatal("Unable to find connmark action")
 		}
 	}
 
-	if _, ok := u32.Actions[0].(*MirredAction); !ok {
-		if _, ok := u32.Actions[1].(*MirredAction); !ok {
-			t.Fatal("Action is the wrong type")
+	if cma.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("Connmark action isn't TC_ACT_PIPE")
+	}
+
+	mia, ok := u32.Actions[0].(*MirredAction)
+	if !ok {
+		mia, ok = u32.Actions[1].(*MirredAction)
+		if !ok {
+			t.Fatal("Unable to find mirred action")
 		}
+	}
+
+	if mia.Attrs().Action != TC_ACT_STOLEN {
+		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
 	}
 
 	if err := FilterDel(filter); err != nil {
