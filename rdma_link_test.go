@@ -51,3 +51,14 @@ func TestRdmaSetRdmaLinkName(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRdmaSystemGetNetnsMode(t *testing.T) {
+	minKernelRequired(t, 5, 2)
+	setupRdmaKModule(t, "ib_core")
+
+	mode, err := RdmaSystemGetNetnsMode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("rdma system netns mode =", mode)
+}
