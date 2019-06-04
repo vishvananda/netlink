@@ -336,8 +336,8 @@ func (h *Handle) IPSetAdd(setName string, entry IPSetInfoADTData) error {
 	data := nl.NewRtAttr(IPSET_ATTR_DATA|NLA_F_NESTED, nil)
 
 	addr := nl.NewRtAttr(IPSET_ATTR_IP|NLA_F_NESTED, nil)
-	if entry.IP.Addr.To4 != nil {
-		nl.NewRtAttrChild(addr, IPSET_ATTR_IP|syscallNLA_F_NET_BYTEORDER, entry.IP.Addr.To4())
+	if ip4 := entry.IP.Addr.To4(); ip4 != nil {
+		nl.NewRtAttrChild(addr, IPSET_ATTR_IP|syscallNLA_F_NET_BYTEORDER, ip4)
 	} else {
 		nl.NewRtAttrChild(addr, IPSET_ATTR_IP|syscallNLA_F_NET_BYTEORDER, entry.IP.Addr.To16())
 	}
