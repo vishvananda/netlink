@@ -62,3 +62,40 @@ func TestRdmaSystemGetNetnsMode(t *testing.T) {
 	}
 	t.Log("rdma system netns mode =", mode)
 }
+
+func TestRdmaSystemSetNetnsMode(t *testing.T) {
+	var newMode string
+	var mode string
+	var err error
+
+	minKernelRequired(t, 5, 2)
+	setupRdmaKModule(t, "ib_core")
+
+	mode, err = RdmaSystemGetNetnsMode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("current rdma system mode =", mode)
+
+	err = RdmaSystemSetNetnsMode(mode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Flip the mode from current mode
+	if mode == "exclusive" {
+		err = RdmaSystemSetNetnsMode("shared")
+	} else {
+		err = RdmaSystemSetNetnsMode("exclusive")
+	}
+	newMode, err = RdmaSystemGetNetnsMode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("new rdma system mode =", newMode)
+
+	// Change back to original mode
+	err = RdmaSystemSetNetnsMode(mode)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
