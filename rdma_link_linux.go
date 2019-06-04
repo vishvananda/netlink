@@ -201,3 +201,40 @@ func (h *Handle) RdmaSystemGetNetnsMode() (string, error) {
 	}
 	return executeOneGetRdmaNetnsMode(msgs[0])
 }
+
+func netnsModeStringToUint8(mode string) (uint8, error) {
+	switch mode {
+	case "exclusive":
+		return 0, nil
+	case "shared":
+		return 1, nil
+	default:
+		return 0, fmt.Errorf("Invalid mode; %q", mode)
+	}
+}
+
+// RdmaSystemSetNetnsMode sets the net namespace mode for RDMA subsystem
+// Returns nil on success or appropriate error code.
+// Equivalent to: `rdma system set netns { shared | exclusive }'
+func RdmaSystemSetNetnsMode(NewMode string) error {
+	return pkgHandle.RdmaSystemSetNetnsMode(NewMode)
+}
+
+// RdmaSystemSetNetnsMode sets the net namespace mode for RDMA subsystem
+// Returns nil on success or appropriate error code.
+// Equivalent to: `rdma system set netns { shared | exclusive }'
+func (h *Handle) RdmaSystemSetNetnsMode(NewMode string) error {
+	value, err := netnsModeStringToUint8(NewMode)
+	if err != nil {
+		return err
+	}
+
+	proto := getProtoField(nl.RDMA_NL_NLDEV, nl.RDMA_NLDEV_CMD_SYS_SET)
+	req := h.newNetlinkRequest(proto, unix.NLM_F_ACK)
+
+	data := nl.NewRtAttr(nl.RDMA_NLDEV_SYS_ATTR_NETNS_MODE, []byte{value})
+	req.AddData(data)
+
+	_, err = req.Execute(unix.NETLINK_RDMA, 0)
+	return err
+}

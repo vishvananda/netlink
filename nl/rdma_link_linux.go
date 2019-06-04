@@ -12,6 +12,7 @@ const (
 	RDMA_NLDEV_CMD_GET     = 1
 	RDMA_NLDEV_CMD_SET     = 2
 	RDMA_NLDEV_CMD_SYS_GET = 6
+	RDMA_NLDEV_CMD_SYS_SET = 7
 )
 
 const (
