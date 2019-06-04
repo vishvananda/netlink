@@ -143,3 +143,61 @@ func (h *Handle) RdmaLinkSetName(link *RdmaLink, name string) error {
 
 	return execRdmaSetLink(req)
 }
+
+func netnsModeToString(mode uint8) string {
+	switch mode {
+	case 0:
+		return "exclusive"
+	case 1:
+		return "shared"
+	default:
+		return "unknown"
+	}
+}
+
+func executeOneGetRdmaNetnsMode(data []byte) (string, error) {
+	reader := bytes.NewReader(data)
+	for reader.Len() >= 4 {
+		_, attrType, len, value := parseNfAttrTLV(reader)
+
+		switch attrType {
+		case nl.RDMA_NLDEV_SYS_ATTR_NETNS_MODE:
+			var mode uint8
+			r := bytes.NewReader(value)
+			binary.Read(r, nl.NativeEndian(), &mode)
+			return netnsModeToString(mode), nil
+		}
+		if (len % 4) != 0 {
+			// Skip pad bytes
+			reader.Seek(int64(4-(len%4)), seekCurrent)
+		}
+	}
+	return "", fmt.Errorf("Invalid netns mode")
+}
+
+// RdmaSystemGetNetnsMode gets the net namespace mode for RDMA subsystem
+// Returns mode string and error status as nil on success or returns error
+// otherwise.
+// Equivalent to: `rdma system show netns'
+func RdmaSystemGetNetnsMode() (string, error) {
+	return pkgHandle.RdmaSystemGetNetnsMode()
+}
+
+// RdmaSystemGetNetnsMode gets the net namespace mode for RDMA subsystem
+// Returns mode string and error status as nil on success or returns error
+// otherwise.
+// Equivalent to: `rdma system show netns'
+func (h *Handle) RdmaSystemGetNetnsMode() (string, error) {
+
+	proto := getProtoField(nl.RDMA_NL_NLDEV, nl.RDMA_NLDEV_CMD_SYS_GET)
+	req := h.newNetlinkRequest(proto, unix.NLM_F_ACK)
+
+	msgs, err := req.Execute(unix.NETLINK_RDMA, 0)
+	if err != nil {
+		return "", err
+	}
+	if len(msgs) == 0 {
+		return "", fmt.Errorf("No valid response from kernel")
+	}
+	return executeOneGetRdmaNetnsMode(msgs[0])
+}
