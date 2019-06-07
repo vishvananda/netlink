@@ -57,16 +57,16 @@ func dumpContainsProxy(dump []Neigh, p proxyEntry) bool {
 }
 
 func TestNeighAddDelLLIPAddr(t *testing.T) {
-	setUpNetlinkTestWithKModule(t, "ipip")
+	setUpNetlinkTestWithKModule(t, "ip_gre")
 
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	dummy := Iptun{
+	dummy := Gretun{
 		LinkAttrs: LinkAttrs{Name: "neigh0"},
-		PMtuDisc:  1,
 		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)}
+		IKey:      1234,
+		OKey:      1234}
 	if err := LinkAdd(&dummy); err != nil {
 		t.Errorf("Failed to create link: %v", err)
 	}
@@ -92,7 +92,6 @@ func TestNeighAddDelLLIPAddr(t *testing.T) {
 
 	if !dumpContainsNeigh(dump, entry) {
 		t.Errorf("Dump does not contain: %v: %v", entry, dump)
-
 	}
 
 	// Delete the entry

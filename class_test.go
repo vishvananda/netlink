@@ -102,7 +102,7 @@ func TestClassAddDel(t *testing.T) {
 	if err := ClassAdd(class); err != nil {
 		t.Fatal(err)
 	}
-	classes, err := ClassList(link, MakeHandle(0xffff, 0))
+	classes, err := SafeClassList(link, MakeHandle(0xffff, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestClassAddDel(t *testing.T) {
 	if err := ClassDel(class); err != nil {
 		t.Fatal(err)
 	}
-	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	classes, err = SafeClassList(link, MakeHandle(0xffff, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 	if err := ClassAdd(class); err != nil {
 		t.Fatal(err)
 	}
-	classes, err := ClassList(link, 0)
+	classes, err := SafeClassList(link, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +334,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	classes, err = SafeClassList(link, MakeHandle(0xffff, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +383,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		t.Fatal("Failed to replace class that is existing.")
 	}
 
-	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	classes, err = SafeClassList(link, MakeHandle(0xffff, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -410,7 +410,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	classes, err = SafeClassList(link, MakeHandle(0xffff, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -437,7 +437,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 		}
 	}
 
-	classes, err = ClassList(link, MakeHandle(0xffff, 0))
+	classes, err = SafeClassList(link, MakeHandle(0xffff, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
