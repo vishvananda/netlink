@@ -103,6 +103,67 @@ func TestFilterAddDel(t *testing.T) {
 	}
 }
 
+func TestFilterReplace(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "bar"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	redir, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(redir); err != nil {
+		t.Fatal(err)
+	}
+	qdisc := &Ingress{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(0xffff, 0),
+			Parent:    HANDLE_INGRESS,
+		},
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+
+	filter := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  1,
+			Protocol:  unix.ETH_P_IP,
+		},
+		RedirIndex: redir.Attrs().Index,
+		ClassId:    MakeHandle(1, 1),
+	}
+
+	if err := FilterReplace(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err := FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed replace filter")
+	}
+
+	if err := FilterReplace(filter); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAdvancedFilterAddDel(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
