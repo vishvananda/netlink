@@ -3,6 +3,7 @@
 package netlink
 
 import (
+	"github.com/vishvananda/netns"
 	"io/ioutil"
 	"strings"
 	"testing"
