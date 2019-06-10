@@ -151,8 +151,24 @@ func FilterAdd(filter Filter) error {
 // FilterAdd will add a filter to the system.
 // Equivalent to: `tc filter add $filter`
 func (h *Handle) FilterAdd(filter Filter) error {
+	return h.filterModify(filter, unix.NLM_F_CREATE|unix.NLM_F_EXCL)
+}
+
+// FilterReplace will replace a filter.
+// Equivalent to: `tc filter replace $filter`
+func FilterReplace(filter Filter) error {
+	return pkgHandle.FilterReplace(filter)
+}
+
+// FilterReplace will replace a filter.
+// Equivalent to: `tc filter replace $filter`
+func (h *Handle) FilterReplace(filter Filter) error {
+	return h.filterModify(filter, unix.NLM_F_CREATE)
+}
+
+func (h *Handle) filterModify(filter Filter, flags int) error {
 	native = nl.NativeEndian()
-	req := h.newNetlinkRequest(unix.RTM_NEWTFILTER, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+	req := h.newNetlinkRequest(unix.RTM_NEWTFILTER, flags|unix.NLM_F_ACK)
 	base := filter.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
