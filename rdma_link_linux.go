@@ -238,3 +238,27 @@ func (h *Handle) RdmaSystemSetNetnsMode(NewMode string) error {
 	_, err = req.Execute(unix.NETLINK_RDMA, 0)
 	return err
 }
+
+// RdmaLinkSetNsFd puts the RDMA device into a new network namespace. The
+// fd must be an open file descriptor to a network namespace.
+// Similar to: `rdma dev set $dev netns $ns`
+func RdmaLinkSetNsFd(link *RdmaLink, fd uint32) error {
+	return pkgHandle.RdmaLinkSetNsFd(link, fd)
+}
+
+// RdmaLinkSetNsFd puts the RDMA device into a new network namespace. The
+// fd must be an open file descriptor to a network namespace.
+// Similar to: `rdma dev set $dev netns $ns`
+func (h *Handle) RdmaLinkSetNsFd(link *RdmaLink, fd uint32) error {
+	proto := getProtoField(nl.RDMA_NL_NLDEV, nl.RDMA_NLDEV_CMD_SET)
+	req := h.newNetlinkRequest(proto, unix.NLM_F_ACK)
+
+	data := nl.NewRtAttr(nl.RDMA_NLDEV_ATTR_DEV_INDEX,
+		nl.Uint32Attr(link.Attrs.Index))
+	req.AddData(data)
+
+	data = nl.NewRtAttr(nl.RDMA_NLDEV_NET_NS_FD, nl.Uint32Attr(fd))
+	req.AddData(data)
+
+	return execRdmaSetLink(req)
+}
