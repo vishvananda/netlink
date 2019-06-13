@@ -18,8 +18,8 @@ import (
 const (
 	testTxQLen    int = 100
 	defaultTxQLen int = 1000
-	testTxQueues  int = 1
-	testRxQueues  int = 1
+	testTxQueues  int = 4
+	testRxQueues  int = 8
 )
 
 func testLinkAddDel(t *testing.T, link Link) {
@@ -61,6 +61,15 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if rBase.TxQLen != base.TxQLen {
 			t.Fatalf("qlen is %d, should be %d", rBase.TxQLen, base.TxQLen)
 		}
+
+		if rBase.NumTxQueues != base.NumTxQueues {
+			t.Fatalf("txQueues is %d, should be %d", rBase.NumTxQueues, base.NumTxQueues)
+		}
+
+		if rBase.NumRxQueues != base.NumRxQueues {
+			t.Fatalf("rxQueues is %d, should be %d", rBase.NumRxQueues, base.NumRxQueues)
+		}
+
 		if rBase.MTU != base.MTU {
 			t.Fatalf("MTU is %d, should be %d", rBase.MTU, base.MTU)
 		}
