@@ -1571,6 +1571,10 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 				return nil, err
 			}
 			base.Vfs = vfs
+		case unix.IFLA_NUM_TX_QUEUES:
+			base.NumTxQueues = int(native.Uint32(attr.Value[0:4]))
+		case unix.IFLA_NUM_RX_QUEUES:
+			base.NumRxQueues = int(native.Uint32(attr.Value[0:4]))
 		}
 	}
 
