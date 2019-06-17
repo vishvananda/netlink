@@ -87,6 +87,9 @@ func testLinkAddDel(t *testing.T, link Link) {
 				if peer.TxQLen != testTxQLen {
 					t.Fatalf("TxQLen of peer is %d, should be %d", peer.TxQLen, testTxQLen)
 				}
+				if !bytes.Equal(peer.Attrs().HardwareAddr, original.PeerHardwareAddr) {
+					t.Fatalf("Peer MAC addr is %s, should be %s", peer.Attrs().HardwareAddr, original.PeerHardwareAddr)
+				}
 			}
 		}
 	} else {
@@ -634,7 +637,19 @@ func TestLinkAddDelVeth(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	veth := &Veth{LinkAttrs: LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400, NumTxQueues: testTxQueues, NumRxQueues: testRxQueues}, PeerName: "bar"}
+	peerMAC, _ := net.ParseMAC("00:12:34:56:78:02")
+
+	veth := &Veth{
+		LinkAttrs: LinkAttrs{
+			Name:        "foo",
+			TxQLen:      testTxQLen,
+			MTU:         1400,
+			NumTxQueues: testTxQueues,
+			NumRxQueues: testRxQueues,
+		},
+		PeerName:         "bar",
+		PeerHardwareAddr: peerMAC,
+	}
 	testLinkAddDel(t, veth)
 }
 
@@ -891,7 +906,7 @@ func TestLinkSetNs(t *testing.T) {
 	}
 	defer newns.Close()
 
-	link := &Veth{LinkAttrs{Name: "foo"}, "bar"}
+	link := &Veth{LinkAttrs{Name: "foo"}, "bar", nil}
 	if err := LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}
@@ -1291,7 +1306,7 @@ func TestLinkSubscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	link := &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar"}
+	link := &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar", nil}
 	if err := LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}
@@ -1338,7 +1353,7 @@ func TestLinkSubscribeWithOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	link := &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar"}
+	link := &Veth{LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1400}, "bar", nil}
 	if err := LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}
@@ -1372,7 +1387,7 @@ func TestLinkSubscribeAt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	link := &Veth{LinkAttrs{Name: "test", TxQLen: testTxQLen, MTU: 1400}, "bar"}
+	link := &Veth{LinkAttrs{Name: "test", TxQLen: testTxQLen, MTU: 1400}, "bar", nil}
 	if err := nh.LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}
@@ -1414,7 +1429,7 @@ func TestLinkSubscribeListExisting(t *testing.T) {
 	}
 	defer nh.Delete()
 
-	link := &Veth{LinkAttrs{Name: "test", TxQLen: testTxQLen, MTU: 1400}, "bar"}
+	link := &Veth{LinkAttrs{Name: "test", TxQLen: testTxQLen, MTU: 1400}, "bar", nil}
 	if err := nh.LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}
