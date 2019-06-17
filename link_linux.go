@@ -1172,7 +1172,9 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		if base.MTU > 0 {
 			peer.AddRtAttr(unix.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
 		}
-
+		if link.PeerHardwareAddr != nil {
+			peer.AddRtAttr(unix.IFLA_ADDRESS, []byte(link.PeerHardwareAddr))
+		}
 	case *Vxlan:
 		addVxlanAttrs(link, linkInfo)
 	case *Bond:
