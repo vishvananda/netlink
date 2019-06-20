@@ -121,6 +121,9 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if ipv.Mode != other.Mode {
 			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, ipv.Mode)
 		}
+		if ipv.Flag != other.Flag {
+			t.Fatalf("Got unexpected flag: %d, expected: %d", other.Flag, ipv.Flag)
+		}
 	}
 
 	if macv, ok := link.(*Macvlan); ok {
@@ -1096,6 +1099,27 @@ func TestLinkAddDelIPVlanL3(t *testing.T) {
 			ParentIndex: parent.Index,
 		},
 		Mode: IPVLAN_MODE_L3,
+	}
+
+	testLinkAddDel(t, &ipv)
+}
+
+func TestLinkAddDelIPVlanVepa(t *testing.T) {
+	minKernelRequired(t, 4, 15)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	ipv := IPVlan{
+		LinkAttrs: LinkAttrs{
+			Name:        "bar",
+			ParentIndex: parent.Index,
+		},
+		Mode: IPVLAN_MODE_L3,
+		Flag: IPVLAN_FLAG_VEPA,
 	}
 
 	testLinkAddDel(t, &ipv)

@@ -396,9 +396,18 @@ const (
 	IPVLAN_MODE_MAX
 )
 
+type IPVlanFlag uint16
+
+const (
+	IPVLAN_FLAG_BRIDGE IPVlanFlag = iota
+	IPVLAN_FLAG_PRIVATE
+	IPVLAN_FLAG_VEPA
+)
+
 type IPVlan struct {
 	LinkAttrs
 	Mode IPVlanMode
+	Flag IPVlanFlag
 }
 
 func (ipvlan *IPVlan) Attrs() *LinkAttrs {
