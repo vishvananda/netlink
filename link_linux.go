@@ -1218,6 +1218,7 @@ func (h *Handle) linkModify(link Link, flags int) error {
 	case *IPVlan:
 		data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
 		data.AddRtAttr(nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(link.Mode)))
+		data.AddRtAttr(nl.IFLA_IPVLAN_FLAG, nl.Uint16Attr(uint16(link.Flag)))
 	case *Macvlan:
 		if link.Mode != MACVLAN_MODE_DEFAULT {
 			data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
@@ -2096,9 +2097,11 @@ func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
 func parseIPVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	ipv := link.(*IPVlan)
 	for _, datum := range data {
-		if datum.Attr.Type == nl.IFLA_IPVLAN_MODE {
+		switch datum.Attr.Type {
+		case nl.IFLA_IPVLAN_MODE:
 			ipv.Mode = IPVlanMode(native.Uint32(datum.Value[0:4]))
-			return
+		case nl.IFLA_IPVLAN_FLAG:
+			ipv.Flag = IPVlanFlag(native.Uint32(datum.Value[0:4]))
 		}
 	}
 }
