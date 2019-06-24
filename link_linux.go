@@ -1130,6 +1130,11 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		req.AddData(gsoAttr)
 	}
 
+	if base.Group > 0 {
+		groupAttr := nl.NewRtAttr(unix.IFLA_GROUP, nl.Uint32Attr(base.Group))
+		req.AddData(groupAttr)
+	}
+
 	if base.Namespace != nil {
 		var attr *nl.RtAttr
 		switch ns := base.Namespace.(type) {
@@ -1577,6 +1582,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			base.NumTxQueues = int(native.Uint32(attr.Value[0:4]))
 		case unix.IFLA_NUM_RX_QUEUES:
 			base.NumRxQueues = int(native.Uint32(attr.Value[0:4]))
+		case unix.IFLA_GROUP:
+			base.Group = native.Uint32(attr.Value[0:4])
 		}
 	}
 
@@ -1882,6 +1889,35 @@ func (h *Handle) LinkSetTxQLen(link Link, qlen int) error {
 	native.PutUint32(b, uint32(qlen))
 
 	data := nl.NewRtAttr(unix.IFLA_TXQLEN, b)
+	req.AddData(data)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
+// LinkSetGroup sets the link group id which can be used to perform mass actions
+// with iproute2 as well use it as a reference in nft filters.
+// Equivalent to: `ip link set $link group $id`
+func LinkSetGroup(link Link, group int) error {
+	return pkgHandle.LinkSetGroup(link, group)
+}
+
+// LinkSetGroup sets the link group id which can be used to perform mass actions
+// with iproute2 as well use it as a reference in nft filters.
+// Equivalent to: `ip link set $link group $id`
+func (h *Handle) LinkSetGroup(link Link, group int) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	b := make([]byte, 4)
+	native.PutUint32(b, uint32(group))
+
+	data := nl.NewRtAttr(unix.IFLA_GROUP, b)
 	req.AddData(data)
 
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
