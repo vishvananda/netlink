@@ -47,6 +47,12 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if base.Group > 0 {
+		if base.Group != rBase.Group {
+			t.Fatalf("group is %d, should be %d", rBase.Group, base.Group)
+		}
+	}
+
 	if vlan, ok := link.(*Vlan); ok {
 		other, ok := result.(*Vlan)
 		if !ok {
@@ -474,6 +480,13 @@ func TestLinkAddDelDummy(t *testing.T) {
 	defer tearDown()
 
 	testLinkAddDel(t, &Dummy{LinkAttrs{Name: "foo"}})
+}
+
+func TestLinkAddDelDummyWithGroup(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Dummy{LinkAttrs{Name: "foo", Group: 42}})
 }
 
 func TestLinkAddDelIfb(t *testing.T) {
@@ -1235,6 +1248,20 @@ func TestLinkSet(t *testing.T) {
 	link, err = LinkByAlias("barAlias")
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	err = LinkSetGroup(link, 42)
+	if err != nil {
+		t.Fatalf("Could not set group: %v", err)
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().Group != 42 {
+		t.Fatal("Link group not changed")
 	}
 }
 
