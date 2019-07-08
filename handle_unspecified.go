@@ -75,6 +75,10 @@ func (h *Handle) LinkSetVfVlan(link Link, vf, vlan int) error {
 	return ErrNotImplemented
 }
 
+func (h *Handle) LinkSetVfVlanQos(link Link, vf, vlan, qos int) error {
+	return ErrNotImplemented
+}
+
 func (h *Handle) LinkSetVfTxRate(link Link, vf, rate int) error {
 	return ErrNotImplemented
 }

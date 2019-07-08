@@ -467,6 +467,37 @@ func (h *Handle) LinkSetVfVlan(link Link, vf, vlan int) error {
 	return err
 }
 
+// LinkSetVfVlanQos sets the vlan and qos priority of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf vlan $vlan qos $qos`
+func LinkSetVfVlanQos(link Link, vf, vlan, qos int) error {
+	return pkgHandle.LinkSetVfVlanQos(link, vf, vlan, qos)
+}
+
+// LinkSetVfVlanQos sets the vlan and qos priority of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf vlan $vlan qos $qos`
+func (h *Handle) LinkSetVfVlanQos(link Link, vf, vlan, qos int) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
+	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
+	vfmsg := nl.VfVlan{
+		Vf:   uint32(vf),
+		Vlan: uint32(vlan),
+		Qos:  uint32(qos),
+	}
+	nl.NewRtAttrChild(info, nl.IFLA_VF_VLAN, vfmsg.Serialize())
+	req.AddData(data)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetVfTxRate sets the tx rate of a vf for the link.
 // Equivalent to: `ip link set $link vf $vf rate $rate`
 func LinkSetVfTxRate(link Link, vf, rate int) error {
