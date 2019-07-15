@@ -331,7 +331,13 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 			msgs, from, err := s.Receive()
 			if err != nil {
 				if cberr != nil {
-					cberr(fmt.Errorf("Receive: %v", err))
+					cberr(err)
+				}
+				return
+			}
+			if from.Pid != nl.PidKernel {
+				if cberr != nil {
+					cberr(fmt.Errorf("Wrong sender portid %d, expected %d", from.Pid, nl.PidKernel))
 				}
 				continue
 			}
