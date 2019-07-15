@@ -73,7 +73,7 @@ func TestIfSocketCloses(t *testing.T) {
 	go func(sk *NetlinkSocket, endCh chan error) {
 		endCh <- nil
 		for {
-			_, err := sk.Receive()
+			_, _, err := sk.Receive()
 			// Receive returned because of a timeout and the FD == -1 means that the socket got closed
 			if err == unix.EAGAIN && nlSock.GetFd() == -1 {
 				endCh <- err
