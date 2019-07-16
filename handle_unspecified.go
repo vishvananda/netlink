@@ -83,6 +83,10 @@ func (h *Handle) LinkSetVfTxRate(link Link, vf, rate int) error {
 	return ErrNotImplemented
 }
 
+func (h *Handle) LinkSetVfRate(link Link, vf, minRate, maxRate int) error {
+	return ErrNotImplemented
+}
+
 func (h *Handle) LinkSetMaster(link Link, master *Bridge) error {
 	return ErrNotImplemented
 }
