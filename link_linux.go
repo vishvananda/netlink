@@ -528,6 +528,37 @@ func (h *Handle) LinkSetVfTxRate(link Link, vf, rate int) error {
 	return err
 }
 
+// LinkSetVfRate sets the min and max tx rate of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf min_tx_rate $min_rate max_tx_rate $max_rate`
+func LinkSetVfRate(link Link, vf, minRate, maxRate int) error {
+	return pkgHandle.LinkSetVfRate(link, vf, minRate, maxRate)
+}
+
+// LinkSetVfRate sets the min and max tx rate of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf min_tx_rate $min_rate max_tx_rate $max_rate`
+func (h *Handle) LinkSetVfRate(link Link, vf, minRate, maxRate int) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
+	info := data.AddRtAttr(nl.IFLA_VF_INFO, nil)
+	vfmsg := nl.VfRate{
+		Vf:        uint32(vf),
+		MinTxRate: uint32(minRate),
+		MaxTxRate: uint32(maxRate),
+	}
+	info.AddRtAttr(nl.IFLA_VF_RATE, vfmsg.Serialize())
+	req.AddData(data)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetVfSpoofchk enables/disables spoof check on a vf for the link.
 // Equivalent to: `ip link set $link vf $vf spoofchk $check`
 func LinkSetVfSpoofchk(link Link, vf int, check bool) error {
@@ -2645,6 +2676,10 @@ func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) VfInfo {
 		case nl.IFLA_VF_LINK_STATE:
 			ls := nl.DeserializeVfLinkState(element.Value[:])
 			vf.LinkState = ls.LinkState
+		case nl.IFLA_VF_RATE:
+			vfr := nl.DeserializeVfRate(element.Value[:])
+			vf.MaxTxRate = vfr.MaxTxRate
+			vf.MinTxRate = vfr.MinTxRate
 		}
 	}
 	return vf
