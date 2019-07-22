@@ -15,16 +15,31 @@ import (
 const IFA_FLAGS = 0x8
 
 // AddrAdd will add an IP address to a link device.
-// Equivalent to: `ip addr add $addr dev $link`
+// Equivalent to: `ip addr add $addr dev $link` with a note:
+// If broadcast address is undefined, calculated one will be added.
 func AddrAdd(link Link, addr *Addr) error {
 	return pkgHandle.AddrAdd(link, addr)
 }
 
 // AddrAdd will add an IP address to a link device.
-// Equivalent to: `ip addr add $addr dev $link`
+// Equivalent to: `ip addr add $addr dev $link` with a note:
+// If broadcast address is undefined, calculated one will be added.
 func (h *Handle) AddrAdd(link Link, addr *Addr) error {
 	req := h.newNetlinkRequest(unix.RTM_NEWADDR, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
-	return h.addrHandle(link, addr, req)
+	return h.addrHandle(link, addr, req, true)
+}
+
+// AddrAddWithoutCalculatedBroadcast will add an IP address to a link device.
+// Equivalent to: `ip addr add $addr dev $link`
+func AddrAddWithoutCalculatedBroadcast(link Link, addr *Addr) error {
+	return pkgHandle.AddrAddWithoutCalculatedBroadcast(link, addr)
+}
+
+// AddrAddWithoutCalculatedBroadcast will add an IP address to a link device.
+// Equivalent to: `ip addr add $addr dev $link`
+func (h *Handle) AddrAddWithoutCalculatedBroadcast(link Link, addr *Addr) error {
+	req := h.newNetlinkRequest(unix.RTM_NEWADDR, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+	return h.addrHandle(link, addr, req, false)
 }
 
 // AddrReplace will replace (or, if not present, add) an IP address on a link device.
@@ -37,7 +52,7 @@ func AddrReplace(link Link, addr *Addr) error {
 // Equivalent to: `ip addr replace $addr dev $link`
 func (h *Handle) AddrReplace(link Link, addr *Addr) error {
 	req := h.newNetlinkRequest(unix.RTM_NEWADDR, unix.NLM_F_CREATE|unix.NLM_F_REPLACE|unix.NLM_F_ACK)
-	return h.addrHandle(link, addr, req)
+	return h.addrHandle(link, addr, req, false)
 }
 
 // AddrDel will delete an IP address from a link device.
@@ -50,10 +65,10 @@ func AddrDel(link Link, addr *Addr) error {
 // Equivalent to: `ip addr del $addr dev $link`
 func (h *Handle) AddrDel(link Link, addr *Addr) error {
 	req := h.newNetlinkRequest(unix.RTM_DELADDR, unix.NLM_F_ACK)
-	return h.addrHandle(link, addr, req)
+	return h.addrHandle(link, addr, req, false)
 }
 
-func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error {
+func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest, skipBrd bool) error {
 	base := link.Attrs()
 	if addr.Label != "" && !strings.HasPrefix(addr.Label, base.Name) {
 		return fmt.Errorf("label must begin with interface name")
@@ -108,14 +123,16 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 	}
 
 	if family == FAMILY_V4 {
-		if addr.Broadcast == nil {
+		if addr.Broadcast == nil && !skipBrd {
 			calcBroadcast := make(net.IP, masklen/8)
 			for i := range localAddrData {
 				calcBroadcast[i] = localAddrData[i] | ^mask[i]
 			}
 			addr.Broadcast = calcBroadcast
 		}
-		req.AddData(nl.NewRtAttr(unix.IFA_BROADCAST, addr.Broadcast))
+		if addr.Broadcast != nil {
+			req.AddData(nl.NewRtAttr(unix.IFA_BROADCAST, addr.Broadcast))
+		}
 
 		if addr.Label != "" {
 			labelData := nl.NewRtAttr(unix.IFA_LABEL, nl.ZeroTerminated(addr.Label))
