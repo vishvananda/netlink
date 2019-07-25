@@ -160,6 +160,10 @@ func AddrAdd(link Link, addr *Addr) error {
 	return ErrNotImplemented
 }
 
+func AddrReplace(link Link, addr *Addr) error {
+	return ErrNotImplemented
+}
+
 func AddrDel(link Link, addr *Addr) error {
 	return ErrNotImplemented
 }
