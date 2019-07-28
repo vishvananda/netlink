@@ -1150,8 +1150,8 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		native.PutUint32(b, uint32(base.ParentIndex))
 		data := nl.NewRtAttr(unix.IFLA_LINK, b)
 		req.AddData(data)
-	} else if link.Type() == "ipvlan" {
-		return fmt.Errorf("Can't create ipvlan link without ParentIndex")
+	} else if link.Type() == "ipvlan" || link.Type() == "ipoib" {
+		return fmt.Errorf("Can't create %s link without ParentIndex", link.Type())
 	}
 
 	nameData := nl.NewRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(base.Name))
@@ -1278,6 +1278,8 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		addGTPAttrs(link, linkInfo)
 	case *Xfrmi:
 		addXfrmiAttrs(link, linkInfo)
+	case *IPoIB:
+		addIPoIBAttrs(link, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -1533,6 +1535,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						link = &Xfrmi{}
 					case "tun":
 						link = &Tuntap{}
+					case "ipoib":
+						link = &IPoIB{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}
@@ -1578,6 +1582,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						parseXfrmiData(link, data)
 					case "tun":
 						parseTuntapData(link, data)
+					case "ipoib":
+						parseIPoIBData(link, data)
 					}
 				}
 			}
@@ -2775,4 +2781,25 @@ func parseTuntapData(link Link, data []syscall.NetlinkRouteAttr) {
 			}
 		}
 	}
+}
+
+func parseIPoIBData(link Link, data []syscall.NetlinkRouteAttr) {
+	ipoib := link.(*IPoIB)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_IPOIB_PKEY:
+			ipoib.Pkey = uint16(native.Uint16(datum.Value))
+		case nl.IFLA_IPOIB_MODE:
+			ipoib.Mode = IPoIBMode(native.Uint16(datum.Value))
+		case nl.IFLA_IPOIB_UMCAST:
+			ipoib.Umcast = uint16(native.Uint16(datum.Value))
+		}
+	}
+}
+
+func addIPoIBAttrs(ipoib *IPoIB, linkInfo *nl.RtAttr) {
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+	data.AddRtAttr(nl.IFLA_IPOIB_PKEY, nl.Uint16Attr(uint16(ipoib.Pkey)))
+	data.AddRtAttr(nl.IFLA_IPOIB_MODE, nl.Uint16Attr(uint16(ipoib.Mode)))
+	data.AddRtAttr(nl.IFLA_IPOIB_UMCAST, nl.Uint16Attr(uint16(ipoib.Umcast)))
 }
