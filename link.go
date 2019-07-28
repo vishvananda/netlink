@@ -918,6 +918,48 @@ func (xfrm *Xfrmi) Type() string {
 	return "xfrm"
 }
 
+// IPoIB interface
+
+type IPoIBMode uint16
+
+func (m *IPoIBMode) String() string {
+	str, ok := iPoIBModeToString[*m]
+	if !ok {
+		return fmt.Sprintf("mode(%d)", *m)
+	}
+	return str
+}
+
+const (
+	IPOIB_MODE_DATAGRAM = iota
+	IPOIB_MODE_CONNECTED
+)
+
+var iPoIBModeToString = map[IPoIBMode]string{
+	IPOIB_MODE_DATAGRAM:  "datagram",
+	IPOIB_MODE_CONNECTED: "connected",
+}
+
+var StringToIPoIBMode = map[string]IPoIBMode{
+	"datagram":  IPOIB_MODE_DATAGRAM,
+	"connected": IPOIB_MODE_CONNECTED,
+}
+
+type IPoIB struct {
+	LinkAttrs
+	Pkey   uint16
+	Mode   IPoIBMode
+	Umcast uint16
+}
+
+func (ipoib *IPoIB) Attrs() *LinkAttrs {
+	return &ipoib.LinkAttrs
+}
+
+func (ipoib *IPoIB) Type() string {
+	return "ipoib"
+}
+
 // iproute2 supported devices;
 // vlan | veth | vcan | dummy | ifb | macvlan | macvtap |
 // bridge | bond | ipoib | ip6tnl | ipip | sit | vxlan |
