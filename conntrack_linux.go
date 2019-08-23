@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
@@ -145,16 +146,23 @@ type ConntrackFlow struct {
 	Forward    ipTuple
 	Reverse    ipTuple
 	Mark       uint32
+	TimeStart  uint64
+	TimeStop   uint64
+	TimeOut    uint32
 }
 
 func (s *ConntrackFlow) String() string {
 	// conntrack cmd output:
 	// udp      17 src=127.0.0.1 dst=127.0.0.1 sport=4001 dport=1234 packets=5 bytes=532 [UNREPLIED] src=127.0.0.1 dst=127.0.0.1 sport=1234 dport=4001 packets=10 bytes=1078 mark=0
-	return fmt.Sprintf("%s\t%d src=%s dst=%s sport=%d dport=%d packets=%d bytes=%d\tsrc=%s dst=%s sport=%d dport=%d packets=%d bytes=%d mark=%d",
+	//             start=2019-07-26 01:26:21.557800506 +0000 UTC stop=1970-01-01 00:00:00 +0000 UTC timeout=30(sec)
+	start := time.Unix(0, int64(s.TimeStart))
+	stop := time.Unix(0, int64(s.TimeStop))
+	timeout := int32(s.TimeOut)
+	return fmt.Sprintf("%s\t%d src=%s dst=%s sport=%d dport=%d packets=%d bytes=%d\tsrc=%s dst=%s sport=%d dport=%d packets=%d bytes=%d mark=0x%x start=%v stop=%v timeout=%d(sec)",
 		nl.L4ProtoMap[s.Forward.Protocol], s.Forward.Protocol,
 		s.Forward.SrcIP.String(), s.Forward.DstIP.String(), s.Forward.SrcPort, s.Forward.DstPort, s.Forward.Packets, s.Forward.Bytes,
 		s.Reverse.SrcIP.String(), s.Reverse.DstIP.String(), s.Reverse.SrcPort, s.Reverse.DstPort, s.Reverse.Packets, s.Reverse.Bytes,
-		s.Mark)
+		s.Mark, start, stop, timeout)
 }
 
 // This method parse the ip tuple structure
@@ -241,6 +249,36 @@ func parseByteAndPacketCounters(r *bytes.Reader) (bytes, packets uint64) {
 	return
 }
 
+// when the flow is alive, only the timestamp_start is returned in structure
+func parseTimeStamp(r *bytes.Reader, readSize uint16) (tstart, tstop uint64) {
+	var numTimeStamps int
+	oneItem := nl.SizeofNfattr + 8 // 4 bytes attr header + 8 bytes timestamp
+	if readSize == uint16(oneItem) {
+		numTimeStamps = 1
+	} else if readSize == 2*uint16(oneItem) {
+		numTimeStamps = 2
+	} else {
+		return
+	}
+	for i := 0; i < numTimeStamps; i++ {
+		switch _, t, _ := parseNfAttrTL(r); t {
+		case nl.CTA_TIMESTAMP_START:
+			parseBERaw64(r, &tstart)
+		case nl.CTA_TIMESTAMP_STOP:
+			parseBERaw64(r, &tstop)
+		default:
+			return
+		}
+	}
+	return
+
+}
+
+func parseTimeOut(r *bytes.Reader) (ttimeout uint32) {
+	parseBERaw32(r, &ttimeout)
+	return
+}
+
 func parseConnectionMark(r *bytes.Reader) (mark uint32) {
 	parseBERaw32(r, &mark)
 	return
@@ -280,11 +318,21 @@ func parseRawData(data []byte) *ConntrackFlow {
 				s.Forward.Bytes, s.Forward.Packets = parseByteAndPacketCounters(reader)
 			case nl.CTA_COUNTERS_REPLY:
 				s.Reverse.Bytes, s.Reverse.Packets = parseByteAndPacketCounters(reader)
+			case nl.CTA_TIMESTAMP:
+				s.TimeStart, s.TimeStop = parseTimeStamp(reader, l)
+			case nl.CTA_PROTOINFO:
+				reader.Seek(int64(l), seekCurrent)
+			default:
 			}
 		} else {
 			switch t {
 			case nl.CTA_MARK:
 				s.Mark = parseConnectionMark(reader)
+			case nl.CTA_TIMEOUT:
+				s.TimeOut = parseTimeOut(reader)
+			case nl.CTA_STATUS, nl.CTA_USE, nl.CTA_ID:
+				reader.Seek(int64(l), seekCurrent)
+			default:
 			}
 		}
 	}
