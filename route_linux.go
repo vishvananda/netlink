@@ -1297,7 +1297,8 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 			msgs, from, err := s.Receive()
 			if err != nil {
 				if cberr != nil {
-					cberr(err)
+					cberr(fmt.Errorf("Receive failed: %v",
+						err))
 				}
 				return
 			}
@@ -1317,16 +1318,17 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 						continue
 					}
 					if cberr != nil {
-						cberr(syscall.Errno(-error))
+						cberr(fmt.Errorf("error message: %v",
+							syscall.Errno(-error)))
 					}
-					return
+					continue
 				}
 				route, err := deserializeRoute(m.Data)
 				if err != nil {
 					if cberr != nil {
 						cberr(err)
 					}
-					return
+					continue
 				}
 				ch <- RouteUpdate{Type: m.Header.Type, Route: route}
 			}

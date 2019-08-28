@@ -2042,7 +2042,8 @@ func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-c
 			msgs, from, err := s.Receive()
 			if err != nil {
 				if cberr != nil {
-					cberr(err)
+					cberr(fmt.Errorf("Receive failed: %v",
+						err))
 				}
 				return
 			}
@@ -2062,9 +2063,10 @@ func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-c
 						continue
 					}
 					if cberr != nil {
-						cberr(syscall.Errno(-error))
+						cberr(fmt.Errorf("error message: %v",
+							syscall.Errno(-error)))
 					}
-					return
+					continue
 				}
 				ifmsg := nl.DeserializeIfInfomsg(m.Data)
 				header := unix.NlMsghdr(m.Header)
@@ -2073,7 +2075,7 @@ func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-c
 					if cberr != nil {
 						cberr(err)
 					}
-					return
+					continue
 				}
 				ch <- LinkUpdate{IfInfomsg: *ifmsg, Header: header, Link: link}
 			}
