@@ -182,25 +182,43 @@ func parseIpTuple(reader *bytes.Reader, tpl *ipTuple) uint8 {
 			tpl.DstIP = v
 		}
 	}
-	// Skip the next 4 bytes  nl.NLA_F_NESTED|nl.CTA_TUPLE_PROTO
-	reader.Seek(4, seekCurrent)
-	_, t, _, v := parseNfAttrTLV(reader)
+	// Get total length of nested protocol-specific info.
+	_, _, protoInfoTotalLen := parseNfAttrTL(reader)
+	_, t, l, v := parseNfAttrTLV(reader)
+	// Track the number of bytes read.
+	protoInfoBytesRead := uint16(nl.SizeofNfattr) + l
 	if t == nl.CTA_PROTO_NUM {
 		tpl.Protocol = uint8(v[0])
 	}
-	// Skip some padding 3 bytes
+	// We only parse TCP & UDP headers. Skip the others.
+	if tpl.Protocol != 6 && tpl.Protocol != 17 {
+		// skip the rest
+		bytesRemaining := protoInfoTotalLen - protoInfoBytesRead
+		reader.Seek(int64(bytesRemaining), seekCurrent)
+		return tpl.Protocol
+	}
+	// Skip 3 bytes of padding
 	reader.Seek(3, seekCurrent)
+	protoInfoBytesRead += 3
 	for i := 0; i < 2; i++ {
 		_, t, _ := parseNfAttrTL(reader)
+		protoInfoBytesRead += uint16(nl.SizeofNfattr)
 		switch t {
 		case nl.CTA_PROTO_SRC_PORT:
 			parseBERaw16(reader, &tpl.SrcPort)
+			protoInfoBytesRead += 2
 		case nl.CTA_PROTO_DST_PORT:
 			parseBERaw16(reader, &tpl.DstPort)
+			protoInfoBytesRead += 2
 		}
-		// Skip some padding 2 byte
+		// Skip 2 bytes of padding
 		reader.Seek(2, seekCurrent)
+		protoInfoBytesRead += 2
 	}
+	// Skip any remaining/unknown parts of the message
+	bytesRemaining := protoInfoTotalLen - protoInfoBytesRead
+	reader.Seek(int64(bytesRemaining), seekCurrent)
+
 	return tpl.Protocol
 }
 
@@ -219,8 +237,12 @@ func parseNfAttrTL(r *bytes.Reader) (isNested bool, attrType, len uint16) {
 	binary.Read(r, nl.NativeEndian(), &attrType)
 	isNested = (attrType & nl.NLA_F_NESTED) == nl.NLA_F_NESTED
 	attrType = attrType & (nl.NLA_F_NESTED - 1)
-
 	return isNested, attrType, len
+}
+
+func skipNfAttrValue(r *bytes.Reader, len uint16) {
+	len = (len + nl.NLA_ALIGNTO - 1) & ^(nl.NLA_ALIGNTO - 1)
+	r.Seek(int64(len), seekCurrent)
 }
 
 func parseBERaw16(r *bytes.Reader, v *uint16) {
@@ -304,15 +326,15 @@ func parseRawData(data []byte) *ConntrackFlow {
 		if nested, t, l := parseNfAttrTL(reader); nested {
 			switch t {
 			case nl.CTA_TUPLE_ORIG:
-				if nested, t, _ = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
+				if nested, t, l = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
 					parseIpTuple(reader, &s.Forward)
 				}
 			case nl.CTA_TUPLE_REPLY:
-				if nested, t, _ = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
+				if nested, t, l = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
 					parseIpTuple(reader, &s.Reverse)
 				} else {
 					// Header not recognized skip it
-					reader.Seek(int64(l), seekCurrent)
+					skipNfAttrValue(reader, l)
 				}
 			case nl.CTA_COUNTERS_ORIG:
 				s.Forward.Bytes, s.Forward.Packets = parseByteAndPacketCounters(reader)
@@ -321,8 +343,9 @@ func parseRawData(data []byte) *ConntrackFlow {
 			case nl.CTA_TIMESTAMP:
 				s.TimeStart, s.TimeStop = parseTimeStamp(reader, l)
 			case nl.CTA_PROTOINFO:
-				reader.Seek(int64(l), seekCurrent)
+				skipNfAttrValue(reader, l)
 			default:
+				skipNfAttrValue(reader, l)
 			}
 		} else {
 			switch t {
@@ -331,8 +354,9 @@ func parseRawData(data []byte) *ConntrackFlow {
 			case nl.CTA_TIMEOUT:
 				s.TimeOut = parseTimeOut(reader)
 			case nl.CTA_STATUS, nl.CTA_USE, nl.CTA_ID:
-				reader.Seek(int64(l), seekCurrent)
+				skipNfAttrValue(reader, l)
 			default:
+				skipNfAttrValue(reader, l)
 			}
 		}
 	}
