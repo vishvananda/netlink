@@ -222,6 +222,27 @@ func TestXfrmStateWithIfid(t *testing.T) {
 	}
 }
 
+func TestXfrmStateWithOutputMark(t *testing.T) {
+	minKernelRequired(t, 4, 14)
+	defer setUpNetlinkTest(t)()
+
+	state := getBaseState()
+	state.OutputMark = 10
+	if err := XfrmStateAdd(state); err != nil {
+		t.Fatal(err)
+	}
+	s, err := XfrmStateGet(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !compareStates(state, s) {
+		t.Fatalf("unexpected state returned.\nExpected: %v.\nGot %v", state, s)
+	}
+	if err = XfrmStateDel(s); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func getBaseState() *XfrmState {
 	return &XfrmState{
 		// Force 4 byte notation for the IPv4 addresses
@@ -273,6 +294,7 @@ func compareStates(a, b *XfrmState) bool {
 	return a.Src.Equal(b.Src) && a.Dst.Equal(b.Dst) &&
 		a.Mode == b.Mode && a.Spi == b.Spi && a.Proto == b.Proto &&
 		a.Ifid == b.Ifid &&
+		a.OutputMark == b.OutputMark &&
 		compareAlgo(a.Auth, b.Auth) &&
 		compareAlgo(a.Crypt, b.Crypt) &&
 		compareAlgo(a.Aead, b.Aead) &&
