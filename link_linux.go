@@ -1476,10 +1476,12 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 		base.Promisc = 1
 	}
 	var (
-		link     Link
-		stats32  []byte
-		stats64  []byte
-		linkType string
+		link      Link
+		stats32   []byte
+		stats64   []byte
+		linkType  string
+		linkSlave LinkSlave
+		slaveType string
 	)
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
@@ -1585,6 +1587,21 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 					case "ipoib":
 						parseIPoIBData(link, data)
 					}
+				case nl.IFLA_INFO_SLAVE_KIND:
+					slaveType = string(info.Value[:len(info.Value)-1])
+					switch slaveType {
+					case "bond":
+						linkSlave = &BondSlave{}
+					}
+				case nl.IFLA_INFO_SLAVE_DATA:
+					switch slaveType {
+					case "bond":
+						data, err := nl.ParseRouteAttr(info.Value)
+						if err != nil {
+							return nil, err
+						}
+						parseBondSlaveData(linkSlave, data)
+					}
 				}
 			}
 		case unix.IFLA_ADDRESS:
@@ -1667,6 +1684,7 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 		link = &Device{}
 	}
 	*link.Attrs() = base
+	link.Attrs().Slave = linkSlave
 
 	// If the tuntap attributes are not updated by netlink due to
 	// an older driver, use sysfs
@@ -2127,6 +2145,46 @@ func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
 			bond.AdActorSystem = net.HardwareAddr(data[i].Value[0:6])
 		case nl.IFLA_BOND_TLB_DYNAMIC_LB:
 			bond.TlbDynamicLb = int(data[i].Value[0])
+		}
+	}
+}
+
+func addBondSlaveAttrs(bondSlave *BondSlave, linkInfo *nl.RtAttr) {
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_SLAVE_DATA, nil)
+
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_STATE, nl.Uint8Attr(uint8(bondSlave.State)))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_MII_STATUS, nl.Uint8Attr(uint8(bondSlave.MiiStatus)))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_LINK_FAILURE_COUNT, nl.Uint32Attr(bondSlave.LinkFailureCount))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_QUEUE_ID, nl.Uint16Attr(bondSlave.QueueId))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_AGGREGATOR_ID, nl.Uint16Attr(bondSlave.AggregatorId))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE, nl.Uint8Attr(bondSlave.AdActorOperPortState))
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE, nl.Uint16Attr(bondSlave.AdPartnerOperPortState))
+
+	if mac := bondSlave.PermHardwareAddr; mac != nil {
+		data.AddRtAttr(nl.IFLA_BOND_SLAVE_PERM_HWADDR, []byte(mac))
+	}
+}
+
+func parseBondSlaveData(slave LinkSlave, data []syscall.NetlinkRouteAttr) {
+	bondSlave := slave.(*BondSlave)
+	for i := range data {
+		switch data[i].Attr.Type {
+		case nl.IFLA_BOND_SLAVE_STATE:
+			bondSlave.State = BondSlaveState(data[i].Value[0])
+		case nl.IFLA_BOND_SLAVE_MII_STATUS:
+			bondSlave.MiiStatus = BondSlaveMiiStatus(data[i].Value[0])
+		case nl.IFLA_BOND_SLAVE_LINK_FAILURE_COUNT:
+			bondSlave.LinkFailureCount = native.Uint32(data[i].Value[0:4])
+		case nl.IFLA_BOND_SLAVE_PERM_HWADDR:
+			bondSlave.PermHardwareAddr = net.HardwareAddr(data[i].Value[0:6])
+		case nl.IFLA_BOND_SLAVE_QUEUE_ID:
+			bondSlave.QueueId = native.Uint16(data[i].Value[0:2])
+		case nl.IFLA_BOND_SLAVE_AD_AGGREGATOR_ID:
+			bondSlave.AggregatorId = native.Uint16(data[i].Value[0:2])
+		case nl.IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE:
+			bondSlave.AdActorOperPortState = uint8(data[i].Value[0])
+		case nl.IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE:
+			bondSlave.AdPartnerOperPortState = native.Uint16(data[i].Value[0:2])
 		}
 	}
 }
@@ -2723,6 +2781,30 @@ func LinkSetBondSlave(link Link, master *Bond) error {
 		return fmt.Errorf("Failed to enslave %q to %q, errno=%v", link.Attrs().Name, master.Attrs().Name, errno)
 	}
 	return nil
+}
+
+// LinkSetBondSlaveQueueId modify bond slave queue-id.
+func (h *Handle) LinkSetBondSlaveQueueId(link Link, queueId uint16) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	linkInfo := nl.NewRtAttr(unix.IFLA_LINKINFO, nil)
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_SLAVE_DATA, nil)
+	data.AddRtAttr(nl.IFLA_BOND_SLAVE_QUEUE_ID, nl.Uint16Attr(queueId))
+
+	req.AddData(linkInfo)
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
+// LinkSetBondSlaveQueueId modify bond slave queue-id.
+func LinkSetBondSlaveQueueId(link Link, queueId uint16) error {
+	return pkgHandle.LinkSetBondSlaveQueueId(link, queueId)
 }
 
 // VethPeerIndex get veth peer index.

@@ -2035,6 +2035,81 @@ func TestVethPeerIndex(t *testing.T) {
 	}
 }
 
+func TestLinkSlaveBond(t *testing.T) {
+	minKernelRequired(t, 3, 13)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	const (
+		bondName  = "foo"
+		slaveName = "fooFoo"
+	)
+
+	bond := NewLinkBond(LinkAttrs{Name: bondName})
+	bond.Mode = BOND_MODE_BALANCE_RR
+	if err := LinkAdd(bond); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(bond)
+
+	slaveDummy := &Dummy{LinkAttrs{Name: slaveName}}
+	if err := LinkAdd(slaveDummy); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(slaveDummy)
+
+	if err := LinkSetBondSlave(slaveDummy, bond); err != nil {
+		t.Fatal(err)
+	}
+
+	slaveLink, err := LinkByName(slaveName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	slave := slaveLink.Attrs().Slave
+	if slave == nil {
+		t.Errorf("for %s expected slave is not nil.", slaveName)
+	}
+
+	if slaveType := slave.SlaveType(); slaveType != "bond" {
+		t.Errorf("for %s expected slave type is 'bond', but '%s'", slaveName, slaveType)
+	}
+}
+
+func TestLinkSetBondSlaveQueueId(t *testing.T) {
+	minKernelRequired(t, 3, 13)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	const (
+		bondName   = "foo"
+		slave1Name = "fooFoo"
+	)
+
+	bond := NewLinkBond(LinkAttrs{Name: bondName})
+	if err := LinkAdd(bond); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(bond)
+
+	slave := &Dummy{LinkAttrs{Name: slave1Name}}
+	if err := LinkAdd(slave); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(slave)
+
+	if err := LinkSetBondSlave(slave, bond); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := pkgHandle.LinkSetBondSlaveQueueId(slave, 1); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLinkSetBondSlave(t *testing.T) {
 	minKernelRequired(t, 3, 13)
 
