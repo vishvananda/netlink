@@ -200,6 +200,13 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if _, ok := link.(*Ip6tnl); ok {
+		_, ok := result.(*Ip6tnl)
+		if !ok {
+			t.Fatal("Result of create is not a ip6tnl")
+		}
+	}
+
 	if _, ok := link.(*Sittun); ok {
 		_, ok := result.(*Sittun)
 		if !ok {
@@ -1605,6 +1612,17 @@ func TestLinkAddDelIptun(t *testing.T) {
 		PMtuDisc:  1,
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 1)})
+}
+
+func TestLinkAddDelIp6tnl(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Ip6tnl{
+		LinkAttrs: LinkAttrs{Name: "ip6tnltest"},
+		Local:     net.ParseIP("2001:db8::100"),
+		Remote:    net.ParseIP("2001:db8::200"),
+	})
 }
 
 func TestLinkAddDelSittun(t *testing.T) {

@@ -871,6 +871,27 @@ func (iptun *Iptun) Type() string {
 	return "ipip"
 }
 
+type Ip6tnl struct {
+	LinkAttrs
+	Link       uint32
+	Local      net.IP
+	Remote     net.IP
+	Ttl        uint8
+	Tos        uint8
+	EncapLimit uint8
+	Flags      uint32
+	Proto      uint8
+	FlowInfo   uint32
+}
+
+func (ip6tnl *Ip6tnl) Attrs() *LinkAttrs {
+	return &ip6tnl.LinkAttrs
+}
+
+func (ip6tnl *Ip6tnl) Type() string {
+	return "ip6tnl"
+}
+
 type Sittun struct {
 	LinkAttrs
 	Link       uint32
