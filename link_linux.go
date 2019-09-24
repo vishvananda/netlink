@@ -34,6 +34,12 @@ const (
 	TUNTAP_MULTI_QUEUE_DEFAULTS TuntapFlag = TUNTAP_MULTI_QUEUE | TUNTAP_NO_PI
 )
 
+const (
+	VF_LINK_STATE_AUTO    uint32 = 0
+	VF_LINK_STATE_ENABLE  uint32 = 1
+	VF_LINK_STATE_DISABLE uint32 = 2
+)
+
 var lookupByDump = false
 
 var macvlanModes = [...]uint32{
