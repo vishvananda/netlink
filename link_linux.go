@@ -2106,7 +2106,7 @@ func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_BOND_ARP_INTERVAL:
 			bond.ArpInterval = int(native.Uint32(data[i].Value[0:4]))
 		case nl.IFLA_BOND_ARP_IP_TARGET:
-			// TODO: implement
+			bond.ArpIpTargets = parseBondArpIpTargets(data[i].Value)
 		case nl.IFLA_BOND_ARP_VALIDATE:
 			bond.ArpValidate = BondArpValidate(native.Uint32(data[i].Value[0:4]))
 		case nl.IFLA_BOND_ARP_ALL_TARGETS:
@@ -2147,6 +2147,27 @@ func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
 			bond.TlbDynamicLb = int(data[i].Value[0])
 		}
 	}
+}
+
+func parseBondArpIpTargets(value []byte) []net.IP {
+	data, err := nl.ParseRouteAttr(value)
+	if err != nil {
+		return nil
+	}
+
+	targets := []net.IP{}
+	for i := range data {
+		target := net.IP(data[i].Value)
+		if ip := target.To4(); ip != nil {
+			targets = append(targets, ip)
+			continue
+		}
+		if ip := target.To16(); ip != nil {
+			targets = append(targets, ip)
+		}
+	}
+
+	return targets
 }
 
 func addBondSlaveAttrs(bondSlave *BondSlave, linkInfo *nl.RtAttr) {

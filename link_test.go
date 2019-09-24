@@ -167,6 +167,24 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if bond.Mode != other.Mode {
 			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, bond.Mode)
 		}
+		if bond.ArpIpTargets != nil {
+			if other.ArpIpTargets == nil {
+				t.Fatalf("Got unexpected ArpIpTargets: nil")
+			}
+
+			if len(bond.ArpIpTargets) != len(other.ArpIpTargets) {
+				t.Fatalf("Got unexpected ArpIpTargets len: %d, expected: %d",
+					len(other.ArpIpTargets), len(bond.ArpIpTargets))
+			}
+
+			for i := range bond.ArpIpTargets {
+				if !bond.ArpIpTargets[i].Equal(other.ArpIpTargets[i]) {
+					t.Fatalf("Got unexpected ArpIpTargets: %s, expected: %s",
+						other.ArpIpTargets[i], bond.ArpIpTargets[i])
+				}
+			}
+		}
+
 		// Mode specific checks
 		if os.Getenv("TRAVIS_BUILD_DIR") != "" {
 			t.Log("Kernel in travis is too old for this check")
@@ -685,8 +703,10 @@ func TestLinkAddDelBond(t *testing.T) {
 			bond.AdActorSysPrio = 1
 			bond.AdUserPortKey = 1
 			bond.AdActorSystem, _ = net.ParseMAC("06:aa:bb:cc:dd:ee")
+			bond.ArpIpTargets = []net.IP{net.ParseIP("1.1.1.1"), net.ParseIP("1.1.1.2")}
 		case "balance-tlb":
 			bond.TlbDynamicLb = 1
+			bond.ArpIpTargets = []net.IP{net.ParseIP("1.1.1.2"), net.ParseIP("1.1.1.1")}
 		}
 		testLinkAddDel(t, bond)
 	}
