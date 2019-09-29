@@ -709,13 +709,13 @@ func (h *Handle) LinkSetVfGUID(link Link, vf int, vfGuid net.HardwareAddr, guidT
 
 // LinkSetMaster sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
-func LinkSetMaster(link Link, master *Bridge) error {
+func LinkSetMaster(link Link, master Link) error {
 	return pkgHandle.LinkSetMaster(link, master)
 }
 
 // LinkSetMaster sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
-func (h *Handle) LinkSetMaster(link Link, master *Bridge) error {
+func (h *Handle) LinkSetMaster(link Link, master Link) error {
 	index := 0
 	if master != nil {
 		masterBase := master.Attrs()
