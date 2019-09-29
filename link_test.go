@@ -857,20 +857,7 @@ func TestLinkAddDelBridgeMaster(t *testing.T) {
 	}
 }
 
-func TestLinkSetUnsetResetMaster(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
-
-	master := &Bridge{LinkAttrs: LinkAttrs{Name: "foo"}}
-	if err := LinkAdd(master); err != nil {
-		t.Fatal(err)
-	}
-
-	newmaster := &Bridge{LinkAttrs: LinkAttrs{Name: "bar"}}
-	if err := LinkAdd(newmaster); err != nil {
-		t.Fatal(err)
-	}
-
+func testLinkSetUnsetResetMaster(t *testing.T, master, newmaster Link) {
 	slave := &Dummy{LinkAttrs{Name: "baz"}}
 	if err := LinkAdd(slave); err != nil {
 		t.Fatal(err)
@@ -923,6 +910,50 @@ func TestLinkSetUnsetResetMaster(t *testing.T) {
 	if err := LinkDel(slave); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestLinkSetUnsetResetMaster(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	master := &Bridge{LinkAttrs: LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(master); err != nil {
+		t.Fatal(err)
+	}
+
+	newmaster := &Bridge{LinkAttrs: LinkAttrs{Name: "bar"}}
+	if err := LinkAdd(newmaster); err != nil {
+		t.Fatal(err)
+	}
+
+	testLinkSetUnsetResetMaster(t, master, newmaster)
+
+	if err := LinkDel(newmaster); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkDel(master); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLinkSetUnsetResetMasterBond(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	master := NewLinkBond(LinkAttrs{Name: "foo"})
+	master.Mode = BOND_MODE_BALANCE_RR
+	if err := LinkAdd(master); err != nil {
+		t.Fatal(err)
+	}
+
+	newmaster := NewLinkBond(LinkAttrs{Name: "bar"})
+	newmaster.Mode = BOND_MODE_BALANCE_RR
+	if err := LinkAdd(newmaster); err != nil {
+		t.Fatal(err)
+	}
+
+	testLinkSetUnsetResetMaster(t, master, newmaster)
 
 	if err := LinkDel(newmaster); err != nil {
 		t.Fatal(err)
