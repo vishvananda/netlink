@@ -167,6 +167,24 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if bond.Mode != other.Mode {
 			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, bond.Mode)
 		}
+		if bond.ArpIpTargets != nil {
+			if other.ArpIpTargets == nil {
+				t.Fatalf("Got unexpected ArpIpTargets: nil")
+			}
+
+			if len(bond.ArpIpTargets) != len(other.ArpIpTargets) {
+				t.Fatalf("Got unexpected ArpIpTargets len: %d, expected: %d",
+					len(other.ArpIpTargets), len(bond.ArpIpTargets))
+			}
+
+			for i := range bond.ArpIpTargets {
+				if !bond.ArpIpTargets[i].Equal(other.ArpIpTargets[i]) {
+					t.Fatalf("Got unexpected ArpIpTargets: %s, expected: %s",
+						other.ArpIpTargets[i], bond.ArpIpTargets[i])
+				}
+			}
+		}
+
 		// Mode specific checks
 		if os.Getenv("TRAVIS_BUILD_DIR") != "" {
 			t.Log("Kernel in travis is too old for this check")
@@ -197,6 +215,13 @@ func testLinkAddDel(t *testing.T, link Link) {
 		_, ok := result.(*Iptun)
 		if !ok {
 			t.Fatal("Result of create is not a iptun")
+		}
+	}
+
+	if _, ok := link.(*Ip6tnl); ok {
+		_, ok := result.(*Ip6tnl)
+		if !ok {
+			t.Fatal("Result of create is not a ip6tnl")
 		}
 	}
 
@@ -685,8 +710,10 @@ func TestLinkAddDelBond(t *testing.T) {
 			bond.AdActorSysPrio = 1
 			bond.AdUserPortKey = 1
 			bond.AdActorSystem, _ = net.ParseMAC("06:aa:bb:cc:dd:ee")
+			bond.ArpIpTargets = []net.IP{net.ParseIP("1.1.1.1"), net.ParseIP("1.1.1.2")}
 		case "balance-tlb":
 			bond.TlbDynamicLb = 1
+			bond.ArpIpTargets = []net.IP{net.ParseIP("1.1.1.2"), net.ParseIP("1.1.1.1")}
 		}
 		testLinkAddDel(t, bond)
 	}
@@ -830,20 +857,7 @@ func TestLinkAddDelBridgeMaster(t *testing.T) {
 	}
 }
 
-func TestLinkSetUnsetResetMaster(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
-
-	master := &Bridge{LinkAttrs: LinkAttrs{Name: "foo"}}
-	if err := LinkAdd(master); err != nil {
-		t.Fatal(err)
-	}
-
-	newmaster := &Bridge{LinkAttrs: LinkAttrs{Name: "bar"}}
-	if err := LinkAdd(newmaster); err != nil {
-		t.Fatal(err)
-	}
-
+func testLinkSetUnsetResetMaster(t *testing.T, master, newmaster Link) {
 	slave := &Dummy{LinkAttrs{Name: "baz"}}
 	if err := LinkAdd(slave); err != nil {
 		t.Fatal(err)
@@ -896,6 +910,50 @@ func TestLinkSetUnsetResetMaster(t *testing.T) {
 	if err := LinkDel(slave); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestLinkSetUnsetResetMaster(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	master := &Bridge{LinkAttrs: LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(master); err != nil {
+		t.Fatal(err)
+	}
+
+	newmaster := &Bridge{LinkAttrs: LinkAttrs{Name: "bar"}}
+	if err := LinkAdd(newmaster); err != nil {
+		t.Fatal(err)
+	}
+
+	testLinkSetUnsetResetMaster(t, master, newmaster)
+
+	if err := LinkDel(newmaster); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkDel(master); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLinkSetUnsetResetMasterBond(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	master := NewLinkBond(LinkAttrs{Name: "foo"})
+	master.Mode = BOND_MODE_BALANCE_RR
+	if err := LinkAdd(master); err != nil {
+		t.Fatal(err)
+	}
+
+	newmaster := NewLinkBond(LinkAttrs{Name: "bar"})
+	newmaster.Mode = BOND_MODE_BALANCE_RR
+	if err := LinkAdd(newmaster); err != nil {
+		t.Fatal(err)
+	}
+
+	testLinkSetUnsetResetMaster(t, master, newmaster)
 
 	if err := LinkDel(newmaster); err != nil {
 		t.Fatal(err)
@@ -1607,6 +1665,17 @@ func TestLinkAddDelIptun(t *testing.T) {
 		Remote:    net.IPv4(127, 0, 0, 1)})
 }
 
+func TestLinkAddDelIp6tnl(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Ip6tnl{
+		LinkAttrs: LinkAttrs{Name: "ip6tnltest"},
+		Local:     net.ParseIP("2001:db8::100"),
+		Remote:    net.ParseIP("2001:db8::200"),
+	})
+}
+
 func TestLinkAddDelSittun(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
@@ -2032,6 +2101,81 @@ func TestVethPeerIndex(t *testing.T) {
 
 	if peerIndexTwo != linkOne.Attrs().Index {
 		t.Errorf("VethPeerIndex(%s) mismatch %d != %d", linkTwo.Attrs().Name, peerIndexTwo, linkOne.Attrs().Index)
+	}
+}
+
+func TestLinkSlaveBond(t *testing.T) {
+	minKernelRequired(t, 3, 13)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	const (
+		bondName  = "foo"
+		slaveName = "fooFoo"
+	)
+
+	bond := NewLinkBond(LinkAttrs{Name: bondName})
+	bond.Mode = BOND_MODE_BALANCE_RR
+	if err := LinkAdd(bond); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(bond)
+
+	slaveDummy := &Dummy{LinkAttrs{Name: slaveName}}
+	if err := LinkAdd(slaveDummy); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(slaveDummy)
+
+	if err := LinkSetBondSlave(slaveDummy, bond); err != nil {
+		t.Fatal(err)
+	}
+
+	slaveLink, err := LinkByName(slaveName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	slave := slaveLink.Attrs().Slave
+	if slave == nil {
+		t.Errorf("for %s expected slave is not nil.", slaveName)
+	}
+
+	if slaveType := slave.SlaveType(); slaveType != "bond" {
+		t.Errorf("for %s expected slave type is 'bond', but '%s'", slaveName, slaveType)
+	}
+}
+
+func TestLinkSetBondSlaveQueueId(t *testing.T) {
+	minKernelRequired(t, 3, 13)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	const (
+		bondName   = "foo"
+		slave1Name = "fooFoo"
+	)
+
+	bond := NewLinkBond(LinkAttrs{Name: bondName})
+	if err := LinkAdd(bond); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(bond)
+
+	slave := &Dummy{LinkAttrs{Name: slave1Name}}
+	if err := LinkAdd(slave); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(slave)
+
+	if err := LinkSetBondSlave(slave, bond); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := pkgHandle.LinkSetBondSlaveQueueId(slave, 1); err != nil {
+		t.Fatal(err)
 	}
 }
 
