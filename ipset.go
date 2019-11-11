@@ -279,6 +279,15 @@ func (h *Handle) ipsetList(setName string, full bool) ([]IPSetInfo, error) {
 		req.AddData(nl.NewRtAttr(IPSET_ATTR_SETNAME, nl.ZeroTerminated(setName)))
 	}
 
+	if !full {
+		req.AddData(
+			nl.NewRtAttr(
+				IPSET_ATTR_FLAGS|syscallNLA_F_NET_BYTEORDER,
+				nl.Uint32AttrNetEndian(IPSET_LIST_TERSE),
+			),
+		)
+	}
+
 	msgs, err := req.Execute(unixNETLINK_NETFILTER, 0)
 	if err != nil {
 		return nil, err
@@ -287,7 +296,7 @@ func (h *Handle) ipsetList(setName string, full bool) ([]IPSetInfo, error) {
 	resp := make([]IPSetInfo, 0, 256)
 
 	for _, m := range msgs {
-		info, err := parseIPSetInfo(m, full)
+		info, err := parseIPSetInfo(m)
 		if err != nil {
 			return nil, err
 		}
@@ -398,13 +407,13 @@ func (h *Handle) IPSetAdd(setName string, entry IPSetInfoADTData) error {
 }
 
 // IPSetDel removes a specified entry to the specified set
-// Note: IPSetDel would not report entry-does-not-exist error in eny case
+// Note: IPSetDel would not report entry-does-not-exist error in any case
 func IPSetDel(setName string, entry IPSetInfoADTData) error {
 	return pkgHandle.IPSetDel(setName, entry)
 }
 
 // IPSetDel removes a specified entry to the specified set
-// Note: IPSetDel would not report entry-does-not-exist error in eny case
+// Note: IPSetDel would not report entry-does-not-exist error in any case
 func (h *Handle) IPSetDel(setName string, entry IPSetInfoADTData) error {
 	if len(setName) == 0 {
 		return ErrNameRequired

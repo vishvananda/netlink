@@ -127,16 +127,14 @@ func (d *IPSetInfoData) setAttr(id uint16, data []byte) {
 	}
 }
 
-func (a *IPSetInfoADT) setAttr(id uint16, data []byte, full bool) {
+func (a *IPSetInfoADT) setAttr(id uint16, data []byte) {
 	switch id {
 	case IPSET_ATTR_DATA | NLA_F_NESTED:
-		if full {
-			d, err := parseIPSetInfoADTData(data)
-			if err != nil {
-				panic(err)
-			}
-			a.Data = append(a.Data, d)
+		d, err := parseIPSetInfoADTData(data)
+		if err != nil {
+			panic(err)
 		}
+		a.Data = append(a.Data, d)
 
 	default:
 		panic(
@@ -226,7 +224,7 @@ func (d *IPSetInfoADTDataIP) setAttr(id uint16, data []byte) {
 	}
 }
 
-func parseIPSetInfo(data []byte, full bool) (IPSetInfo, error) {
+func parseIPSetInfo(data []byte) (IPSetInfo, error) {
 	i := IPSetInfo{}
 	r := bytes.NewReader(data)
 
@@ -239,7 +237,7 @@ func parseIPSetInfo(data []byte, full bool) (IPSetInfo, error) {
 		if err != nil {
 			return i, err
 		}
-		i.setAttr(id, val, full)
+		i.setAttr(id, val)
 	}
 
 	return i, nil
@@ -281,7 +279,7 @@ func nlaAlignOf(attrlen int) int {
 	return (attrlen + syscallNLA_ALIGNTO - 1) & ^(syscallNLA_ALIGNTO - 1)
 }
 
-func (i *IPSetInfo) setAttr(id uint16, data []byte, full bool) {
+func (i *IPSetInfo) setAttr(id uint16, data []byte) {
 	switch id {
 	case IPSET_ATTR_PROTOCOL:
 		i.Proto = IpsetProtoEnumFromByte(data[0])
@@ -310,7 +308,7 @@ func (i *IPSetInfo) setAttr(id uint16, data []byte, full bool) {
 
 	case IPSET_ATTR_ADT | NLA_F_NESTED:
 		var err error
-		i.ADT, err = parseIPSetInfoADT(data, full)
+		i.ADT, err = parseIPSetInfoADT(data)
 		if err != nil {
 			panic(err)
 		}
@@ -335,7 +333,7 @@ func parseIPSetInfoData(data []byte) (IPSetInfoData, error) {
 	return d, nil
 }
 
-func parseIPSetInfoADT(data []byte, full bool) (IPSetInfoADT, error) {
+func parseIPSetInfoADT(data []byte) (IPSetInfoADT, error) {
 	a := IPSetInfoADT{
 		Data: make([]IPSetInfoADTData, 0, 256),
 	}
@@ -346,7 +344,7 @@ func parseIPSetInfoADT(data []byte, full bool) (IPSetInfoADT, error) {
 		if err != nil {
 			return a, err
 		}
-		a.setAttr(id, val, full)
+		a.setAttr(id, val)
 	}
 
 	return a, nil

@@ -150,3 +150,24 @@ const (
 	IPSET_ATTR_PAD
 	__IPSET_ATTR_ADT_MAX
 )
+
+/* Environment option flags */
+const (
+	IPSET_ENV_BIT_SORTED       = 0
+	IPSET_ENV_SORTED           = (1 << IPSET_ENV_BIT_SORTED)
+	IPSET_ENV_BIT_QUIET        = 1
+	IPSET_ENV_QUIET            = (1 << IPSET_ENV_BIT_QUIET)
+	IPSET_ENV_BIT_RESOLVE      = 2
+	IPSET_ENV_RESOLVE          = (1 << IPSET_ENV_BIT_RESOLVE)
+	IPSET_ENV_BIT_EXIST        = 3
+	IPSET_ENV_EXIST            = (1 << IPSET_ENV_BIT_EXIST)
+	IPSET_ENV_BIT_LIST_SETNAME = 4
+	IPSET_ENV_LIST_SETNAME     = (1 << IPSET_ENV_BIT_LIST_SETNAME)
+	IPSET_ENV_BIT_LIST_HEADER  = 5
+	IPSET_ENV_LIST_HEADER      = (1 << IPSET_ENV_BIT_LIST_HEADER)
+)
+
+/* values were reverse engineered */
+const (
+	IPSET_LIST_TERSE = 0x04
+)
