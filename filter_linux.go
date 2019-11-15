@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -429,6 +430,33 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			}
 			toTcGen(action.Attrs(), &mirred.TcGen)
 			aopts.AddRtAttr(nl.TCA_MIRRED_PARMS, mirred.Serialize())
+		case *TunnelKeyAction:
+			table := attr.AddRtAttr(tabIndex, nil)
+			tabIndex++
+			table.AddRtAttr(nl.TCA_ACT_KIND, nl.ZeroTerminated("tunnel_key"))
+			aopts := table.AddRtAttr(nl.TCA_ACT_OPTIONS, nil)
+			tun := nl.TcTunnelKey{
+				Action: int32(action.Action),
+			}
+			toTcGen(action.Attrs(), &tun.TcGen)
+			aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_PARMS, tun.Serialize())
+			if action.Action == TCA_TUNNEL_KEY_SET {
+				aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_KEY_ID, htonl(action.KeyID))
+				if v4 := action.SrcAddr.To4(); v4 != nil {
+					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV4_SRC, v4[:])
+				} else if v6 := action.SrcAddr.To16(); v6 != nil {
+					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV6_SRC, v6[:])
+				} else {
+					return fmt.Errorf("invalid src addr %s for tunnel_key action", action.SrcAddr)
+				}
+				if v4 := action.DstAddr.To4(); v4 != nil {
+					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV4_DST, v4[:])
+				} else if v6 := action.DstAddr.To16(); v6 != nil {
+					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV6_DST, v6[:])
+				} else {
+					return fmt.Errorf("invalid dst addr %s for tunnel_key action", action.DstAddr)
+				}
+			}
 		case *ConnmarkAction:
 			table := attr.AddRtAttr(tabIndex, nil)
 			tabIndex++
@@ -486,6 +514,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 					action = &ConnmarkAction{}
 				case "gact":
 					action = &GenericAction{}
+				case "tunnel_key":
+					action = &TunnelKeyAction{}
 				default:
 					break nextattr
 				}
@@ -504,6 +534,22 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 							toAttrs(&mirred.TcGen, action.Attrs())
 							action.(*MirredAction).Ifindex = int(mirred.Ifindex)
 							action.(*MirredAction).MirredAction = MirredAct(mirred.Eaction)
+						}
+					case "tunnel_key":
+						switch adatum.Attr.Type {
+						case nl.TCA_TUNNEL_KEY_PARMS:
+							tun := *nl.DeserializeTunnelKey(adatum.Value)
+							action.(*TunnelKeyAction).ActionAttrs = ActionAttrs{}
+							toAttrs(&tun.TcGen, action.Attrs())
+							action.(*TunnelKeyAction).Action = TunnelKeyAct(tun.Action)
+						case nl.TCA_TUNNEL_KEY_ENC_KEY_ID:
+							action.(*TunnelKeyAction).KeyID = networkOrder.Uint32(adatum.Value[0:4])
+						case nl.TCA_TUNNEL_KEY_ENC_IPV6_SRC:
+						case nl.TCA_TUNNEL_KEY_ENC_IPV4_SRC:
+							action.(*TunnelKeyAction).SrcAddr = net.IP(adatum.Value[:])
+						case nl.TCA_TUNNEL_KEY_ENC_IPV6_DST:
+						case nl.TCA_TUNNEL_KEY_ENC_IPV4_DST:
+							action.(*TunnelKeyAction).DstAddr = net.IP(adatum.Value[:])
 						}
 					case "bpf":
 						switch adatum.Attr.Type {
