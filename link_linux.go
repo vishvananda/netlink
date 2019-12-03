@@ -681,7 +681,7 @@ func (h *Handle) LinkSetVfGUID(link Link, vf int, vfGuid net.HardwareAddr, guidT
 	var guid uint64
 
 	buf := bytes.NewBuffer(vfGuid)
-	err = binary.Read(buf, binary.LittleEndian, &guid)
+	err = binary.Read(buf, binary.BigEndian, &guid)
 	if err != nil {
 		return err
 	}
