@@ -92,6 +92,7 @@ const (
 	SizeofTcConnmark     = SizeofTcGen + 0x04
 	SizeofTcMirred       = SizeofTcGen + 0x08
 	SizeofTcTunnelKey    = SizeofTcGen + 0x04
+	SizeofTcSkbEdit      = SizeofTcGen
 	SizeofTcPolice       = 2*SizeofTcRateSpec + 0x20
 )
 
@@ -752,6 +753,34 @@ func DeserializeTunnelKey(b []byte) *TcTunnelKey {
 
 func (x *TcTunnelKey) Serialize() []byte {
 	return (*(*[SizeofTcTunnelKey]byte)(unsafe.Pointer(x)))[:]
+}
+
+const (
+	TCA_SKBEDIT_UNSPEC = iota
+	TCA_SKBEDIT_TM
+	TCA_SKBEDIT_PARMS
+	TCA_SKBEDIT_PRIORITY
+	TCA_SKBEDIT_QUEUE_MAPPING
+	TCA_SKBEDIT_MARK
+	TCA_SKBEDIT_PAD
+	TCA_SKBEDIT_PTYPE
+	TCA_SKBEDIT_MAX = TCA_SKBEDIT_MARK
+)
+
+type TcSkbEdit struct {
+	TcGen
+}
+
+func (x *TcSkbEdit) Len() int {
+	return SizeofTcSkbEdit
+}
+
+func DeserializeSkbEdit(b []byte) *TcSkbEdit {
+	return (*TcSkbEdit)(unsafe.Pointer(&b[0:SizeofTcSkbEdit][0]))
+}
+
+func (x *TcSkbEdit) Serialize() []byte {
+	return (*(*[SizeofTcSkbEdit]byte)(unsafe.Pointer(x)))[:]
 }
 
 // struct tc_police {

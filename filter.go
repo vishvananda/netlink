@@ -235,6 +235,30 @@ func NewTunnelKeyAction() *TunnelKeyAction {
 	}
 }
 
+type SkbEditAction struct {
+	ActionAttrs
+	QueueMapping *uint16
+	PType        *uint16
+	Priority     *uint32
+	Mark         *uint32
+}
+
+func (action *SkbEditAction) Type() string {
+	return "skbedit"
+}
+
+func (action *SkbEditAction) Attrs() *ActionAttrs {
+	return &action.ActionAttrs
+}
+
+func NewSkbEditAction() *SkbEditAction {
+	return &SkbEditAction{
+		ActionAttrs: ActionAttrs{
+			Action: TC_ACT_PIPE,
+		},
+	}
+}
+
 // MatchAll filters match all packets
 type MatchAll struct {
 	FilterAttrs

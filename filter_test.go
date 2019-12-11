@@ -1134,3 +1134,175 @@ func TestFilterU32TunnelKeyAddDel(t *testing.T) {
 		t.Fatal("Failed to remove qdisc")
 	}
 }
+
+func TestFilterU32SkbEditAddDel(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "bar"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	redir, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(redir); err != nil {
+		t.Fatal(err)
+	}
+
+	qdisc := &Ingress{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(0xffff, 0),
+			Parent:    HANDLE_INGRESS,
+		},
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("Qdisc is the wrong type")
+	}
+
+	skbedit := NewSkbEditAction()
+	ptype := uint16(unix.PACKET_HOST)
+	skbedit.PType = &ptype
+	priority := uint32(0xff)
+	skbedit.Priority = &priority
+	mark := uint32(0xfe)
+	skbedit.Mark = &mark
+	mapping := uint16(0xf)
+	skbedit.QueueMapping = &mapping
+
+	classId := MakeHandle(1, 1)
+	filter := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		ClassId: classId,
+		Actions: []Action{
+			skbedit,
+			&MirredAction{
+				ActionAttrs: ActionAttrs{
+					Action: TC_ACT_STOLEN,
+				},
+				MirredAction: TCA_EGRESS_REDIR,
+				Ifindex:      redir.Attrs().Index,
+			},
+		},
+	}
+
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+
+	filters, err := FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	u32, ok := filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+
+	if len(u32.Actions) != 2 {
+		t.Fatalf("Too few Actions in filter")
+	}
+	if u32.ClassId != classId {
+		t.Fatalf("ClassId of the filter is the wrong value")
+	}
+
+	// actions can be returned in reverse order
+	edit, ok := u32.Actions[0].(*SkbEditAction)
+	if !ok {
+		edit, ok = u32.Actions[1].(*SkbEditAction)
+		if !ok {
+			t.Fatal("Unable to find tunnel action")
+		}
+	}
+
+	if edit.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("SkbEdit action isn't TC_ACT_PIPE")
+	}
+	if edit.PType == nil || *edit.PType != *skbedit.PType {
+		t.Fatal("Action PType doesn't match")
+	}
+	if edit.QueueMapping == nil || *edit.QueueMapping != *skbedit.QueueMapping {
+		t.Fatal("Action QueueMapping doesn't match")
+	}
+	if edit.Mark == nil || *edit.Mark != *skbedit.Mark {
+		t.Fatal("Action Mark doesn't match")
+	}
+	if edit.Priority == nil || *edit.Priority != *skbedit.Priority {
+		t.Fatal("Action Priority doesn't match")
+	}
+
+	mia, ok := u32.Actions[0].(*MirredAction)
+	if !ok {
+		mia, ok = u32.Actions[1].(*MirredAction)
+		if !ok {
+			t.Fatal("Unable to find mirred action")
+		}
+	}
+
+	if mia.Attrs().Action != TC_ACT_STOLEN {
+		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
+	}
+
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found = false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if found {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
