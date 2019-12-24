@@ -11,8 +11,24 @@ const (
 )
 
 var L4ProtoMap = map[uint8]string{
+	1:	"icmp",
 	6:  "tcp",
 	17: "udp",
+}
+
+var TCPStateMap = map[uint8]string{
+	0:	"NONE",
+	1:	"SYN_SENT",
+	2:	"SYN_RECV",
+	3:	"ESTABLISHED",
+	4:	"FIN_WAIT",
+	5:	"CLOSE_WAIT",
+	6:	"LAST_ACK",
+	7:	"TIME_WAIT",
+	8:	"CLOSE",
+	9:	"LISTEN",
+	10:	"MAX",
+	11:	"IGNORE",
 }
 
 // All the following constants are coming from:
@@ -30,9 +46,12 @@ var L4ProtoMap = map[uint8]string{
 //
 // 	IPCTNL_MSG_MAX
 // };
+
+type CntlMsgType uint8
 const (
-	IPCTNL_MSG_CT_GET    = 1
-	IPCTNL_MSG_CT_DELETE = 2
+	IPCTNL_MSG_CT_NEW	 CntlMsgType = iota //0
+	IPCTNL_MSG_CT_GET    CntlMsgType = iota //1
+	IPCTNL_MSG_CT_DELETE CntlMsgType = iota //2
 )
 
 // #define NFNETLINK_V0	0
@@ -80,6 +99,7 @@ const (
 	CTA_TUPLE_REPLY    = 2
 	CTA_STATUS         = 3
 	CTA_PROTOINFO      = 4
+	CTA_NAT_SRC        = 6
 	CTA_TIMEOUT        = 7
 	CTA_MARK           = 8
 	CTA_COUNTERS_ORIG  = 9
@@ -136,6 +156,9 @@ const (
 	CTA_PROTO_NUM      = 1
 	CTA_PROTO_SRC_PORT = 2
 	CTA_PROTO_DST_PORT = 3
+	CTA_PROTO_ICMP_ID  = 4
+	CTA_PROTO_ICMP_TYPE = 5
+	CTA_PROTO_ICMP_CODE = 6
 )
 
 // enum ctattr_protoinfo {
