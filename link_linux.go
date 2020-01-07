@@ -1515,8 +1515,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 	}
 	var (
 		link      Link
-		stats32   []byte
-		stats64   []byte
+		stats32   *LinkStatistics32
+		stats64   *LinkStatistics64
 		linkType  string
 		linkSlave LinkSlave
 		slaveType string
@@ -1669,9 +1669,15 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 		case unix.IFLA_IFALIAS:
 			base.Alias = string(attr.Value[:len(attr.Value)-1])
 		case unix.IFLA_STATS:
-			stats32 = attr.Value[:]
+			stats32 = new(LinkStatistics32)
+			if err := binary.Read(bytes.NewBuffer(attr.Value[:]), nl.NativeEndian(), stats32); err != nil {
+				return nil, err
+			}
 		case unix.IFLA_STATS64:
-			stats64 = attr.Value[:]
+			stats64 = new(LinkStatistics64)
+			if err := binary.Read(bytes.NewBuffer(attr.Value[:]), nl.NativeEndian(), stats64); err != nil {
+				return nil, err
+			}
 		case unix.IFLA_XDP:
 			xdp, err := parseLinkXdp(attr.Value[:])
 			if err != nil {
@@ -1716,9 +1722,9 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 	}
 
 	if stats64 != nil {
-		base.Statistics = parseLinkStats64(stats64)
+		base.Statistics = (*LinkStatistics)(stats64)
 	} else if stats32 != nil {
-		base.Statistics = parseLinkStats32(stats32)
+		base.Statistics = (*LinkStatistics)(stats32.to64())
 	}
 
 	// Links that don't have IFLA_INFO_KIND are hardware devices
@@ -2481,14 +2487,6 @@ func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.EncapDport = ntohs(datum.Value[0:2])
 		}
 	}
-}
-
-func parseLinkStats32(data []byte) *LinkStatistics {
-	return (*LinkStatistics)((*LinkStatistics32)(unsafe.Pointer(&data[0:SizeofLinkStats32][0])).to64())
-}
-
-func parseLinkStats64(data []byte) *LinkStatistics {
-	return (*LinkStatistics)((*LinkStatistics64)(unsafe.Pointer(&data[0:SizeofLinkStats64][0])))
 }
 
 func addXdpAttrs(xdp *LinkXdp, req *nl.NetlinkRequest) {
