@@ -23,6 +23,8 @@ type Rule struct {
 	SuppressIfgroup   int
 	SuppressPrefixlen int
 	Invert            bool
+	Dport             *RulePortRange
+	Sport             *RulePortRange
 }
 
 func (r Rule) String() string {
@@ -40,4 +42,15 @@ func NewRule() *Rule {
 		Goto:              -1,
 		Flow:              -1,
 	}
+}
+
+// NewRulePortRange creates rule sport/dport range.
+func NewRulePortRange(start, end uint16) *RulePortRange {
+	return &RulePortRange{Start: start, End: end}
+}
+
+// RulePortRange represents rule sport/dport range.
+type RulePortRange struct {
+	Start uint16
+	End   uint16
 }

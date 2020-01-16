@@ -30,6 +30,8 @@ func TestRuleAddDel(t *testing.T) {
 	rule.IifName = "lo"
 	rule.Invert = true
 	rule.Tos = 0x10
+	rule.Dport = NewRulePortRange(80, 80)
+	rule.Sport = NewRulePortRange(1000, 1024)
 	if err := RuleAdd(rule); err != nil {
 		t.Fatal(err)
 	}
