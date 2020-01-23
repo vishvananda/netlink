@@ -2513,7 +2513,8 @@ func parseLinkXdp(data []byte) (*LinkXdp, error) {
 		case nl.IFLA_XDP_FD:
 			xdp.Fd = int(native.Uint32(attr.Value[0:4]))
 		case nl.IFLA_XDP_ATTACHED:
-			xdp.Attached = attr.Value[0] != 0
+			xdp.AttachMode = uint32(attr.Value[0])
+			xdp.Attached = xdp.AttachMode != 0
 		case nl.IFLA_XDP_FLAGS:
 			xdp.Flags = native.Uint32(attr.Value[0:4])
 		case nl.IFLA_XDP_PROG_ID:
