@@ -12,6 +12,7 @@ type Rule struct {
 	Table             int
 	Mark              int
 	Mask              int
+	Tos               uint
 	TunID             uint
 	Goto              int
 	Src               *net.IPNet
