@@ -55,6 +55,9 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 	if rule.Table >= 0 && rule.Table < 256 {
 		msg.Table = uint8(rule.Table)
 	}
+	if rule.Tos != 0 {
+		msg.Tos = uint8(rule.Tos)
+	}
 
 	var dstFamily uint8
 	var rtAttrs []*nl.RtAttr
@@ -184,6 +187,7 @@ func (h *Handle) RuleList(family int) ([]Rule, error) {
 		rule := NewRule()
 
 		rule.Invert = msg.Flags&FibRuleInvert > 0
+		rule.Tos = uint(msg.Tos)
 
 		for j := range attrs {
 			switch attrs[j].Attr.Type {
