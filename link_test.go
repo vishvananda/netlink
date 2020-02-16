@@ -1784,6 +1784,45 @@ func expectMcastSnooping(t *testing.T, linkName string, expected bool) {
 	}
 }
 
+func TestBridgeSetVlanFiltering(t *testing.T) {
+	minKernelRequired(t, 4, 4)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeName := "foo"
+	bridge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeName}}
+	if err := LinkAdd(bridge); err != nil {
+		t.Fatal(err)
+	}
+	expectVlanFiltering(t, bridgeName, false)
+
+	if err := BridgeSetVlanFiltering(bridge, true); err != nil {
+		t.Fatal(err)
+	}
+	expectVlanFiltering(t, bridgeName, true)
+
+	if err := BridgeSetVlanFiltering(bridge, false); err != nil {
+		t.Fatal(err)
+	}
+	expectVlanFiltering(t, bridgeName, false)
+
+	if err := LinkDel(bridge); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func expectVlanFiltering(t *testing.T, linkName string, expected bool) {
+	bridge, err := LinkByName(linkName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual := *bridge.(*Bridge).VlanFiltering; actual != expected {
+		t.Fatalf("expected %t got %t", expected, actual)
+	}
+}
+
 func TestBridgeCreationWithHelloTime(t *testing.T) {
 	minKernelRequired(t, 3, 18)
 
