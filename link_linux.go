@@ -1103,21 +1103,52 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		}
 
 		req.Flags |= uint16(tuntap.Mode)
-
+		const TUN = "/dev/net/tun"
 		for i := 0; i < queues; i++ {
 			localReq := req
-			file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+			fd, err := unix.Open(TUN, os.O_RDWR|syscall.O_CLOEXEC, 0)
 			if err != nil {
 				cleanupFds(fds)
 				return err
 			}
 
-			fds = append(fds, file)
-			_, _, errno := unix.Syscall(unix.SYS_IOCTL, file.Fd(), uintptr(unix.TUNSETIFF), uintptr(unsafe.Pointer(&localReq)))
+			_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TUNSETIFF), uintptr(unsafe.Pointer(&localReq)))
 			if errno != 0 {
+				// close the new fd
+				unix.Close(fd)
+				// and the already opened ones
 				cleanupFds(fds)
 				return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed [%d], errno %v", i, errno)
 			}
+
+			// Set the tun device to non-blocking before use. The below comment
+			// taken from:
+			//
+			// https://github.com/mistsys/tuntap/commit/161418c25003bbee77d085a34af64d189df62bea
+			//
+			// Note there is a complication because in go, if a device node is
+			// opened, go sets it to use nonblocking I/O. However a /dev/net/tun
+			// doesn't work with epoll until after the TUNSETIFF ioctl has been
+			// done. So we open the unix fd directly, do the ioctl, then put the
+			// fd in nonblocking mode, an then finally wrap it in a os.File,
+			// which will see the nonblocking mode and add the fd to the
+			// pollable set, so later on when we Read() from it blocked the
+			// calling thread in the kernel.
+			//
+			// See
+			//   https://github.com/golang/go/issues/30426
+			// which got exposed in go 1.13 by the fix to
+			//   https://github.com/golang/go/issues/30624
+			err = unix.SetNonblock(fd, true)
+			if err != nil {
+				cleanupFds(fds)
+				return fmt.Errorf("Tuntap set to non-blocking failed [%d], err %v", i, err)
+			}
+
+			// create the file from the file descriptor and store it
+			file := os.NewFile(uintptr(fd), TUN)
+			fds = append(fds, file)
+
 			// 1) we only care for the name of the first tap in the multi queue set
 			// 2) if the original name was empty, the localReq has now the actual name
 			//
@@ -1128,6 +1159,7 @@ func (h *Handle) linkModify(link Link, flags int) error {
 			if i == 0 {
 				link.Attrs().Name = strings.Trim(string(localReq.Name[:]), "\x00")
 			}
+
 		}
 
 		// only persist interface if NonPersist is NOT set
