@@ -16,6 +16,7 @@ import (
 // then retrieves the ID.
 // This does not do any namespace switching.
 func TestNetNsIdByFd(t *testing.T) {
+	skipUnlessRoot(t)
 	// create a network namespace
 	ns, err := netns.New()
 	CheckErrorFail(t, err)
@@ -44,6 +45,7 @@ func TestNetNsIdByFd(t *testing.T) {
 // Does the same as TestNetNsIdByFd, but we need to change namespaces so we
 // actually have a pid in that namespace
 func TestNetNsIdByPid(t *testing.T) {
+	skipUnlessRoot(t)
 	runtime.LockOSThread() // we need a constant OS thread
 	origNs, _ := netns.Get()
 
