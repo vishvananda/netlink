@@ -237,6 +237,37 @@ func (h *Handle) macvlanMACAddrChange(link Link, addrs []net.HardwareAddr, mode 
 	return err
 }
 
+// LinkSetMacvlanMode sets the mode of a macvlan or macvtap link device.
+// Note that passthrough mode cannot be set to and from and will fail.
+// Equivalent to: `ip link set $link type (macvlan|macvtap) mode $mode
+func LinkSetMacvlanMode(link Link, mode MacvlanMode) error {
+	return pkgHandle.LinkSetMacvlanMode(link, mode)
+}
+
+// LinkSetMacvlanMode sets the mode of the macvlan or macvtap link device.
+// Note that passthrough mode cannot be set to and from and will fail.
+// Equivalent to: `ip link set $link type (macvlan|macvtap) mode $mode
+func (h *Handle) LinkSetMacvlanMode(link Link, mode MacvlanMode) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_NEWLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	linkInfo := nl.NewRtAttr(unix.IFLA_LINKINFO, nil)
+	linkInfo.AddRtAttr(nl.IFLA_INFO_KIND, nl.NonZeroTerminated(link.Type()))
+
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+	data.AddRtAttr(nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[mode]))
+
+	req.AddData(linkInfo)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
 func BridgeSetMcastSnoop(link Link, on bool) error {
 	return pkgHandle.BridgeSetMcastSnoop(link, on)
 }

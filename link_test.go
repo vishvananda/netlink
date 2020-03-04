@@ -2576,3 +2576,74 @@ func TestLinkSetAllmulticast(t *testing.T) {
 		t.Fatalf("RawFlags start value:%d differs from end value:%d", rawFlagsStart, rawFlagsEnd)
 	}
 }
+
+func TestLinkSetMacvlanMode(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	const (
+		parentName  = "foo"
+		macvlanName = "fooFoo"
+		macvtapName = "fooBar"
+	)
+
+	parent := &Dummy{LinkAttrs{Name: parentName}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(parent)
+
+	testMacvlanMode := func(link Link, mode MacvlanMode) {
+		if err := LinkSetMacvlanMode(link, mode); err != nil {
+			t.Fatal(err)
+		}
+
+		name := link.Attrs().Name
+		result, err := LinkByName(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var actual MacvlanMode
+		switch l := result.(type) {
+		case *Macvlan:
+			actual = l.Mode
+		case *Macvtap:
+			actual = l.Macvlan.Mode
+		}
+
+		if actual != mode {
+			t.Fatalf("expected %v got %v for %+v", mode, actual, link)
+		}
+	}
+
+	macvlan := &Macvlan{
+		LinkAttrs: LinkAttrs{Name: macvlanName, ParentIndex: parent.Attrs().Index},
+		Mode:      MACVLAN_MODE_BRIDGE,
+	}
+	if err := LinkAdd(macvlan); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(macvlan)
+
+	testMacvlanMode(macvlan, MACVLAN_MODE_VEPA)
+	testMacvlanMode(macvlan, MACVLAN_MODE_PRIVATE)
+	testMacvlanMode(macvlan, MACVLAN_MODE_SOURCE)
+	testMacvlanMode(macvlan, MACVLAN_MODE_BRIDGE)
+
+	macvtap := &Macvtap{
+		Macvlan: Macvlan{
+			LinkAttrs: LinkAttrs{Name: macvtapName, ParentIndex: parent.Attrs().Index},
+			Mode:      MACVLAN_MODE_BRIDGE,
+		},
+	}
+	if err := LinkAdd(macvtap); err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(macvtap)
+
+	testMacvlanMode(macvtap, MACVLAN_MODE_VEPA)
+	testMacvlanMode(macvtap, MACVLAN_MODE_PRIVATE)
+	testMacvlanMode(macvtap, MACVLAN_MODE_SOURCE)
+	testMacvlanMode(macvtap, MACVLAN_MODE_BRIDGE)
+}
