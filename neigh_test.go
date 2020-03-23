@@ -48,6 +48,15 @@ func dumpContainsNeigh(dump []Neigh, ne Neigh) bool {
 	return false
 }
 
+func dumpContainsState(dump []Neigh, e arpEntry, s uint16) bool {
+	for _, n := range dump {
+		if n.IP.Equal(e.ip) && uint16(n.State) == s {
+			return true
+		}
+	}
+	return false
+}
+
 func dumpContainsProxy(dump []Neigh, p proxyEntry) bool {
 	for _, n := range dump {
 		if n.IP.Equal(p.ip) && (n.LinkIndex == p.dev) && (n.Flags&NTF_PROXY) == NTF_PROXY {
@@ -543,5 +552,91 @@ func TestNeighSubscribeListExisting(t *testing.T) {
 		Neigh: *entry2,
 	}}) {
 		t.Fatalf("Existing add update not received as expected")
+	}
+}
+
+func TestNeighListExecuteStateFilter(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// Create dummy iface
+	dummy := Dummy{LinkAttrs{Name: "neigh0"}}
+	if err := LinkAdd(&dummy); err != nil {
+		t.Fatal(err)
+	}
+
+	ensureIndex(dummy.Attrs())
+
+	// Define some entries
+	reachArpTable := []arpEntry{
+		{net.ParseIP("198.51.100.1"), parseMAC("44:bb:cc:dd:00:01")},
+		{net.ParseIP("2001:db8::1"), parseMAC("66:bb:cc:dd:00:02")},
+	}
+
+	staleArpTable := []arpEntry{
+		{net.ParseIP("198.51.100.10"), parseMAC("44:bb:cc:dd:00:10")},
+		{net.ParseIP("2001:db8::10"), parseMAC("66:bb:cc:dd:00:10")},
+	}
+
+	entries := append(reachArpTable, staleArpTable...)
+
+	// Add reachable neigh entries
+	for _, entry := range reachArpTable {
+		err := NeighAdd(&Neigh{
+			LinkIndex:    dummy.Index,
+			State:        NUD_REACHABLE,
+			IP:           entry.ip,
+			HardwareAddr: entry.mac,
+		})
+
+		if err != nil {
+			t.Errorf("Failed to NeighAdd: %v", err)
+		}
+	}
+	// Add stale neigh entries
+	for _, entry := range staleArpTable {
+		err := NeighAdd(&Neigh{
+			LinkIndex:    dummy.Index,
+			State:        NUD_STALE,
+			IP:           entry.ip,
+			HardwareAddr: entry.mac,
+		})
+
+		if err != nil {
+			t.Errorf("Failed to NeighAdd: %v", err)
+		}
+	}
+
+	// Dump reachable and see that all added reachable entries are present and there are no stale entries
+	dump, err := NeighListExecute(Ndmsg{
+		Index: uint32(dummy.Index),
+		State: NUD_REACHABLE,
+	})
+	if err != nil {
+		t.Errorf("Failed to NeighListExecute: %v", err)
+	}
+
+	for _, entry := range reachArpTable {
+		if !dumpContainsState(dump, entry, NUD_REACHABLE) {
+			t.Errorf("Dump does not contains: %v", entry)
+		}
+	}
+	for _, entry := range staleArpTable {
+		if dumpContainsState(dump, entry, NUD_STALE) {
+			t.Errorf("Dump contains: %v", entry)
+		}
+	}
+
+	// Delete all neigh entries
+	for _, entry := range entries {
+		err := NeighDel(&Neigh{
+			LinkIndex:    dummy.Index,
+			IP:           entry.ip,
+			HardwareAddr: entry.mac,
+		})
+
+		if err != nil {
+			t.Errorf("Failed to NeighDel: %v", err)
+		}
 	}
 }
