@@ -2607,7 +2607,7 @@ func parseIptunData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_IPTUN_ENCAP_FLAGS:
 			iptun.EncapFlags = native.Uint16(datum.Value[0:2])
 		case nl.IFLA_IPTUN_COLLECT_METADATA:
-			iptun.FlowBased = int8(datum.Value[0]) != 0
+			iptun.FlowBased = true
 		}
 	}
 }
