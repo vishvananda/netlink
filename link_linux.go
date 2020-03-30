@@ -2674,6 +2674,7 @@ func addSittunAttrs(sittun *Sittun, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_FLAGS, nl.Uint16Attr(sittun.EncapFlags))
 	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_SPORT, htons(sittun.EncapSport))
 	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_DPORT, htons(sittun.EncapDport))
+	data.AddRtAttr(nl.IFLA_IPTUN_PROTO, nl.Uint8Attr(sittun.Proto))
 }
 
 func parseSittunData(link Link, data []syscall.NetlinkRouteAttr) {
