@@ -1335,6 +1335,16 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		if link.PeerHardwareAddr != nil {
 			peer.AddRtAttr(unix.IFLA_ADDRESS, []byte(link.PeerHardwareAddr))
 		}
+		if link.PeerNamespace != nil {
+			switch ns := link.PeerNamespace.(type) {
+			case NsPid:
+				val := nl.Uint32Attr(uint32(ns))
+				peer.AddRtAttr(unix.IFLA_NET_NS_PID, val)
+			case NsFd:
+				val := nl.Uint32Attr(uint32(ns))
+				peer.AddRtAttr(unix.IFLA_NET_NS_FD, val)
+			}
+		}
 	case *Vxlan:
 		addVxlanAttrs(link, linkInfo)
 	case *Bond:
