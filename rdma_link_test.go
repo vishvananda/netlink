@@ -152,3 +152,16 @@ func TestRdmaLinkSetNsFd(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRdmaLinkList(t *testing.T) {
+	minKernelRequired(t, 4, 16)
+	setupRdmaKModule(t, "ib_core")
+	links, err := RdmaLinkList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("RDMA devices:")
+	for _, link := range links {
+		t.Logf("%d: %s", link.Attrs.Index, link.Attrs.Name)
+	}
+}
