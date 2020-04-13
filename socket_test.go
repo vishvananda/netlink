@@ -7,6 +7,7 @@ import (
 	"net"
 	"os/user"
 	"strconv"
+	"syscall"
 	"testing"
 )
 
@@ -54,5 +55,23 @@ func TestSocketGet(t *testing.T) {
 	}
 	if got, want := strconv.Itoa(int(socket.UID)), u.Uid; got != want {
 		t.Fatalf("UID = %s, want %s", got, want)
+	}
+}
+
+func TestSocketDiagTCPInfo(t *testing.T) {
+	Family4 := uint8(syscall.AF_INET)
+	Family6 := uint8(syscall.AF_INET6)
+	families := []uint8{Family4, Family6}
+	for _, wantFamily := range families {
+		res, err := SocketDiagTCPInfo(wantFamily)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, i := range res {
+			gotFamily := i.InetDiagMsg.Family
+			if gotFamily != wantFamily {
+				t.Fatalf("Socket family = %d, want %d", gotFamily, wantFamily)
+			}
+		}
 	}
 }
