@@ -523,6 +523,37 @@ func TestLinkAddDelDummyWithGroup(t *testing.T) {
 	testLinkAddDel(t, &Dummy{LinkAttrs{Name: "foo", Group: 42}})
 }
 
+func TestLinkModify(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	linkName := "foo"
+	originalMTU := 1500
+	updatedMTU := 1442
+
+	link := &Dummy{LinkAttrs{Name: linkName, MTU: originalMTU}}
+	base := link.Attrs()
+
+	if err := LinkAdd(link); err != nil {
+		t.Fatal(err)
+	}
+
+	link.MTU = updatedMTU
+	if err := pkgHandle.LinkModify(link); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := LinkByName(linkName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rBase := result.Attrs()
+	if rBase.MTU != updatedMTU {
+		t.Fatalf("MTU is %d, should be %d", rBase.MTU, base.MTU)
+	}
+}
+
 func TestLinkAddDelIfb(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()

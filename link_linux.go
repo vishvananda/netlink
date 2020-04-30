@@ -1058,6 +1058,10 @@ func (h *Handle) LinkAdd(link Link) error {
 	return h.linkModify(link, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
 }
 
+func (h *Handle) LinkModify(link Link) error {
+	return h.linkModify(link, unix.NLM_F_REQUEST|unix.NLM_F_ACK)
+}
+
 func (h *Handle) linkModify(link Link, flags int) error {
 	// TODO: support extra data for macvlan
 	base := link.Attrs()
@@ -1202,6 +1206,11 @@ func (h *Handle) linkModify(link Link, flags int) error {
 
 	nameData := nl.NewRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(base.Name))
 	req.AddData(nameData)
+
+	if base.Alias != "" {
+		alias := nl.NewRtAttr(unix.IFLA_IFALIAS, []byte(base.Alias))
+		req.AddData(alias)
+	}
 
 	if base.MTU > 0 {
 		mtu := nl.NewRtAttr(unix.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
