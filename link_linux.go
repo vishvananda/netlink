@@ -1282,6 +1282,12 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		if base.TxQLen >= 0 {
 			peer.AddRtAttr(unix.IFLA_TXQLEN, nl.Uint32Attr(uint32(base.TxQLen)))
 		}
+		if base.NumTxQueues > 0 {
+			peer.AddRtAttr(unix.IFLA_NUM_TX_QUEUES, nl.Uint32Attr(uint32(base.NumTxQueues)))
+		}
+		if base.NumRxQueues > 0 {
+			peer.AddRtAttr(unix.IFLA_NUM_RX_QUEUES, nl.Uint32Attr(uint32(base.NumRxQueues)))
+		}
 		if base.MTU > 0 {
 			peer.AddRtAttr(unix.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
 		}

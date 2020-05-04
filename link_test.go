@@ -93,6 +93,12 @@ func testLinkAddDel(t *testing.T, link Link) {
 				if peer.TxQLen != testTxQLen {
 					t.Fatalf("TxQLen of peer is %d, should be %d", peer.TxQLen, testTxQLen)
 				}
+				if peer.NumTxQueues != testTxQueues {
+					t.Fatalf("NumTxQueues of peer is %d, should be %d", peer.NumTxQueues, testTxQueues)
+				}
+				if peer.NumRxQueues != testRxQueues {
+					t.Fatalf("NumRxQueues of peer is %d, should be %d", peer.NumRxQueues, testRxQueues)
+				}
 				if !bytes.Equal(peer.Attrs().HardwareAddr, original.PeerHardwareAddr) {
 					t.Fatalf("Peer MAC addr is %s, should be %s", peer.Attrs().HardwareAddr, original.PeerHardwareAddr)
 				}
