@@ -94,6 +94,10 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 			t.Fatalf("Address scope not set properly, got=%d, expected=%d", addrs[0].Scope, tt.expected.Scope)
 		}
 
+		if ifindex := link.Attrs().Index; ifindex != addrs[0].LinkIndex {
+			t.Fatalf("Address ifindex not set properly, got=%d, expected=%d", addrs[0].LinkIndex, ifindex)
+		}
+
 		if tt.expected.Peer != nil {
 			if !addrs[0].PeerEqual(*tt.expected) {
 				t.Fatalf("Peer Address ip no set properly, got=%s, expected=%s", addrs[0].Peer, tt.expected.Peer)
