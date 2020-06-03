@@ -349,6 +349,19 @@ func (veth *Veth) Type() string {
 	return "veth"
 }
 
+// Wireguard represent links of type "wireguard", see https://www.wireguard.com/
+type Wireguard struct {
+	LinkAttrs
+}
+
+func (wg *Wireguard) Attrs() *LinkAttrs {
+	return &wg.LinkAttrs
+}
+
+func (wg *Wireguard) Type() string {
+	return "wireguard"
+}
+
 // GenericLink links represent types that are not currently understood
 // by this netlink library.
 type GenericLink struct {
