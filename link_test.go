@@ -117,6 +117,13 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if _, ok := link.(*Wireguard); ok {
+		_, ok := result.(*Wireguard)
+		if !ok {
+			t.Fatal("Result of create is not a wireguard")
+		}
+	}
+
 	if vxlan, ok := link.(*Vxlan); ok {
 		other, ok := result.(*Vxlan)
 		if !ok {
@@ -1061,6 +1068,15 @@ func TestLinkSetNs(t *testing.T) {
 		t.Fatal("Other half of veth pair not deleted")
 	}
 
+}
+
+func TestLinkAddDelWireguard(t *testing.T) {
+	minKernelRequired(t, 5, 6)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Wireguard{LinkAttrs: LinkAttrs{Name: "wg0"}})
 }
 
 func TestLinkAddDelVxlan(t *testing.T) {
