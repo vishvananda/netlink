@@ -52,3 +52,19 @@ func TestDevLinkGetAllPortList(t *testing.T) {
 		t.Log(*port)
 	}
 }
+
+func TestDevLinkGetPortByIndex(t *testing.T) {
+	minKernelRequired(t, 5, 4)
+	ports, err := DevLinkGetAllPortList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("devlink port count = ", len(ports))
+	for _, port := range ports {
+		p, err2 := DevLinkGetPortByIndex(port.BusName, port.DeviceName, port.PortIndex)
+		if err2 != nil {
+			t.Fatal(err)
+		}
+		t.Log(*p)
+	}
+}

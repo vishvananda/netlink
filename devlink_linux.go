@@ -353,3 +353,41 @@ func (h *Handle) DevLinkGetAllPortList() ([]*DevlinkPort, error) {
 func DevLinkGetAllPortList() ([]*DevlinkPort, error) {
 	return pkgHandle.DevLinkGetAllPortList()
 }
+
+func parseDevlinkPortMsg(msgs [][]byte) (*DevlinkPort, error) {
+	m := msgs[0]
+	attrs, err := nl.ParseRouteAttr(m[nl.SizeofGenlmsg:])
+	if err != nil {
+		return nil, err
+	}
+	port := &DevlinkPort{}
+	if err = port.parseAttributes(attrs); err != nil {
+		return nil, err
+	}
+	return port, nil
+}
+
+// DevLinkGetPortByIndexprovides a pointer to devlink device and nil error,
+// otherwise returns an error code.
+func (h *Handle) DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint32) (*DevlinkPort, error) {
+
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PORT_GET, Bus, Device)
+	if err != nil {
+		return nil, err
+	}
+
+	req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_INDEX, nl.Uint32Attr(PortIndex)))
+
+	respmsg, err := req.Execute(unix.NETLINK_GENERIC, 0)
+	if err != nil {
+		return nil, err
+	}
+	port, err := parseDevlinkPortMsg(respmsg)
+	return port, err
+}
+
+// DevLinkGetPortByIndex provides a pointer to devlink portand nil error,
+// otherwise returns an error code.
+func DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint32) (*DevlinkPort, error) {
+	return pkgHandle.DevLinkGetPortByIndex(Bus, Device, PortIndex)
+}
