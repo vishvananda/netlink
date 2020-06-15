@@ -40,3 +40,15 @@ func TestDevLinkSetEswitchMode(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestDevLinkGetAllPortList(t *testing.T) {
+	minKernelRequired(t, 5, 4)
+	ports, err := DevLinkGetAllPortList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("devlink port count = ", len(ports))
+	for _, port := range ports {
+		t.Log(*port)
+	}
+}
