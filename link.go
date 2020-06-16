@@ -896,6 +896,10 @@ type Ip6tnl struct {
 	Flags      uint32
 	Proto      uint8
 	FlowInfo   uint32
+	EncapSport uint16
+	EncapDport uint16
+	EncapType  uint16
+	EncapFlags uint16
 }
 
 func (ip6tnl *Ip6tnl) Attrs() *LinkAttrs {
