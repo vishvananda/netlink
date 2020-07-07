@@ -456,6 +456,9 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 				} else {
 					return fmt.Errorf("invalid dst addr %s for tunnel_key action", action.DstAddr)
 				}
+				if action.DestPort != 0 {
+					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_DST_PORT, htons(action.DestPort))
+				}
 			}
 		case *SkbEditAction:
 			table := attr.AddRtAttr(tabIndex, nil)
@@ -572,6 +575,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						case nl.TCA_TUNNEL_KEY_ENC_IPV6_DST:
 						case nl.TCA_TUNNEL_KEY_ENC_IPV4_DST:
 							action.(*TunnelKeyAction).DstAddr = net.IP(adatum.Value[:])
+						case nl.TCA_TUNNEL_KEY_ENC_DST_PORT:
+							action.(*TunnelKeyAction).DestPort = ntohs(adatum.Value)
 						}
 					case "skbedit":
 						switch adatum.Attr.Type {
