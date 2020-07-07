@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -569,12 +568,10 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 							action.(*TunnelKeyAction).Action = TunnelKeyAct(tun.Action)
 						case nl.TCA_TUNNEL_KEY_ENC_KEY_ID:
 							action.(*TunnelKeyAction).KeyID = networkOrder.Uint32(adatum.Value[0:4])
-						case nl.TCA_TUNNEL_KEY_ENC_IPV6_SRC:
-						case nl.TCA_TUNNEL_KEY_ENC_IPV4_SRC:
-							action.(*TunnelKeyAction).SrcAddr = net.IP(adatum.Value[:])
-						case nl.TCA_TUNNEL_KEY_ENC_IPV6_DST:
-						case nl.TCA_TUNNEL_KEY_ENC_IPV4_DST:
-							action.(*TunnelKeyAction).DstAddr = net.IP(adatum.Value[:])
+						case nl.TCA_TUNNEL_KEY_ENC_IPV6_SRC, nl.TCA_TUNNEL_KEY_ENC_IPV4_SRC:
+							action.(*TunnelKeyAction).SrcAddr = adatum.Value[:]
+						case nl.TCA_TUNNEL_KEY_ENC_IPV6_DST, nl.TCA_TUNNEL_KEY_ENC_IPV4_DST:
+							action.(*TunnelKeyAction).DstAddr = adatum.Value[:]
 						case nl.TCA_TUNNEL_KEY_ENC_DST_PORT:
 							action.(*TunnelKeyAction).DestPort = ntohs(adatum.Value)
 						}
