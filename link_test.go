@@ -1876,6 +1876,52 @@ func expectVlanFiltering(t *testing.T, linkName string, expected bool) {
 	}
 }
 
+func TestBridgeCreationWithAgeingTime(t *testing.T) {
+	minKernelRequired(t, 3, 18)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeWithSpecifiedAgeingTimeName := "foo"
+	ageingTime := uint32(20000)
+	bridgeWithSpecifiedAgeingTime := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithSpecifiedAgeingTimeName}, AgeingTime: &ageingTime}
+	if err := LinkAdd(bridgeWithSpecifiedAgeingTime); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err := LinkByName(bridgeWithSpecifiedAgeingTimeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actualAgeingTime := *retrievedBridge.(*Bridge).AgeingTime
+	if actualAgeingTime != ageingTime {
+		t.Fatalf("expected %d got %d", ageingTime, actualAgeingTime)
+	}
+	if err := LinkDel(bridgeWithSpecifiedAgeingTime); err != nil {
+		t.Fatal(err)
+	}
+
+	bridgeWithDefaultAgeingTimeName := "bar"
+	bridgeWithDefaultAgeingTime := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithDefaultAgeingTimeName}}
+	if err := LinkAdd(bridgeWithDefaultAgeingTime); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err = LinkByName(bridgeWithDefaultAgeingTimeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actualAgeingTime = *retrievedBridge.(*Bridge).AgeingTime
+	if actualAgeingTime != 30000 {
+		t.Fatalf("expected %d got %d", 30000, actualAgeingTime)
+	}
+	if err := LinkDel(bridgeWithDefaultAgeingTime); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestBridgeCreationWithHelloTime(t *testing.T) {
 	minKernelRequired(t, 3, 18)
 

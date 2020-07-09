@@ -247,6 +247,7 @@ func (ifb *Ifb) Type() string {
 type Bridge struct {
 	LinkAttrs
 	MulticastSnooping *bool
+	AgeingTime        *uint32
 	HelloTime         *uint32
 	VlanFiltering     *bool
 }
