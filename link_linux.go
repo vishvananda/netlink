@@ -2845,6 +2845,9 @@ func addBridgeAttrs(bridge *Bridge, linkInfo *nl.RtAttr) {
 	if bridge.MulticastSnooping != nil {
 		data.AddRtAttr(nl.IFLA_BR_MCAST_SNOOPING, boolToByte(*bridge.MulticastSnooping))
 	}
+	if bridge.AgeingTime != nil {
+		data.AddRtAttr(nl.IFLA_BR_AGEING_TIME, nl.Uint32Attr(*bridge.AgeingTime))
+	}
 	if bridge.HelloTime != nil {
 		data.AddRtAttr(nl.IFLA_BR_HELLO_TIME, nl.Uint32Attr(*bridge.HelloTime))
 	}
@@ -2857,6 +2860,9 @@ func parseBridgeData(bridge Link, data []syscall.NetlinkRouteAttr) {
 	br := bridge.(*Bridge)
 	for _, datum := range data {
 		switch datum.Attr.Type {
+		case nl.IFLA_BR_AGEING_TIME:
+			ageingTime := native.Uint32(datum.Value[0:4])
+			br.AgeingTime = &ageingTime
 		case nl.IFLA_BR_HELLO_TIME:
 			helloTime := native.Uint32(datum.Value[0:4])
 			br.HelloTime = &helloTime
