@@ -507,6 +507,10 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			gen := nl.TcGen{}
 			toTcGen(action.Attrs(), &gen)
 			aopts.AddRtAttr(nl.TCA_GACT_PARMS, gen.Serialize())
+		case *PeditAction:
+			table := attr.AddRtAttr(tabIndex, nil)
+			tabIndex++
+			action.Encode(table)
 		}
 	}
 	return nil
@@ -540,6 +544,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 					action = &TunnelKeyAction{}
 				case "skbedit":
 					action = &SkbEditAction{}
+				case "pedit":
+					action = &PeditAction{}
 				default:
 					break nextattr
 				}
@@ -617,6 +623,39 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						case nl.TCA_GACT_PARMS:
 							gen := *nl.DeserializeTcGen(adatum.Value)
 							toAttrs(&gen, action.Attrs())
+						}
+					case "pedit":
+						switch adatum.Attr.Type {
+						case nl.TCA_PEDIT_PARMS_EX:
+							peditSel, keys := nl.DeserializeTcPedit(adatum.Value)
+							action.(*PeditAction).Sel = *peditSel
+							action.(*PeditAction).Keys = keys
+						case nl.TCA_PEDIT_KEYS_EX:
+							exKeysAttr, err := nl.ParseRouteAttr(adatum.Value)
+							if err != nil {
+								return nil, err
+							}
+							var exKeys []nl.TcPeditKeyEx
+							for _, attr := range exKeysAttr {
+								keyExAttr, err := nl.ParseRouteAttr(attr.Value)
+								if err != nil {
+									return nil, err
+								}
+								var hType, cmd uint16
+								for _, keyExAttr := range keyExAttr {
+									switch keyExAttr.Attr.Type {
+									case nl.TCA_PEDIT_KEY_EX_HTYPE:
+										hType = nl.NativeEndian().Uint16(keyExAttr.Value)
+									case nl.TCA_PEDIT_KEY_EX_CMD:
+										cmd = nl.NativeEndian().Uint16(keyExAttr.Value)
+									}
+								}
+								exKeys = append(exKeys, nl.TcPeditKeyEx{
+									HeaderType: nl.PeditHeaderType(hType),
+									Cmd:        nl.PeditCmd(cmd),
+								})
+							}
+							action.(*PeditAction).KeysEx = exKeys
 						}
 					}
 				}

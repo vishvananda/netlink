@@ -878,3 +878,84 @@ const (
 	TCA_HFSC_FSC
 	TCA_HFSC_USC
 )
+
+const (
+	MaxOffs        = 128
+	SizeOfPeditSel = 24
+	SizeOfPeditKey = 24
+
+	TCA_PEDIT_KEY_EX_HTYPE = 1
+	TCA_PEDIT_KEY_EX_CMD   = 2
+)
+
+const (
+	TCA_PEDIT_UNSPEC = iota
+	TCA_PEDIT_TM
+	TCA_PEDIT_PARMS
+	TCA_PEDIT_PAD
+	TCA_PEDIT_PARMS_EX
+	TCA_PEDIT_KEYS_EX
+	TCA_PEDIT_KEY_EX
+)
+
+// /* TCA_PEDIT_KEY_EX_HDR_TYPE_NETWROK is a special case for legacy users. It
+//  * means no specific header type - offset is relative to the network layer
+//  */
+type PeditHeaderType uint16
+
+const (
+	TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK = iota
+	TCA_PEDIT_KEY_EX_HDR_TYPE_ETH
+	TCA_PEDIT_KEY_EX_HDR_TYPE_IP4
+	TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	TCA_PEDIT_KEY_EX_HDR_TYPE_TCP
+	TCA_PEDIT_KEY_EX_HDR_TYPE_UDP
+	__PEDIT_HDR_TYPE_MAX
+)
+
+type PeditCmd uint16
+
+const (
+	TCA_PEDIT_KEY_EX_CMD_SET = 0
+	TCA_PEDIT_KEY_EX_CMD_ADD = 1
+)
+
+type TcPeditSel struct {
+	TcGen
+	NKeys uint8
+	Flags uint8
+}
+
+func DeserializeTcPeditKey(b []byte) *TcPeditKey {
+	return (*TcPeditKey)(unsafe.Pointer(&b[0:SizeOfPeditKey][0]))
+}
+
+func DeserializeTcPedit(b []byte) (*TcPeditSel, []TcPeditKey) {
+	x := &TcPeditSel{}
+	copy((*(*[SizeOfPeditSel]byte)(unsafe.Pointer(x)))[:SizeOfPeditSel], b)
+
+	var keys []TcPeditKey
+
+	next := SizeOfPeditKey
+	var i uint8
+	for i = 0; i < x.NKeys; i++ {
+		keys = append(keys, *DeserializeTcPeditKey(b[next:]))
+		next += SizeOfPeditKey
+	}
+
+	return x, keys
+}
+
+type TcPeditKey struct {
+	Mask    uint32
+	Val     uint32
+	Off     uint32
+	At      uint32
+	OffMask uint32
+	Shift   uint32
+}
+
+type TcPeditKeyEx struct {
+	HeaderType PeditHeaderType
+	Cmd        PeditCmd
+}
