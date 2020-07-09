@@ -1482,3 +1482,176 @@ func TestFilterU32PeditAddDel(t *testing.T) {
 		t.Fatal("Failed to remove qdisc")
 	}
 }
+
+func TestFilterFlowerAddDel(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "bar"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	redir, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(redir); err != nil {
+		t.Fatal(err)
+	}
+
+	qdisc := &Ingress{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(0xffff, 0),
+			Parent:    HANDLE_INGRESS,
+		},
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("Qdisc is the wrong type")
+	}
+
+	testMask := net.CIDRMask(24, 32)
+
+	filter := &Flower{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		DestIP:        net.ParseIP("1.0.0.1"),
+		DestIPMask:    testMask,
+		SrcIP:         net.ParseIP("2.0.0.1"),
+		SrcIPMask:     testMask,
+		EthType:       unix.ETH_P_IP,
+		EncDestIP:     net.ParseIP("3.0.0.1"),
+		EncDestIPMask: testMask,
+		EncSrcIP:      net.ParseIP("4.0.0.1"),
+		EncSrcIPMask:  testMask,
+		EncDestPort:   8472,
+		EncKeyId:      1234,
+		Actions: []Action{
+			&MirredAction{
+				ActionAttrs: ActionAttrs{
+					Action: TC_ACT_STOLEN,
+				},
+				MirredAction: TCA_EGRESS_REDIR,
+				Ifindex:      redir.Attrs().Index,
+			},
+		},
+	}
+
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+
+	filters, err := FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	flower, ok := filters[0].(*Flower)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+
+	if filter.EthType != flower.EthType {
+		t.Fatalf("Flower EthType doesn't match")
+	}
+	if !filter.DestIP.Equal(flower.DestIP) {
+		t.Fatalf("Flower DestIP doesn't match")
+	}
+	if !filter.SrcIP.Equal(flower.SrcIP) {
+		t.Fatalf("Flower SrcIP doesn't match")
+	}
+
+	if !reflect.DeepEqual(filter.DestIPMask, testMask) {
+		t.Fatalf("Flower DestIPMask doesn't match")
+	}
+	if !reflect.DeepEqual(filter.SrcIPMask, testMask) {
+		t.Fatalf("Flower SrcIPMask doesn't match")
+	}
+
+	if !filter.EncDestIP.Equal(flower.EncDestIP) {
+		t.Fatalf("Flower EncDestIP doesn't match")
+	}
+	if !filter.EncSrcIP.Equal(flower.EncSrcIP) {
+		t.Fatalf("Flower EncSrcIP doesn't match")
+	}
+	if !reflect.DeepEqual(filter.EncDestIPMask, testMask) {
+		t.Fatalf("Flower EncDestIPMask doesn't match")
+	}
+	if !reflect.DeepEqual(filter.EncSrcIPMask, testMask) {
+		t.Fatalf("Flower EncSrcIPMask doesn't match")
+	}
+	if filter.EncKeyId != flower.EncKeyId {
+		t.Fatalf("Flower EncKeyId doesn't match")
+	}
+	if filter.EncDestPort != flower.EncDestPort {
+		t.Fatalf("Flower EncDestPort doesn't match")
+	}
+
+	mia, ok := flower.Actions[0].(*MirredAction)
+	if !ok {
+		t.Fatal("Unable to find mirred action")
+	}
+
+	if mia.Attrs().Action != TC_ACT_STOLEN {
+		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
+	}
+
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found = false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if found {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
