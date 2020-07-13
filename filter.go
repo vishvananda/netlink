@@ -103,6 +103,8 @@ type ActionAttrs struct {
 	Bindcnt int
 }
 
+type ActionStatistic ClassStatistics
+
 func (q ActionAttrs) String() string {
 	return fmt.Sprintf("{Index: %d, Capab: %x, Action: %s, Refcnt: %d, Bindcnt: %d}", q.Index, q.Capab, q.Action.String(), q.Refcnt, q.Bindcnt)
 }
@@ -187,6 +189,8 @@ type MirredAction struct {
 	ActionAttrs
 	MirredAction MirredAct
 	Ifindex      int
+
+	Statistic *ActionStatistic
 }
 
 func (action *MirredAction) Type() string {
@@ -221,6 +225,8 @@ type TunnelKeyAction struct {
 	DstAddr  net.IP
 	KeyID    uint32
 	DestPort uint16
+
+	Statistic *ActionStatistic
 }
 
 func (action *TunnelKeyAction) Type() string {
@@ -264,10 +270,11 @@ func NewSkbEditAction() *SkbEditAction {
 }
 
 type PeditAction struct {
-	Sel    nl.TcPeditSel
-	Keys   []nl.TcPeditKey
-	KeysEx []nl.TcPeditKeyEx
-	Extend uint8
+	Sel       nl.TcPeditSel
+	Keys      []nl.TcPeditKey
+	KeysEx    []nl.TcPeditKeyEx
+	Extend    uint8
+	Statistic *ActionStatistic
 }
 
 func (p *PeditAction) Attrs() *ActionAttrs {

@@ -813,6 +813,17 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						}
 					}
 				}
+			case nl.TCA_ACT_STATS:
+				s, err := parseTcStats2(aattr.Value)
+				if err != nil {
+					return nil, err
+				}
+				switch a := action.(type) {
+				case *PeditAction:
+					a.Statistic = (*ActionStatistic)(s)
+				case *TunnelKeyAction:
+					a.Statistic = (*ActionStatistic)(s)
+				}
 			}
 		}
 		actions = append(actions, action)
