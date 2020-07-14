@@ -823,6 +823,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 					a.Statistic = (*ActionStatistic)(s)
 				case *TunnelKeyAction:
 					a.Statistic = (*ActionStatistic)(s)
+				case *MirredAction:
+					a.Statistic = (*ActionStatistic)(s)
 				}
 			}
 		}
