@@ -2916,6 +2916,23 @@ func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) VfInfo {
 			vfr := nl.DeserializeVfRate(element.Value[:])
 			vf.MaxTxRate = vfr.MaxTxRate
 			vf.MinTxRate = vfr.MinTxRate
+		case nl.IFLA_VF_STATS:
+			vfstats := nl.DeserializeVfStats(element.Value[:])
+			vf.RxPackets = vfstats.RxPackets
+			vf.TxPackets = vfstats.TxPackets
+			vf.RxBytes = vfstats.RxBytes
+			vf.Multicast = vfstats.Multicast
+			vf.Broadcast = vfstats.Broadcast
+			vf.RxDropped = vfstats.RxDropped
+			vf.TxDropped = vfstats.TxDropped
+
+		case nl.IFLA_VF_RSS_QUERY_EN:
+			result := nl.DeserializeVfRssQueryEn(element.Value)
+			vf.RssQuery = result.Setting
+
+		case nl.IFLA_VF_TRUST:
+			result := nl.DeserializeVfTrust(element.Value)
+			vf.Trust = result.Setting
 		}
 	}
 	return vf
