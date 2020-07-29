@@ -65,6 +65,17 @@ type VfInfo struct {
 	LinkState uint32
 	MaxTxRate uint32 // IFLA_VF_RATE Max TxRate
 	MinTxRate uint32 // IFLA_VF_RATE Min TxRate
+	RxPackets uint64
+	TxPackets uint64
+	RxBytes   uint64
+	TxBytes   uint64
+	Multicast uint64
+	Broadcast uint64
+	RxDropped uint64
+	TxDropped uint64
+
+	RssQuery uint32
+	Trust    uint32
 }
 
 // LinkOperState represents the values of the IFLA_OPERSTATE link
