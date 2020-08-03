@@ -2191,6 +2191,28 @@ func TestLinkAddDelTuntapMq(t *testing.T) {
 		Flags:     TUNTAP_MULTI_QUEUE_DEFAULTS | TUNTAP_VNET_HDR})
 }
 
+func TestLinkAddDelTuntapOwnerGroup(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	if err := syscall.Mount("sysfs", "/sys", "sysfs", syscall.MS_RDONLY, ""); err != nil {
+		t.Fatal("Cannot mount sysfs")
+	}
+
+	defer func() {
+		if err := syscall.Unmount("/sys", 0); err != nil {
+			t.Fatal("Cannot umount /sys")
+		}
+	}()
+
+	testLinkAddDel(t, &Tuntap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Mode:      TUNTAP_MODE_TAP,
+		Owner:     0,
+		Group:     0,
+	})
+}
+
 func TestVethPeerIndex(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
