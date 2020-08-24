@@ -598,10 +598,10 @@ func initClock() {
 		return
 	}
 	parts := strings.Split(strings.TrimSpace(string(data)), " ")
-	if len(parts) < 3 {
+	if len(parts) < 4 {
 		return
 	}
-	var vals [3]uint64
+	var vals [4]uint64
 	for i := range vals {
 		val, err := strconv.ParseUint(parts[i], 16, 32)
 		if err != nil {
@@ -615,7 +615,12 @@ func initClock() {
 	}
 	clockFactor = float64(vals[2]) / TIME_UNITS_PER_SEC
 	tickInUsec = float64(vals[0]) / float64(vals[1]) * clockFactor
-	hz = float64(vals[0])
+	if vals[2] == 1000000 {
+		// ref https://git.kernel.org/pub/scm/network/iproute2/iproute2.git/tree/lib/utils.c#n963
+		hz = float64(vals[3])
+	} else {
+		hz = 100
+	}
 }
 
 func TickInUsec() float64 {
@@ -663,6 +668,7 @@ func latency(rate uint64, limit, buffer uint32) float64 {
 	return TIME_UNITS_PER_SEC*(float64(limit)/float64(rate)) - float64(tick2Time(buffer))
 }
 
-func Xmittime(rate uint64, size uint32) float64 {
-	return TickInUsec() * TIME_UNITS_PER_SEC * (float64(size) / float64(rate))
+func Xmittime(rate uint64, size uint32) uint32 {
+	// https://git.kernel.org/pub/scm/network/iproute2/iproute2.git/tree/tc/tc_core.c#n62
+	return time2Tick(uint32(TIME_UNITS_PER_SEC * (float64(size) / float64(rate))))
 }
