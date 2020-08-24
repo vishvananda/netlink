@@ -97,6 +97,8 @@ func TestClassAddDel(t *testing.T) {
 	htbclassattrs := HtbClassAttrs{
 		Rate:    1234000,
 		Cbuffer: 1690,
+		Prio:    2,
+		Quantum: 1000,
 	}
 	class := NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassAdd(class); err != nil {
@@ -125,6 +127,12 @@ func TestClassAddDel(t *testing.T) {
 	}
 	if htb.Cbuffer != class.Cbuffer {
 		t.Fatal("Cbuffer doesn't match")
+	}
+	if htb.Prio != class.Prio {
+		t.Fatal("Prio doesn't match")
+	}
+	if htb.Quantum != class.Quantum {
+		t.Fatal("Quantum doesn't match")
 	}
 
 	testClassStats(htb.ClassAttrs.Statistics, NewClassStatistics(), t)
