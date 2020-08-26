@@ -1566,7 +1566,11 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 		return nil, err
 	}
 
-	base := LinkAttrs{Index: int(msg.Index), RawFlags: msg.Flags, Flags: linkFlags(msg.Flags), EncapType: msg.EncapType()}
+	base := NewLinkAttrs()
+	base.Index = int(msg.Index)
+	base.RawFlags = msg.Flags
+	base.Flags = linkFlags(msg.Flags)
+	base.EncapType = msg.EncapType()
 	if msg.Flags&unix.IFF_PROMISC != 0 {
 		base.Promisc = 1
 	}
