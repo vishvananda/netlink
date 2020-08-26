@@ -103,7 +103,8 @@ func (s LinkOperState) String() string {
 // NewLinkAttrs returns LinkAttrs structure filled with default values
 func NewLinkAttrs() LinkAttrs {
 	return LinkAttrs{
-		TxQLen: -1,
+		NetNsID: -1,
+		TxQLen:  -1,
 	}
 }
 
