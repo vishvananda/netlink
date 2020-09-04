@@ -1353,6 +1353,8 @@ func (h *Handle) linkModify(link Link, flags int) error {
 			data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
 			data.AddRtAttr(nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[link.Mode]))
 		}
+	case *Geneve:
+		addGeneveAttrs(link, linkInfo)
 	case *Gretap:
 		addGretapAttrs(link, linkInfo)
 	case *Iptun:
@@ -1612,6 +1614,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						link = &Macvlan{}
 					case "macvtap":
 						link = &Macvtap{}
+					case "geneve":
+						link = &Geneve{}
 					case "gretap":
 						link = &Gretap{}
 					case "ip6gretap":
@@ -1659,6 +1663,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						parseMacvlanData(link, data)
 					case "macvtap":
 						parseMacvtapData(link, data)
+					case "geneve":
+						parseGeneveData(link, data)
 					case "gretap":
 						parseGretapData(link, data)
 					case "ip6gretap":
@@ -2388,6 +2394,45 @@ func linkFlags(rawFlags uint32) net.Flags {
 		f |= net.FlagMulticast
 	}
 	return f
+}
+
+func addGeneveAttrs(geneve *Geneve, linkInfo *nl.RtAttr) {
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+
+	if geneve.FlowBased {
+		// In flow based mode, no other attributes need to be configured
+		linkInfo.AddRtAttr(nl.IFLA_GENEVE_COLLECT_METADATA, boolAttr(geneve.FlowBased))
+		return
+	}
+
+	if ip := geneve.Remote; ip != nil {
+		if ip4 := ip.To4(); ip4 != nil {
+			data.AddRtAttr(nl.IFLA_GENEVE_REMOTE, []byte(ip))
+		} else {
+			data.AddRtAttr(nl.IFLA_GENEVE_REMOTE6, []byte(ip))
+		}
+	}
+
+	data.AddRtAttr(nl.IFLA_GENEVE_ID, nl.Uint32Attr(geneve.ID))
+	data.AddRtAttr(nl.IFLA_GENEVE_PORT, htons(geneve.Dport))
+	data.AddRtAttr(nl.IFLA_GENEVE_TTL, nl.Uint8Attr(geneve.Ttl))
+	data.AddRtAttr(nl.IFLA_GENEVE_TOS, nl.Uint8Attr(geneve.Tos))
+}
+
+func parseGeneveData(link Link, data []syscall.NetlinkRouteAttr) {
+	geneve := link.(*Geneve)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_GENEVE_ID:
+			native.Uint32(datum.Value[0:4])
+		case nl.IFLA_GENEVE_PORT:
+			geneve.Dport = ntohs(datum.Value[0:2])
+		case nl.IFLA_GENEVE_TTL:
+			geneve.Ttl = uint8(datum.Value[0])
+		case nl.IFLA_GENEVE_TOS:
+			geneve.Tos = uint8(datum.Value[0])
+		}
+	}
 }
 
 func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
