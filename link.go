@@ -893,10 +893,14 @@ type Ip6tnl struct {
 	Remote     net.IP
 	Ttl        uint8
 	Tos        uint8
-	EncapLimit uint8
 	Flags      uint32
 	Proto      uint8
 	FlowInfo   uint32
+	EncapLimit uint8
+	EncapType  uint16
+	EncapFlags uint16
+	EncapSport uint16
+	EncapDport uint16
 }
 
 func (ip6tnl *Ip6tnl) Attrs() *LinkAttrs {
@@ -910,11 +914,13 @@ func (ip6tnl *Ip6tnl) Type() string {
 type Sittun struct {
 	LinkAttrs
 	Link       uint32
-	Local      net.IP
-	Remote     net.IP
 	Ttl        uint8
 	Tos        uint8
 	PMtuDisc   uint8
+	Proto      uint8
+	Local      net.IP
+	Remote     net.IP
+	EncapLimit uint8
 	EncapType  uint16
 	EncapFlags uint16
 	EncapSport uint16
