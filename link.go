@@ -834,6 +834,30 @@ func (b *BondSlave) SlaveType() string {
 	return "bond"
 }
 
+// Geneve devices must specify RemoteIP and ID (VNI) on create
+// https://github.com/torvalds/linux/blob/47ec5303d73ea344e84f46660fff693c57641386/drivers/net/geneve.c#L1209-L1223
+type Geneve struct {
+	LinkAttrs
+	ID              uint32 // vni
+	Remote          net.IP
+	Ttl             uint8
+	Tos             uint8
+	Dport           uint16
+	UdpCsum         uint8
+	UdpZeroCsum6_Tx uint8
+	UdpZeroCsum6_Rx uint8
+	Link            uint32
+	FlowBased       bool
+}
+
+func (geneve *Geneve) Attrs() *LinkAttrs {
+	return &geneve.LinkAttrs
+}
+
+func (geneve *Geneve) Type() string {
+	return "geneve"
+}
+
 // Gretap devices must specify LocalIP and RemoteIP on create
 type Gretap struct {
 	LinkAttrs

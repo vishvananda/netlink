@@ -245,6 +245,14 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if geneve, ok := link.(*Geneve); ok {
+		other, ok := result.(*Geneve)
+		if !ok {
+			t.Fatal("Result of create is not a Geneve")
+		}
+		compareGeneve(t, geneve, other)
+	}
+
 	if gretap, ok := link.(*Gretap); ok {
 		other, ok := result.(*Gretap)
 		if !ok {
@@ -291,6 +299,26 @@ func testLinkAddDel(t *testing.T, link Link) {
 			t.Fatal("Link not removed properly")
 		}
 	}
+}
+
+func compareGeneve(t *testing.T, expected, actual *Geneve) {
+	if actual.ID != expected.ID {
+		t.Fatalf("Geneve.ID doesn't match: %d %d", actual.ID, expected.ID)
+	}
+
+	if actual.Dport != expected.Dport {
+		t.Fatal("Geneve.Dport doesn't match")
+	}
+
+	if actual.Ttl != expected.Ttl {
+		t.Fatal("Geneve.Ttl doesn't match")
+	}
+
+	if actual.Tos != expected.Tos {
+		t.Fatal("Geneve.Tos doesn't match")
+	}
+
+	// TODO: we should implement the rest of the geneve methods
 }
 
 func compareGretap(t *testing.T, expected, actual *Gretap) {
@@ -573,6 +601,21 @@ func TestLinkAddDelBridge(t *testing.T) {
 	defer tearDown()
 
 	testLinkAddDel(t, &Bridge{LinkAttrs: LinkAttrs{Name: "foo", MTU: 1400}})
+}
+
+func TestLinkAddDelGeneve(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Geneve{
+		LinkAttrs: LinkAttrs{Name: "foo4"},
+		ID:        0x01,
+		Remote:    net.IPv4(127, 0, 0, 1)})
+
+	testLinkAddDel(t, &Geneve{
+		LinkAttrs: LinkAttrs{Name: "foo6"},
+		ID:        0x01,
+		Remote:    net.ParseIP("2001:db8:ef33::2")})
 }
 
 func TestLinkAddDelGretap(t *testing.T) {
