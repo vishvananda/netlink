@@ -1022,6 +1022,7 @@ func TestFilterU32TunnelKeyAddDel(t *testing.T) {
 	tunnelAct.DstAddr = net.IPv4(10, 10, 10, 2)
 	tunnelAct.KeyID = 0x01
 	tunnelAct.Action = TCA_TUNNEL_KEY_SET
+	tunnelAct.DestPort = 8472
 
 	classId := MakeHandle(1, 1)
 	filter := &U32{
@@ -1087,6 +1088,9 @@ func TestFilterU32TunnelKeyAddDel(t *testing.T) {
 	}
 	if tun.KeyID != tunnelAct.KeyID {
 		t.Fatal("Action KeyID doesn't match")
+	}
+	if tun.DestPort != tunnelAct.DestPort {
+		t.Fatal("Action DestPort doesn't match")
 	}
 	if tun.Action != tunnelAct.Action {
 		t.Fatal("Action doesn't match")
