@@ -122,6 +122,72 @@ func TestHtbAddDel(t *testing.T) {
 	}
 }
 
+func TestSfqAddDel(t *testing.T) {
+	tearDown := setUpNetlinkTestWithKModule(t, "sch_sfq")
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	attrs := QdiscAttrs{
+		LinkIndex: link.Attrs().Index,
+		Handle:    MakeHandle(1, 0),
+		Parent:    HANDLE_ROOT,
+	}
+
+	qdisc := Sfq{
+		QdiscAttrs: attrs,
+		Quantum:    2,
+		Perturb:    11,
+		Limit:      123,
+		Divisor:    4,
+	}
+	if err := QdiscAdd(&qdisc); err != nil {
+		t.Fatal(err)
+	}
+
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 1 {
+		t.Fatal("Failed to add qdisc")
+	}
+	sfq, ok := qdiscs[0].(*Sfq)
+	if !ok {
+		t.Fatal("Qdisc is the wrong type")
+	}
+	if sfq.Quantum != qdisc.Quantum {
+		t.Fatal("Quantum doesn't match")
+	}
+	if sfq.Perturb != qdisc.Perturb {
+		t.Fatal("Perturb doesn't match")
+	}
+	if sfq.Limit != qdisc.Limit {
+		t.Fatal("Limit doesn't match")
+	}
+	if sfq.Divisor != qdisc.Divisor {
+		t.Fatal("Divisor doesn't match")
+	}
+	if err := QdiscDel(&qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 0 {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
+
 func TestPrioAddDel(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()

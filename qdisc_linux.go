@@ -278,6 +278,14 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		if qdisc.FlowDefaultRate > 0 {
 			options.AddRtAttr(nl.TCA_FQ_FLOW_DEFAULT_RATE, nl.Uint32Attr((uint32(qdisc.FlowDefaultRate))))
 		}
+	case *Sfq:
+		opt := nl.TcSfqQoptV1{}
+		opt.TcSfqQopt.Quantum = qdisc.Quantum
+		opt.TcSfqQopt.Perturb = int32(qdisc.Perturb)
+		opt.TcSfqQopt.Limit = qdisc.Limit
+		opt.TcSfqQopt.Divisor = qdisc.Divisor
+
+		options = nl.NewRtAttr(nl.TCA_OPTIONS, opt.Serialize())
 	default:
 		options = nil
 	}
@@ -362,6 +370,8 @@ func (h *Handle) QdiscList(link Link) ([]Qdisc, error) {
 					qdisc = &FqCodel{}
 				case "netem":
 					qdisc = &Netem{}
+				case "sfq":
+					qdisc = &Sfq{}
 				default:
 					qdisc = &GenericQdisc{QdiscType: qdiscType}
 				}
@@ -415,6 +425,10 @@ func (h *Handle) QdiscList(link Link) ([]Qdisc, error) {
 					}
 				case "netem":
 					if err := parseNetemData(qdisc, attr.Value); err != nil {
+						return nil, err
+					}
+				case "sfq":
+					if err := parseSfqData(qdisc, attr.Value); err != nil {
 						return nil, err
 					}
 
@@ -579,6 +593,17 @@ func parseTbfData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 			tbf.Minburst = native.Uint32(datum.Value[0:4])
 		}
 	}
+	return nil
+}
+
+func parseSfqData(qdisc Qdisc, value []byte) error {
+	sfq := qdisc.(*Sfq)
+	opt := nl.DeserializeTcSfqQoptV1(value)
+	sfq.Quantum = opt.TcSfqQopt.Quantum
+	sfq.Perturb = uint8(opt.TcSfqQopt.Perturb)
+	sfq.Limit = opt.TcSfqQopt.Limit
+	sfq.Divisor = opt.TcSfqQopt.Divisor
+
 	return nil
 }
 
