@@ -391,3 +391,40 @@ func (t *TCPInfo) deserialize(b []byte) error {
 	t.Snd_wnd = native.Uint32(next)
 	return nil
 }
+
+type TCPBBRInfo struct {
+	BBRBW         uint64
+	BBRMinRTT     uint32
+	BBRPacingGain uint32
+	BBRCwndGain   uint32
+}
+
+func (t *TCPBBRInfo) deserialize(b []byte) error {
+	rb := bytes.NewBuffer(b)
+
+	next := rb.Next(8)
+	if len(next) == 0 {
+		return nil
+	}
+	t.BBRBW = native.Uint64(next)
+
+	next = rb.Next(4)
+	if len(next) == 0 {
+		return nil
+	}
+	t.BBRMinRTT = native.Uint32(next)
+
+	next = rb.Next(4)
+	if len(next) == 0 {
+		return nil
+	}
+	t.BBRPacingGain = native.Uint32(next)
+
+	next = rb.Next(4)
+	if len(next) == 0 {
+		return nil
+	}
+	t.BBRCwndGain = native.Uint32(next)
+
+	return nil
+}
