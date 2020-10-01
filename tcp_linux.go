@@ -401,7 +401,6 @@ type TCPBBRInfo struct {
 
 func (t *TCPBBRInfo) deserialize(b []byte) error {
 	rb := bytes.NewBuffer(b)
-
 	next := rb.Next(8)
 	if len(next) == 0 {
 		return nil
