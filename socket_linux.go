@@ -184,8 +184,8 @@ func SocketDiagTCPInfo(family uint8) ([]*InetDiagTCPInfoResp, error) {
 	req.AddData(&socketRequest{
 		Family:   family,
 		Protocol: unix.IPPROTO_TCP,
-		// INET_DIAG_VEGASINFO is needed in order to get TCP BBR info (see include/uapi/linux/inet_diag.h)
-		Ext:    (1 << (INET_DIAG_INFO)) | (1 << (INET_DIAG_VEGASINFO)),
+		//Ext:      (1 << (INET_DIAG_VEGASINFO - 1)) | (1 << (INET_DIAG_INFO - 1)) | (1 << (INET_DIAG_CONG - 1)),
+		Ext:    (1 << (INET_DIAG_VEGASINFO - 1)) | (1 << (INET_DIAG_INFO - 1)),
 		States: uint32(0xfff), // All TCP states
 	})
 	s.Send(req)
@@ -229,7 +229,7 @@ loop:
 					if err := tcpInfo.deserialize(a.Value); err != nil {
 						return nil, err
 					}
-					break
+					continue
 				}
 
 				if a.Attr.Type == INET_DIAG_BBRINFO {
@@ -237,7 +237,7 @@ loop:
 					if err := tcpBBRInfo.deserialize(a.Value); err != nil {
 						return nil, err
 					}
-					break
+					continue
 				}
 			}
 			r := &InetDiagTCPInfoResp{
