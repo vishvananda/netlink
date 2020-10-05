@@ -184,9 +184,8 @@ func SocketDiagTCPInfo(family uint8) ([]*InetDiagTCPInfoResp, error) {
 	req.AddData(&socketRequest{
 		Family:   family,
 		Protocol: unix.IPPROTO_TCP,
-		//Ext:      (1 << (INET_DIAG_VEGASINFO - 1)) | (1 << (INET_DIAG_INFO - 1)) | (1 << (INET_DIAG_CONG - 1)),
-		Ext:    (1 << (INET_DIAG_VEGASINFO - 1)) | (1 << (INET_DIAG_INFO - 1)),
-		States: uint32(0xfff), // All TCP states
+		Ext:      (1 << (INET_DIAG_VEGASINFO - 1)) | (1 << (INET_DIAG_INFO - 1)),
+		States:   uint32(0xfff), // All TCP states
 	})
 	s.Send(req)
 
