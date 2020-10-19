@@ -362,46 +362,44 @@ func (a *RtAttr) Serialize() []byte {
 
 type NetlinkRequest struct {
 	unix.NlMsghdr
-	Data    []NetlinkRequestData
-	RawData []byte
+	raw     bytes.Buffer
 	Sockets map[int]*SocketHandle
 }
 
 // Serialize the Netlink Request into a byte array
 func (req *NetlinkRequest) Serialize() []byte {
-	length := unix.SizeofNlMsghdr
-	dataBytes := make([][]byte, len(req.Data))
-	for i, data := range req.Data {
-		dataBytes[i] = data.Serialize()
-		length = length + len(dataBytes[i])
+	if req.raw.Len() == 0 {
+		return nil
 	}
-	length += len(req.RawData)
 
-	req.Len = uint32(length)
-	b := make([]byte, length)
+	data := req.raw.Bytes()
+	req.Len = uint32(len(data))
+
 	hdr := (*(*[unix.SizeofNlMsghdr]byte)(unsafe.Pointer(req)))[:]
-	next := unix.SizeofNlMsghdr
-	copy(b[0:next], hdr)
-	for _, data := range dataBytes {
-		for _, dataByte := range data {
-			b[next] = dataByte
-			next = next + 1
-		}
-	}
-	// Add the raw data if any
-	if len(req.RawData) > 0 {
-		copy(b[next:length], req.RawData)
-	}
-	return b
+	copy(data[:unix.SizeofNlMsghdr], hdr)
+
+	return data
 }
 
-func (req *NetlinkRequest) AddData(data NetlinkRequestData) {
-	req.Data = append(req.Data, data)
+// AddRtAttr adds an RtAttr to the request
+func (req *NetlinkRequest) AddRtAttr(attrType int, data []byte) *NetlinkRequest {
+	return req.AddData(NewRtAttr(attrType, data))
 }
 
-// AddRawData adds raw bytes to the end of the NetlinkRequest object during serialization
-func (req *NetlinkRequest) AddRawData(data []byte) {
-	req.RawData = append(req.RawData, data...)
+// AddData serializes the given data and appends it to the request
+func (req *NetlinkRequest) AddData(data NetlinkRequestData) *NetlinkRequest {
+	return req.AddRawData(data.Serialize())
+}
+
+// AddRawData appends raw bytes
+func (req *NetlinkRequest) AddRawData(data []byte) *NetlinkRequest {
+	if req.raw.Len() == 0 {
+		// Create space for the header
+		req.raw.Write(make([]byte, unix.SizeofNlMsghdr))
+	}
+	req.raw.Write(data)
+
+	return req
 }
 
 // Execute the request against a the given sockType.
