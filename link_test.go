@@ -4,8 +4,10 @@ package netlink
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"syscall"
 	"testing"
 	"time"
@@ -323,6 +325,10 @@ func compareGeneve(t *testing.T, expected, actual *Geneve) {
 		t.Fatal("Geneve.Tos doesn't match")
 	}
 
+	if !actual.Remote.Equal(expected.Remote) {
+		t.Fatalf("Geneve.Remote is not equal: %s!=%s", actual.Remote, expected.Remote)
+	}
+
 	// TODO: we should implement the rest of the geneve methods
 }
 
@@ -621,6 +627,45 @@ func TestLinkAddDelGeneve(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "foo6", EncapType: "geneve"},
 		ID:        0x1000,
 		Remote:    net.ParseIP("2001:db8:ef33::2")})
+}
+
+func TestGeneveCompareToIP(t *testing.T) {
+	ns, tearDown := setUpNamedNetlinkTest(t)
+	defer tearDown()
+
+	expected := &Geneve{
+		ID:     0x764332, // 23 bits
+		Remote: net.ParseIP("1.2.3.4"),
+		Dport:  6081,
+	}
+
+	// Create interface
+	cmd := exec.Command("ip", "netns", "exec", ns,
+		"ip", "link", "add", "gen0",
+		"type", "geneve",
+		"vni", fmt.Sprint(expected.ID),
+		"remote", expected.Remote.String(),
+		// TODO: unit tests are currently done on ubuntu 16, and the version of iproute2 there doesn't support dstport
+		// We can still do most of the testing by verifying that we do read the default port
+		// "dstport", fmt.Sprint(expected.Dport),
+	)
+	out := &bytes.Buffer{}
+	cmd.Stdout = out
+	cmd.Stderr = out
+
+	if rc := cmd.Run(); rc != nil {
+		t.Fatal("failed creating link:", rc, out.String())
+	}
+
+	link, err := LinkByName("gen0")
+	if err != nil {
+		t.Fatal("Failed getting link: ", err)
+	}
+	actual, ok := link.(*Geneve)
+	if !ok {
+		t.Fatalf("resulted interface is not geneve: %T", link)
+	}
+	compareGeneve(t, expected, actual)
 }
 
 func TestLinkAddDelGretap(t *testing.T) {
