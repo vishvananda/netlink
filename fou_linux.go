@@ -5,6 +5,8 @@ package netlink
 import (
 	"encoding/binary"
 	"errors"
+	"log"
+	"net"
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
@@ -24,12 +26,20 @@ const (
 
 const (
 	FOU_ATTR_UNSPEC = iota
-	FOU_ATTR_PORT
-	FOU_ATTR_AF
-	FOU_ATTR_IPPROTO
-	FOU_ATTR_TYPE
-	FOU_ATTR_REMCSUM_NOPARTIAL
-	FOU_ATTR_MAX = FOU_ATTR_REMCSUM_NOPARTIAL
+
+	FOU_ATTR_PORT              /* u16 */
+	FOU_ATTR_AF                /* u8 */
+	FOU_ATTR_IPPROTO           /* u8 */
+	FOU_ATTR_TYPE              /* u8 */
+	FOU_ATTR_REMCSUM_NOPARTIAL /* flag */
+	FOU_ATTR_LOCAL_V4          /* u32 */
+	FOU_ATTR_LOCAL_V6          /* in6_addr */
+	FOU_ATTR_PEER_V4           /* u32 */
+	FOU_ATTR_PEER_V6           /* in6_addr */
+	FOU_ATTR_PEER_PORT         /* u16 */
+	FOU_ATTR_IFINDEX           /* s32 */
+
+	FOU_ATTR_MAX
 )
 
 const (
@@ -39,11 +49,11 @@ const (
 	FOU_ENCAP_MAX = FOU_ENCAP_GUE
 )
 
-var fouFamilyId int
+var fouFamilyID int
 
 func FouFamilyId() (int, error) {
-	if fouFamilyId != 0 {
-		return fouFamilyId, nil
+	if fouFamilyID != 0 {
+		return fouFamilyID, nil
 	}
 
 	fam, err := GenlFamilyGet(FOU_GENL_NAME)
@@ -51,8 +61,8 @@ func FouFamilyId() (int, error) {
 		return -1, err
 	}
 
-	fouFamilyId = int(fam.ID)
-	return fouFamilyId, nil
+	fouFamilyID = int(fam.ID)
+	return fouFamilyID, nil
 }
 
 func FouAdd(f Fou) error {
@@ -60,37 +70,12 @@ func FouAdd(f Fou) error {
 }
 
 func (h *Handle) FouAdd(f Fou) error {
-	fam_id, err := FouFamilyId()
-	if err != nil {
-		return err
-	}
-
 	// setting ip protocol conflicts with encapsulation type GUE
 	if f.EncapType == FOU_ENCAP_GUE && f.Protocol != 0 {
 		return errors.New("GUE encapsulation doesn't specify an IP protocol")
 	}
 
-	req := h.newNetlinkRequest(fam_id, unix.NLM_F_ACK)
-
-	// int to byte for port
-	bp := make([]byte, 2)
-	binary.BigEndian.PutUint16(bp[0:2], uint16(f.Port))
-
-	attrs := []*nl.RtAttr{
-		nl.NewRtAttr(FOU_ATTR_PORT, bp),
-		nl.NewRtAttr(FOU_ATTR_TYPE, []byte{uint8(f.EncapType)}),
-		nl.NewRtAttr(FOU_ATTR_AF, []byte{uint8(f.Family)}),
-		nl.NewRtAttr(FOU_ATTR_IPPROTO, []byte{uint8(f.Protocol)}),
-	}
-	raw := []byte{FOU_CMD_ADD, 1, 0, 0}
-	for _, a := range attrs {
-		raw = append(raw, a.Serialize()...)
-	}
-
-	req.AddRawData(raw)
-
-	_, err = req.Execute(unix.NETLINK_GENERIC, 0)
-	return err
+	return h.fouAddDel(&f, FOU_CMD_ADD)
 }
 
 func FouDel(f Fou) error {
@@ -98,34 +83,7 @@ func FouDel(f Fou) error {
 }
 
 func (h *Handle) FouDel(f Fou) error {
-	fam_id, err := FouFamilyId()
-	if err != nil {
-		return err
-	}
-
-	req := h.newNetlinkRequest(fam_id, unix.NLM_F_ACK)
-
-	// int to byte for port
-	bp := make([]byte, 2)
-	binary.BigEndian.PutUint16(bp[0:2], uint16(f.Port))
-
-	attrs := []*nl.RtAttr{
-		nl.NewRtAttr(FOU_ATTR_PORT, bp),
-		nl.NewRtAttr(FOU_ATTR_AF, []byte{uint8(f.Family)}),
-	}
-	raw := []byte{FOU_CMD_DEL, 1, 0, 0}
-	for _, a := range attrs {
-		raw = append(raw, a.Serialize()...)
-	}
-
-	req.AddRawData(raw)
-
-	_, err = req.Execute(unix.NETLINK_GENERIC, 0)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return h.fouAddDel(&f, FOU_CMD_DEL)
 }
 
 func FouList(fam int) ([]Fou, error) {
@@ -133,79 +91,108 @@ func FouList(fam int) ([]Fou, error) {
 }
 
 func (h *Handle) FouList(fam int) ([]Fou, error) {
-	fam_id, err := FouFamilyId()
+	req, err := h.newFouRequest(unix.NLM_F_DUMP, FOU_CMD_GET)
 	if err != nil {
 		return nil, err
 	}
 
-	req := h.newNetlinkRequest(fam_id, unix.NLM_F_DUMP)
-
-	attrs := []*nl.RtAttr{
-		nl.NewRtAttr(FOU_ATTR_AF, []byte{uint8(fam)}),
-	}
-	raw := []byte{FOU_CMD_GET, 1, 0, 0}
-	for _, a := range attrs {
-		raw = append(raw, a.Serialize()...)
-	}
-
-	req.AddRawData(raw)
+	req.AddRtAttr(FOU_ATTR_AF, []byte{uint8(fam)})
 
 	msgs, err := req.Execute(unix.NETLINK_GENERIC, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	fous := make([]Fou, 0, len(msgs))
-	for _, m := range msgs {
-		f, err := deserializeFouMsg(m)
-		if err != nil {
-			return fous, err
-		}
-
-		fous = append(fous, f)
+	fous := make([]Fou, len(msgs))
+	for i := range msgs {
+		fous[i] = deserializeFouMsg(msgs[i])
 	}
 
 	return fous, nil
 }
 
-func deserializeFouMsg(msg []byte) (Fou, error) {
-	// we'll skip to byte 4 to first attribute
-	msg = msg[3:]
-	var shift int
-	fou := Fou{}
+func (h *Handle) newFouRequest(flags int, cmd uint8) (*nl.NetlinkRequest, error) {
+	familyID, err := FouFamilyId()
+	if err != nil {
+		return nil, err
+	}
 
-	for {
-		// attribute header is at least 16 bits
-		if len(msg) < 4 {
-			return fou, ErrAttrHeaderTruncated
-		}
+	return h.newNetlinkRequest(familyID, flags).AddRawData([]byte{cmd, 1, 0, 0}), nil
+}
 
-		lgt := int(binary.BigEndian.Uint16(msg[0:2]))
-		if len(msg) < lgt+4 {
-			return fou, ErrAttrBodyTruncated
-		}
-		attr := binary.BigEndian.Uint16(msg[2:4])
+func (h *Handle) fouAddDel(f *Fou, cmd uint8) error {
+	req, err := h.newFouRequest(unix.NLM_F_ACK, cmd)
+	if err != nil {
+		return err
+	}
 
-		shift = lgt + 3
-		switch attr {
-		case FOU_ATTR_AF:
-			fou.Family = int(msg[5])
-		case FOU_ATTR_PORT:
-			fou.Port = int(binary.BigEndian.Uint16(msg[5:7]))
-			// port is 2 bytes
-			shift = lgt + 2
-		case FOU_ATTR_IPPROTO:
-			fou.Protocol = int(msg[5])
-		case FOU_ATTR_TYPE:
-			fou.EncapType = int(msg[5])
-		}
+	req.AddRtAttr(FOU_ATTR_TYPE, []byte{uint8(f.EncapType)}).
+		AddRtAttr(FOU_ATTR_AF, []byte{uint8(f.Family)}).
+		AddRtAttr(FOU_ATTR_IPPROTO, []byte{uint8(f.Protocol)})
 
-		msg = msg[shift:]
+	// local port
+	bp := make([]byte, 2)
+	binary.BigEndian.PutUint16(bp[0:2], uint16(f.Port))
+	req.AddRtAttr(FOU_ATTR_PORT, bp)
 
-		if len(msg) < 4 {
-			break
+	// peer port
+	if f.PeerPort > 0 {
+		bp = make([]byte, 2)
+		binary.BigEndian.PutUint16(bp[0:2], uint16(f.PeerPort))
+		req.AddRtAttr(FOU_ATTR_PEER_PORT, bp)
+	}
+
+	// local IP address
+	if !f.LocalAddr.IsUnspecified() {
+		if f.Family == nl.FAMILY_V4 {
+			req.AddRtAttr(FOU_ATTR_LOCAL_V4, f.LocalAddr.To4())
+		} else {
+			req.AddRtAttr(FOU_ATTR_LOCAL_V6, f.LocalAddr.To16())
 		}
 	}
 
-	return fou, nil
+	// peer IP address
+	if !f.PeerAddr.IsUnspecified() {
+		if f.Family == nl.FAMILY_V4 {
+			req.AddRtAttr(FOU_ATTR_PEER_V4, f.PeerAddr.To4())
+		} else {
+			req.AddRtAttr(FOU_ATTR_PEER_V6, f.PeerAddr.To16())
+		}
+	}
+
+	// ifindex
+	if f.IfIndex > 0 {
+		buf := make([]byte, 4)
+		native.PutUint32(buf, uint32(f.IfIndex))
+		req.AddRtAttr(FOU_ATTR_IFINDEX, buf)
+	}
+
+	_, err = req.Execute(unix.NETLINK_GENERIC, 0)
+	return err
+}
+
+func deserializeFouMsg(msg []byte) (fou Fou) {
+	for attr := range nl.ParseAttributes(msg[4:]) {
+		switch attr.Type {
+		case FOU_ATTR_AF:
+			fou.Family = int(attr.Value[0])
+		case FOU_ATTR_PORT:
+			fou.Port = int(binary.BigEndian.Uint16(attr.Value))
+		case FOU_ATTR_PEER_PORT:
+			fou.PeerPort = int(binary.BigEndian.Uint16(attr.Value))
+		case FOU_ATTR_IPPROTO:
+			fou.Protocol = int(attr.Value[0])
+		case FOU_ATTR_TYPE:
+			fou.EncapType = int(attr.Value[0])
+		case FOU_ATTR_LOCAL_V4, FOU_ATTR_LOCAL_V6:
+			fou.LocalAddr = net.IP(attr.Value)
+		case FOU_ATTR_PEER_V4, FOU_ATTR_PEER_V6:
+			fou.PeerAddr = net.IP(attr.Value)
+		case FOU_ATTR_IFINDEX:
+			fou.IfIndex = int(attr.Int32())
+		default:
+			log.Printf("unknown attribute: %02x", attr)
+		}
+	}
+	return
 }

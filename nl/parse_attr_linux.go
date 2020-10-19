@@ -1,6 +1,7 @@
 package nl
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -58,6 +59,12 @@ func printAttributes(data []byte, level int) {
 			printAttributes(attr.Value, level+1)
 		}
 	}
+}
+
+// Int32 returns the int32 native endian value
+func (attr *Attribute) Int32() (ret int32) {
+	binary.Read(bytes.NewBuffer(attr.Value), NativeEndian(), &ret)
+	return
 }
 
 // Uint32 returns the uint32 value respecting the NET_BYTEORDER flag
