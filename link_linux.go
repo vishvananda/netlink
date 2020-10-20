@@ -1229,6 +1229,14 @@ func (h *Handle) linkModify(link Link, flags int) error {
 			}
 		}
 
+		if tuntap.MTU > 0 {
+			err := setTunTapMtu(link.Attrs().Name, tuntap)
+			if err != nil {
+				cleanupFds(fds)
+				return err
+			}
+		}
+
 		if tuntap.Queues == 0 {
 			cleanupFds(fds)
 		} else {
@@ -1441,6 +1449,25 @@ func (h *Handle) linkModify(link Link, flags int) error {
 	if base.MasterIndex != 0 {
 		// TODO: verify MasterIndex is actually a bridge?
 		return h.LinkSetMasterByIndex(link, base.MasterIndex)
+	}
+	return nil
+}
+
+func setTunTapMtu(ifaceName string, tuntap *Tuntap) error {
+	fd, err := unix.Socket(
+		unix.AF_INET,
+		unix.SOCK_DGRAM,
+		0,
+	)
+	if err != nil {
+		return err
+	}
+	defer unix.Close(fd)
+
+	mtuIfReq := newIoctlMTUReq(ifaceName, int32(tuntap.Attrs().MTU))
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), unix.SIOCSIFMTU, uintptr(unsafe.Pointer(mtuIfReq)))
+	if errno != 0 {
+		return fmt.Errorf("Tuntap IOCTL SIOCSIFMTU failed on iface [%d], errno %v", fd, errno)
 	}
 	return nil
 }

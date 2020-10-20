@@ -42,6 +42,12 @@ type IfreqSlave struct {
 	Slave [unix.IFNAMSIZ]byte
 }
 
+// IfreqMTU is struct ifreq used to get or set a network device's MTU.
+type IfreqMTU struct {
+	Name [IFNAMSIZ]byte
+	MTU  int32
+}
+
 // Ifreq is a struct for ioctl ethernet manipulation syscalls.
 type Ifreq struct {
 	Name [unix.IFNAMSIZ]byte
@@ -81,6 +87,13 @@ func newIocltStringSetReq(linkName string) (*Ifreq, *ethtoolSset) {
 	ifreq := &Ifreq{Data: uintptr(unsafe.Pointer(e))}
 	copy(ifreq.Name[:unix.IFNAMSIZ-1], linkName)
 	return ifreq, e
+}
+
+func newIoctlMTUReq(ifaceName string, mtu int32) *IfreqMTU {
+	ifReq := &IfreqMTU{}
+	copy(ifReq.Name[:unix.IFNAMSIZ-1], ifaceName)
+	ifReq.MTU = mtu
+	return ifReq
 }
 
 // getSocketUDP returns file descriptor to new UDP socket

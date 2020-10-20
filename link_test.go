@@ -20,6 +20,7 @@ const (
 	defaultTxQLen int = 1000
 	testTxQueues  int = 4
 	testRxQueues  int = 8
+	defaultMTU    int = 1500
 )
 
 func testLinkAddDel(t *testing.T, link Link) {
@@ -506,6 +507,10 @@ func compareTuntap(t *testing.T, expected, actual *Tuntap) {
 
 	if expected.NonPersist != actual.NonPersist {
 		t.Fatal("Tuntap.Group doesn't match")
+	}
+
+	if expected.MTU != actual.MTU {
+		t.Fatal("Tuntap.MTU doesn't match")
 	}
 }
 
@@ -2266,7 +2271,7 @@ func TestLinkAddDelTuntap(t *testing.T) {
 	}()
 
 	testLinkAddDel(t, &Tuntap{
-		LinkAttrs: LinkAttrs{Name: "foo"},
+		LinkAttrs: LinkAttrs{Name: "foo", MTU: defaultMTU},
 		Mode:      TUNTAP_MODE_TAP})
 }
 
@@ -2285,12 +2290,12 @@ func TestLinkAddDelTuntapMq(t *testing.T) {
 	}()
 
 	testLinkAddDel(t, &Tuntap{
-		LinkAttrs: LinkAttrs{Name: "foo"},
+		LinkAttrs: LinkAttrs{Name: "foo", MTU: defaultMTU},
 		Mode:      TUNTAP_MODE_TAP,
 		Queues:    4})
 
 	testLinkAddDel(t, &Tuntap{
-		LinkAttrs: LinkAttrs{Name: "foo"},
+		LinkAttrs: LinkAttrs{Name: "foo", MTU: defaultMTU},
 		Mode:      TUNTAP_MODE_TAP,
 		Queues:    4,
 		Flags:     TUNTAP_MULTI_QUEUE_DEFAULTS | TUNTAP_VNET_HDR})
@@ -2311,10 +2316,30 @@ func TestLinkAddDelTuntapOwnerGroup(t *testing.T) {
 	}()
 
 	testLinkAddDel(t, &Tuntap{
-		LinkAttrs: LinkAttrs{Name: "foo"},
+		LinkAttrs: LinkAttrs{Name: "foo", MTU: defaultMTU},
 		Mode:      TUNTAP_MODE_TAP,
 		Owner:     0,
 		Group:     0,
+	})
+}
+
+func TestLinkAddDelTuntapMTU(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	if err := syscall.Mount("sysfs", "/sys", "sysfs", syscall.MS_RDONLY, ""); err != nil {
+		t.Fatal("Cannot mount sysfs")
+	}
+
+	defer func() {
+		if err := syscall.Unmount("/sys", 0); err != nil {
+			t.Fatal("Cannot umount /sys")
+		}
+	}()
+
+	testLinkAddDel(t, &Tuntap{
+		LinkAttrs: LinkAttrs{Name: "foo", MTU: 1000},
+		Mode:      TUNTAP_MODE_TAP,
 	})
 }
 
