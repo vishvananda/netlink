@@ -43,9 +43,9 @@ func parseOps(b []byte) ([]GenlOp, error) {
 		for _, na := range nattrs {
 			switch na.Attr.Type {
 			case nl.GENL_CTRL_ATTR_OP_ID:
-				op.ID = native.Uint32(na.Value)
+				op.ID = nativeEndian.Uint32(na.Value)
 			case nl.GENL_CTRL_ATTR_OP_FLAGS:
-				op.Flags = native.Uint32(na.Value)
+				op.Flags = nativeEndian.Uint32(na.Value)
 			}
 		}
 		ops = append(ops, op)
@@ -70,7 +70,7 @@ func parseMulticastGroups(b []byte) ([]GenlMulticastGroup, error) {
 			case nl.GENL_CTRL_ATTR_MCAST_GRP_NAME:
 				g.Name = nl.BytesToString(na.Value)
 			case nl.GENL_CTRL_ATTR_MCAST_GRP_ID:
-				g.ID = native.Uint32(na.Value)
+				g.ID = nativeEndian.Uint32(na.Value)
 			}
 		}
 		groups = append(groups, g)
@@ -84,13 +84,13 @@ func (f *GenlFamily) parseAttributes(attrs []syscall.NetlinkRouteAttr) error {
 		case nl.GENL_CTRL_ATTR_FAMILY_NAME:
 			f.Name = nl.BytesToString(a.Value)
 		case nl.GENL_CTRL_ATTR_FAMILY_ID:
-			f.ID = native.Uint16(a.Value)
+			f.ID = nativeEndian.Uint16(a.Value)
 		case nl.GENL_CTRL_ATTR_VERSION:
-			f.Version = native.Uint32(a.Value)
+			f.Version = nativeEndian.Uint32(a.Value)
 		case nl.GENL_CTRL_ATTR_HDRSIZE:
-			f.HdrSize = native.Uint32(a.Value)
+			f.HdrSize = nativeEndian.Uint32(a.Value)
 		case nl.GENL_CTRL_ATTR_MAXATTR:
-			f.MaxAttr = native.Uint32(a.Value)
+			f.MaxAttr = nativeEndian.Uint32(a.Value)
 		case nl.GENL_CTRL_ATTR_OPS:
 			ops, err := parseOps(a.Value)
 			if err != nil {

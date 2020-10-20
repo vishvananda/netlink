@@ -255,7 +255,7 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 			policy.Mark.Value = mark.Value
 			policy.Mark.Mask = mark.Mask
 		case nl.XFRMA_IF_ID:
-			policy.Ifid = int(native.Uint32(attr.Value))
+			policy.Ifid = int(nativeEndian.Uint32(attr.Value))
 		}
 	}
 

@@ -46,24 +46,22 @@ func GetIPFamily(ip net.IP) int {
 	return FAMILY_V6
 }
 
-var nativeEndian binary.ByteOrder
+var nativeEndian = func() binary.ByteOrder {
+	var x uint32 = 0x01020304
+	if *(*byte)(unsafe.Pointer(&x)) == 0x01 {
+		return binary.BigEndian
+	}
+	return binary.LittleEndian
+}()
 
 // NativeEndian gets native endianness for the system
 func NativeEndian() binary.ByteOrder {
-	if nativeEndian == nil {
-		var x uint32 = 0x01020304
-		if *(*byte)(unsafe.Pointer(&x)) == 0x01 {
-			nativeEndian = binary.BigEndian
-		} else {
-			nativeEndian = binary.LittleEndian
-		}
-	}
 	return nativeEndian
 }
 
 // Byte swap a 16 bit value if we aren't big endian
 func Swap16(i uint16) uint16 {
-	if NativeEndian() == binary.BigEndian {
+	if nativeEndian == binary.BigEndian {
 		return i
 	}
 	return (i&0xff00)>>8 | (i&0xff)<<8
@@ -71,7 +69,7 @@ func Swap16(i uint16) uint16 {
 
 // Byte swap a 32 bit value if aren't big endian
 func Swap32(i uint32) uint32 {
-	if NativeEndian() == binary.BigEndian {
+	if nativeEndian == binary.BigEndian {
 		return i
 	}
 	return (i&0xff000000)>>24 | (i&0xff0000)>>8 | (i&0xff00)<<8 | (i&0xff)<<24
@@ -265,15 +263,14 @@ type Uint32Attribute struct {
 }
 
 func (a *Uint32Attribute) Serialize() []byte {
-	native := NativeEndian()
 	buf := make([]byte, rtaAlignOf(8))
-	native.PutUint16(buf[0:2], 8)
-	native.PutUint16(buf[2:4], a.Type)
+	nativeEndian.PutUint16(buf[0:2], 8)
+	nativeEndian.PutUint16(buf[2:4], a.Type)
 
 	if a.Type&NLA_F_NET_BYTEORDER != 0 {
 		binary.BigEndian.PutUint32(buf[4:], a.Value)
 	} else {
-		native.PutUint32(buf[4:], a.Value)
+		nativeEndian.PutUint32(buf[4:], a.Value)
 	}
 	return buf
 }
@@ -335,8 +332,6 @@ func (a *RtAttr) Len() int {
 // Serialize the RtAttr into a byte array
 // This can't just unsafe.cast because it must iterate through children.
 func (a *RtAttr) Serialize() []byte {
-	native := NativeEndian()
-
 	length := a.Len()
 	buf := make([]byte, rtaAlignOf(length))
 
@@ -354,9 +349,9 @@ func (a *RtAttr) Serialize() []byte {
 	}
 
 	if l := uint16(length); l != 0 {
-		native.PutUint16(buf[0:2], l)
+		nativeEndian.PutUint16(buf[0:2], l)
 	}
-	native.PutUint16(buf[2:4], a.Type)
+	nativeEndian.PutUint16(buf[2:4], a.Type)
 	return buf
 }
 
@@ -463,8 +458,7 @@ done:
 				continue
 			}
 			if m.Header.Type == unix.NLMSG_DONE || m.Header.Type == unix.NLMSG_ERROR {
-				native := NativeEndian()
-				error := int32(native.Uint32(m.Data[0:4]))
+				error := int32(nativeEndian.Uint32(m.Data[0:4]))
 				if error == 0 {
 					break done
 				}
@@ -723,23 +717,20 @@ func Uint8Attr(v uint8) []byte {
 }
 
 func Uint16Attr(v uint16) []byte {
-	native := NativeEndian()
 	bytes := make([]byte, 2)
-	native.PutUint16(bytes, v)
+	nativeEndian.PutUint16(bytes, v)
 	return bytes
 }
 
 func Uint32Attr(v uint32) []byte {
-	native := NativeEndian()
 	bytes := make([]byte, 4)
-	native.PutUint32(bytes, v)
+	nativeEndian.PutUint32(bytes, v)
 	return bytes
 }
 
 func Uint64Attr(v uint64) []byte {
-	native := NativeEndian()
 	bytes := make([]byte, 8)
-	native.PutUint64(bytes, v)
+	nativeEndian.PutUint64(bytes, v)
 	return bytes
 }
 

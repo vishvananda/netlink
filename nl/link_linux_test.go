@@ -8,8 +8,7 @@ import (
 )
 
 func (msg *VfMac) write(b []byte) {
-	native := NativeEndian()
-	native.PutUint32(b[0:4], uint32(msg.Vf))
+	nativeEndian.PutUint32(b[0:4], uint32(msg.Vf))
 	copy(b[4:36], msg.Mac[:])
 }
 
@@ -22,7 +21,7 @@ func (msg *VfMac) serializeSafe() []byte {
 
 func deserializeVfMacSafe(b []byte) *VfMac {
 	var msg = VfMac{}
-	binary.Read(bytes.NewReader(b[0:SizeofVfMac]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofVfMac]), nativeEndian, &msg)
 	return &msg
 }
 
@@ -35,10 +34,9 @@ func TestVfMacDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *VfVlan) write(b []byte) {
-	native := NativeEndian()
-	native.PutUint32(b[0:4], uint32(msg.Vf))
-	native.PutUint32(b[4:8], uint32(msg.Vlan))
-	native.PutUint32(b[8:12], uint32(msg.Qos))
+	nativeEndian.PutUint32(b[0:4], uint32(msg.Vf))
+	nativeEndian.PutUint32(b[4:8], uint32(msg.Vlan))
+	nativeEndian.PutUint32(b[8:12], uint32(msg.Qos))
 }
 
 func (msg *VfVlan) serializeSafe() []byte {
@@ -50,7 +48,7 @@ func (msg *VfVlan) serializeSafe() []byte {
 
 func deserializeVfVlanSafe(b []byte) *VfVlan {
 	var msg = VfVlan{}
-	binary.Read(bytes.NewReader(b[0:SizeofVfVlan]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofVfVlan]), nativeEndian, &msg)
 	return &msg
 }
 
@@ -63,9 +61,8 @@ func TestVfVlanDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *VfTxRate) write(b []byte) {
-	native := NativeEndian()
-	native.PutUint32(b[0:4], uint32(msg.Vf))
-	native.PutUint32(b[4:8], uint32(msg.Rate))
+	nativeEndian.PutUint32(b[0:4], uint32(msg.Vf))
+	nativeEndian.PutUint32(b[4:8], uint32(msg.Rate))
 }
 
 func (msg *VfTxRate) serializeSafe() []byte {
@@ -77,7 +74,7 @@ func (msg *VfTxRate) serializeSafe() []byte {
 
 func deserializeVfTxRateSafe(b []byte) *VfTxRate {
 	var msg = VfTxRate{}
-	binary.Read(bytes.NewReader(b[0:SizeofVfTxRate]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofVfTxRate]), nativeEndian, &msg)
 	return &msg
 }
 
@@ -90,10 +87,9 @@ func TestVfTxRateDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *VfRate) write(b []byte) {
-	native := NativeEndian()
-	native.PutUint32(b[0:4], uint32(msg.Vf))
-	native.PutUint32(b[4:8], uint32(msg.MinTxRate))
-	native.PutUint32(b[8:12], uint32(msg.MaxTxRate))
+	nativeEndian.PutUint32(b[0:4], uint32(msg.Vf))
+	nativeEndian.PutUint32(b[4:8], uint32(msg.MinTxRate))
+	nativeEndian.PutUint32(b[8:12], uint32(msg.MaxTxRate))
 }
 
 func (msg *VfRate) serializeSafe() []byte {
@@ -105,7 +101,7 @@ func (msg *VfRate) serializeSafe() []byte {
 
 func deserializeVfRateSafe(b []byte) *VfRate {
 	var msg = VfRate{}
-	binary.Read(bytes.NewReader(b[0:SizeofVfRate]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofVfRate]), nativeEndian, &msg)
 	return &msg
 }
 
@@ -118,9 +114,8 @@ func TestVfRateDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *VfSpoofchk) write(b []byte) {
-	native := NativeEndian()
-	native.PutUint32(b[0:4], uint32(msg.Vf))
-	native.PutUint32(b[4:8], uint32(msg.Setting))
+	nativeEndian.PutUint32(b[0:4], uint32(msg.Vf))
+	nativeEndian.PutUint32(b[4:8], uint32(msg.Setting))
 }
 
 func (msg *VfSpoofchk) serializeSafe() []byte {
@@ -132,7 +127,7 @@ func (msg *VfSpoofchk) serializeSafe() []byte {
 
 func deserializeVfSpoofchkSafe(b []byte) *VfSpoofchk {
 	var msg = VfSpoofchk{}
-	binary.Read(bytes.NewReader(b[0:SizeofVfSpoofchk]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofVfSpoofchk]), nativeEndian, &msg)
 	return &msg
 }
 
@@ -145,9 +140,8 @@ func TestVfSpoofchkDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *VfLinkState) write(b []byte) {
-	native := NativeEndian()
-	native.PutUint32(b[0:4], uint32(msg.Vf))
-	native.PutUint32(b[4:8], uint32(msg.LinkState))
+	nativeEndian.PutUint32(b[0:4], uint32(msg.Vf))
+	nativeEndian.PutUint32(b[4:8], uint32(msg.LinkState))
 }
 
 func (msg *VfLinkState) serializeSafe() []byte {
@@ -159,7 +153,7 @@ func (msg *VfLinkState) serializeSafe() []byte {
 
 func deserializeVfLinkStateSafe(b []byte) *VfLinkState {
 	var msg = VfLinkState{}
-	binary.Read(bytes.NewReader(b[0:SizeofVfLinkState]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofVfLinkState]), nativeEndian, &msg)
 	return &msg
 }
 
@@ -172,9 +166,8 @@ func TestVfLinkStateDeserializeSerialize(t *testing.T) {
 }
 
 func (msg *VfRssQueryEn) write(b []byte) {
-	native := NativeEndian()
-	native.PutUint32(b[0:4], uint32(msg.Vf))
-	native.PutUint32(b[4:8], uint32(msg.Setting))
+	nativeEndian.PutUint32(b[0:4], uint32(msg.Vf))
+	nativeEndian.PutUint32(b[4:8], uint32(msg.Setting))
 }
 
 func (msg *VfRssQueryEn) serializeSafe() []byte {
@@ -186,7 +179,7 @@ func (msg *VfRssQueryEn) serializeSafe() []byte {
 
 func deserializeVfRssQueryEnSafe(b []byte) *VfRssQueryEn {
 	var msg = VfRssQueryEn{}
-	binary.Read(bytes.NewReader(b[0:SizeofVfRssQueryEn]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofVfRssQueryEn]), nativeEndian, &msg)
 	return &msg
 }
 

@@ -121,7 +121,7 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 			msg.IfAddrmsg.Flags = uint8(addr.Flags)
 		} else {
 			b := make([]byte, 4)
-			native.PutUint32(b, uint32(addr.Flags))
+			nativeEndian.PutUint32(b, uint32(addr.Flags))
 			flagsData := nl.NewRtAttr(unix.IFA_FLAGS, b)
 			req.AddData(flagsData)
 		}
@@ -252,7 +252,7 @@ func parseAddr(m []byte) (addr Addr, family int, err error) {
 		case unix.IFA_LABEL:
 			addr.Label = string(attr.Value[:len(attr.Value)-1])
 		case unix.IFA_FLAGS:
-			addr.Flags = int(native.Uint32(attr.Value[0:4]))
+			addr.Flags = int(nativeEndian.Uint32(attr.Value[0:4]))
 		case unix.IFA_CACHEINFO:
 			ci := nl.DeserializeIfaCacheInfo(attr.Value)
 			addr.PreferedLft = int(ci.Prefered)
@@ -372,8 +372,7 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					continue
 				}
 				if m.Header.Type == unix.NLMSG_ERROR {
-					native := nl.NativeEndian()
-					error := int32(native.Uint32(m.Data[0:4]))
+					error := int32(nativeEndian.Uint32(m.Data[0:4]))
 					if error == 0 {
 						continue
 					}

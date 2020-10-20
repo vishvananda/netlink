@@ -122,272 +122,272 @@ func (t *TCPInfo) deserialize(b []byte) error {
 	if len(next) == 0 {
 		return nil
 	}
-	t.Rto = native.Uint32(next)
+	t.Rto = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Ato = native.Uint32(next)
+	t.Ato = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Snd_mss = native.Uint32(next)
+	t.Snd_mss = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Rcv_mss = native.Uint32(next)
+	t.Rcv_mss = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Unacked = native.Uint32(next)
+	t.Unacked = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Sacked = native.Uint32(next)
+	t.Sacked = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Lost = native.Uint32(next)
+	t.Lost = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Retrans = native.Uint32(next)
+	t.Retrans = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Fackets = native.Uint32(next)
+	t.Fackets = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Last_data_sent = native.Uint32(next)
+	t.Last_data_sent = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Last_ack_sent = native.Uint32(next)
+	t.Last_ack_sent = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Last_data_recv = native.Uint32(next)
+	t.Last_data_recv = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Last_ack_recv = native.Uint32(next)
+	t.Last_ack_recv = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Pmtu = native.Uint32(next)
+	t.Pmtu = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Rcv_ssthresh = native.Uint32(next)
+	t.Rcv_ssthresh = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Rtt = native.Uint32(next)
+	t.Rtt = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Rttvar = native.Uint32(next)
+	t.Rttvar = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Snd_ssthresh = native.Uint32(next)
+	t.Snd_ssthresh = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Snd_cwnd = native.Uint32(next)
+	t.Snd_cwnd = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Advmss = native.Uint32(next)
+	t.Advmss = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Reordering = native.Uint32(next)
+	t.Reordering = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Rcv_rtt = native.Uint32(next)
+	t.Rcv_rtt = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Rcv_space = native.Uint32(next)
+	t.Rcv_space = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Total_retrans = native.Uint32(next)
+	t.Total_retrans = nativeEndian.Uint32(next)
 
 	next = rb.Next(8)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Pacing_rate = native.Uint64(next)
+	t.Pacing_rate = nativeEndian.Uint64(next)
 
 	next = rb.Next(8)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Max_pacing_rate = native.Uint64(next)
+	t.Max_pacing_rate = nativeEndian.Uint64(next)
 
 	next = rb.Next(8)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Bytes_acked = native.Uint64(next)
+	t.Bytes_acked = nativeEndian.Uint64(next)
 
 	next = rb.Next(8)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Bytes_received = native.Uint64(next)
+	t.Bytes_received = nativeEndian.Uint64(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Segs_out = native.Uint32(next)
+	t.Segs_out = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Segs_in = native.Uint32(next)
+	t.Segs_in = nativeEndian.Uint32(next)
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Notsent_bytes = native.Uint32(next)
+	t.Notsent_bytes = nativeEndian.Uint32(next)
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Min_rtt = native.Uint32(next)
+	t.Min_rtt = nativeEndian.Uint32(next)
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Data_segs_in = native.Uint32(next)
+	t.Data_segs_in = nativeEndian.Uint32(next)
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Data_segs_out = native.Uint32(next)
+	t.Data_segs_out = nativeEndian.Uint32(next)
 
 	next = rb.Next(8)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Delivery_rate = native.Uint64(next)
+	t.Delivery_rate = nativeEndian.Uint64(next)
 
 	next = rb.Next(8)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Busy_time = native.Uint64(next)
+	t.Busy_time = nativeEndian.Uint64(next)
 
 	next = rb.Next(8)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Rwnd_limited = native.Uint64(next)
+	t.Rwnd_limited = nativeEndian.Uint64(next)
 
 	next = rb.Next(8)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Sndbuf_limited = native.Uint64(next)
+	t.Sndbuf_limited = nativeEndian.Uint64(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Delivered = native.Uint32(next)
+	t.Delivered = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Delivered_ce = native.Uint32(next)
+	t.Delivered_ce = nativeEndian.Uint32(next)
 
 	next = rb.Next(8)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Bytes_sent = native.Uint64(next)
+	t.Bytes_sent = nativeEndian.Uint64(next)
 
 	next = rb.Next(8)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Bytes_retrans = native.Uint64(next)
+	t.Bytes_retrans = nativeEndian.Uint64(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Dsack_dups = native.Uint32(next)
+	t.Dsack_dups = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Reord_seen = native.Uint32(next)
+	t.Reord_seen = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Rcv_ooopack = native.Uint32(next)
+	t.Rcv_ooopack = nativeEndian.Uint32(next)
 
 	next = rb.Next(4)
 	if len(next) == 0 {
 		return nil
 	}
-	t.Snd_wnd = native.Uint32(next)
+	t.Snd_wnd = nativeEndian.Uint32(next)
 	return nil
 }

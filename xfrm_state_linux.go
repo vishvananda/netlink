@@ -378,9 +378,9 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 			state.Mark.Value = mark.Value
 			state.Mark.Mask = mark.Mask
 		case nl.XFRMA_OUTPUT_MARK:
-			state.OutputMark = int(native.Uint32(attr.Value))
+			state.OutputMark = int(nativeEndian.Uint32(attr.Value))
 		case nl.XFRMA_IF_ID:
-			state.Ifid = int(native.Uint32(attr.Value))
+			state.Ifid = int(nativeEndian.Uint32(attr.Value))
 		}
 	}
 

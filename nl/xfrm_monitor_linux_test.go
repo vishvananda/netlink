@@ -21,7 +21,7 @@ func (msg *XfrmUserExpire) serializeSafe() []byte {
 
 func deserializeXfrmUserExpireSafe(b []byte) *XfrmUserExpire {
 	var msg = XfrmUserExpire{}
-	binary.Read(bytes.NewReader(b[0:SizeofXfrmUserExpire]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmUserExpire]), nativeEndian, &msg)
 	return &msg
 }
 

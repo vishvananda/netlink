@@ -10,7 +10,6 @@ import (
 )
 
 func (msg *RtMsg) write(b []byte) {
-	native := NativeEndian()
 	b[0] = msg.Family
 	b[1] = msg.Dst_len
 	b[2] = msg.Src_len
@@ -19,7 +18,7 @@ func (msg *RtMsg) write(b []byte) {
 	b[5] = msg.Protocol
 	b[6] = msg.Scope
 	b[7] = msg.Type
-	native.PutUint32(b[8:12], msg.Flags)
+	nativeEndian.PutUint32(b[8:12], msg.Flags)
 }
 
 func (msg *RtMsg) serializeSafe() []byte {
@@ -31,7 +30,7 @@ func (msg *RtMsg) serializeSafe() []byte {
 
 func deserializeRtMsgSafe(b []byte) *RtMsg {
 	var msg = RtMsg{}
-	binary.Read(bytes.NewReader(b[0:unix.SizeofRtMsg]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:unix.SizeofRtMsg]), nativeEndian, &msg)
 	return &msg
 }
 

@@ -88,7 +88,7 @@ func (h *Handle) getNetNsId(attrType int, val uint32) (int, error) {
 	req.AddData(rtgen)
 
 	b := make([]byte, 4, 4)
-	native.PutUint32(b, val)
+	nativeEndian.PutUint32(b, val)
 	attr := nl.NewRtAttr(attrType, b)
 	req.AddData(attr)
 
@@ -109,7 +109,7 @@ func (h *Handle) getNetNsId(attrType int, val uint32) (int, error) {
 		for _, attr := range attrs {
 			switch attr.Attr.Type {
 			case NETNSA_NSID:
-				return int(int32(native.Uint32(attr.Value))), nil
+				return int(int32(nativeEndian.Uint32(attr.Value))), nil
 			}
 		}
 	}
@@ -127,12 +127,12 @@ func (h *Handle) setNetNsId(attrType int, val uint32, newnsid uint32) error {
 	req.AddData(rtgen)
 
 	b := make([]byte, 4, 4)
-	native.PutUint32(b, val)
+	nativeEndian.PutUint32(b, val)
 	attr := nl.NewRtAttr(attrType, b)
 	req.AddData(attr)
 
 	b1 := make([]byte, 4, 4)
-	native.PutUint32(b1, newnsid)
+	nativeEndian.PutUint32(b1, newnsid)
 	attr1 := nl.NewRtAttr(NETNSA_NSID, b1)
 	req.AddData(attr1)
 

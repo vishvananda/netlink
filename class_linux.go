@@ -331,9 +331,9 @@ func parseHfscClassData(class Class, data []syscall.NetlinkRouteAttr) (bool, err
 func parseTcStats(data []byte) (*ClassStatistics, error) {
 	buf := &bytes.Buffer{}
 	buf.Write(data)
-	native := nl.NativeEndian()
+
 	tcStats := &tcStats{}
-	if err := binary.Read(buf, native, tcStats); err != nil {
+	if err := binary.Read(buf, nativeEndian, tcStats); err != nil {
 		return nil, err
 	}
 
@@ -353,8 +353,8 @@ func parseTcStats(data []byte) (*ClassStatistics, error) {
 func parseGnetStats(data []byte, gnetStats interface{}) error {
 	buf := &bytes.Buffer{}
 	buf.Write(data)
-	native := nl.NativeEndian()
-	return binary.Read(buf, native, gnetStats)
+
+	return binary.Read(buf, nativeEndian, gnetStats)
 }
 
 func parseTcStats2(data []byte) (*ClassStatistics, error) {

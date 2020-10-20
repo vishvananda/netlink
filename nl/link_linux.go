@@ -358,7 +358,7 @@ func DeserializeVfStats(b []byte) VfStats {
 	}
 	var valueVar uint64
 	for _, stat := range stats {
-		if err := binary.Read(bytes.NewBuffer(stat.Value), NativeEndian(), &valueVar); err != nil {
+		if err := binary.Read(bytes.NewBuffer(stat.Value), nativeEndian, &valueVar); err != nil {
 			break
 		}
 		switch stat.Attr.Type {

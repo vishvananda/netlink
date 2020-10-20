@@ -148,7 +148,7 @@ func (h *Handle) RdmaLinkSetName(link *RdmaLink, name string) error {
 	req := h.newNetlinkRequest(proto, unix.NLM_F_ACK)
 
 	b := make([]byte, 4)
-	native.PutUint32(b, uint32(link.Attrs.Index))
+	nativeEndian.PutUint32(b, uint32(link.Attrs.Index))
 	data := nl.NewRtAttr(nl.RDMA_NLDEV_ATTR_DEV_INDEX, b)
 	req.AddData(data)
 

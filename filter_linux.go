@@ -168,7 +168,6 @@ func (h *Handle) FilterReplace(filter Filter) error {
 }
 
 func (h *Handle) filterModify(filter Filter, flags int) error {
-	native = nl.NativeEndian()
 	req := h.newNetlinkRequest(unix.RTM_NEWTFILTER, flags|unix.NLM_F_ACK)
 	base := filter.Attrs()
 	msg := &nl.TcMsg{
@@ -195,7 +194,7 @@ func (h *Handle) filterModify(filter Filter, flags int) error {
 			sel.Keys = append(sel.Keys, nl.TcU32Key{})
 		}
 
-		if native != networkOrder {
+		if nativeEndian != networkOrder {
 			// Copy TcU32Sel.
 			cSel := *sel
 			keys := make([]nl.TcU32Key, cap(sel.Keys))
@@ -204,11 +203,11 @@ func (h *Handle) filterModify(filter Filter, flags int) error {
 			sel = &cSel
 
 			// Handle the endianness of attributes
-			sel.Offmask = native.Uint16(htons(sel.Offmask))
-			sel.Hmask = native.Uint32(htonl(sel.Hmask))
+			sel.Offmask = nativeEndian.Uint16(htons(sel.Offmask))
+			sel.Hmask = nativeEndian.Uint32(htonl(sel.Hmask))
 			for i, key := range sel.Keys {
-				sel.Keys[i].Mask = native.Uint32(htonl(key.Mask))
-				sel.Keys[i].Val = native.Uint32(htonl(key.Val))
+				sel.Keys[i].Mask = nativeEndian.Uint32(htonl(key.Mask))
+				sel.Keys[i].Val = nativeEndian.Uint32(htonl(key.Val))
 			}
 		}
 		sel.Nkeys = uint8(len(sel.Keys))
@@ -236,7 +235,7 @@ func (h *Handle) filterModify(filter Filter, flags int) error {
 	case *Fw:
 		if filter.Mask != 0 {
 			b := make([]byte, 4)
-			native.PutUint32(b, filter.Mask)
+			nativeEndian.PutUint32(b, filter.Mask)
 			options.AddRtAttr(nl.TCA_FW_MASK, b)
 		}
 		if filter.InDev != "" {
@@ -257,7 +256,7 @@ func (h *Handle) filterModify(filter Filter, flags int) error {
 		}
 		if filter.ClassId != 0 {
 			b := make([]byte, 4)
-			native.PutUint32(b, filter.ClassId)
+			nativeEndian.PutUint32(b, filter.ClassId)
 			options.AddRtAttr(nl.TCA_FW_CLASSID, b)
 		}
 	case *BpfFilter:
@@ -582,16 +581,16 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 							action.(*SkbEditAction).ActionAttrs = ActionAttrs{}
 							toAttrs(&skbedit.TcGen, action.Attrs())
 						case nl.TCA_SKBEDIT_MARK:
-							mark := native.Uint32(adatum.Value[0:4])
+							mark := nativeEndian.Uint32(adatum.Value[0:4])
 							action.(*SkbEditAction).Mark = &mark
 						case nl.TCA_SKBEDIT_PRIORITY:
-							priority := native.Uint32(adatum.Value[0:4])
+							priority := nativeEndian.Uint32(adatum.Value[0:4])
 							action.(*SkbEditAction).Priority = &priority
 						case nl.TCA_SKBEDIT_PTYPE:
-							ptype := native.Uint16(adatum.Value[0:2])
+							ptype := nativeEndian.Uint16(adatum.Value[0:2])
 							action.(*SkbEditAction).PType = &ptype
 						case nl.TCA_SKBEDIT_QUEUE_MAPPING:
-							mapping := native.Uint16(adatum.Value[0:2])
+							mapping := nativeEndian.Uint16(adatum.Value[0:2])
 							action.(*SkbEditAction).QueueMapping = &mapping
 						}
 					case "bpf":
@@ -600,7 +599,7 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 							gen := *nl.DeserializeTcGen(adatum.Value)
 							toAttrs(&gen, action.Attrs())
 						case nl.TCA_ACT_BPF_FD:
-							action.(*BpfAction).Fd = int(native.Uint32(adatum.Value[0:4]))
+							action.(*BpfAction).Fd = int(nativeEndian.Uint32(adatum.Value[0:4]))
 						case nl.TCA_ACT_BPF_NAME:
 							action.(*BpfAction).Name = string(adatum.Value[:len(adatum.Value)-1])
 						}
@@ -628,7 +627,6 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 }
 
 func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
-	native = nl.NativeEndian()
 	u32 := filter.(*U32)
 	detailed := false
 	for _, datum := range data {
@@ -637,13 +635,13 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 			detailed = true
 			sel := nl.DeserializeTcU32Sel(datum.Value)
 			u32.Sel = sel
-			if native != networkOrder {
+			if nativeEndian != networkOrder {
 				// Handle the endianness of attributes
-				u32.Sel.Offmask = native.Uint16(htons(sel.Offmask))
-				u32.Sel.Hmask = native.Uint32(htonl(sel.Hmask))
+				u32.Sel.Offmask = nativeEndian.Uint16(htons(sel.Offmask))
+				u32.Sel.Hmask = nativeEndian.Uint32(htonl(sel.Hmask))
 				for i, key := range u32.Sel.Keys {
-					u32.Sel.Keys[i].Mask = native.Uint32(htonl(key.Mask))
-					u32.Sel.Keys[i].Val = native.Uint32(htonl(key.Val))
+					u32.Sel.Keys[i].Mask = nativeEndian.Uint32(htonl(key.Mask))
+					u32.Sel.Keys[i].Val = nativeEndian.Uint32(htonl(key.Val))
 				}
 			}
 		case nl.TCA_U32_ACT:
@@ -661,26 +659,25 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 				}
 			}
 		case nl.TCA_U32_CLASSID:
-			u32.ClassId = native.Uint32(datum.Value)
+			u32.ClassId = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_U32_DIVISOR:
-			u32.Divisor = native.Uint32(datum.Value)
+			u32.Divisor = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_U32_HASH:
-			u32.Hash = native.Uint32(datum.Value)
+			u32.Hash = nativeEndian.Uint32(datum.Value)
 		}
 	}
 	return detailed, nil
 }
 
 func parseFwData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
-	native = nl.NativeEndian()
 	fw := filter.(*Fw)
 	detailed := true
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.TCA_FW_MASK:
-			fw.Mask = native.Uint32(datum.Value[0:4])
+			fw.Mask = nativeEndian.Uint32(datum.Value[0:4])
 		case nl.TCA_FW_CLASSID:
-			fw.ClassId = native.Uint32(datum.Value[0:4])
+			fw.ClassId = nativeEndian.Uint32(datum.Value[0:4])
 		case nl.TCA_FW_INDEV:
 			fw.InDev = string(datum.Value[:len(datum.Value)-1])
 		case nl.TCA_FW_POLICE:
@@ -701,24 +698,23 @@ func parseFwData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
 }
 
 func parseBpfData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
-	native = nl.NativeEndian()
 	bpf := filter.(*BpfFilter)
 	detailed := true
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.TCA_BPF_FD:
-			bpf.Fd = int(native.Uint32(datum.Value[0:4]))
+			bpf.Fd = int(nativeEndian.Uint32(datum.Value[0:4]))
 		case nl.TCA_BPF_NAME:
 			bpf.Name = string(datum.Value[:len(datum.Value)-1])
 		case nl.TCA_BPF_CLASSID:
-			bpf.ClassId = native.Uint32(datum.Value[0:4])
+			bpf.ClassId = nativeEndian.Uint32(datum.Value[0:4])
 		case nl.TCA_BPF_FLAGS:
-			flags := native.Uint32(datum.Value[0:4])
+			flags := nativeEndian.Uint32(datum.Value[0:4])
 			if (flags & nl.TCA_BPF_FLAG_ACT_DIRECT) != 0 {
 				bpf.DirectAction = true
 			}
 		case nl.TCA_BPF_ID:
-			bpf.Id = int(native.Uint32(datum.Value[0:4]))
+			bpf.Id = int(nativeEndian.Uint32(datum.Value[0:4]))
 		case nl.TCA_BPF_TAG:
 			bpf.Tag = hex.EncodeToString(datum.Value[:len(datum.Value)-1])
 		}
@@ -727,13 +723,12 @@ func parseBpfData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 }
 
 func parseMatchAllData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
-	native = nl.NativeEndian()
 	matchall := filter.(*MatchAll)
 	detailed := true
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.TCA_MATCHALL_CLASSID:
-			matchall.ClassId = native.Uint32(datum.Value[0:4])
+			matchall.ClassId = nativeEndian.Uint32(datum.Value[0:4])
 		case nl.TCA_MATCHALL_ACT:
 			tables, err := nl.ParseRouteAttr(datum.Value)
 			if err != nil {

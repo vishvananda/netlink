@@ -59,8 +59,7 @@ func EncodeSEG6Encap(mode int, segments []net.IP) ([]byte, error) {
 		return nil, errors.New("EncodeSEG6Encap: No Segment in srh")
 	}
 	b := make([]byte, 12, 12+len(segments)*16)
-	native := NativeEndian()
-	native.PutUint32(b, uint32(mode))
+	nativeEndian.PutUint32(b, uint32(mode))
 	b[4] = 0                      // srh.nextHdr (0 when calling netlink)
 	b[5] = uint8(16 * nsegs >> 3) // srh.hdrLen (in 8-octets unit)
 	b[6] = IPV6_SRCRT_TYPE_4      // srh.routingType (assigned by IANA)
@@ -68,7 +67,7 @@ func EncodeSEG6Encap(mode int, segments []net.IP) ([]byte, error) {
 	b[8] = uint8(nsegs - 1)       // srh.firstSegment
 	b[9] = 0                      // srh.flags (SR6_FLAG1_HMAC for srh_hmac)
 	// srh.reserved: Defined as "Tag" in draft-ietf-6man-segment-routing-header-07
-	native.PutUint16(b[10:], 0) // srh.reserved
+	nativeEndian.PutUint16(b[10:], 0) // srh.reserved
 	for _, netIP := range segments {
 		b = append(b, netIP...) // srh.Segments
 	}
@@ -76,8 +75,7 @@ func EncodeSEG6Encap(mode int, segments []net.IP) ([]byte, error) {
 }
 
 func DecodeSEG6Encap(buf []byte) (int, []net.IP, error) {
-	native := NativeEndian()
-	mode := int(native.Uint32(buf))
+	mode := int(nativeEndian.Uint32(buf))
 	srh := IPv6SrHdr{
 		nextHdr:      buf[4],
 		hdrLen:       buf[5],
@@ -85,7 +83,7 @@ func DecodeSEG6Encap(buf []byte) (int, []net.IP, error) {
 		segmentsLeft: buf[7],
 		firstSegment: buf[8],
 		flags:        buf[9],
-		reserved:     native.Uint16(buf[10:12]),
+		reserved:     nativeEndian.Uint16(buf[10:12]),
 	}
 	buf = buf[12:]
 	if len(buf)%16 != 0 {
@@ -100,7 +98,6 @@ func DecodeSEG6Encap(buf []byte) (int, []net.IP, error) {
 }
 
 func DecodeSEG6Srh(buf []byte) ([]net.IP, error) {
-	native := NativeEndian()
 	srh := IPv6SrHdr{
 		nextHdr:      buf[0],
 		hdrLen:       buf[1],
@@ -108,7 +105,7 @@ func DecodeSEG6Srh(buf []byte) ([]net.IP, error) {
 		segmentsLeft: buf[3],
 		firstSegment: buf[4],
 		flags:        buf[5],
-		reserved:     native.Uint16(buf[6:8]),
+		reserved:     nativeEndian.Uint16(buf[6:8]),
 	}
 	buf = buf[8:]
 	if len(buf)%16 != 0 {
@@ -127,7 +124,6 @@ func EncodeSEG6Srh(segments []net.IP) ([]byte, error) {
 		return nil, errors.New("EncodeSEG6Srh: No Segments")
 	}
 	b := make([]byte, 8, 8+len(segments)*16)
-	native := NativeEndian()
 	b[0] = 0                      // srh.nextHdr (0 when calling netlink)
 	b[1] = uint8(16 * nsegs >> 3) // srh.hdrLen (in 8-octets unit)
 	b[2] = IPV6_SRCRT_TYPE_4      // srh.routingType (assigned by IANA)
@@ -135,7 +131,7 @@ func EncodeSEG6Srh(segments []net.IP) ([]byte, error) {
 	b[4] = uint8(nsegs - 1)       // srh.firstSegment
 	b[5] = 0                      // srh.flags (SR6_FLAG1_HMAC for srh_hmac)
 	// srh.reserved: Defined as "Tag" in draft-ietf-6man-segment-routing-header-07
-	native.PutUint16(b[6:], 0) // srh.reserved
+	nativeEndian.PutUint16(b[6:], 0) // srh.reserved
 	for _, netIP := range segments {
 		b = append(b, netIP...) // srh.Segments
 	}

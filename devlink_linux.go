@@ -1,9 +1,9 @@
 package netlink
 
 import (
+	"fmt"
 	"syscall"
 
-	"fmt"
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 )
@@ -99,7 +99,7 @@ func (d *DevlinkDevice) parseAttributes(attrs []syscall.NetlinkRouteAttr) error 
 		case nl.DEVLINK_ATTR_DEV_NAME:
 			d.DeviceName = string(a.Value)
 		case nl.DEVLINK_ATTR_ESWITCH_MODE:
-			d.Attrs.Eswitch.Mode = parseEswitchMode(native.Uint16(a.Value))
+			d.Attrs.Eswitch.Mode = parseEswitchMode(nativeEndian.Uint16(a.Value))
 		case nl.DEVLINK_ATTR_ESWITCH_INLINE_MODE:
 			d.Attrs.Eswitch.InlineMode = parseEswitchInlineMode(uint8(a.Value[0]))
 		case nl.DEVLINK_ATTR_ESWITCH_ENCAP_MODE:

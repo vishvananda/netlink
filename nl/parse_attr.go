@@ -11,16 +11,15 @@ type Attribute struct {
 }
 
 func ParseAttributes(data []byte) <-chan Attribute {
-	native := NativeEndian()
 	result := make(chan Attribute)
 
 	go func() {
 		i := 0
 		for i+4 < len(data) {
-			length := int(native.Uint16(data[i : i+2]))
+			length := int(nativeEndian.Uint16(data[i : i+2]))
 
 			result <- Attribute{
-				Type:  native.Uint16(data[i+2 : i+4]),
+				Type:  nativeEndian.Uint16(data[i+2 : i+4]),
 				Value: data[i+4 : i+length],
 			}
 			i += rtaAlignOf(length)

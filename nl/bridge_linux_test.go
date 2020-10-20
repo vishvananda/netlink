@@ -8,9 +8,8 @@ import (
 )
 
 func (msg *BridgeVlanInfo) write(b []byte) {
-	native := NativeEndian()
-	native.PutUint16(b[0:2], msg.Flags)
-	native.PutUint16(b[2:4], msg.Vid)
+	nativeEndian.PutUint16(b[0:2], msg.Flags)
+	nativeEndian.PutUint16(b[2:4], msg.Vid)
 }
 
 func (msg *BridgeVlanInfo) serializeSafe() []byte {
@@ -22,7 +21,7 @@ func (msg *BridgeVlanInfo) serializeSafe() []byte {
 
 func deserializeBridgeVlanInfoSafe(b []byte) *BridgeVlanInfo {
 	var msg = BridgeVlanInfo{}
-	binary.Read(bytes.NewReader(b[0:SizeofBridgeVlanInfo]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:SizeofBridgeVlanInfo]), nativeEndian, &msg)
 	return &msg
 }
 

@@ -47,7 +47,7 @@ func (r *socketRequest) Serialize() []byte {
 	b.Write(r.Protocol)
 	b.Write(r.Ext)
 	b.Write(r.pad)
-	native.PutUint32(b.Next(4), r.States)
+	nativeEndian.PutUint32(b.Next(4), r.States)
 	networkOrder.PutUint16(b.Next(2), r.ID.SourcePort)
 	networkOrder.PutUint16(b.Next(2), r.ID.DestinationPort)
 	if r.Family == unix.AF_INET6 {
@@ -59,9 +59,9 @@ func (r *socketRequest) Serialize() []byte {
 		copy(b.Next(4), r.ID.Destination.To4())
 		b.Next(12)
 	}
-	native.PutUint32(b.Next(4), r.ID.Interface)
-	native.PutUint32(b.Next(4), r.ID.Cookie[0])
-	native.PutUint32(b.Next(4), r.ID.Cookie[1])
+	nativeEndian.PutUint32(b.Next(4), r.ID.Interface)
+	nativeEndian.PutUint32(b.Next(4), r.ID.Cookie[0])
+	nativeEndian.PutUint32(b.Next(4), r.ID.Cookie[1])
 	return b.Bytes
 }
 
@@ -104,14 +104,14 @@ func (s *Socket) deserialize(b []byte) error {
 		s.ID.Destination = net.IPv4(rb.Read(), rb.Read(), rb.Read(), rb.Read())
 		rb.Next(12)
 	}
-	s.ID.Interface = native.Uint32(rb.Next(4))
-	s.ID.Cookie[0] = native.Uint32(rb.Next(4))
-	s.ID.Cookie[1] = native.Uint32(rb.Next(4))
-	s.Expires = native.Uint32(rb.Next(4))
-	s.RQueue = native.Uint32(rb.Next(4))
-	s.WQueue = native.Uint32(rb.Next(4))
-	s.UID = native.Uint32(rb.Next(4))
-	s.INode = native.Uint32(rb.Next(4))
+	s.ID.Interface = nativeEndian.Uint32(rb.Next(4))
+	s.ID.Cookie[0] = nativeEndian.Uint32(rb.Next(4))
+	s.ID.Cookie[1] = nativeEndian.Uint32(rb.Next(4))
+	s.Expires = nativeEndian.Uint32(rb.Next(4))
+	s.RQueue = nativeEndian.Uint32(rb.Next(4))
+	s.WQueue = nativeEndian.Uint32(rb.Next(4))
+	s.UID = nativeEndian.Uint32(rb.Next(4))
+	s.INode = nativeEndian.Uint32(rb.Next(4))
 	return nil
 }
 
@@ -208,8 +208,7 @@ loop:
 			case unix.NLMSG_DONE:
 				break loop
 			case unix.NLMSG_ERROR:
-				native := nl.NativeEndian()
-				error := int32(native.Uint32(m.Data[0:4]))
+				error := int32(nativeEndian.Uint32(m.Data[0:4]))
 				return nil, syscall.Errno(-error)
 			}
 			sockInfo := &Socket{}

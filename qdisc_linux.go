@@ -460,7 +460,6 @@ func parsePrioData(qdisc Qdisc, value []byte) error {
 }
 
 func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
-	native = nl.NativeEndian()
 	htb := qdisc.(*Htb)
 	for _, datum := range data {
 		switch datum.Attr.Type {
@@ -473,30 +472,29 @@ func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 			htb.DirectPkts = opt.DirectPkts
 		case nl.TCA_HTB_DIRECT_QLEN:
 			// TODO
-			//htb.DirectQlen = native.uint32(datum.Value)
+			//htb.DirectQlen = nativeEndian.uint32(datum.Value)
 		}
 	}
 	return nil
 }
 
 func parseFqCodelData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
-	native = nl.NativeEndian()
 	fqCodel := qdisc.(*FqCodel)
 	for _, datum := range data {
 
 		switch datum.Attr.Type {
 		case nl.TCA_FQ_CODEL_TARGET:
-			fqCodel.Target = native.Uint32(datum.Value)
+			fqCodel.Target = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_CODEL_LIMIT:
-			fqCodel.Limit = native.Uint32(datum.Value)
+			fqCodel.Limit = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_CODEL_INTERVAL:
-			fqCodel.Interval = native.Uint32(datum.Value)
+			fqCodel.Interval = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_CODEL_ECN:
-			fqCodel.ECN = native.Uint32(datum.Value)
+			fqCodel.ECN = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_CODEL_FLOWS:
-			fqCodel.Flows = native.Uint32(datum.Value)
+			fqCodel.Flows = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_CODEL_QUANTUM:
-			fqCodel.Quantum = native.Uint32(datum.Value)
+			fqCodel.Quantum = nativeEndian.Uint32(datum.Value)
 		}
 	}
 	return nil
@@ -504,38 +502,36 @@ func parseFqCodelData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 
 func parseHfscData(qdisc Qdisc, data []byte) error {
 	Hfsc := qdisc.(*Hfsc)
-	native = nl.NativeEndian()
-	Hfsc.Defcls = native.Uint16(data)
+	Hfsc.Defcls = nativeEndian.Uint16(data)
 	return nil
 }
 
 func parseFqData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
-	native = nl.NativeEndian()
 	fq := qdisc.(*Fq)
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.TCA_FQ_BUCKETS_LOG:
-			fq.Buckets = native.Uint32(datum.Value)
+			fq.Buckets = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_LOW_RATE_THRESHOLD:
-			fq.LowRateThreshold = native.Uint32(datum.Value)
+			fq.LowRateThreshold = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_QUANTUM:
-			fq.Quantum = native.Uint32(datum.Value)
+			fq.Quantum = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_RATE_ENABLE:
-			fq.Pacing = native.Uint32(datum.Value)
+			fq.Pacing = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_INITIAL_QUANTUM:
-			fq.InitialQuantum = native.Uint32(datum.Value)
+			fq.InitialQuantum = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_ORPHAN_MASK:
 			// TODO
 		case nl.TCA_FQ_FLOW_REFILL_DELAY:
-			fq.FlowRefillDelay = native.Uint32(datum.Value)
+			fq.FlowRefillDelay = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_FLOW_PLIMIT:
-			fq.FlowPacketLimit = native.Uint32(datum.Value)
+			fq.FlowPacketLimit = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_PLIMIT:
-			fq.PacketLimit = native.Uint32(datum.Value)
+			fq.PacketLimit = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_FLOW_MAX_RATE:
-			fq.FlowMaxRate = native.Uint32(datum.Value)
+			fq.FlowMaxRate = nativeEndian.Uint32(datum.Value)
 		case nl.TCA_FQ_FLOW_DEFAULT_RATE:
-			fq.FlowDefaultRate = native.Uint32(datum.Value)
+			fq.FlowDefaultRate = nativeEndian.Uint32(datum.Value)
 		}
 	}
 	return nil
@@ -575,7 +571,6 @@ func parseNetemData(qdisc Qdisc, value []byte) error {
 }
 
 func parseTbfData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
-	native = nl.NativeEndian()
 	tbf := qdisc.(*Tbf)
 	for _, datum := range data {
 		switch datum.Attr.Type {
@@ -586,11 +581,11 @@ func parseTbfData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 			tbf.Limit = opt.Limit
 			tbf.Buffer = opt.Buffer
 		case nl.TCA_TBF_RATE64:
-			tbf.Rate = native.Uint64(datum.Value[0:8])
+			tbf.Rate = nativeEndian.Uint64(datum.Value[0:8])
 		case nl.TCA_TBF_PRATE64:
-			tbf.Peakrate = native.Uint64(datum.Value[0:8])
+			tbf.Peakrate = nativeEndian.Uint64(datum.Value[0:8])
 		case nl.TCA_TBF_PBURST:
-			tbf.Minburst = native.Uint32(datum.Value[0:4])
+			tbf.Minburst = nativeEndian.Uint32(datum.Value[0:4])
 		}
 	}
 	return nil

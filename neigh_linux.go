@@ -306,11 +306,11 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 				neigh.HardwareAddr = net.HardwareAddr(attr.Value)
 			}
 		case NDA_VLAN:
-			neigh.Vlan = int(native.Uint16(attr.Value[0:2]))
+			neigh.Vlan = int(nativeEndian.Uint16(attr.Value[0:2]))
 		case NDA_VNI:
-			neigh.VNI = int(native.Uint32(attr.Value[0:4]))
+			neigh.VNI = int(nativeEndian.Uint32(attr.Value[0:4]))
 		case NDA_MASTER:
-			neigh.MasterIndex = int(native.Uint32(attr.Value[0:4]))
+			neigh.MasterIndex = int(nativeEndian.Uint32(attr.Value[0:4]))
 		}
 	}
 
@@ -408,8 +408,7 @@ func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <
 					continue
 				}
 				if m.Header.Type == unix.NLMSG_ERROR {
-					native := nl.NativeEndian()
-					error := int32(native.Uint32(m.Data[0:4]))
+					error := int32(nativeEndian.Uint32(m.Data[0:4]))
 					if error == 0 {
 						continue
 					}

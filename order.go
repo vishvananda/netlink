@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	native       = nl.NativeEndian()
+	nativeEndian = nl.NativeEndian()
 	networkOrder = binary.BigEndian
 )
 

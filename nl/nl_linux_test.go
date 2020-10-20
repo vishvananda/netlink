@@ -31,13 +31,12 @@ func testDeserializeSerialize(t *testing.T, orig []byte, safemsg testSerializer,
 }
 
 func (msg *IfInfomsg) write(b []byte) {
-	native := NativeEndian()
 	b[0] = msg.Family
 	// pad byte is skipped because it is not exported on linux/s390x
-	native.PutUint16(b[2:4], msg.Type)
-	native.PutUint32(b[4:8], uint32(msg.Index))
-	native.PutUint32(b[8:12], msg.Flags)
-	native.PutUint32(b[12:16], msg.Change)
+	nativeEndian.PutUint16(b[2:4], msg.Type)
+	nativeEndian.PutUint32(b[4:8], uint32(msg.Index))
+	nativeEndian.PutUint32(b[8:12], msg.Flags)
+	nativeEndian.PutUint32(b[12:16], msg.Change)
 }
 
 func (msg *IfInfomsg) serializeSafe() []byte {
@@ -49,7 +48,7 @@ func (msg *IfInfomsg) serializeSafe() []byte {
 
 func deserializeIfInfomsgSafe(b []byte) *IfInfomsg {
 	var msg = IfInfomsg{}
-	binary.Read(bytes.NewReader(b[0:unix.SizeofIfInfomsg]), NativeEndian(), &msg)
+	binary.Read(bytes.NewReader(b[0:unix.SizeofIfInfomsg]), nativeEndian, &msg)
 	return &msg
 }
 

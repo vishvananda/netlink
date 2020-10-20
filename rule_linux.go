@@ -97,47 +97,45 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 		req.AddData(rtAttrs[i])
 	}
 
-	native := nl.NativeEndian()
-
 	if rule.Priority >= 0 {
 		b := make([]byte, 4)
-		native.PutUint32(b, uint32(rule.Priority))
+		nativeEndian.PutUint32(b, uint32(rule.Priority))
 		req.AddData(nl.NewRtAttr(nl.FRA_PRIORITY, b))
 	}
 	if rule.Mark >= 0 {
 		b := make([]byte, 4)
-		native.PutUint32(b, uint32(rule.Mark))
+		nativeEndian.PutUint32(b, uint32(rule.Mark))
 		req.AddData(nl.NewRtAttr(nl.FRA_FWMARK, b))
 	}
 	if rule.Mask >= 0 {
 		b := make([]byte, 4)
-		native.PutUint32(b, uint32(rule.Mask))
+		nativeEndian.PutUint32(b, uint32(rule.Mask))
 		req.AddData(nl.NewRtAttr(nl.FRA_FWMASK, b))
 	}
 	if rule.Flow >= 0 {
 		b := make([]byte, 4)
-		native.PutUint32(b, uint32(rule.Flow))
+		nativeEndian.PutUint32(b, uint32(rule.Flow))
 		req.AddData(nl.NewRtAttr(nl.FRA_FLOW, b))
 	}
 	if rule.TunID > 0 {
 		b := make([]byte, 4)
-		native.PutUint32(b, uint32(rule.TunID))
+		nativeEndian.PutUint32(b, uint32(rule.TunID))
 		req.AddData(nl.NewRtAttr(nl.FRA_TUN_ID, b))
 	}
 	if rule.Table >= 256 {
 		b := make([]byte, 4)
-		native.PutUint32(b, uint32(rule.Table))
+		nativeEndian.PutUint32(b, uint32(rule.Table))
 		req.AddData(nl.NewRtAttr(nl.FRA_TABLE, b))
 	}
 	if msg.Table > 0 {
 		if rule.SuppressPrefixlen >= 0 {
 			b := make([]byte, 4)
-			native.PutUint32(b, uint32(rule.SuppressPrefixlen))
+			nativeEndian.PutUint32(b, uint32(rule.SuppressPrefixlen))
 			req.AddData(nl.NewRtAttr(nl.FRA_SUPPRESS_PREFIXLEN, b))
 		}
 		if rule.SuppressIfgroup >= 0 {
 			b := make([]byte, 4)
-			native.PutUint32(b, uint32(rule.SuppressIfgroup))
+			nativeEndian.PutUint32(b, uint32(rule.SuppressIfgroup))
 			req.AddData(nl.NewRtAttr(nl.FRA_SUPPRESS_IFGROUP, b))
 		}
 	}
@@ -150,7 +148,7 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 	if rule.Goto >= 0 {
 		msg.Type = nl.FR_ACT_GOTO
 		b := make([]byte, 4)
-		native.PutUint32(b, uint32(rule.Goto))
+		nativeEndian.PutUint32(b, uint32(rule.Goto))
 		req.AddData(nl.NewRtAttr(nl.FRA_GOTO, b))
 	}
 
@@ -199,7 +197,6 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 		return nil, err
 	}
 
-	native := nl.NativeEndian()
 	var res = make([]Rule, 0)
 	for i := range msgs {
 		msg := nl.DeserializeRtMsg(msgs[i])
@@ -216,7 +213,7 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 		for j := range attrs {
 			switch attrs[j].Attr.Type {
 			case unix.RTA_TABLE:
-				rule.Table = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.Table = int(nativeEndian.Uint32(attrs[j].Value[0:4]))
 			case nl.FRA_SRC:
 				rule.Src = &net.IPNet{
 					IP:   attrs[j].Value,
@@ -228,35 +225,35 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attrs[j].Value)),
 				}
 			case nl.FRA_FWMARK:
-				rule.Mark = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.Mark = int(nativeEndian.Uint32(attrs[j].Value[0:4]))
 			case nl.FRA_FWMASK:
-				rule.Mask = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.Mask = int(nativeEndian.Uint32(attrs[j].Value[0:4]))
 			case nl.FRA_TUN_ID:
-				rule.TunID = uint(native.Uint64(attrs[j].Value[0:4]))
+				rule.TunID = uint(nativeEndian.Uint64(attrs[j].Value[0:4]))
 			case nl.FRA_IIFNAME:
 				rule.IifName = string(attrs[j].Value[:len(attrs[j].Value)-1])
 			case nl.FRA_OIFNAME:
 				rule.OifName = string(attrs[j].Value[:len(attrs[j].Value)-1])
 			case nl.FRA_SUPPRESS_PREFIXLEN:
-				i := native.Uint32(attrs[j].Value[0:4])
+				i := nativeEndian.Uint32(attrs[j].Value[0:4])
 				if i != 0xffffffff {
 					rule.SuppressPrefixlen = int(i)
 				}
 			case nl.FRA_SUPPRESS_IFGROUP:
-				i := native.Uint32(attrs[j].Value[0:4])
+				i := nativeEndian.Uint32(attrs[j].Value[0:4])
 				if i != 0xffffffff {
 					rule.SuppressIfgroup = int(i)
 				}
 			case nl.FRA_FLOW:
-				rule.Flow = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.Flow = int(nativeEndian.Uint32(attrs[j].Value[0:4]))
 			case nl.FRA_GOTO:
-				rule.Goto = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.Goto = int(nativeEndian.Uint32(attrs[j].Value[0:4]))
 			case nl.FRA_PRIORITY:
-				rule.Priority = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.Priority = int(nativeEndian.Uint32(attrs[j].Value[0:4]))
 			case nl.FRA_DPORT_RANGE:
-				rule.Dport = NewRulePortRange(native.Uint16(attrs[j].Value[0:2]), native.Uint16(attrs[j].Value[2:4]))
+				rule.Dport = NewRulePortRange(nativeEndian.Uint16(attrs[j].Value[0:2]), nativeEndian.Uint16(attrs[j].Value[2:4]))
 			case nl.FRA_SPORT_RANGE:
-				rule.Sport = NewRulePortRange(native.Uint16(attrs[j].Value[0:2]), native.Uint16(attrs[j].Value[2:4]))
+				rule.Sport = NewRulePortRange(nativeEndian.Uint16(attrs[j].Value[0:2]), nativeEndian.Uint16(attrs[j].Value[2:4]))
 			}
 		}
 
@@ -290,7 +287,7 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 
 func (pr *RulePortRange) toRtAttrData() []byte {
 	b := [][]byte{make([]byte, 2), make([]byte, 2)}
-	native.PutUint16(b[0], pr.Start)
-	native.PutUint16(b[1], pr.End)
+	nativeEndian.PutUint16(b[0], pr.Start)
+	nativeEndian.PutUint16(b[1], pr.End)
 	return bytes.Join(b, []byte{})
 }
