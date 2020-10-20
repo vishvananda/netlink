@@ -220,32 +220,42 @@ loop:
 			if err != nil {
 				return nil, err
 			}
-			var tcpInfo *TCPInfo
-			var tcpBBRInfo *TCPBBRInfo
-			for _, a := range attrs {
-				if a.Attr.Type == INET_DIAG_INFO {
-					tcpInfo = &TCPInfo{}
-					if err := tcpInfo.deserialize(a.Value); err != nil {
-						return nil, err
-					}
-					continue
-				}
 
-				if a.Attr.Type == INET_DIAG_BBRINFO {
-					tcpBBRInfo = &TCPBBRInfo{}
-					if err := tcpBBRInfo.deserialize(a.Value); err != nil {
-						return nil, err
-					}
-					continue
-				}
+			res, err := attrsToInetDiagTCPInfoResp(attrs, sockInfo)
+			if err != nil {
+				return nil, err
 			}
-			r := &InetDiagTCPInfoResp{
-				InetDiagMsg: sockInfo,
-				TCPInfo:     tcpInfo,
-				TCPBBRInfo:  tcpBBRInfo,
-			}
-			result = append(result, r)
+
+			result = append(result, res)
 		}
 	}
 	return result, nil
+}
+
+func attrsToInetDiagTCPInfoResp(attrs []syscall.NetlinkRouteAttr, sockInfo *Socket) (*InetDiagTCPInfoResp, error) {
+	var tcpInfo *TCPInfo
+	var tcpBBRInfo *TCPBBRInfo
+	for _, a := range attrs {
+		if a.Attr.Type == INET_DIAG_INFO {
+			tcpInfo = &TCPInfo{}
+			if err := tcpInfo.deserialize(a.Value); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		if a.Attr.Type == INET_DIAG_BBRINFO {
+			tcpBBRInfo = &TCPBBRInfo{}
+			if err := tcpBBRInfo.deserialize(a.Value); err != nil {
+				return nil, err
+			}
+			continue
+		}
+	}
+
+	return &InetDiagTCPInfoResp{
+		InetDiagMsg: sockInfo,
+		TCPInfo:     tcpInfo,
+		TCPBBRInfo:  tcpBBRInfo,
+	}, nil
 }

@@ -2,7 +2,12 @@ package netlink
 
 import (
 	"bytes"
+	"errors"
 	"io"
+)
+
+const (
+	tcpBBRInfoLen = 20
 )
 
 type TCPInfo struct {
@@ -400,30 +405,15 @@ type TCPBBRInfo struct {
 }
 
 func (t *TCPBBRInfo) deserialize(b []byte) error {
+	if len(b) != tcpBBRInfoLen {
+		return errors.New("Invalid length")
+	}
+
 	rb := bytes.NewBuffer(b)
-	next := rb.Next(8)
-	if len(next) == 0 {
-		return nil
-	}
-	t.BBRBW = native.Uint64(next)
-
-	next = rb.Next(4)
-	if len(next) == 0 {
-		return nil
-	}
-	t.BBRMinRTT = native.Uint32(next)
-
-	next = rb.Next(4)
-	if len(next) == 0 {
-		return nil
-	}
-	t.BBRPacingGain = native.Uint32(next)
-
-	next = rb.Next(4)
-	if len(next) == 0 {
-		return nil
-	}
-	t.BBRCwndGain = native.Uint32(next)
+	t.BBRBW = native.Uint64(rb.Next(8))
+	t.BBRMinRTT = native.Uint32(rb.Next(4))
+	t.BBRPacingGain = native.Uint32(rb.Next(4))
+	t.BBRCwndGain = native.Uint32(rb.Next(4))
 
 	return nil
 }
