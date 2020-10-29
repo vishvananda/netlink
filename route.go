@@ -45,6 +45,7 @@ type Route struct {
 	MPLSDst          *int
 	NewDst           Destination
 	Encap            Encap
+	Via              Destination
 	MTU              int
 	Window           int
 	Rtt              int
@@ -79,6 +80,9 @@ func (r Route) String() string {
 	if r.Encap != nil {
 		elems = append(elems, fmt.Sprintf("Encap: %s", r.Encap))
 	}
+	if r.Via != nil {
+		elems = append(elems, fmt.Sprintf("Via: %s", r.Via))
+	}
 	elems = append(elems, fmt.Sprintf("Src: %s", r.Src))
 	if len(r.MultiPath) > 0 {
 		elems = append(elems, fmt.Sprintf("Gw: %s", r.MultiPath))
@@ -107,6 +111,7 @@ func (r Route) Equal(x Route) bool {
 		r.Flags == x.Flags &&
 		(r.MPLSDst == x.MPLSDst || (r.MPLSDst != nil && x.MPLSDst != nil && *r.MPLSDst == *x.MPLSDst)) &&
 		(r.NewDst == x.NewDst || (r.NewDst != nil && r.NewDst.Equal(x.NewDst))) &&
+		(r.Via == x.Via || (r.Via != nil && r.Via.Equal(x.Via))) &&
 		(r.Encap == x.Encap || (r.Encap != nil && r.Encap.Equal(x.Encap)))
 }
 
@@ -136,6 +141,7 @@ type NexthopInfo struct {
 	Flags     int
 	NewDst    Destination
 	Encap     Encap
+	Via       Destination
 }
 
 func (n *NexthopInfo) String() string {
@@ -146,6 +152,9 @@ func (n *NexthopInfo) String() string {
 	}
 	if n.Encap != nil {
 		elems = append(elems, fmt.Sprintf("Encap: %s", n.Encap))
+	}
+	if n.Via != nil {
+		elems = append(elems, fmt.Sprintf("Via: %s", n.Via))
 	}
 	elems = append(elems, fmt.Sprintf("Weight: %d", n.Hops+1))
 	elems = append(elems, fmt.Sprintf("Gw: %s", n.Gw))
