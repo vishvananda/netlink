@@ -3001,6 +3001,7 @@ func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) VfInfo {
 			vf.RxPackets = vfstats.RxPackets
 			vf.TxPackets = vfstats.TxPackets
 			vf.RxBytes = vfstats.RxBytes
+			vf.TxBytes = vfstats.TxBytes
 			vf.Multicast = vfstats.Multicast
 			vf.Broadcast = vfstats.Broadcast
 			vf.RxDropped = vfstats.RxDropped
