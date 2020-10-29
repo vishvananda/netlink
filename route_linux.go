@@ -1,6 +1,8 @@
 package netlink
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"strings"
@@ -446,6 +448,62 @@ func (e *SEG6LocalEncap) Equal(x Encap) bool {
 	return true
 }
 
+type Via struct {
+	AddrFamily int
+	Addr       net.IP
+}
+
+func (v *Via) Equal(x Destination) bool {
+	o, ok := x.(*Via)
+	if !ok {
+		return false
+	}
+	if v.AddrFamily == x.Family() && v.Addr.Equal(o.Addr) {
+		return true
+	}
+	return false
+}
+
+func (v *Via) String() string {
+	return fmt.Sprintf("Family: %d, Address: %s", v.AddrFamily, v.Addr.String())
+}
+
+func (v *Via) Family() int {
+	return v.AddrFamily
+}
+
+func (v *Via) Encode() ([]byte, error) {
+	buf := &bytes.Buffer{}
+	err := binary.Write(buf, native, uint16(v.AddrFamily))
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(buf, native, v.Addr)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (v *Via) Decode(b []byte) error {
+	native := nl.NativeEndian()
+	if len(b) < 6 {
+		return fmt.Errorf("decoding failed: buffer too small (%d bytes)", len(b))
+	}
+	v.AddrFamily = int(native.Uint16(b[0:2]))
+	if v.AddrFamily == nl.FAMILY_V4 {
+		v.Addr = net.IP(b[2:6])
+		return nil
+	} else if v.AddrFamily == nl.FAMILY_V6 {
+		if len(b) < 18 {
+			return fmt.Errorf("decoding failed: buffer too small (%d bytes)", len(b))
+		}
+		v.Addr = net.IP(b[2:])
+		return nil
+	}
+	return fmt.Errorf("decoding failed: address family %d unknown", v.AddrFamily)
+}
+
 // RouteAdd will add a route to the system.
 // Equivalent to: `ip route add $route`
 func RouteAdd(route *Route) error {
@@ -567,6 +625,14 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_GATEWAY, gwData))
 	}
 
+	if route.Via != nil {
+		buf, err := route.Via.Encode()
+		if err != nil {
+			return fmt.Errorf("failed to encode RTA_VIA: %v", err)
+		}
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_VIA, buf))
+	}
+
 	if len(route.MultiPath) > 0 {
 		buf := []byte{}
 		for _, nh := range route.MultiPath {
@@ -608,6 +674,13 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 					return err
 				}
 				children = append(children, nl.NewRtAttr(unix.RTA_ENCAP, buf))
+			}
+			if nh.Via != nil {
+				buf, err := nh.Via.Encode()
+				if err != nil {
+					return err
+				}
+				children = append(children, nl.NewRtAttr(unix.RTA_VIA, buf))
 			}
 			rtnh.Children = children
 			buf = append(buf, rtnh.Serialize()...)
@@ -907,6 +980,12 @@ func deserializeRoute(m []byte) (Route, error) {
 						encapType = attr
 					case unix.RTA_ENCAP:
 						encap = attr
+					case unix.RTA_VIA:
+						d := &Via{}
+						if err := d.Decode(attr.Value); err != nil {
+							return nil, nil, err
+						}
+						info.Via = d
 					}
 				}
 
@@ -944,6 +1023,12 @@ func deserializeRoute(m []byte) (Route, error) {
 				return route, err
 			}
 			route.NewDst = d
+		case unix.RTA_VIA:
+			v := &Via{}
+			if err := v.Decode(attr.Value); err != nil {
+				return route, err
+			}
+			route.Via = v
 		case unix.RTA_ENCAP_TYPE:
 			encapType = attr
 		case unix.RTA_ENCAP:
