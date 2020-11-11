@@ -945,6 +945,7 @@ func deserializeRoute(m []byte) (Route, error) {
 // RouteGetWithOptions
 type RouteGetOptions struct {
 	VrfName string
+	SrcAddr net.IP
 }
 
 // RouteGetWithOptions gets a route to a specific destination from the host system.
@@ -976,23 +977,40 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 	msg := &nl.RtMsg{}
 	msg.Family = uint8(family)
 	msg.Dst_len = bitlen
+	if options != nil && options.SrcAddr != nil {
+		msg.Src_len = bitlen
+	}
+	msg.Flags = unix.RTM_F_LOOKUP_TABLE
 	req.AddData(msg)
 
 	rtaDst := nl.NewRtAttr(unix.RTA_DST, destinationData)
 	req.AddData(rtaDst)
 
 	if options != nil {
-		link, err := LinkByName(options.VrfName)
-		if err != nil {
-			return nil, err
-		}
-		var (
-			b      = make([]byte, 4)
-			native = nl.NativeEndian()
-		)
-		native.PutUint32(b, uint32(link.Attrs().Index))
+		if options.VrfName != "" {
+			link, err := LinkByName(options.VrfName)
+			if err != nil {
+				return nil, err
+			}
+			var (
+				b      = make([]byte, 4)
+				native = nl.NativeEndian()
+			)
+			native.PutUint32(b, uint32(link.Attrs().Index))
 
-		req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
+			req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
+		}
+
+		if options.SrcAddr != nil {
+			var srcAddr []byte
+			if family == FAMILY_V4 {
+				srcAddr = options.SrcAddr.To4()
+			} else {
+				srcAddr = options.SrcAddr.To16()
+			}
+
+			req.AddData(nl.NewRtAttr(unix.RTA_SRC, srcAddr))
+		}
 	}
 
 	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWROUTE)
