@@ -789,8 +789,10 @@ func (bond *Bond) Type() string {
 type BondSlaveState uint8
 
 const (
-	BondStateActive = iota // Link is active.
-	BondStateBackup        // Link is backup.
+	//BondStateActive Link is active.
+	BondStateActive BondSlaveState = iota
+	//BondStateBackup Link is backup.
+	BondStateBackup
 )
 
 func (s BondSlaveState) String() string {
@@ -804,15 +806,19 @@ func (s BondSlaveState) String() string {
 	}
 }
 
-// BondSlaveState represents the values of the IFLA_BOND_SLAVE_MII_STATUS bond slave
+// BondSlaveMiiStatus represents the values of the IFLA_BOND_SLAVE_MII_STATUS bond slave
 // attribute, which contains the status of MII link monitoring
 type BondSlaveMiiStatus uint8
 
 const (
-	BondLinkUp   = iota // link is up and running.
-	BondLinkFail        // link has just gone down.
-	BondLinkDown        // link has been down for too long time.
-	BondLinkBack        // link is going back.
+	//BondLinkUp link is up and running.
+	BondLinkUp BondSlaveMiiStatus = iota
+	//BondLinkFail link has just gone down.
+	BondLinkFail
+	//BondLinkDown link has been down for too long time.
+	BondLinkDown
+	//BondLinkBack link is going back.
+	BondLinkBack
 )
 
 func (s BondSlaveMiiStatus) String() string {
