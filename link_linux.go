@@ -1693,6 +1693,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						link = &Tuntap{}
 					case "ipoib":
 						link = &IPoIB{}
+					case "can":
+						link = &Can{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}
@@ -1742,6 +1744,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						parseTuntapData(link, data)
 					case "ipoib":
 						parseIPoIBData(link, data)
+					case "can":
+						parseCanData(link, data)
 					}
 				case nl.IFLA_INFO_SLAVE_KIND:
 					slaveType = string(info.Value[:len(info.Value)-1])
@@ -3168,6 +3172,54 @@ func parseIPoIBData(link Link, data []syscall.NetlinkRouteAttr) {
 			ipoib.Mode = IPoIBMode(native.Uint16(datum.Value))
 		case nl.IFLA_IPOIB_UMCAST:
 			ipoib.Umcast = uint16(native.Uint16(datum.Value))
+		}
+	}
+}
+
+func parseCanData(link Link, data []syscall.NetlinkRouteAttr) {
+	can := link.(*Can)
+	for _, datum := range data {
+
+		switch datum.Attr.Type {
+		case nl.IFLA_CAN_BITTIMING:
+			can.BitRate = native.Uint32(datum.Value)
+			can.SamplePoint = native.Uint32(datum.Value[4:])
+			can.TimeQuanta = native.Uint32(datum.Value[8:])
+			can.PropagationSegment = native.Uint32(datum.Value[12:])
+			can.PhaseSegment1 = native.Uint32(datum.Value[16:])
+			can.PhaseSegment2 = native.Uint32(datum.Value[20:])
+			can.SyncJumpWidth = native.Uint32(datum.Value[24:])
+			can.BitRatePreScaler = native.Uint32(datum.Value[28:])
+		case nl.IFLA_CAN_BITTIMING_CONST:
+			can.Name = string(datum.Value[:16])
+			can.TimeSegment1Min = native.Uint32(datum.Value[16:])
+			can.TimeSegment1Max = native.Uint32(datum.Value[20:])
+			can.TimeSegment2Min = native.Uint32(datum.Value[24:])
+			can.TimeSegment2Max = native.Uint32(datum.Value[28:])
+			can.SyncJumpWidthMax = native.Uint32(datum.Value[32:])
+			can.BitRatePreScalerMin = native.Uint32(datum.Value[36:])
+			can.BitRatePreScalerMax = native.Uint32(datum.Value[40:])
+			can.BitRatePreScalerInc = native.Uint32(datum.Value[44:])
+		case nl.IFLA_CAN_CLOCK:
+			can.ClockFrequency = native.Uint32(datum.Value)
+		case nl.IFLA_CAN_STATE:
+			can.State = native.Uint32(datum.Value)
+		case nl.IFLA_CAN_CTRLMODE:
+			can.Mask = native.Uint32(datum.Value)
+			can.Flags = native.Uint32(datum.Value[4:])
+		case nl.IFLA_CAN_BERR_COUNTER:
+			can.TxError = native.Uint16(datum.Value)
+			can.RxError = native.Uint16(datum.Value[2:])
+		case nl.IFLA_CAN_RESTART_MS:
+			can.RestartMs = native.Uint32(datum.Value)
+		case nl.IFLA_CAN_DATA_BITTIMING_CONST:
+		case nl.IFLA_CAN_RESTART:
+		case nl.IFLA_CAN_DATA_BITTIMING:
+		case nl.IFLA_CAN_TERMINATION:
+		case nl.IFLA_CAN_TERMINATION_CONST:
+		case nl.IFLA_CAN_BITRATE_CONST:
+		case nl.IFLA_CAN_DATA_BITRATE_CONST:
+		case nl.IFLA_CAN_BITRATE_MAX:
 		}
 	}
 }
