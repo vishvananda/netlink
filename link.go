@@ -1074,6 +1074,58 @@ var StringToIPoIBMode = map[string]IPoIBMode{
 	"connected": IPOIB_MODE_CONNECTED,
 }
 
+const (
+	CAN_STATE_ERROR_ACTIVE = iota
+	CAN_STATE_ERROR_WARNING
+	CAN_STATE_ERROR_PASSIVE
+	CAN_STATE_BUS_OFF
+	CAN_STATE_STOPPED
+	CAN_STATE_SLEEPING
+)
+
+type Can struct {
+	LinkAttrs
+
+	BitRate            uint32
+	SamplePoint        uint32
+	TimeQuanta         uint32
+	PropagationSegment uint32
+	PhaseSegment1      uint32
+	PhaseSegment2      uint32
+	SyncJumpWidth      uint32
+	BitRatePreScaler   uint32
+
+	Name                string
+	TimeSegment1Min     uint32
+	TimeSegment1Max     uint32
+	TimeSegment2Min     uint32
+	TimeSegment2Max     uint32
+	SyncJumpWidthMax    uint32
+	BitRatePreScalerMin uint32
+	BitRatePreScalerMax uint32
+	BitRatePreScalerInc uint32
+
+	ClockFrequency uint32
+
+	State uint32
+
+	Mask  uint32
+	Flags uint32
+
+	TxError uint16
+	RxError uint16
+
+	RestartMs uint32
+}
+
+func (can *Can) Attrs() *LinkAttrs {
+	return &can.LinkAttrs
+}
+
+func (can *Can) Type() string {
+	return "can"
+}
+
 type IPoIB struct {
 	LinkAttrs
 	Pkey   uint16
