@@ -1409,6 +1409,10 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
 		data.AddRtAttr(nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(link.Mode)))
 		data.AddRtAttr(nl.IFLA_IPVLAN_FLAG, nl.Uint16Attr(uint16(link.Flag)))
+	case *IPVtap:
+		data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+		data.AddRtAttr(nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(link.Mode)))
+		data.AddRtAttr(nl.IFLA_IPVLAN_FLAG, nl.Uint16Attr(uint16(link.Flag)))
 	case *Macvlan:
 		if link.Mode != MACVLAN_MODE_DEFAULT {
 			data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
@@ -1680,6 +1684,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						link = &Bond{}
 					case "ipvlan":
 						link = &IPVlan{}
+					case "ipvtap":
+						link = &IPVtap{}
 					case "macvlan":
 						link = &Macvlan{}
 					case "macvtap":
@@ -1731,6 +1737,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						parseBondData(link, data)
 					case "ipvlan":
 						parseIPVlanData(link, data)
+					case "ipvtap":
+						parseIPVtapData(link, data)
 					case "macvlan":
 						parseMacvlanData(link, data)
 					case "macvtap":
@@ -2406,6 +2414,18 @@ func parseBondSlaveData(slave LinkSlave, data []syscall.NetlinkRouteAttr) {
 
 func parseIPVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	ipv := link.(*IPVlan)
+	for _, datum := range data {
+		switch datum.Attr.Type {
+		case nl.IFLA_IPVLAN_MODE:
+			ipv.Mode = IPVlanMode(native.Uint32(datum.Value[0:4]))
+		case nl.IFLA_IPVLAN_FLAG:
+			ipv.Flag = IPVlanFlag(native.Uint32(datum.Value[0:4]))
+		}
+	}
+}
+
+func parseIPVtapData(link Link, data []syscall.NetlinkRouteAttr) {
+	ipv := link.(*IPVtap)
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.IFLA_IPVLAN_MODE:
