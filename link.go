@@ -456,6 +456,19 @@ func (ipvlan *IPVlan) Type() string {
 	return "ipvlan"
 }
 
+// IPVtap - IPVtap is a virtual interfaces based on ipvlan
+type IPVtap struct {
+	IPVlan
+}
+
+func (ipvtap *IPVtap) Attrs() *LinkAttrs {
+	return &ipvtap.LinkAttrs
+}
+
+func (ipvtap IPVtap) Type() string {
+	return "ipvtap"
+}
+
 // VlanProtocol type
 type VlanProtocol int
 
