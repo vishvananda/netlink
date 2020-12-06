@@ -2469,7 +2469,7 @@ func addGeneveAttrs(geneve *Geneve, linkInfo *nl.RtAttr) {
 
 	if ip := geneve.Remote; ip != nil {
 		if ip4 := ip.To4(); ip4 != nil {
-			data.AddRtAttr(nl.IFLA_GENEVE_REMOTE, []byte(ip))
+			data.AddRtAttr(nl.IFLA_GENEVE_REMOTE, ip.To4())
 		} else {
 			data.AddRtAttr(nl.IFLA_GENEVE_REMOTE6, []byte(ip))
 		}
