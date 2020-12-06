@@ -35,6 +35,15 @@ var SupportedNlFamilies = []int{unix.NETLINK_ROUTE, unix.NETLINK_XFRM, unix.NETL
 
 var nextSeqNr uint32
 
+func init() {
+	var x uint32 = 0x01020304
+	if *(*byte)(unsafe.Pointer(&x)) == 0x01 {
+		nativeEndian = binary.BigEndian
+	} else {
+		nativeEndian = binary.LittleEndian
+	}
+}
+
 // GetIPFamily returns the family type of a net.IP.
 func GetIPFamily(ip net.IP) int {
 	if len(ip) <= net.IPv4len {
@@ -50,14 +59,6 @@ var nativeEndian binary.ByteOrder
 
 // NativeEndian gets native endianness for the system
 func NativeEndian() binary.ByteOrder {
-	if nativeEndian == nil {
-		var x uint32 = 0x01020304
-		if *(*byte)(unsafe.Pointer(&x)) == 0x01 {
-			nativeEndian = binary.BigEndian
-		} else {
-			nativeEndian = binary.LittleEndian
-		}
-	}
 	return nativeEndian
 }
 
