@@ -227,7 +227,33 @@ func TestXfrmStateWithOutputMark(t *testing.T) {
 	defer setUpNetlinkTest(t)()
 
 	state := getBaseState()
-	state.OutputMark = 10
+	state.OutputMark = &XfrmMark{
+		Value: 0x0000000a,
+	}
+	if err := XfrmStateAdd(state); err != nil {
+		t.Fatal(err)
+	}
+	s, err := XfrmStateGet(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !compareStates(state, s) {
+		t.Fatalf("unexpected state returned.\nExpected: %v.\nGot %v", state, s)
+	}
+	if err = XfrmStateDel(s); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestXfrmStateWithOutputMarkAndMask(t *testing.T) {
+	minKernelRequired(t, 4, 19)
+	defer setUpNetlinkTest(t)()
+
+	state := getBaseState()
+	state.OutputMark = &XfrmMark{
+		Value: 0x0000000a,
+		Mask:  0x0000000f,
+	}
 	if err := XfrmStateAdd(state); err != nil {
 		t.Fatal(err)
 	}
@@ -294,11 +320,11 @@ func compareStates(a, b *XfrmState) bool {
 	return a.Src.Equal(b.Src) && a.Dst.Equal(b.Dst) &&
 		a.Mode == b.Mode && a.Spi == b.Spi && a.Proto == b.Proto &&
 		a.Ifid == b.Ifid &&
-		a.OutputMark == b.OutputMark &&
 		compareAlgo(a.Auth, b.Auth) &&
 		compareAlgo(a.Crypt, b.Crypt) &&
 		compareAlgo(a.Aead, b.Aead) &&
-		compareMarks(a.Mark, b.Mark)
+		compareMarks(a.Mark, b.Mark) &&
+		compareMarks(a.OutputMark, b.OutputMark)
 }
 
 func compareLimits(a, b *XfrmState) bool {
