@@ -530,10 +530,10 @@ func (h *Handle) FilterList(link Link, parent uint32) ([]Filter, error) {
 						return nil, err
 					}
 				case "flower":
-					if err = filter.(*Flower).decode(data); err != nil {
+					detailed, err = parseFlowerData(filter, data)
+					if err != nil {
 						return nil, err
 					}
-					detailed = true
 				default:
 					detailed = true
 				}
@@ -952,6 +952,10 @@ func parseMatchAllData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, er
 		}
 	}
 	return detailed, nil
+}
+
+func parseFlowerData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
+	return true, filter.(*Flower).decode(data)
 }
 
 func AlignToAtm(size uint) uint {
