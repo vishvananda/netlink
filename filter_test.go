@@ -1310,3 +1310,145 @@ func TestFilterU32SkbEditAddDel(t *testing.T) {
 		t.Fatal("Failed to remove qdisc")
 	}
 }
+
+func TestFilterU32LinkOption(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatalf("add link foo error: %v", err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatalf("add link foo error: %v", err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatalf("set foo link up error: %v", err)
+	}
+
+	qdisc := &Ingress{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(0xffff, 0),
+			Parent:    HANDLE_INGRESS,
+		},
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatalf("get qdisc error: %v", err)
+	}
+
+	found := false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("Qdisc is the wrong type")
+	}
+
+	htid := uint32(10)
+	size := uint32(8)
+	priority := uint16(200)
+	u32Table := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    htid << 20,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  priority,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		Divisor: size,
+	}
+	if err := FilterAdd(u32Table); err != nil {
+		t.Fatal(err)
+	}
+
+	u32 := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Handle:    1,
+			Priority:  priority,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		Link: uint32(htid << 20),
+		Sel: &TcU32Sel{
+			Nkeys:    1,
+			Flags:    TC_U32_TERMINAL | TC_U32_VAROFFSET,
+			Hmask:    0x0000ff00,
+			Hoff:     0,
+			Offshift: 8,
+			Keys: []TcU32Key{
+				{
+					Mask: 0,
+					Val:  0,
+					Off:  0,
+				},
+			},
+		},
+	}
+	if err := FilterAdd(u32); err != nil {
+		t.Fatal(err)
+	}
+
+	filters, err := FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatalf("get filter error: %v", err)
+	}
+
+	if len(filters) != 1 {
+		t.Fatalf("the count filters error, expect: 1, acutal: %d", len(filters))
+	}
+
+	ft, ok := filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+
+	if ft.LinkIndex != link.Attrs().Index {
+		t.Fatal("link index error")
+	}
+
+	if ft.Link != htid<<20 {
+		t.Fatal("hash table id error")
+	}
+
+	if ft.Priority != priority {
+		t.Fatal("priority error")
+	}
+
+	if err := FilterDel(ft); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found = false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if found {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
