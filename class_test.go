@@ -268,7 +268,8 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 	}
 
 	htbclassattrs := HtbClassAttrs{
-		Rate:    1234000,
+		Rate:    uint64(1<<32) + 10,
+		Ceil:    uint64(1<<32) + 20,
 		Cbuffer: 1690,
 	}
 	class := NewHtbClass(classattrs, htbclassattrs)
