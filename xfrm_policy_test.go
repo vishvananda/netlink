@@ -190,6 +190,31 @@ func TestXfrmPolicyWithIfid(t *testing.T) {
 	}
 }
 
+func TestXfrmPolicyWithOptional(t *testing.T) {
+	minKernelRequired(t, 4, 19)
+	defer setUpNetlinkTest(t)()
+
+	pol := getPolicy()
+	pol.Tmpls[0].Optional = 1
+
+	if err := XfrmPolicyAdd(pol); err != nil {
+		t.Fatal(err)
+	}
+	policies, err := XfrmPolicyList(FAMILY_ALL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(policies) != 1 {
+		t.Fatalf("unexpected number of policies: %d", len(policies))
+	}
+	if !comparePolicies(pol, &policies[0]) {
+		t.Fatalf("unexpected policy returned.\nExpected: %v.\nGot %v", pol, policies[0])
+	}
+	if err = XfrmPolicyDel(&policies[0]); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func comparePolicies(a, b *XfrmPolicy) bool {
 	if a == b {
 		return true
@@ -212,7 +237,8 @@ func compareTemplates(a, b []XfrmPolicyTmpl) bool {
 	for i, ta := range a {
 		tb := b[i]
 		if !ta.Dst.Equal(tb.Dst) || !ta.Src.Equal(tb.Src) || ta.Spi != tb.Spi ||
-			ta.Mode != tb.Mode || ta.Reqid != tb.Reqid || ta.Proto != tb.Proto {
+			ta.Mode != tb.Mode || ta.Reqid != tb.Reqid || ta.Proto != tb.Proto ||
+			ta.Optional != tb.Optional {
 			return false
 		}
 	}
