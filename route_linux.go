@@ -1150,6 +1150,7 @@ func deserializeRoute(m []byte) (Route, error) {
 // RouteGetOptions contains a set of options to use with
 // RouteGetWithOptions
 type RouteGetOptions struct {
+	Iif     string
 	VrfName string
 	SrcAddr net.IP
 }
@@ -1205,6 +1206,21 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 			native.PutUint32(b, uint32(link.Attrs().Index))
 
 			req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
+		}
+
+		if len(options.Iif) > 0 {
+			link, err := LinkByName(options.Iif)
+			if err != nil {
+				return nil, err
+			}
+
+			var (
+				b      = make([]byte, 4)
+				native = nl.NativeEndian()
+			)
+			native.PutUint32(b, uint32(link.Attrs().Index))
+
+			req.AddData(nl.NewRtAttr(unix.RTA_IIF, b))
 		}
 
 		if options.SrcAddr != nil {
