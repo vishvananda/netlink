@@ -2,11 +2,10 @@ package netlink
 
 import (
 	"bytes"
+	"github.com/vishvananda/netlink/nl"
 	"io/ioutil"
 	"net"
 	"testing"
-
-	"github.com/vishvananda/netlink/nl"
 )
 
 func TestParseIpsetProtocolResult(t *testing.T) {
@@ -83,5 +82,117 @@ func TestParseIpsetListResult(t *testing.T) {
 	expectedMAC = net.HardwareAddr{0x1, 0x2, 0x3, 0x0, 0x1, 0x2}
 	if !bytes.Equal(ent.MAC, expectedMAC) {
 		t.Errorf("expected MAC for second entry to be %s, got %s", expectedMAC.String(), ent.MAC.String())
+	}
+}
+
+func TestIpsetCreateListAddDelDestroy(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	timeout := uint32(3)
+	err := IpsetCreate("my-test-ipset-1", "hash:ip", IpsetCreateOptions{
+		Replace:  true,
+		Timeout:  &timeout,
+		Counters: true,
+		Comments: false,
+		Skbinfo:  false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = IpsetCreate("my-test-ipset-2", "hash:net", IpsetCreateOptions{
+		Replace:  true,
+		Timeout:  &timeout,
+		Counters: false,
+		Comments: true,
+		Skbinfo:  true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := IpsetListAll()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 IPSets to be created, got %d", len(results))
+	}
+
+	if results[0].SetName != "my-test-ipset-1" {
+		t.Errorf("expected name to be 'my-test-ipset-1', but got '%s'", results[0].SetName)
+	}
+
+	if results[1].SetName != "my-test-ipset-2" {
+		t.Errorf("expected name to be 'my-test-ipset-2', but got '%s'", results[1].SetName)
+	}
+
+	if results[0].TypeName != "hash:ip" {
+		t.Errorf("expected type to be 'hash:ip', but got '%s'", results[0].TypeName)
+	}
+
+	if results[1].TypeName != "hash:net" {
+		t.Errorf("expected type to be 'hash:net', but got '%s'", results[1].TypeName)
+	}
+
+	if *results[0].Timeout != 3 {
+		t.Errorf("expected timeout to be 3, but got '%d'", *results[0].Timeout)
+	}
+
+	err = IpsetAdd("my-test-ipset-1", &IPSetEntry{
+		Comment: "test comment",
+		IP:      net.ParseIP("10.99.99.99").To4(),
+		Replace: false,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := IpsetList("my-test-ipset-1")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(result.Entries) != 1 {
+		t.Fatalf("expected 1 entry be created, got '%d'", len(result.Entries))
+	}
+	if result.Entries[0].IP.String() != "10.99.99.99" {
+		t.Fatalf("expected entry to be '10.99.99.99', got '%s'", result.Entries[0].IP.String())
+	}
+
+	if result.Entries[0].Comment != "test comment" {
+		// This is only supported in the kernel module from revision 2 or 4, so comments may be ignored.
+		t.Logf("expected comment to be 'test comment', got '%s'", result.Entries[0].Comment)
+	}
+
+	err = IpsetDel("my-test-ipset-1", &IPSetEntry{
+		Comment: "test comment",
+		IP:      net.ParseIP("10.99.99.99").To4(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err = IpsetList("my-test-ipset-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(result.Entries) != 0 {
+		t.Fatalf("expected 0 entries to exist, got %d", len(result.Entries))
+	}
+
+	err = IpsetDestroy("my-test-ipset-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = IpsetDestroy("my-test-ipset-2")
+	if err != nil {
+		t.Fatal(err)
 	}
 }

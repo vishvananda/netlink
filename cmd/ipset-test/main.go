@@ -26,8 +26,8 @@ var (
 		"destroy":  {cmdDestroy, "creates a new ipset", 1},
 		"list":     {cmdList, "list specific ipset", 1},
 		"listall":  {cmdListAll, "list all ipsets", 0},
-		"add":      {cmdAddDel(netlink.IpsetAdd), "add entry", 1},
-		"del":      {cmdAddDel(netlink.IpsetDel), "delete entry", 1},
+		"add":      {cmdAddDel(netlink.IpsetAdd), "add entry", 2},
+		"del":      {cmdAddDel(netlink.IpsetDel), "delete entry", 2},
 	}
 
 	timeoutVal   *uint32
@@ -89,9 +89,9 @@ func printUsage() {
 }
 
 func cmdProtocol(_ []string) {
-	protocol, err := netlink.IpsetProtocol()
+	protocol, minProto, err := netlink.IpsetProtocol()
 	check(err)
-	log.Println("Protocol:", protocol)
+	log.Println("Protocol:", protocol, "min:", minProto)
 }
 
 func cmdCreate(args []string) {
