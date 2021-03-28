@@ -2035,6 +2035,184 @@ func expectMcastSnooping(t *testing.T, linkName string, expected bool) {
 	}
 }
 
+func TestBridgeSetVlanProtocol(t *testing.T) {
+	minKernelRequired(t, 4, 3)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeName := "foo"
+	bridge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeName}}
+	if err := LinkAdd(bridge); err != nil {
+		t.Fatal(err)
+	}
+
+	expectVlanProtocol(t, bridgeName, "802.1Q")
+
+	if err := BridgeSetVlanProtocol(bridge, "802.1ad"); err != nil {
+		t.Fatal(err)
+	}
+
+	expectVlanProtocol(t, bridgeName, "802.1ad")
+
+	if err := LinkDel(bridge); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func expectVlanProtocol(t *testing.T, linkName string, expected string) {
+	bridge, err := LinkByName(linkName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual := bridge.(*Bridge).VlanProtocol; actual == nil || *actual != expected {
+		t.Fatal(err)
+	}
+}
+
+func TestBridgeSetForwardDelay(t *testing.T) {
+	minKernelRequired(t, 3, 18)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeName := "foo"
+	bridge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeName}}
+	if err := LinkAdd(bridge); err != nil {
+		t.Fatal(err)
+	}
+
+	var forwardDelay uint32 = 1200
+
+	if err := BridgeSetForwardDelay(bridge, forwardDelay); err != nil {
+		t.Fatal(err)
+	}
+
+	expectForwardDelay(t, bridgeName, forwardDelay)
+
+	forwardDelay = 400
+
+	if err := BridgeSetForwardDelay(bridge, forwardDelay); err != nil {
+		t.Fatal(err)
+	}
+
+	expectForwardDelay(t, bridgeName, forwardDelay)
+
+	if err := LinkDel(bridge); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func expectForwardDelay(t *testing.T, linkName string, expected uint32) {
+	bridge, err := LinkByName(linkName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual := bridge.(*Bridge).ForwardDelay
+	if actual == nil {
+		t.Fatalf("expected %d got %v", expected, nil)
+	} else if *actual != expected {
+		t.Fatalf("expected %d got %d", expected, *actual)
+	}
+}
+
+func TestBridgeSetMaxAge(t *testing.T) {
+	minKernelRequired(t, 3, 18)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeName := "foo"
+	bridge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeName}}
+	if err := LinkAdd(bridge); err != nil {
+		t.Fatal(err)
+	}
+
+	var maxAge uint32 = 1200
+
+	if err := BridgeSetMaxAge(bridge, maxAge); err != nil {
+		t.Fatal(err)
+	}
+
+	expectMaxAge(t, bridgeName, maxAge)
+
+	maxAge = 1900
+
+	if err := BridgeSetForwardDelay(bridge, maxAge); err != nil {
+		t.Fatal(err)
+	}
+
+	expectMaxAge(t, bridgeName, maxAge)
+
+	if err := LinkDel(bridge); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func expectMaxAge(t *testing.T, linkName string, expected uint32) {
+	bridge, err := LinkByName(linkName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual := bridge.(*Bridge).MaxAge
+	if actual == nil {
+		t.Fatalf("expected %d got %v", expected, nil)
+	} else if *actual != expected {
+		t.Fatalf("expected %d got %d", expected, *actual)
+	}
+}
+
+func TestBridgeSetStpState(t *testing.T) {
+	minKernelRequired(t, 4, 1)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeName := "foo"
+	bridge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeName}}
+	if err := LinkAdd(bridge); err != nil {
+		t.Fatal(err)
+	}
+
+	var stpState uint32 = 0
+
+	if err := BridgeSetStpState(bridge, stpState); err != nil {
+		t.Fatal(err)
+	}
+
+	expectStpState(t, bridgeName, stpState)
+
+	stpState = 1
+
+	if err := BridgeSetStpState(bridge, stpState); err != nil {
+		t.Fatal(err)
+	}
+
+	expectStpState(t, bridgeName, stpState)
+
+	if err := LinkDel(bridge); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func expectStpState(t *testing.T, linkName string, expected uint32) {
+	bridge, err := LinkByName(linkName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actual := bridge.(*Bridge).StpState
+	if actual == nil {
+		t.Fatalf("expected %d got %v", expected, nil)
+	} else if *actual != expected {
+		t.Fatalf("expected %d got %d", expected, *actual)
+	}
+}
+
+
 func TestBridgeSetVlanFiltering(t *testing.T) {
 	minKernelRequired(t, 4, 4)
 
@@ -2260,6 +2438,215 @@ func TestLinkSubscribeWithProtinfo(t *testing.T) {
 	}
 
 	if err := LinkDel(master); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBridgeCreationWithStpState(t *testing.T) {
+	minKernelRequired(t, 4, 1)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeWithSpecifiedStpStateName := "foo"
+	stpState := uint32(1)
+	bridgeWithSpecifiedStpState := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithSpecifiedStpStateName}, StpState: &stpState}
+	if err := LinkAdd(bridgeWithSpecifiedStpState); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err := LinkByName(bridgeWithSpecifiedStpStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualStpState := retrievedBridge.(*Bridge).StpState; actualStpState == nil || *actualStpState != stpState {
+		if actualStpState != nil {
+			t.Fatalf("expected %d got %d", stpState, *actualStpState)
+		} else {
+			t.Fatalf("expected %d got %v", stpState, nil)
+		}
+	}
+	if err := LinkDel(bridgeWithSpecifiedStpState); err != nil {
+		t.Fatal(err)
+	}
+
+	bridgeWithDefaultStpStateName := "bar"
+	bridgeWithDefaultStpState := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithDefaultStpStateName}}
+	if err := LinkAdd(bridgeWithDefaultStpState); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err = LinkByName(bridgeWithDefaultStpStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualStpState := retrievedBridge.(*Bridge).StpState; actualStpState == nil || *actualStpState != 0 {
+		if actualStpState != nil {
+			t.Fatalf("expected %d got %d", 0, *actualStpState)
+		} else {
+			t.Fatalf("expected %d got %v", 0, nil)
+		}
+	}
+
+	if err := LinkDel(bridgeWithDefaultStpState); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBridgeCreationWithVlanProtocol(t *testing.T) {
+	minKernelRequired(t, 4, 3)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeWithSpecifiedVlanProtocolName := "foo"
+	vlanProtocol := "802.1ad"
+	bridgeWithSpecifiedVlanProtocol := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithSpecifiedVlanProtocolName}, VlanProtocol: &vlanProtocol}
+	if err := LinkAdd(bridgeWithSpecifiedVlanProtocol); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err := LinkByName(bridgeWithSpecifiedVlanProtocolName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualVlanProtocol := retrievedBridge.(*Bridge).VlanProtocol; actualVlanProtocol == nil || *actualVlanProtocol != vlanProtocol {
+		if actualVlanProtocol != nil {
+			t.Fatalf("expected %s got %s", vlanProtocol, *actualVlanProtocol)
+		} else {
+			t.Fatalf("expected %s got %v", vlanProtocol, nil)
+		}
+	}
+	if err := LinkDel(bridgeWithSpecifiedVlanProtocol); err != nil {
+		t.Fatal(err)
+	}
+
+	bridgeWithDefaultVlanProtocolName := "bar"
+	bridgeWithDefaultVlanProtocol := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithDefaultVlanProtocolName}}
+	if err := LinkAdd(bridgeWithDefaultVlanProtocol); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err = LinkByName(bridgeWithDefaultVlanProtocolName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualVlanProtocol := retrievedBridge.(*Bridge).VlanProtocol; actualVlanProtocol == nil || *actualVlanProtocol != "802.1Q" {
+		if actualVlanProtocol != nil {
+			t.Fatalf("expected 802.1Q got %s", *actualVlanProtocol)
+		} else {
+			t.Fatalf("expected 802.1Q got %v", nil)
+		}
+	}
+	if err := LinkDel(bridgeWithDefaultVlanProtocol); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBridgeCreationWithForwardDelay(t *testing.T) {
+	minKernelRequired(t, 3, 18)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeWithSpecifiedForwardDelayName := "foo"
+	forwardDelay := uint32(400)
+	bridgeWithSpecifiedForwardDelay := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithSpecifiedForwardDelayName}, ForwardDelay: &forwardDelay}
+	if err := LinkAdd(bridgeWithSpecifiedForwardDelay); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err := LinkByName(bridgeWithSpecifiedForwardDelayName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualForwardDelay := retrievedBridge.(*Bridge).ForwardDelay; actualForwardDelay == nil || *actualForwardDelay != forwardDelay {
+		if actualForwardDelay != nil {
+			t.Fatalf("expected %d got %d", forwardDelay, *actualForwardDelay)
+		} else {
+			t.Fatalf("expected %d got %v", forwardDelay, nil)
+		}
+	}
+	if err := LinkDel(bridgeWithSpecifiedForwardDelay); err != nil {
+		t.Fatal(err)
+	}
+
+	bridgeWithDefaultForwardDelayName := "bar"
+	bridgeWithDefaultForwardDelay := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithDefaultForwardDelayName}}
+	if err := LinkAdd(bridgeWithDefaultForwardDelay); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err = LinkByName(bridgeWithDefaultForwardDelayName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualForwardDelay := retrievedBridge.(*Bridge).ForwardDelay; actualForwardDelay == nil || *actualForwardDelay != 1500 {
+		if actualForwardDelay != nil {
+			t.Fatalf("expected %d got %d", 1500, *actualForwardDelay)
+		} else {
+			t.Fatalf("expected %d got %v", 1500, nil)
+		}
+	}
+	if err := LinkDel(bridgeWithDefaultForwardDelay); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBridgeCreationWithMaxAge(t *testing.T) {
+	minKernelRequired(t, 3, 18)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeWithSpecifiedMaxAgeName := "foo"
+	maxAge := uint32(800)
+	bridgeWithSpecifiedMaxAge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithSpecifiedMaxAgeName}, MaxAge: &maxAge}
+	if err := LinkAdd(bridgeWithSpecifiedMaxAge); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err := LinkByName(bridgeWithSpecifiedMaxAgeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualMaxAge := retrievedBridge.(*Bridge).MaxAge; actualMaxAge == nil || *actualMaxAge != maxAge {
+		if actualMaxAge != nil {
+			t.Fatalf("expected %d got %d", maxAge, *actualMaxAge)
+		} else {
+			t.Fatalf("expected %d got %v", maxAge, nil)
+		}
+	}
+	if err := LinkDel(bridgeWithSpecifiedMaxAge); err != nil {
+		t.Fatal(err)
+	}
+
+	bridgeWithDefaultMaxAgeName := "bar"
+	bridgeWithDefaultMaxAge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeWithDefaultMaxAgeName}}
+	if err := LinkAdd(bridgeWithDefaultMaxAge); err != nil {
+		t.Fatal(err)
+	}
+
+	retrievedBridge, err = LinkByName(bridgeWithDefaultMaxAgeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualMaxAge := retrievedBridge.(*Bridge).MaxAge; actualMaxAge == nil || *actualMaxAge != 1999 {
+		if actualMaxAge != nil {
+			t.Fatalf("expected %d got %d", 1999, *actualMaxAge)
+		} else {
+			t.Fatalf("expected %d got %v", 1999, nil)
+		}
+	}
+	if err := LinkDel(bridgeWithDefaultMaxAge); err != nil {
 		t.Fatal(err)
 	}
 }

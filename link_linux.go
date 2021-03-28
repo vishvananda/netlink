@@ -303,6 +303,46 @@ func (h *Handle) BridgeSetVlanFiltering(link Link, on bool) error {
 	return h.linkModify(bridge, unix.NLM_F_ACK)
 }
 
+func BridgeSetVlanProtocol(link Link, protocol string) error {
+	return pkgHandle.BridgeSetVlanProtocol(link, protocol)
+}
+
+func (h *Handle) BridgeSetVlanProtocol(link Link, protocol string) error {
+	bridge := link.(*Bridge)
+	bridge.VlanProtocol = &protocol
+	return h.linkModify(bridge, unix.NLM_F_ACK)
+}
+
+func (h *Handle) BridgeSetStpState(link Link, state uint32) error {
+	bridge := link.(*Bridge)
+	bridge.StpState = &state
+	return h.linkModify(bridge, unix.NLM_F_ACK)
+}
+
+func BridgeSetStpState(link Link, state uint32) error {
+	return pkgHandle.BridgeSetStpState(link, state)
+}
+
+func (h *Handle) BridgeSetForwardDelay(link Link, delay uint32) error {
+	bridge := link.(*Bridge)
+	bridge.ForwardDelay = &delay
+	return h.linkModify(bridge, unix.NLM_F_ACK)
+}
+
+func BridgeSetForwardDelay(link Link, delay uint32) error {
+	return pkgHandle.BridgeSetForwardDelay(link, delay)
+}
+
+func (h *Handle) BridgeSetMaxAge(link Link, maxAge uint32) error {
+	bridge := link.(*Bridge)
+	bridge.MaxAge = &maxAge
+	return h.linkModify(bridge, unix.NLM_F_ACK)
+}
+
+func BridgeSetMaxAge(link Link, maxAge uint32) error {
+	return pkgHandle.BridgeSetMaxAge(link, maxAge)
+}
+
 func SetPromiscOn(link Link) error {
 	return pkgHandle.SetPromiscOn(link)
 }
@@ -2985,6 +3025,23 @@ func addBridgeAttrs(bridge *Bridge, linkInfo *nl.RtAttr) {
 	if bridge.VlanFiltering != nil {
 		data.AddRtAttr(nl.IFLA_BR_VLAN_FILTERING, boolToByte(*bridge.VlanFiltering))
 	}
+	if bridge.StpState != nil {
+		data.AddRtAttr(nl.IFLA_BR_STP_STATE, nl.Uint32Attr(*bridge.StpState))
+	}
+	if bridge.ForwardDelay != nil {
+		data.AddRtAttr(nl.IFLA_BR_FORWARD_DELAY, nl.Uint32Attr(*bridge.ForwardDelay))
+	}
+	if bridge.MaxAge != nil {
+		data.AddRtAttr(nl.IFLA_BR_MAX_AGE, nl.Uint32Attr(*bridge.MaxAge))
+	}
+	if bridge.VlanProtocol != nil {
+		switch *bridge.VlanProtocol {
+		case "802.1Q":
+			data.AddRtAttr(nl.IFLA_BR_VLAN_PROTOCOL, htons(uint16(unix.ETH_P_8021Q)))
+		case "802.1ad":
+			data.AddRtAttr(nl.IFLA_BR_VLAN_PROTOCOL, htons(uint16(unix.ETH_P_8021AD)))
+		}
+	}
 }
 
 func parseBridgeData(bridge Link, data []syscall.NetlinkRouteAttr) {
@@ -3003,6 +3060,25 @@ func parseBridgeData(bridge Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_BR_VLAN_FILTERING:
 			vlanFiltering := datum.Value[0] == 1
 			br.VlanFiltering = &vlanFiltering
+		case nl.IFLA_BR_VLAN_PROTOCOL:
+			vlanProtocolCode := native.Uint16(datum.Value[0:2])
+			switch vlanProtocolCode {
+			case unix.ETH_P_8021Q:
+				vlanProtocol := "802.1Q"
+				br.VlanProtocol = &vlanProtocol
+			case unix.ETH_P_8021AD:
+				vlanProtocol := "802.1ad"
+				br.VlanProtocol = &vlanProtocol
+			}
+		case nl.IFLA_BR_STP_STATE:
+			stpState := native.Uint32(datum.Value[0:4])
+			br.StpState = &stpState
+		case nl.IFLA_BR_FORWARD_DELAY:
+			forwardingDelay := native.Uint32(datum.Value[0:4])
+			br.ForwardDelay = &forwardingDelay
+		case nl.IFLA_BR_MAX_AGE:
+			maxAge := native.Uint32(datum.Value[0:4])
+			br.MaxAge = &maxAge
 		}
 	}
 }
