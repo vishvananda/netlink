@@ -550,7 +550,6 @@ func (h *Handle) RouteAppend(route *Route) error {
 	return h.routeHandle(route, req, nl.NewRtMsg())
 }
 
-=======
 // RouteAddEcmp will add a route to the system.
 func RouteAddEcmp(route *Route) error {
         return pkgHandle.RouteAddEcmp(route)
