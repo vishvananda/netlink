@@ -47,6 +47,16 @@ type DevlinkPort struct {
 	Fn             *DevlinkPortFn
 }
 
+type DevLinkPortAddAttrs struct {
+	Controller      uint32
+	SfNumber        uint32
+	PortIndex       uint32
+	PfNumber        uint16
+	SfNumberValid   bool
+	PortIndexValid  bool
+	ControllerValid bool
+}
+
 func parseDevLinkDeviceList(msgs [][]byte) ([]*DevlinkDevice, error) {
 	devices := make([]*DevlinkDevice, 0, len(msgs))
 	for _, m := range msgs {
@@ -410,4 +420,55 @@ func (h *Handle) DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint
 // otherwise returns an error code.
 func DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint32) (*DevlinkPort, error) {
 	return pkgHandle.DevLinkGetPortByIndex(Bus, Device, PortIndex)
+}
+
+// DevLinkPortAdd adds a devlink port and returns a port on success
+// otherwise returns nil port and an error code.
+func (h *Handle) DevLinkPortAdd(Bus string, Device string, Flavour uint16, Attrs DevLinkPortAddAttrs) (*DevlinkPort, error) {
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PORT_NEW, Bus, Device)
+	if err != nil {
+		return nil, err
+	}
+
+	req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_FLAVOUR, nl.Uint16Attr(Flavour)))
+
+	req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_PCI_PF_NUMBER, nl.Uint16Attr(Attrs.PfNumber)))
+	if Flavour == nl.DEVLINK_PORT_FLAVOUR_PCI_SF && Attrs.SfNumberValid {
+		req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_PCI_SF_NUMBER, nl.Uint32Attr(Attrs.SfNumber)))
+	}
+	if Attrs.PortIndexValid {
+		req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_INDEX, nl.Uint32Attr(Attrs.PortIndex)))
+	}
+	if Attrs.ControllerValid {
+		req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_CONTROLLER_NUMBER, nl.Uint32Attr(Attrs.Controller)))
+	}
+	respmsg, err := req.Execute(unix.NETLINK_GENERIC, 0)
+	if err != nil {
+		return nil, err
+	}
+	port, err := parseDevlinkPortMsg(respmsg)
+	return port, err
+}
+
+// DevLinkPortAdd adds a devlink port and returns a port on success
+// otherwise returns nil port and an error code.
+func DevLinkPortAdd(Bus string, Device string, Flavour uint16, Attrs DevLinkPortAddAttrs) (*DevlinkPort, error) {
+	return pkgHandle.DevLinkPortAdd(Bus, Device, Flavour, Attrs)
+}
+
+// DevLinkPortDel deletes a devlink port and returns success or error code.
+func (h *Handle) DevLinkPortDel(Bus string, Device string, PortIndex uint32) error {
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PORT_DEL, Bus, Device)
+	if err != nil {
+		return err
+	}
+
+	req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_INDEX, nl.Uint32Attr(PortIndex)))
+	_, err = req.Execute(unix.NETLINK_GENERIC, 0)
+	return err
+}
+
+// DevLinkPortDel deletes a devlink port and returns success or error code.
+func DevLinkPortDel(Bus string, Device string, PortIndex uint32) error {
+	return pkgHandle.DevLinkPortDel(Bus, Device, PortIndex)
 }
