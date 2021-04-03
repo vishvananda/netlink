@@ -1,11 +1,11 @@
 package netlink
 
 import (
-	"syscall"
-
 	"fmt"
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+	"net"
+	"syscall"
 )
 
 // DevlinkDevEswitchAttr represents device's eswitch attributes
@@ -27,6 +27,13 @@ type DevlinkDevice struct {
 	Attrs      DevlinkDevAttrs
 }
 
+// DevlinkPortFn represents port function and its attributes
+type DevlinkPortFn struct {
+	HwAddr  net.HardwareAddr
+	State   uint8
+	OpState uint8
+}
+
 // DevlinkPort represents port and its attributes
 type DevlinkPort struct {
 	BusName        string
@@ -37,6 +44,7 @@ type DevlinkPort struct {
 	NetdevIfIndex  uint32
 	RdmaDeviceName string
 	PortFlavour    uint16
+	Fn             *DevlinkPortFn
 }
 
 func parseDevLinkDeviceList(msgs [][]byte) ([]*DevlinkDevice, error) {
@@ -302,6 +310,18 @@ func (port *DevlinkPort) parseAttributes(attrs []syscall.NetlinkRouteAttr) error
 			port.RdmaDeviceName = string(a.Value)
 		case nl.DEVLINK_ATTR_PORT_FLAVOUR:
 			port.PortFlavour = native.Uint16(a.Value)
+		case nl.DEVLINK_ATTR_PORT_FUNCTION:
+			port.Fn = &DevlinkPortFn{}
+			for nested := range nl.ParseAttributes(a.Value) {
+				switch nested.Type {
+				case nl.DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR:
+					port.Fn.HwAddr = nested.Value[:]
+				case nl.DEVLINK_PORT_FN_ATTR_STATE:
+					port.Fn.State = uint8(nested.Value[0])
+				case nl.DEVLINK_PORT_FN_ATTR_OPSTATE:
+					port.Fn.OpState = uint8(nested.Value[0])
+				}
+			}
 		}
 	}
 	return nil

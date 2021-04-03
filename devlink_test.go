@@ -66,5 +66,8 @@ func TestDevLinkGetPortByIndex(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Log(*p)
+		if p.Fn != nil {
+			t.Log("function attributes = " , *p.Fn)
+		}
 	}
 }
