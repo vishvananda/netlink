@@ -34,6 +34,13 @@ type DevlinkPortFn struct {
 	OpState uint8
 }
 
+// DevlinkPortFnSetAttrs represents attributes to set
+type DevlinkPortFnSetAttrs struct {
+	FnAttrs     DevlinkPortFn
+	HwAddrValid bool
+	StateValid  bool
+}
+
 // DevlinkPort represents port and its attributes
 type DevlinkPort struct {
 	BusName        string
@@ -471,4 +478,35 @@ func (h *Handle) DevLinkPortDel(Bus string, Device string, PortIndex uint32) err
 // DevLinkPortDel deletes a devlink port and returns success or error code.
 func DevLinkPortDel(Bus string, Device string, PortIndex uint32) error {
 	return pkgHandle.DevLinkPortDel(Bus, Device, PortIndex)
+}
+
+// DevlinkPortFnSet sets one or more port function attributes specified by the attribute mask.
+// It returns 0 on success or error code.
+func (h *Handle) DevlinkPortFnSet(Bus string, Device string, PortIndex uint32, FnAttrs DevlinkPortFnSetAttrs) error {
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PORT_SET, Bus, Device)
+	if err != nil {
+		return err
+	}
+
+	req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_INDEX, nl.Uint32Attr(PortIndex)))
+
+	fnAttr := nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_FUNCTION|unix.NLA_F_NESTED, nil)
+
+	if FnAttrs.HwAddrValid == true {
+		fnAttr.AddRtAttr(nl.DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR, []byte(FnAttrs.FnAttrs.HwAddr))
+	}
+
+	if FnAttrs.StateValid == true {
+		fnAttr.AddRtAttr(nl.DEVLINK_PORT_FN_ATTR_STATE, nl.Uint8Attr(FnAttrs.FnAttrs.State))
+	}
+	req.AddData(fnAttr)
+
+	_, err = req.Execute(unix.NETLINK_GENERIC, 0)
+	return err
+}
+
+// DevlinkPortFnSet sets one or more port function attributes specified by the attribute mask.
+// It returns 0 on success or error code.
+func DevlinkPortFnSet(Bus string, Device string, PortIndex uint32, FnAttrs DevlinkPortFnSetAttrs) error {
+	return pkgHandle.DevlinkPortFnSet(Bus, Device, PortIndex, FnAttrs)
 }
