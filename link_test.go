@@ -2636,8 +2636,6 @@ func TestLinkSetAllmulticast(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rawFlagsStart := link.Attrs().RawFlags
-
 	if err := LinkSetAllmulticastOn(link); err != nil {
 		t.Fatal(err)
 	}
@@ -2647,7 +2645,7 @@ func TestLinkSetAllmulticast(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if link.Attrs().RawFlags&unix.IFF_ALLMULTI != uint32(unix.IFF_ALLMULTI) {
+	if link.Attrs().Allmulti != 1 {
 		t.Fatal("IFF_ALLMULTI was not set")
 	}
 
@@ -2660,13 +2658,8 @@ func TestLinkSetAllmulticast(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if link.Attrs().RawFlags&unix.IFF_ALLMULTI != 0 {
+	if link.Attrs().Allmulti != 0 {
 		t.Fatal("IFF_ALLMULTI is still set")
-	}
-
-	rawFlagsEnd := link.Attrs().RawFlags
-	if rawFlagsStart != rawFlagsEnd {
-		t.Fatalf("RawFlags start value:%d differs from end value:%d", rawFlagsStart, rawFlagsEnd)
 	}
 }
 

@@ -153,7 +153,6 @@ func (h *Handle) LinkSetAllmulticastOn(link Link) error {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	msg.Change = unix.IFF_ALLMULTI
 	msg.Flags = unix.IFF_ALLMULTI
-
 	msg.Index = int32(base.Index)
 	req.AddData(msg)
 
@@ -1628,7 +1627,7 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 	}
 }
 
-// linkDeserialize deserializes a raw message received from netlink into
+// LinkDeserialize deserializes a raw message received from netlink into
 // a link object.
 func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 	msg := nl.DeserializeIfInfomsg(m)
@@ -1645,6 +1644,9 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 	base.EncapType = msg.EncapType()
 	if msg.Flags&unix.IFF_PROMISC != 0 {
 		base.Promisc = 1
+	}
+	if msg.Flags&unix.IFF_ALLMULTI != 0 {
+		base.Allmulti = 1
 	}
 	var (
 		link      Link
