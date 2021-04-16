@@ -1783,7 +1783,10 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 					switch slaveType {
 					case "bond":
 						linkSlave = &BondSlave{}
+					case "vrf":
+						linkSlave = &VrfSlave{}
 					}
+
 				case nl.IFLA_INFO_SLAVE_DATA:
 					switch slaveType {
 					case "bond":
@@ -1792,6 +1795,12 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 							return nil, err
 						}
 						parseBondSlaveData(linkSlave, data)
+					case "vrf":
+						data, err := nl.ParseRouteAttr(info.Value)
+						if err != nil {
+							return nil, err
+						}
+						parseVrfSlaveData(linkSlave, data)
 					}
 				}
 			}
@@ -2410,6 +2419,16 @@ func parseBondSlaveData(slave LinkSlave, data []syscall.NetlinkRouteAttr) {
 			bondSlave.AdActorOperPortState = uint8(data[i].Value[0])
 		case nl.IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE:
 			bondSlave.AdPartnerOperPortState = native.Uint16(data[i].Value[0:2])
+		}
+	}
+}
+
+func parseVrfSlaveData(slave LinkSlave, data []syscall.NetlinkRouteAttr) {
+	vrfSlave := slave.(*VrfSlave)
+	for i := range data {
+		switch data[i].Attr.Type {
+		case nl.IFLA_BOND_SLAVE_STATE:
+			vrfSlave.Table = native.Uint32(data[i].Value[0:4])
 		}
 	}
 }

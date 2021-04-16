@@ -960,6 +960,14 @@ func (b *BondSlave) SlaveType() string {
 	return "bond"
 }
 
+type VrfSlave struct {
+	Table uint32
+}
+
+func (v *VrfSlave) SlaveType() string {
+	return "vrf"
+}
+
 // Geneve devices must specify RemoteIP and ID (VNI) on create
 // https://github.com/torvalds/linux/blob/47ec5303d73ea344e84f46660fff693c57641386/drivers/net/geneve.c#L1209-L1223
 type Geneve struct {
