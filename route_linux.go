@@ -466,6 +466,152 @@ func (e *SEG6LocalEncap) Equal(x Encap) bool {
 	return true
 }
 
+// Encap BPF definitions
+type bpfObj struct {
+	progFd   int
+	progName string
+}
+type BpfEncap struct {
+	progs    [nl.LWT_BPF_MAX]bpfObj
+	headroom int
+}
+
+// SetProg adds a bpf function to the route via netlink RTA_ENCAP. The fd must be a bpf
+// program loaded with bpf(type=BPF_PROG_TYPE_LWT_*) matching the direction the program should
+// be applied to (LWT_BPF_IN, LWT_BPF_OUT, LWT_BPF_XMIT).
+func (e *BpfEncap) SetProg(mode, progFd int, progName string) error {
+	if progFd <= 0 {
+		return fmt.Errorf("lwt bpf SetProg: invalid fd")
+	}
+	if mode <= nl.LWT_BPF_UNSPEC || mode >= nl.LWT_BPF_XMIT_HEADROOM {
+		return fmt.Errorf("lwt bpf SetProg:invalid mode")
+	}
+	e.progs[mode].progFd = progFd
+	e.progs[mode].progName = fmt.Sprintf("%s[fd:%d]", progName, progFd)
+	return nil
+}
+
+// SetXmitHeadroom sets the xmit headroom (LWT_BPF_MAX_HEADROOM) via netlink RTA_ENCAP.
+// maximum headroom is LWT_BPF_MAX_HEADROOM
+func (e *BpfEncap) SetXmitHeadroom(headroom int) error {
+	if headroom > nl.LWT_BPF_MAX_HEADROOM || headroom < 0 {
+		return fmt.Errorf("invalid headroom size. range is 0 - %d", nl.LWT_BPF_MAX_HEADROOM)
+	}
+	e.headroom = headroom
+	return nil
+}
+
+func (e *BpfEncap) Type() int {
+	return nl.LWTUNNEL_ENCAP_BPF
+}
+func (e *BpfEncap) Decode(buf []byte) error {
+	if len(buf) < 4 {
+		return fmt.Errorf("lwt bpf decode: lack of bytes")
+	}
+	native := nl.NativeEndian()
+	attrs, err := nl.ParseRouteAttr(buf)
+	if err != nil {
+		return fmt.Errorf("lwt bpf decode: failed parsing attribute. err: %v", err)
+	}
+	for _, attr := range attrs {
+		if int(attr.Attr.Type) < 1 {
+			// nl.LWT_BPF_UNSPEC
+			continue
+		}
+		if int(attr.Attr.Type) > nl.LWT_BPF_MAX {
+			return fmt.Errorf("lwt bpf decode: received unknown attribute type: %d", attr.Attr.Type)
+		}
+		switch int(attr.Attr.Type) {
+		case nl.LWT_BPF_MAX_HEADROOM:
+			e.headroom = int(native.Uint32(attr.Value))
+		default:
+			bpfO := bpfObj{}
+			parsedAttrs, err := nl.ParseRouteAttr(attr.Value)
+			if err != nil {
+				return fmt.Errorf("lwt bpf decode: failed parsing route attribute")
+			}
+			for _, parsedAttr := range parsedAttrs {
+				switch int(parsedAttr.Attr.Type) {
+				case nl.LWT_BPF_PROG_FD:
+					bpfO.progFd = int(native.Uint32(parsedAttr.Value))
+				case nl.LWT_BPF_PROG_NAME:
+					bpfO.progName = fmt.Sprintf("%s", parsedAttr.Value)
+				default:
+					return fmt.Errorf("lwt bpf decode: received unknown attribute: type: %d, len: %d", parsedAttr.Attr.Type, parsedAttr.Attr.Len)
+				}
+			}
+			e.progs[attr.Attr.Type] = bpfO
+		}
+	}
+	return nil
+}
+
+func (e *BpfEncap) Encode() ([]byte, error) {
+	buf := make([]byte, 0)
+	native = nl.NativeEndian()
+	for index, attr := range e.progs {
+		nlMsg := nl.NewRtAttr(index, []byte{})
+		if attr.progFd != 0 {
+			nlMsg.AddRtAttr(nl.LWT_BPF_PROG_FD, nl.Uint32Attr(uint32(attr.progFd)))
+		}
+		if attr.progName != "" {
+			nlMsg.AddRtAttr(nl.LWT_BPF_PROG_NAME, nl.ZeroTerminated(attr.progName))
+		}
+		if nlMsg.Len() > 4 {
+			buf = append(buf, nlMsg.Serialize()...)
+		}
+	}
+	if len(buf) <= 4 {
+		return nil, fmt.Errorf("lwt bpf encode: bpf obj definitions returned empty buffer")
+	}
+	if e.headroom > 0 {
+		hRoom := nl.NewRtAttr(nl.LWT_BPF_XMIT_HEADROOM, nl.Uint32Attr(uint32(e.headroom)))
+		buf = append(buf, hRoom.Serialize()...)
+	}
+	return buf, nil
+}
+
+func (e *BpfEncap) String() string {
+	progs := make([]string, 0)
+	for index, obj := range e.progs {
+		empty := bpfObj{}
+		switch index {
+		case nl.LWT_BPF_IN:
+			if obj != empty {
+				progs = append(progs, fmt.Sprintf("in: %s", obj.progName))
+			}
+		case nl.LWT_BPF_OUT:
+			if obj != empty {
+				progs = append(progs, fmt.Sprintf("out: %s", obj.progName))
+			}
+		case nl.LWT_BPF_XMIT:
+			if obj != empty {
+				progs = append(progs, fmt.Sprintf("xmit: %s", obj.progName))
+			}
+		}
+	}
+	if e.headroom > 0 {
+		progs = append(progs, fmt.Sprintf("xmit headroom: %d", e.headroom))
+	}
+	return strings.Join(progs, " ")
+}
+
+func (e *BpfEncap) Equal(x Encap) bool {
+	o, ok := x.(*BpfEncap)
+	if !ok {
+		return false
+	}
+	if e.headroom != o.headroom {
+		return false
+	}
+	for i, _ := range o.progs {
+		if o.progs[i] != e.progs[i] {
+			return false
+		}
+	}
+	return true
+}
+
 type Via struct {
 	AddrFamily int
 	Addr       net.IP
@@ -552,14 +698,14 @@ func (h *Handle) RouteAppend(route *Route) error {
 
 // RouteAddEcmp will add a route to the system.
 func RouteAddEcmp(route *Route) error {
-        return pkgHandle.RouteAddEcmp(route)
+	return pkgHandle.RouteAddEcmp(route)
 }
 
 // RouteAddEcmp will add a route to the system.
 func (h *Handle) RouteAddEcmp(route *Route) error {
-        flags := unix.NLM_F_CREATE | unix.NLM_F_ACK
-        req := h.newNetlinkRequest(unix.RTM_NEWROUTE, flags)
-        return h.routeHandle(route, req, nl.NewRtMsg())
+	flags := unix.NLM_F_CREATE | unix.NLM_F_ACK
+	req := h.newNetlinkRequest(unix.RTM_NEWROUTE, flags)
+	return h.routeHandle(route, req, nl.NewRtMsg())
 }
 
 // RouteReplace will add a route to the system.
@@ -635,7 +781,13 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		if err != nil {
 			return err
 		}
-		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_ENCAP, buf))
+		switch route.Encap.Type() {
+		case nl.LWTUNNEL_ENCAP_BPF:
+			rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_ENCAP|unix.NLA_F_NESTED, buf))
+		default:
+			rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_ENCAP, buf))
+		}
+
 	}
 
 	if route.Src != nil {
@@ -1137,6 +1289,11 @@ func deserializeRoute(m []byte) (Route, error) {
 			}
 		case nl.LWTUNNEL_ENCAP_SEG6_LOCAL:
 			e = &SEG6LocalEncap{}
+			if err := e.Decode(encap.Value); err != nil {
+				return route, err
+			}
+		case nl.LWTUNNEL_ENCAP_BPF:
+			e = &BpfEncap{}
 			if err := e.Decode(encap.Value); err != nil {
 				return route, err
 			}

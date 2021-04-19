@@ -1350,6 +1350,56 @@ func TestSEG6LocalRoute6AddDel(t *testing.T) {
 	}
 }
 
+func TestBpfEncap(t *testing.T) {
+	tCase := &BpfEncap{}
+	if err := tCase.SetProg(nl.LWT_BPF_IN, 0, "test_in"); err == nil {
+		t.Fatal("BpfEncap: inserting invalid FD did not return error")
+	}
+	if err := tCase.SetProg(nl.LWT_BPF_XMIT_HEADROOM, 23, "test_nout"); err == nil {
+		t.Fatal("BpfEncap: inserting invalid mode did not return error")
+	}
+	if err := tCase.SetProg(nl.LWT_BPF_XMIT, 12, "test_xmit"); err != nil {
+		t.Fatal("BpfEncap: inserting valid program option returned error")
+	}
+	if err := tCase.SetXmitHeadroom(12); err != nil {
+		t.Fatal("BpfEncap: inserting valid headroom returned error")
+	}
+	if err := tCase.SetXmitHeadroom(nl.LWT_BPF_MAX_HEADROOM + 1); err == nil {
+		t.Fatal("BpfEncap: inserting invalid headroom did not return error")
+	}
+	tCase = &BpfEncap{}
+
+	expected := &BpfEncap{
+		progs: [nl.LWT_BPF_MAX]bpfObj{
+			1: {
+				progName: "test_in[fd:10]",
+				progFd:   10,
+			},
+			2: {
+				progName: "test_out[fd:11]",
+				progFd:   11,
+			},
+			3: {
+				progName: "test_xmit[fd:21]",
+				progFd:   21,
+			},
+		},
+		headroom: 128,
+	}
+
+	_ = tCase.SetProg(1, 10, "test_in")
+	_ = tCase.SetProg(2, 11, "test_out")
+	_ = tCase.SetProg(3, 21, "test_xmit")
+	_ = tCase.SetXmitHeadroom(128)
+	if !tCase.Equal(expected) {
+		t.Fatal("BpfEncap: equal comparison failed")
+	}
+	_ = tCase.SetProg(3, 21, "test2_xmit")
+	if tCase.Equal(expected) {
+		t.Fatal("BpfEncap: equal comparison succeeded when attributes differ")
+	}
+}
+
 func TestMTURouteAddDel(t *testing.T) {
 	_, err := RouteList(nil, FAMILY_V4)
 	if err != nil {
