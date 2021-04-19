@@ -3,10 +3,11 @@
 package netlink
 
 import (
-	"github.com/vishvananda/netns"
 	"io/ioutil"
 	"strings"
 	"testing"
+
+	"github.com/vishvananda/netns"
 )
 
 func setupRdmaKModule(t *testing.T, name string) {
@@ -164,4 +165,43 @@ func TestRdmaLinkList(t *testing.T) {
 	for _, link := range links {
 		t.Logf("%d: %s", link.Attrs.Index, link.Attrs.Name)
 	}
+}
+
+func TestRdmaLinkAddAndDel(t *testing.T) {
+	// related commit is https://github.com/torvalds/linux/commit/3856ec4b93c9463d36ee39098dde1fbbd29ec6dd.
+	minKernelRequired(t, 5, 1)
+	setupRdmaKModule(t, "rdma_rxe")
+
+	checkPresence := func(name string, exist bool) {
+		links, err := RdmaLinkList()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		found := false
+		for _, link := range links {
+			if link.Attrs.Name == name {
+				found = true
+				break
+			}
+		}
+
+		if found != exist {
+			t.Fatalf("expected rdma link %s presence=%v, but got presence=%v", name, exist, found)
+		}
+	}
+
+	linkName := t.Name()
+
+	if err := RdmaLinkAdd(linkName, "rxe", "lo"); err != nil {
+		t.Fatal(err)
+	}
+
+	checkPresence(linkName, true)
+
+	if err := RdmaLinkDel(linkName); err != nil {
+		t.Fatal(err)
+	}
+
+	checkPresence(linkName, false)
 }
