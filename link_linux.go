@@ -2778,6 +2778,10 @@ func addIptunAttrs(iptun *Iptun, linkInfo *nl.RtAttr) {
 func parseIptunData(link Link, data []syscall.NetlinkRouteAttr) {
 	iptun := link.(*Iptun)
 	for _, datum := range data {
+		// NOTE: same with vxlan, ip tunnel may also has null datum.Value
+		if len(datum.Value) == 0 {
+			continue
+		}
 		switch datum.Attr.Type {
 		case nl.IFLA_IPTUN_LOCAL:
 			iptun.Local = net.IP(datum.Value[0:4])
