@@ -1200,10 +1200,7 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 				return nil, err
 			}
 
-			var (
-				b      = make([]byte, 4)
-				native = nl.NativeEndian()
-			)
+			b := make([]byte, 4)
 			native.PutUint32(b, uint32(link.Attrs().Index))
 
 			req.AddData(nl.NewRtAttr(unix.RTA_IIF, b))
