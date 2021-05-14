@@ -60,6 +60,15 @@ func printAttributes(data []byte, level int) {
 	}
 }
 
+// Uint16 returns the uint16 value respecting the NET_BYTEORDER flag
+func (attr *Attribute) Uint16() uint16 {
+	if attr.Type&NLA_F_NET_BYTEORDER != 0 {
+		return binary.BigEndian.Uint16(attr.Value)
+	} else {
+		return NativeEndian().Uint16(attr.Value)
+	}
+}
+
 // Uint32 returns the uint32 value respecting the NET_BYTEORDER flag
 func (attr *Attribute) Uint32() uint32 {
 	if attr.Type&NLA_F_NET_BYTEORDER != 0 {
