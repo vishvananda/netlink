@@ -42,11 +42,12 @@ const (
 
 // Neighbor Flags
 const (
-	NTF_USE    = 0x01
-	NTF_SELF   = 0x02
-	NTF_MASTER = 0x04
-	NTF_PROXY  = 0x08
-	NTF_ROUTER = 0x80
+	NTF_USE         = 0x01
+	NTF_SELF        = 0x02
+	NTF_MASTER      = 0x04
+	NTF_PROXY       = 0x08
+	NTF_EXT_LEARNED = 0x10
+	NTF_ROUTER      = 0x80
 )
 
 // Ndmsg is for adding, removing or receiving information about a neighbor table entry
