@@ -127,6 +127,26 @@ func (x *TcMsg) Serialize() []byte {
 	return (*(*[SizeofTcMsg]byte)(unsafe.Pointer(x)))[:]
 }
 
+//struct tcf_t {
+//	__u64   install;
+//	__u64   lastuse;
+//	__u64   expires;
+//	__u64   firstuse;
+//};
+
+// Second * SYSTEM_CLK_TCK
+type Tcf struct {
+	Install  uint64
+	LastUse  uint64
+	Expires  uint64
+	FirstUse uint64
+}
+
+func DeserializeTcf(b []byte) *Tcf {
+	const size = int(unsafe.Sizeof(Tcf{}))
+	return (*Tcf)(unsafe.Pointer(&b[0:size][0]))
+}
+
 // struct tcamsg {
 //   unsigned char tca_family;
 //   unsigned char tca__pad1;
