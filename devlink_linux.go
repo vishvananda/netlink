@@ -132,9 +132,9 @@ func (d *DevlinkDevice) parseAttributes(attrs []syscall.NetlinkRouteAttr) error 
 	for _, a := range attrs {
 		switch a.Attr.Type {
 		case nl.DEVLINK_ATTR_BUS_NAME:
-			d.BusName = string(a.Value)
+			d.BusName = string(a.Value[:len(a.Value)-1])
 		case nl.DEVLINK_ATTR_DEV_NAME:
-			d.DeviceName = string(a.Value)
+			d.DeviceName = string(a.Value[:len(a.Value)-1])
 		case nl.DEVLINK_ATTR_ESWITCH_MODE:
 			d.Attrs.Eswitch.Mode = parseEswitchMode(native.Uint16(a.Value))
 		case nl.DEVLINK_ATTR_ESWITCH_INLINE_MODE:
@@ -312,19 +312,19 @@ func (port *DevlinkPort) parseAttributes(attrs []syscall.NetlinkRouteAttr) error
 	for _, a := range attrs {
 		switch a.Attr.Type {
 		case nl.DEVLINK_ATTR_BUS_NAME:
-			port.BusName = string(a.Value)
+			port.BusName = string(a.Value[:len(a.Value)-1])
 		case nl.DEVLINK_ATTR_DEV_NAME:
-			port.DeviceName = string(a.Value)
+			port.DeviceName = string(a.Value[:len(a.Value)-1])
 		case nl.DEVLINK_ATTR_PORT_INDEX:
 			port.PortIndex = native.Uint32(a.Value)
 		case nl.DEVLINK_ATTR_PORT_TYPE:
 			port.PortType = native.Uint16(a.Value)
 		case nl.DEVLINK_ATTR_PORT_NETDEV_NAME:
-			port.NetdeviceName = string(a.Value)
+			port.NetdeviceName = string(a.Value[:len(a.Value)-1])
 		case nl.DEVLINK_ATTR_PORT_NETDEV_IFINDEX:
 			port.NetdevIfIndex = native.Uint32(a.Value)
 		case nl.DEVLINK_ATTR_PORT_IBDEV_NAME:
-			port.RdmaDeviceName = string(a.Value)
+			port.RdmaDeviceName = string(a.Value[:len(a.Value)-1])
 		case nl.DEVLINK_ATTR_PORT_FLAVOUR:
 			port.PortFlavour = native.Uint16(a.Value)
 		case nl.DEVLINK_ATTR_PORT_FUNCTION:
