@@ -41,6 +41,7 @@ type Route struct {
 	MultiPath        []*NexthopInfo
 	Protocol         RouteProtocol
 	Priority         int
+	Family           int
 	Table            int
 	Type             int
 	Tos              int
