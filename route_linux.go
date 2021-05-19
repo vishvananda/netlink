@@ -1098,6 +1098,7 @@ func deserializeRoute(m []byte) (Route, error) {
 		Type:     int(msg.Type),
 		Tos:      int(msg.Tos),
 		Flags:    int(msg.Flags),
+		Family:   int(msg.Family),
 	}
 
 	var encap, encapType syscall.NetlinkRouteAttr
