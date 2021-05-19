@@ -944,6 +944,7 @@ func deserializeRoute(m []byte) (Route, error) {
 // RouteGetOptions contains a set of options to use with
 // RouteGetWithOptions
 type RouteGetOptions struct {
+	Source  net.IP
 	VrfName string
 }
 
@@ -980,19 +981,31 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 
 	rtaDst := nl.NewRtAttr(unix.RTA_DST, destinationData)
 	req.AddData(rtaDst)
-
 	if options != nil {
-		link, err := LinkByName(options.VrfName)
-		if err != nil {
-			return nil, err
-		}
-		var (
-			b      = make([]byte, 4)
-			native = nl.NativeEndian()
-		)
-		native.PutUint32(b, uint32(link.Attrs().Index))
+		if options.Source != nil {
+			var rtaSrc *nl.RtAttr
 
-		req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
+			if srcV4 := options.Source.To4(); srcV4 != nil {
+				rtaSrc = nl.NewRtAttr(unix.RTA_SRC, srcV4)
+			} else {
+				rtaSrc = nl.NewRtAttr(unix.RTA_SRC, options.Source.To16())
+			}
+			req.AddData(rtaSrc)
+		}
+
+		if options.VrfName != "" {
+			link, err := LinkByName(options.VrfName)
+			if err != nil {
+				return nil, err
+			}
+			var (
+				b      = make([]byte, 4)
+				native = nl.NativeEndian()
+			)
+			native.PutUint32(b, uint32(link.Attrs().Index))
+
+			req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
+		}
 	}
 
 	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWROUTE)
