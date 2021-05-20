@@ -36,6 +36,7 @@ type LinkAttrs struct {
 	Statistics   *LinkStatistics
 	Promisc      int
 	Allmulti     int
+	Multi        int
 	Xdp          *LinkXdp
 	EncapType    string
 	Protinfo     *Protinfo
