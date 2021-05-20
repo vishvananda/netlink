@@ -2663,6 +2663,56 @@ func TestLinkSetAllmulticast(t *testing.T) {
 	}
 }
 
+func TestLinkSetMulticast(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	iface := &Veth{LinkAttrs: LinkAttrs{Name: "foo"}, PeerName: "bar"}
+	if err := LinkAdd(iface); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkSetMulticastOn(link); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().Multi != 1 {
+		t.Fatal("IFF_MULTICAST was not set")
+	}
+
+	if err := LinkSetMulticastOff(link); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().Multi != 0 {
+		t.Fatal("IFF_MULTICAST is still set")
+	}
+}
+
 func TestLinkSetMacvlanMode(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
