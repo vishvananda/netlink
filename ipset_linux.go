@@ -2,6 +2,7 @@ package netlink
 
 import (
 	"encoding/binary"
+	"errors"
 	"log"
 	"net"
 	"syscall"
@@ -42,6 +43,11 @@ type IPSetResult struct {
 	Comment            string
 	MarkMask           uint32
 
+	IPFrom   net.IP
+	IPTo     net.IP
+	PortFrom uint16
+	PortTo   uint16
+
 	HashSize     uint32
 	NumEntries   uint32
 	MaxElements  uint32
@@ -61,6 +67,11 @@ type IpsetCreateOptions struct {
 	Counters bool
 	Comments bool
 	Skbinfo  bool
+
+	IPFrom   net.IP
+	IPTo     net.IP
+	PortFrom uint16
+	PortTo   uint16
 }
 
 // IpsetProtocol returns the ipset protocol version from the kernel
@@ -103,6 +114,22 @@ func IpsetDel(setname string, entry *IPSetEntry) error {
 	return pkgHandle.IpsetDel(setname, entry)
 }
 
+// IpsetTest test whether an entry is in a ipset or not.
+func IpsetTest(setname string, entry *IPSetEntry) (bool, error) {
+	return pkgHandle.IpsetTest(setname, entry)
+}
+
+// IpsetRename rename a ipset. Set identified by toSetname must not exist.
+func IpsetRename(fromSetname string, toSetname string) error {
+	return pkgHandle.IpsetRename(fromSetname, toSetname)
+}
+
+// IpsetSwap swap the content of two ipsets, or in another words, exchange the name of two ipsets.
+// The referred ipsets must exist and compatible type of ipsets can be swapped only.
+func IpsetSwap(fromSetname string, toSetname string) error {
+	return pkgHandle.IpsetSwap(fromSetname, toSetname)
+}
+
 func (h *Handle) IpsetProtocol() (protocol uint8, minVersion uint8, err error) {
 	req := h.newIpsetRequest(nl.IPSET_CMD_PROTOCOL)
 	msgs, err := req.Execute(unix.NETLINK_NETFILTER, 0)
@@ -124,13 +151,23 @@ func (h *Handle) IpsetCreate(setname, typename string, options IpsetCreateOption
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(setname)))
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_TYPENAME, nl.ZeroTerminated(typename)))
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_REVISION, nl.Uint8Attr(0)))
-	if typename == "hash:mac" {
-		req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_FAMILY, nl.Uint8Attr(0)))
-	} else {
-		req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_FAMILY, nl.Uint8Attr(unix.AF_INET))) // 2 == inet
-	}
 
 	data := nl.NewRtAttr(nl.IPSET_ATTR_DATA|int(nl.NLA_F_NESTED), nil)
+
+	var family uint8
+	switch typename {
+	case "hash:mac":
+	case "bitmap:port":
+		buf := make([]byte, 4)
+		binary.BigEndian.PutUint16(buf, options.PortFrom)
+		binary.BigEndian.PutUint16(buf[2:], options.PortTo)
+		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_PORT_FROM|int(nl.NLA_F_NET_BYTEORDER), buf[:2]))
+		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_PORT_TO|int(nl.NLA_F_NET_BYTEORDER), buf[2:]))
+	default:
+		family = unix.AF_INET
+	}
+
+	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_FAMILY, nl.Uint8Attr(family)))
 
 	if timeout := options.Timeout; timeout != nil {
 		data.AddChild(&nl.Uint32Attribute{Type: nl.IPSET_ATTR_TIMEOUT | nl.NLA_F_NET_BYTEORDER, Value: *timeout})
@@ -210,6 +247,31 @@ func (h *Handle) IpsetDel(setname string, entry *IPSetEntry) error {
 	return h.ipsetAddDel(nl.IPSET_CMD_DEL, setname, entry)
 }
 
+// IpsetTest test whether an entry is in a ipset or not.
+func (h *Handle) IpsetTest(setname string, entry *IPSetEntry) (bool, error) {
+	err := h.ipsetAddDel(nl.IPSET_CMD_TEST, setname, entry)
+	if err != nil {
+		if errors.Is(err, nl.IPSetError(nl.IPSET_ERR_EXIST)) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
+// IpsetRename rename a ipset. Set identified by toSetname must not exist.
+func (h *Handle) IpsetRename(fromSetname string, toSetname string) error {
+	return h.ipsetRenameSwap(nl.IPSET_CMD_RENAME, fromSetname, toSetname)
+}
+
+// IpsetSwap swap the content of two ipsets, or in another words, exchange the name of two ipsets.
+// The referred ipsets must exist and compatible type of ipsets can be swapped only.
+func (h *Handle) IpsetSwap(fromSetname string, toSetname string) error {
+	return h.ipsetRenameSwap(nl.IPSET_CMD_SWAP, fromSetname, toSetname)
+}
+
 func (h *Handle) ipsetAddDel(nlCmd int, setname string, entry *IPSetEntry) error {
 	req := h.newIpsetRequest(nlCmd)
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(setname)))
@@ -272,6 +334,15 @@ func (h *Handle) ipsetAddDel(nlCmd int, setname string, entry *IPSetEntry) error
 
 	data.AddChild(&nl.Uint32Attribute{Type: nl.IPSET_ATTR_LINENO | nl.NLA_F_NET_BYTEORDER, Value: 0})
 	req.AddData(data)
+
+	_, err := ipsetExecute(req)
+	return err
+}
+
+func (h *Handle) ipsetRenameSwap(nlCmd int, fromSetname string, toSetname string) error {
+	req := h.newIpsetRequest(nlCmd)
+	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(fromSetname)))
+	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME2, nl.ZeroTerminated(toSetname)))
 
 	_, err := ipsetExecute(req)
 	return err
@@ -366,8 +437,25 @@ func (result *IPSetResult) parseAttrData(data []byte) {
 				switch nested.Type {
 				case nl.IPSET_ATTR_IP | nl.NLA_F_NET_BYTEORDER:
 					result.Entries = append(result.Entries, IPSetEntry{IP: nested.Value})
+				case nl.IPSET_ATTR_IP:
+					result.IPFrom = nested.Value
+				default:
+					log.Printf("unknown nested ipset data attribute from kernel: %+v %v", nested, nested.Type&nl.NLA_TYPE_MASK)
 				}
 			}
+		case nl.IPSET_ATTR_IP_TO | nl.NLA_F_NESTED:
+			for nested := range nl.ParseAttributes(attr.Value) {
+				switch nested.Type {
+				case nl.IPSET_ATTR_IP:
+					result.IPTo = nested.Value
+				default:
+					log.Printf("unknown nested ipset data attribute from kernel: %+v %v", nested, nested.Type&nl.NLA_TYPE_MASK)
+				}
+			}
+		case nl.IPSET_ATTR_PORT_FROM | nl.NLA_F_NET_BYTEORDER:
+			result.PortFrom = attr.Uint16()
+		case nl.IPSET_ATTR_PORT_TO | nl.NLA_F_NET_BYTEORDER:
+			result.PortTo = attr.Uint16()
 		case nl.IPSET_ATTR_CADT_LINENO | nl.NLA_F_NET_BYTEORDER:
 			result.LineNo = attr.Uint32()
 		case nl.IPSET_ATTR_COMMENT:

@@ -2,8 +2,10 @@ package netlink
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/vishvananda/netlink/nl"
@@ -496,6 +498,377 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			}
 
 			err = IpsetDestroy(tC.setname)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestIpsetBitmapCreateListWithTestCases(t *testing.T) {
+	timeout := uint32(3)
+
+	testCases := []struct {
+		desc     string
+		setname  string
+		typename string
+		options  IpsetCreateOptions
+		entry    *IPSetEntry
+	}{
+		{
+			desc:     "Type-bitmap:port",
+			setname:  "my-test-ipset-11",
+			typename: "bitmap:port",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+				PortFrom: 100,
+				PortTo:   600,
+			},
+			entry: &IPSetEntry{
+				Comment: "test comment",
+				IP:      net.ParseIP("10.99.99.0").To4(),
+				CIDR:    26,
+				Mark:    &timeout,
+				Replace: false,
+			},
+		},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			tearDown := setUpNetlinkTest(t)
+			defer tearDown()
+
+			err := IpsetCreate(tC.setname, tC.typename, tC.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			result, err := IpsetList(tC.setname)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tC.typename == "bitmap:port" {
+				if result.PortFrom != tC.options.PortFrom || result.PortTo != tC.options.PortTo {
+					t.Fatalf("expected port range %d-%d, got %d-%d", tC.options.PortFrom, tC.options.PortTo, result.PortFrom, result.PortTo)
+				}
+			} else if tC.typename == "bitmap:ip" {
+				if result.IPFrom == nil || result.IPTo == nil || result.IPFrom.Equal(tC.options.IPFrom) || result.IPTo.Equal(tC.options.IPTo) {
+					t.Fatalf("expected ip range %v-%v, got %v-%v", tC.options.IPFrom, tC.options.IPTo, result.IPFrom, result.IPTo)
+				}
+			}
+
+		})
+	}
+}
+func TestIpsetRename(t *testing.T) {
+
+	testCases := []struct {
+		desc     string
+		setname  string
+		setname2 string
+		typename string
+		options  IpsetCreateOptions
+	}{
+		{
+			desc:     "Type-hash:ip",
+			setname:  "my-test-ipset-1",
+			setname2: "alter-test-ipset-1",
+			typename: "hash:ip",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+		},
+		{
+			desc:     "Type-hash:net",
+			setname:  "my-test-ipset-2",
+			setname2: "alter-test-ipset-2",
+			typename: "hash:net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+		},
+		{
+			desc:     "Type-hash:net,net",
+			setname:  "my-test-ipset-4",
+			setname2: "alter-test-ipset-4",
+			typename: "hash:net,net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+		},
+		{
+			desc:     "Type-hash:ip,ip",
+			setname:  "my-test-ipset-5",
+			setname2: "alter-test-ipset-5",
+			typename: "hash:net,net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+		},
+		{
+			desc:     "Type-hash:ip,port",
+			setname:  "my-test-ipset-6",
+			setname2: "alter-test-ipset-6",
+			typename: "hash:ip,port",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+		},
+		{
+			desc:     "Type-hash:net,port,net",
+			setname:  "my-test-ipset-7",
+			setname2: "alter-test-ipset-7",
+			typename: "hash:net,port,net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+		},
+		{
+			desc:     "Type-hash:mac",
+			setname:  "my-test-ipset-8",
+			setname2: "alter-test-ipset-8",
+			typename: "hash:mac",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+		},
+		{
+			desc:     "Type-hash:net,iface",
+			setname:  "my-test-ipset-9",
+			setname2: "alter-test-ipset-8",
+			typename: "hash:net,iface",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+		},
+		{
+			desc:     "Type-hash:ip,mark",
+			setname:  "my-test-ipset-10",
+			setname2: "alter-test-ipset-10",
+			typename: "hash:ip,mark",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+		},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			tearDown := setUpNetlinkTest(t)
+			defer tearDown()
+
+			err := IpsetCreate(tC.setname, tC.typename, tC.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = IpsetList(tC.setname)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = IpsetRename(tC.setname, tC.setname2)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = IpsetList(tC.setname)
+			if !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
+
+			_, err = IpsetList(tC.setname2)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestIpsetSwap(t *testing.T) {
+
+	testCases := []struct {
+		desc     string
+		setname  string
+		setname2 string
+		typename string
+		options  IpsetCreateOptions
+	}{
+		{
+			desc:     "Type-hash:ip",
+			setname:  "my-test-ipset-1",
+			setname2: "alter-test-ipset-1",
+			typename: "hash:ip",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+		},
+		{
+			desc:     "Type-hash:net",
+			setname:  "my-test-ipset-2",
+			setname2: "alter-test-ipset-2",
+			typename: "hash:net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+		},
+		{
+			desc:     "Type-hash:net,net",
+			setname:  "my-test-ipset-4",
+			setname2: "alter-test-ipset-4",
+			typename: "hash:net,net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+		},
+		{
+			desc:     "Type-hash:ip,ip",
+			setname:  "my-test-ipset-5",
+			setname2: "alter-test-ipset-5",
+			typename: "hash:net,net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+		},
+		{
+			desc:     "Type-hash:ip,port",
+			setname:  "my-test-ipset-6",
+			setname2: "alter-test-ipset-6",
+			typename: "hash:ip,port",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+		},
+		{
+			desc:     "Type-hash:net,port,net",
+			setname:  "my-test-ipset-7",
+			setname2: "alter-test-ipset-7",
+			typename: "hash:net,port,net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+		},
+		{
+			desc:     "Type-hash:mac",
+			setname:  "my-test-ipset-8",
+			setname2: "alter-test-ipset-8",
+			typename: "hash:mac",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+		},
+		{
+			desc:     "Type-hash:net,iface",
+			setname:  "my-test-ipset-9",
+			setname2: "alter-test-ipset-8",
+			typename: "hash:net,iface",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+		},
+		{
+			desc:     "Type-hash:ip,mark",
+			setname:  "my-test-ipset-10",
+			setname2: "alter-test-ipset-10",
+			typename: "hash:ip,mark",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+		},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			tearDown := setUpNetlinkTest(t)
+			defer tearDown()
+			var err error
+
+			err = IpsetCreate(tC.setname, tC.typename, tC.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = IpsetSwap(tC.setname, tC.setname2)
+			if !errors.Is(err, nl.IPSetError(nl.IPSET_ERR_EXIST_SETNAME2)) {
+				t.Fatal(err)
+			}
+
+			err = IpsetCreate(tC.setname2, tC.typename, tC.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = IpsetSwap(tC.setname, tC.setname2)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = IpsetList(tC.setname)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = IpsetList(tC.setname2)
 			if err != nil {
 				t.Fatal(err)
 			}
