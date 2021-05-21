@@ -2,7 +2,6 @@ package netlink
 
 import (
 	"bytes"
-	"errors"
 	"io/ioutil"
 	"net"
 	"os"
@@ -849,7 +848,7 @@ func TestIpsetSwap(t *testing.T) {
 			}
 
 			err = IpsetSwap(tC.setname, tC.setname2)
-			if !errors.Is(err, nl.IPSetError(nl.IPSET_ERR_EXIST_SETNAME2)) {
+			if ee, ok := err.(nl.IPSetError); !ok || ee != nl.IPSET_ERR_EXIST_SETNAME2 {
 				t.Fatal(err)
 			}
 
