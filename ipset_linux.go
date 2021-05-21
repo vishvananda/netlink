@@ -2,7 +2,6 @@ package netlink
 
 import (
 	"encoding/binary"
-	"errors"
 	"log"
 	"net"
 	"syscall"
@@ -251,7 +250,7 @@ func (h *Handle) IpsetDel(setname string, entry *IPSetEntry) error {
 func (h *Handle) IpsetTest(setname string, entry *IPSetEntry) (bool, error) {
 	err := h.ipsetAddDel(nl.IPSET_CMD_TEST, setname, entry)
 	if err != nil {
-		if errors.Is(err, nl.IPSetError(nl.IPSET_ERR_EXIST)) {
+		if ee, ok := err.(nl.IPSetError); ok && ee == nl.IPSET_ERR_EXIST {
 			return false, nil
 		}
 
