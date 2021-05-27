@@ -2874,6 +2874,7 @@ func addIptunAttrs(iptun *Iptun, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_FLAGS, nl.Uint16Attr(iptun.EncapFlags))
 	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_SPORT, htons(iptun.EncapSport))
 	data.AddRtAttr(nl.IFLA_IPTUN_ENCAP_DPORT, htons(iptun.EncapDport))
+	data.AddRtAttr(nl.IFLA_IPTUN_PROTO, nl.Uint8Attr(iptun.Proto))
 }
 
 func parseIptunData(link Link, data []syscall.NetlinkRouteAttr) {
@@ -2904,6 +2905,8 @@ func parseIptunData(link Link, data []syscall.NetlinkRouteAttr) {
 			iptun.EncapFlags = native.Uint16(datum.Value[0:2])
 		case nl.IFLA_IPTUN_COLLECT_METADATA:
 			iptun.FlowBased = true
+		case nl.IFLA_IPTUN_PROTO:
+			iptun.Proto = datum.Value[0]
 		}
 	}
 }
