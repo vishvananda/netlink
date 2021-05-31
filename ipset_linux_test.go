@@ -2,10 +2,12 @@ package netlink
 
 import (
 	"bytes"
-	"github.com/vishvananda/netlink/nl"
 	"io/ioutil"
 	"net"
 	"testing"
+
+	"github.com/vishvananda/netlink/nl"
+	"golang.org/x/sys/unix"
 )
 
 func TestParseIpsetProtocolResult(t *testing.T) {
@@ -194,5 +196,371 @@ func TestIpsetCreateListAddDelDestroy(t *testing.T) {
 	err = IpsetDestroy("my-test-ipset-2")
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
+	timeout := uint32(3)
+	protocalTCP := uint8(unix.IPPROTO_TCP)
+	port := uint16(80)
+
+	testCases := []struct {
+		desc     string
+		setname  string
+		typename string
+		options  IpsetCreateOptions
+		entry    *IPSetEntry
+	}{
+		{
+			desc:     "Type-hash:ip",
+			setname:  "my-test-ipset-1",
+			typename: "hash:ip",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+			entry: &IPSetEntry{
+				Comment: "test comment",
+				IP:      net.ParseIP("10.99.99.99").To4(),
+				Replace: false,
+			},
+		},
+		{
+			desc:     "Type-hash:net",
+			setname:  "my-test-ipset-2",
+			typename: "hash:net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+			entry: &IPSetEntry{
+				Comment: "test comment",
+				IP:      net.ParseIP("10.99.99.0").To4(),
+				CIDR:    24,
+				Replace: false,
+			},
+		},
+		{
+			desc:     "Type-hash:net,net",
+			setname:  "my-test-ipset-4",
+			typename: "hash:net,net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+			entry: &IPSetEntry{
+				Comment: "test comment",
+				IP:      net.ParseIP("10.99.99.0").To4(),
+				CIDR:    24,
+				IP2:     net.ParseIP("10.99.0.0").To4(),
+				CIDR2:   24,
+				Replace: false,
+			},
+		},
+		{
+			desc:     "Type-hash:ip,ip",
+			setname:  "my-test-ipset-5",
+			typename: "hash:net,net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+			entry: &IPSetEntry{
+				Comment: "test comment",
+				IP:      net.ParseIP("10.99.99.0").To4(),
+				IP2:     net.ParseIP("10.99.0.0").To4(),
+				Replace: false,
+			},
+		},
+		{
+			desc:     "Type-hash:ip,port",
+			setname:  "my-test-ipset-6",
+			typename: "hash:ip,port",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+			entry: &IPSetEntry{
+				Comment:  "test comment",
+				IP:       net.ParseIP("10.99.99.1").To4(),
+				Protocol: &protocalTCP,
+				Port:     &port,
+				Replace:  false,
+			},
+		},
+		{
+			desc:     "Type-hash:net,port,net",
+			setname:  "my-test-ipset-7",
+			typename: "hash:net,port,net",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: false,
+				Comments: true,
+				Skbinfo:  true,
+			},
+			entry: &IPSetEntry{
+				Comment:  "test comment",
+				IP:       net.ParseIP("10.99.99.0").To4(),
+				CIDR:     24,
+				IP2:      net.ParseIP("10.99.0.0").To4(),
+				CIDR2:    24,
+				Protocol: &protocalTCP,
+				Port:     &port,
+				Replace:  false,
+			},
+		},
+		{
+			desc:     "Type-hash:mac",
+			setname:  "my-test-ipset-8",
+			typename: "hash:mac",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+			entry: &IPSetEntry{
+				Comment: "test comment",
+				MAC:     net.HardwareAddr{0x26, 0x6f, 0x0d, 0x5b, 0xc1, 0x9d},
+				Replace: false,
+			},
+		},
+		{
+			desc:     "Type-hash:net,iface",
+			setname:  "my-test-ipset-9",
+			typename: "hash:net,iface",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+			entry: &IPSetEntry{
+				Comment: "test comment",
+				IP:      net.ParseIP("10.99.99.0").To4(),
+				CIDR:    24,
+				IFace:   "eth0",
+				Replace: false,
+			},
+		},
+		{
+			desc:     "Type-hash:ip,mark",
+			setname:  "my-test-ipset-10",
+			typename: "hash:ip,mark",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+			entry: &IPSetEntry{
+				Comment: "test comment",
+				IP:      net.ParseIP("10.99.99.0").To4(),
+				Mark:    &timeout,
+				Replace: false,
+			},
+		},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			tearDown := setUpNetlinkTest(t)
+			defer tearDown()
+
+			err := IpsetCreate(tC.setname, tC.typename, tC.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			result, err := IpsetList(tC.setname)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if result.SetName != tC.setname {
+				t.Errorf("expected name to be '%s', but got '%s'", tC.setname, result.SetName)
+			}
+
+			if result.TypeName != tC.typename {
+				t.Errorf("expected type to be '%s', but got '%s'", tC.typename, result.TypeName)
+			}
+
+			if *result.Timeout != timeout {
+				t.Errorf("expected timeout to be %d, but got '%d'", timeout, *result.Timeout)
+			}
+
+			err = IpsetAdd(tC.setname, tC.entry)
+
+			if err != nil {
+				t.Error(result.Protocol, result.Family)
+				t.Fatal(err)
+			}
+
+			result, err = IpsetList(tC.setname)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(result.Entries) != 1 {
+				t.Fatalf("expected 1 entry be created, got '%d'", len(result.Entries))
+			}
+
+			if tC.entry.IP != nil {
+				if !tC.entry.IP.Equal(result.Entries[0].IP) {
+					t.Fatalf("expected entry to be '%v', got '%v'", tC.entry.IP, result.Entries[0].IP)
+				}
+			}
+
+			if tC.entry.CIDR > 0 {
+				if result.Entries[0].CIDR != tC.entry.CIDR {
+					t.Fatalf("expected cidr to be '%d', got '%d'", tC.entry.CIDR, result.Entries[0].CIDR)
+				}
+			}
+
+			if tC.entry.IP2 != nil {
+				if !tC.entry.IP2.Equal(result.Entries[0].IP2) {
+					t.Fatalf("expected entry.ip2 to be '%v', got '%v'", tC.entry.IP2, result.Entries[0].IP2)
+				}
+			}
+
+			if tC.entry.CIDR2 > 0 {
+				if result.Entries[0].CIDR2 != tC.entry.CIDR2 {
+					t.Fatalf("expected cidr2 to be '%d', got '%d'", tC.entry.CIDR2, result.Entries[0].CIDR2)
+				}
+			}
+
+			if tC.entry.Port != nil {
+				if *result.Entries[0].Protocol != *tC.entry.Protocol {
+					t.Fatalf("expected protocol to be '%d', got '%d'", *tC.entry.Protocol, *result.Entries[0].Protocol)
+				}
+				if *result.Entries[0].Port != *tC.entry.Port {
+					t.Fatalf("expected port to be '%d', got '%d'", *tC.entry.Port, *result.Entries[0].Port)
+				}
+			}
+
+			if tC.entry.MAC != nil {
+				if result.Entries[0].MAC.String() != tC.entry.MAC.String() {
+					t.Fatalf("expected mac to be '%v', got '%v'", tC.entry.MAC, result.Entries[0].MAC)
+				}
+			}
+
+			if tC.entry.IFace != "" {
+				if result.Entries[0].IFace != tC.entry.IFace {
+					t.Fatalf("expected iface to be '%v', got '%v'", tC.entry.IFace, result.Entries[0].IFace)
+				}
+			}
+
+			if tC.entry.Mark != nil {
+				if *result.Entries[0].Mark != *tC.entry.Mark {
+					t.Fatalf("expected mark to be '%v', got '%v'", *tC.entry.Mark, *result.Entries[0].Mark)
+				}
+			}
+
+			if result.Entries[0].Comment != tC.entry.Comment {
+				// This is only supported in the kernel module from revision 2 or 4, so comments may be ignored.
+				t.Logf("expected comment to be '%s', got '%s'", tC.entry.Comment, result.Entries[0].Comment)
+			}
+
+			err = IpsetDel(tC.setname, tC.entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			result, err = IpsetList(tC.setname)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(result.Entries) != 0 {
+				t.Fatalf("expected 0 entries to exist, got %d", len(result.Entries))
+			}
+
+			err = IpsetDestroy(tC.setname)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestIpsetBitmapCreateListWithTestCases(t *testing.T) {
+	timeout := uint32(3)
+
+	testCases := []struct {
+		desc     string
+		setname  string
+		typename string
+		options  IpsetCreateOptions
+		entry    *IPSetEntry
+	}{
+		{
+			desc:     "Type-bitmap:port",
+			setname:  "my-test-ipset-11",
+			typename: "bitmap:port",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+				PortFrom: 100,
+				PortTo:   600,
+			},
+			entry: &IPSetEntry{
+				Comment: "test comment",
+				IP:      net.ParseIP("10.99.99.0").To4(),
+				CIDR:    26,
+				Mark:    &timeout,
+				Replace: false,
+			},
+		},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			tearDown := setUpNetlinkTest(t)
+			defer tearDown()
+
+			err := IpsetCreate(tC.setname, tC.typename, tC.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			result, err := IpsetList(tC.setname)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tC.typename == "bitmap:port" {
+				if result.PortFrom != tC.options.PortFrom || result.PortTo != tC.options.PortTo {
+					t.Fatalf("expected port range %d-%d, got %d-%d", tC.options.PortFrom, tC.options.PortTo, result.PortFrom, result.PortTo)
+				}
+			} else if tC.typename == "bitmap:ip" {
+				if result.IPFrom == nil || result.IPTo == nil || result.IPFrom.Equal(tC.options.IPFrom) || result.IPTo.Equal(tC.options.IPTo) {
+					t.Fatalf("expected ip range %v-%v, got %v-%v", tC.options.IPFrom, tC.options.IPTo, result.IPFrom, result.IPTo)
+				}
+			}
+
+		})
 	}
 }
