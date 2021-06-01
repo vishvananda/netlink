@@ -287,6 +287,14 @@ func testLinkAddDel(t *testing.T, link Link) {
 		compareTuntap(t, tuntap, other)
 	}
 
+	if bareudp, ok := link.(*BareUDP); ok {
+		other, ok := result.(*BareUDP)
+		if !ok {
+			t.Fatal("Result of create is not a BareUDP")
+		}
+		compareBareUDP(t, bareudp, other)
+	}
+
 	if err = LinkDel(link); err != nil {
 		t.Fatal(err)
 	}
@@ -545,6 +553,28 @@ func compareTuntap(t *testing.T, expected, actual *Tuntap) {
 
 	if expected.NonPersist != actual.NonPersist {
 		t.Fatal("Tuntap.Group doesn't match")
+	}
+}
+
+func compareBareUDP(t *testing.T, expected, actual *BareUDP) {
+	// set the Port to 6635 (the linux default) if it wasn't specified at creation
+	if expected.Port == 0 {
+		expected.Port = 6635
+	}
+	if actual.Port != expected.Port {
+		t.Fatalf("BareUDP.Port doesn't match: %d %d", actual.Port, expected.Port)
+	}
+
+	if actual.EtherType != expected.EtherType {
+		t.Fatalf("BareUDP.EtherType doesn't match: %x %x", actual.EtherType, expected.EtherType)
+	}
+
+	if actual.SrcPortMin != expected.SrcPortMin {
+		t.Fatalf("BareUDP.SrcPortMin doesn't match: %d %d", actual.SrcPortMin, expected.SrcPortMin)
+	}
+
+	if actual.MultiProto != expected.MultiProto {
+		t.Fatal("BareUDP.MultiProto doesn't match")
 	}
 }
 
@@ -1384,6 +1414,69 @@ func TestLinkAddDelVxlanFlowBased(t *testing.T) {
 	}
 
 	testLinkAddDel(t, &vxlan)
+}
+
+func TestLinkAddDelBareUDP(t *testing.T) {
+	minKernelRequired(t, 5, 8)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &BareUDP{
+		LinkAttrs:  LinkAttrs{Name: "foo99"},
+		Port:       6635,
+		EtherType:  syscall.ETH_P_MPLS_UC,
+		SrcPortMin: 12345,
+		MultiProto: true,
+	})
+
+	testLinkAddDel(t, &BareUDP{
+		LinkAttrs:  LinkAttrs{Name: "foo100"},
+		Port:       6635,
+		EtherType:  syscall.ETH_P_IP,
+		SrcPortMin: 12345,
+		MultiProto: true,
+	})
+}
+
+func TestBareUDPCompareToIP(t *testing.T) {
+	// requires iproute2 >= 5.10
+	minKernelRequired(t, 5, 9)
+	ns, tearDown := setUpNamedNetlinkTest(t)
+	defer tearDown()
+
+	expected := &BareUDP{
+		Port:       uint16(6635),
+		EtherType:  syscall.ETH_P_MPLS_UC,
+		SrcPortMin: 12345,
+		MultiProto: true,
+	}
+
+	// Create interface
+	cmd := exec.Command("ip", "netns", "exec", ns,
+		"ip", "link", "add", "b0",
+		"type", "bareudp",
+		"dstport", fmt.Sprint(expected.Port),
+		"ethertype", "mpls_uc",
+		"srcportmin", fmt.Sprint(expected.SrcPortMin),
+		"multiproto",
+	)
+	out := &bytes.Buffer{}
+	cmd.Stdout = out
+	cmd.Stderr = out
+
+	if rc := cmd.Run(); rc != nil {
+		t.Fatal("failed creating link:", rc, out.String())
+	}
+
+	link, err := LinkByName("b0")
+	if err != nil {
+		t.Fatal("Failed getting link: ", err)
+	}
+	actual, ok := link.(*BareUDP)
+	if !ok {
+		t.Fatalf("resulted interface is not BareUDP: %T", link)
+	}
+	compareBareUDP(t, expected, actual)
 }
 
 func TestLinkAddDelIPVlanL2(t *testing.T) {
