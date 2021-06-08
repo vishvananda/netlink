@@ -41,6 +41,7 @@ type LinkAttrs struct {
 	EncapType    string
 	Protinfo     *Protinfo
 	OperState    LinkOperState
+	PhysSwitchID int
 	NetNsID      int
 	NumTxQueues  int
 	NumRxQueues  int

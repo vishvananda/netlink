@@ -1903,6 +1903,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			}
 		case unix.IFLA_OPERSTATE:
 			base.OperState = LinkOperState(uint8(attr.Value[0]))
+		case unix.IFLA_PHYS_SWITCH_ID:
+			base.PhysSwitchID = int(native.Uint32(attr.Value[0:4]))
 		case unix.IFLA_LINK_NETNSID:
 			base.NetNsID = int(native.Uint32(attr.Value[0:4]))
 		case unix.IFLA_GSO_MAX_SIZE:
