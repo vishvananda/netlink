@@ -67,6 +67,7 @@ type IpsetCreateOptions struct {
 	Comments bool
 	Skbinfo  bool
 
+	Revision uint8
 	IPFrom   net.IP
 	IPTo     net.IP
 	PortFrom uint16
@@ -133,7 +134,12 @@ func (h *Handle) IpsetCreate(setname, typename string, options IpsetCreateOption
 
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(setname)))
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_TYPENAME, nl.ZeroTerminated(typename)))
-	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_REVISION, nl.Uint8Attr(0)))
+
+	revision := options.Revision
+	if revision == 0 {
+		revision = getIpsetDefaultWithTypeName(typename)
+	}
+	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_REVISION, nl.Uint8Attr(revision)))
 
 	data := nl.NewRtAttr(nl.IPSET_ATTR_DATA|int(nl.NLA_F_NESTED), nil)
 
@@ -310,6 +316,17 @@ func (h *Handle) newIpsetRequest(cmd int) *nl.NetlinkRequest {
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_PROTOCOL, nl.Uint8Attr(nl.IPSET_PROTOCOL)))
 
 	return req
+}
+
+func getIpsetDefaultWithTypeName(typename string) uint8 {
+	switch typename {
+	case "hash:ip,port",
+		"hash:ip,port,ip",
+		"hash:ip,port,net",
+		"hash:net,port":
+		return 1
+	}
+	return 0
 }
 
 func ipsetExecute(req *nl.NetlinkRequest) (msgs [][]byte, err error) {
