@@ -745,6 +745,98 @@ func TestRouteMultiPath(t *testing.T) {
 	}
 }
 
+func TestRouteOifOption(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// setup two interfaces: eth0, eth1
+	err := LinkAdd(&Dummy{LinkAttrs{Name: "eth0"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link1, err := LinkByName("eth0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = LinkSetUp(link1); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = LinkAdd(&Dummy{LinkAttrs{Name: "eth1"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	link2, err := LinkByName("eth1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = LinkSetUp(link2); err != nil {
+		t.Fatal(err)
+	}
+
+	// config ip addresses on interfaces
+	addr1 := &Addr{
+		IPNet: &net.IPNet{
+			IP:   net.IPv4(192, 168, 1, 1),
+			Mask: net.CIDRMask(24, 32),
+		},
+	}
+
+	if err = AddrAdd(link1, addr1); err != nil {
+		t.Fatal(err)
+	}
+
+	addr2 := &Addr{
+		IPNet: &net.IPNet{
+			IP:   net.IPv4(192, 168, 2, 1),
+			Mask: net.CIDRMask(24, 32),
+		},
+	}
+
+	if err = AddrAdd(link2, addr2); err != nil {
+		t.Fatal(err)
+	}
+
+	// add default multipath route
+	dst := &net.IPNet{
+		IP:   net.IPv4(0, 0, 0, 0),
+		Mask: net.CIDRMask(0, 32),
+	}
+	gw1 := net.IPv4(192, 168, 1, 254)
+	gw2 := net.IPv4(192, 168, 2, 254)
+	route := Route{Dst: dst, MultiPath: []*NexthopInfo{{LinkIndex: link1.Attrs().Index,
+		Gw: gw1}, {LinkIndex: link2.Attrs().Index, Gw: gw2}}}
+	if err := RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+
+	// check getting route from specified Oif
+	dstIP := net.IPv4(10, 1, 1, 1)
+	routes, err := RouteGetWithOptions(dstIP, &RouteGetOptions{Oif: "eth0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(routes) != 1 || routes[0].LinkIndex != link1.Attrs().Index ||
+		!routes[0].Gw.Equal(gw1) {
+		t.Fatal("Get route from unmatched interface")
+	}
+
+	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{Oif: "eth1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(routes) != 1 || routes[0].LinkIndex != link2.Attrs().Index ||
+		!routes[0].Gw.Equal(gw2) {
+		t.Fatal("Get route from unmatched interface")
+	}
+
+}
+
 func TestFilterDefaultRoute(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
