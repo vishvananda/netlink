@@ -612,6 +612,9 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 				if action.DestPort != 0 {
 					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_DST_PORT, htons(action.DestPort))
 				}
+				if action.Tos != nil {
+					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_TOS, []byte{*action.Tos})
+				}
 			}
 		case *SkbEditAction:
 			table := attr.AddRtAttr(tabIndex, nil)
@@ -743,6 +746,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 							action.(*TunnelKeyAction).DstAddr = adatum.Value[:]
 						case nl.TCA_TUNNEL_KEY_ENC_DST_PORT:
 							action.(*TunnelKeyAction).DestPort = ntohs(adatum.Value)
+						case nl.TCA_TUNNEL_KEY_ENC_TOS:
+							action.(*TunnelKeyAction).Tos = &adatum.Value[0]
 						}
 					case "skbedit":
 						switch adatum.Attr.Type {

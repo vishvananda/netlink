@@ -237,6 +237,7 @@ type TunnelKeyAction struct {
 	DstAddr  net.IP
 	KeyID    uint32
 	DestPort uint16
+	Tos      *uint8
 
 	Statistic *ActionStatistic
 }
