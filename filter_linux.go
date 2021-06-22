@@ -133,6 +133,8 @@ type Flower struct {
 	EncSrcIPMask  net.IPMask
 	EncDestPort   uint16
 	EncKeyId      uint32
+	Tos           *uint8
+	TosMask       *uint8
 
 	Actions []Action
 }
@@ -216,6 +218,14 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 		parent.AddRtAttr(nl.TCA_FLOWER_KEY_ENC_KEY_ID, htonl(filter.EncKeyId))
 	}
 
+	if filter.Tos != nil {
+		parent.AddRtAttr(nl.TCA_FLOWER_KEY_IP_TOS, []byte{*filter.Tos})
+	}
+
+	if filter.TosMask != nil {
+		parent.AddRtAttr(nl.TCA_FLOWER_KEY_IP_TOS_MASK, []byte{*filter.TosMask})
+	}
+
 	actionsAttr := parent.AddRtAttr(nl.TCA_FLOWER_ACT, nil)
 	if err := EncodeActions(actionsAttr, filter.Actions); err != nil {
 		return err
@@ -248,6 +258,10 @@ func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
 			filter.EncDestPort = ntohs(datum.Value)
 		case nl.TCA_FLOWER_KEY_ENC_KEY_ID:
 			filter.EncKeyId = ntohl(datum.Value)
+		case nl.TCA_FLOWER_KEY_IP_TOS:
+			filter.Tos = &datum.Value[0]
+		case nl.TCA_FLOWER_KEY_IP_TOS_MASK:
+			filter.TosMask = &datum.Value[0]
 		case nl.TCA_FLOWER_ACT:
 			tables, err := nl.ParseRouteAttr(datum.Value)
 			if err != nil {
