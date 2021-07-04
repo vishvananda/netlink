@@ -3,11 +3,15 @@
 package netlink
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
+	"os"
 	"runtime"
 	"testing"
+	"time"
 
+	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
@@ -113,12 +117,15 @@ func TestConntrackTableList(t *testing.T) {
 	defer runtime.UnlockOSThread()
 
 	setUpF(t, "/proc/sys/net/netfilter/nf_conntrack_acct", "1")
+	setUpF(t, "/proc/sys/net/netfilter/nf_conntrack_timestamp", "1")
+	setUpF(t, "/proc/sys/net/netfilter/nf_conntrack_udp_timeout", "45")
 
 	// Flush the table to start fresh
 	err = h.ConntrackTableFlush(ConntrackTable)
 	CheckErrorFail(t, err)
 
 	// Create 5 udp
+	startTime := time.Now()
 	udpFlowCreateProg(t, 5, 2000, "127.0.0.10", 3000)
 
 	// Fetch the conntrack table
@@ -133,6 +140,17 @@ func TestConntrackTableList(t *testing.T) {
 			flow.Forward.DstPort == 3000 &&
 			(flow.Forward.SrcPort >= 2000 && flow.Forward.SrcPort <= 2005) {
 			found++
+			flowStart := time.Unix(0, int64(flow.TimeStart))
+			if flowStart.Before(startTime) || flowStart.Sub(startTime) > time.Second {
+				t.Error("Invalid conntrack entry start timestamp")
+			}
+			if flow.TimeStop != 0 {
+				t.Error("Invalid conntrack entry stop timestamp")
+			}
+			// Expect at most one second to have already passed from the configured UDP timeout of 45secs.
+			if flow.TimeOut < 44 || flow.TimeOut > 45 {
+				t.Error("Invalid conntrack entry timeout")
+			}
 		}
 
 		if flow.Forward.Bytes == 0 && flow.Forward.Packets == 0 && flow.Reverse.Bytes == 0 && flow.Reverse.Packets == 0 {
@@ -703,5 +721,210 @@ func TestConntrackFilter(t *testing.T) {
 	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
+	}
+}
+
+func TestParseRawData(t *testing.T) {
+	if nl.NativeEndian() == binary.BigEndian {
+		t.Skip("testdata expect little-endian test executor")
+	}
+	os.Setenv("TZ", "") // print timestamps in UTC
+	tests := []struct {
+		testname         string
+		rawData          []byte
+		expConntrackFlow string
+	}{
+		{
+			testname: "UDP conntrack",
+			rawData: []byte{
+				/* Nfgenmsg header */
+				2, 0, 0, 0,
+				/* >> nested CTA_TUPLE_ORIG */
+				52, 0, 1, 128,
+				/* >>>> nested CTA_TUPLE_IP */
+				20, 0, 1, 128,
+				/* >>>>>> CTA_IP_V4_SRC */
+				8, 0, 1, 0,
+				192, 168, 0, 10,
+				/* >>>>>> CTA_IP_V4_DST */
+				8, 0, 2, 0,
+				192, 168, 0, 3,
+				/* >>>>>> nested proto info */
+				28, 0, 2, 128,
+				/* >>>>>>>> CTA_PROTO_NUM */
+				5, 0, 1, 0,
+				17, 0, 0, 0,
+				/* >>>>>>>> CTA_PROTO_SRC_PORT */
+				6, 0, 2, 0,
+				189, 1, 0, 0,
+				/* >>>>>>>> CTA_PROTO_DST_PORT */
+				6, 0, 3, 0,
+				0, 53, 0, 0,
+				/* >> CTA_TUPLE_REPLY */
+				52, 0, 2, 128,
+				/* >>>> nested CTA_TUPLE_IP */
+				20, 0, 1, 128,
+				/* >>>>>> CTA_IP_V4_SRC */
+				8, 0, 1, 0,
+				192, 168, 0, 3,
+				/* >>>>>> CTA_IP_V4_DST */
+				8, 0, 2, 0,
+				192, 168, 0, 10,
+				/* >>>>>> nested proto info */
+				28, 0, 2, 128,
+				/* >>>>>>>> CTA_PROTO_NUM */
+				5, 0, 1, 0,
+				17, 0, 0, 0,
+				/* >>>>>>>> CTA_PROTO_SRC_PORT */
+				6, 0, 2, 0,
+				0, 53, 0, 0,
+				/* >>>>>>>> CTA_PROTO_DST_PORT */
+				6, 0, 3, 0,
+				189, 1, 0, 0,
+				/* >> CTA_STATUS */
+				8, 0, 3, 0,
+				0, 0, 1, 138,
+				/* >> CTA_MARK */
+				8, 0, 8, 0,
+				0, 0, 0, 5,
+				/* >> CTA_ID */
+				8, 0, 12, 0,
+				81, 172, 253, 151,
+				/* >> CTA_USE */
+				8, 0, 11, 0,
+				0, 0, 0, 1,
+				/* >> CTA_TIMEOUT */
+				8, 0, 7, 0,
+				0, 0, 0, 32,
+				/* >> nested CTA_COUNTERS_ORIG */
+				28, 0, 9, 128,
+				/* >>>> CTA_COUNTERS_PACKETS */
+				12, 0, 1, 0,
+				0, 0, 0, 0, 0, 0, 0, 1,
+				/* >>>> CTA_COUNTERS_BYTES */
+				12, 0, 2, 0,
+				0, 0, 0, 0, 0, 0, 0, 55,
+				/* >> nested CTA_COUNTERS_REPLY */
+				28, 0, 10, 128,
+				/* >>>> CTA_COUNTERS_PACKETS */
+				12, 0, 1, 0,
+				0, 0, 0, 0, 0, 0, 0, 1,
+				/* >>>> CTA_COUNTERS_BYTES */
+				12, 0, 2, 0,
+				0, 0, 0, 0, 0, 0, 0, 71,
+				/* >> nested CTA_TIMESTAMP */
+				16, 0, 20, 128,
+				/* >>>> CTA_TIMESTAMP_START */
+				12, 0, 1, 0,
+				22, 134, 80, 142, 230, 127, 74, 166},
+			expConntrackFlow: "udp\t17 src=192.168.0.10 dst=192.168.0.3 sport=48385 dport=53 packets=1 bytes=55\t" +
+				"src=192.168.0.3 dst=192.168.0.10 sport=53 dport=48385 packets=1 bytes=71 mark=0x5 " +
+				"start=2021-06-07 13:41:30.39632247 +0000 UTC stop=1970-01-01 00:00:00 +0000 UTC timeout=32(sec)",
+		},
+		{
+			testname: "TCP conntrack",
+			rawData: []byte{
+				/* Nfgenmsg header */
+				2, 0, 0, 0,
+				/* >> nested CTA_TUPLE_ORIG */
+				52, 0, 1, 128,
+				/* >>>> nested CTA_TUPLE_IP */
+				20, 0, 1, 128,
+				/* >>>>>> CTA_IP_V4_SRC */
+				8, 0, 1, 0,
+				192, 168, 0, 10,
+				/* >>>>>> CTA_IP_V4_DST */
+				8, 0, 2, 0,
+				192, 168, 77, 73,
+				/* >>>>>> nested proto info */
+				28, 0, 2, 128,
+				/* >>>>>>>> CTA_PROTO_NUM */
+				5, 0, 1, 0,
+				6, 0, 0, 0,
+				/* >>>>>>>> CTA_PROTO_SRC_PORT */
+				6, 0, 2, 0,
+				166, 129, 0, 0,
+				/* >>>>>>>> CTA_PROTO_DST_PORT */
+				6, 0, 3, 0,
+				13, 5, 0, 0,
+				/* >> CTA_TUPLE_REPLY */
+				52, 0, 2, 128,
+				/* >>>> nested CTA_TUPLE_IP */
+				20, 0, 1, 128,
+				/* >>>>>> CTA_IP_V4_SRC */
+				8, 0, 1, 0,
+				192, 168, 77, 73,
+				/* >>>>>> CTA_IP_V4_DST */
+				8, 0, 2, 0,
+				192, 168, 0, 10,
+				/* >>>>>> nested proto info */
+				28, 0, 2, 128,
+				/* >>>>>>>> CTA_PROTO_NUM */
+				5, 0, 1, 0,
+				6, 0, 0, 0,
+				/* >>>>>>>> CTA_PROTO_SRC_PORT */
+				6, 0, 2, 0,
+				13, 5, 0, 0,
+				/* >>>>>>>> CTA_PROTO_DST_PORT */
+				6, 0, 3, 0,
+				166, 129, 0, 0,
+				/* >> CTA_STATUS */
+				8, 0, 3, 0,
+				0, 0, 1, 142,
+				/* >> CTA_MARK */
+				8, 0, 8, 0,
+				0, 0, 0, 5,
+				/* >> CTA_ID */
+				8, 0, 12, 0,
+				177, 65, 179, 133,
+				/* >> CTA_USE */
+				8, 0, 11, 0,
+				0, 0, 0, 1,
+				/* >> CTA_TIMEOUT */
+				8, 0, 7, 0,
+				0, 0, 0, 152,
+				/* >> CTA_PROTOINFO */
+				48, 0, 4, 128,
+				44, 0, 1, 128,
+				5, 0, 1, 0, 8, 0, 0, 0,
+				5, 0, 2, 0, 0, 0, 0, 0,
+				5, 0, 3, 0, 0, 0, 0, 0,
+				6, 0, 4, 0, 39, 0, 0, 0,
+				6, 0, 5, 0, 32, 0, 0, 0,
+				/* >> nested CTA_COUNTERS_ORIG */
+				28, 0, 9, 128,
+				/* >>>> CTA_COUNTERS_PACKETS */
+				12, 0, 1, 0,
+				0, 0, 0, 0, 0, 0, 0, 11,
+				/* >>>> CTA_COUNTERS_BYTES */
+				12, 0, 2, 0,
+				0, 0, 0, 0, 0, 0, 7, 122,
+				/* >> nested CTA_COUNTERS_REPLY */
+				28, 0, 10, 128,
+				/* >>>> CTA_COUNTERS_PACKETS */
+				12, 0, 1, 0,
+				0, 0, 0, 0, 0, 0, 0, 10,
+				/* >>>> CTA_COUNTERS_BYTES */
+				12, 0, 2, 0,
+				0, 0, 0, 0, 0, 0, 7, 66,
+				/* >> nested CTA_TIMESTAMP */
+				16, 0, 20, 128,
+				/* >>>> CTA_TIMESTAMP_START */
+				12, 0, 1, 0,
+				22, 134, 80, 175, 134, 10, 182, 221},
+			expConntrackFlow: "tcp\t6 src=192.168.0.10 dst=192.168.77.73 sport=42625 dport=3333 packets=11 bytes=1914\t" +
+				"src=192.168.77.73 dst=192.168.0.10 sport=3333 dport=42625 packets=10 bytes=1858 mark=0x5 " +
+				"start=2021-06-07 13:43:50.511990493 +0000 UTC stop=1970-01-01 00:00:00 +0000 UTC timeout=152(sec)",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testname, func(t *testing.T) {
+			conntrackFlow := parseRawData(test.rawData)
+			if conntrackFlow.String() != test.expConntrackFlow {
+				t.Errorf("expected conntrack flow:\n\t%q\ngot conntrack flow:\n\t%q",
+					test.expConntrackFlow, conntrackFlow)
+			}
+		})
 	}
 }
