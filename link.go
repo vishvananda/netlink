@@ -265,6 +265,10 @@ type Bridge struct {
 	AgeingTime        *uint32
 	HelloTime         *uint32
 	VlanFiltering     *bool
+	StpState          *uint32
+	VlanProtocol      *string
+	ForwardDelay      *uint32
+	MaxAge            *uint32
 }
 
 func (bridge *Bridge) Attrs() *LinkAttrs {
