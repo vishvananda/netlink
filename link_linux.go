@@ -1491,6 +1491,8 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		addXfrmiAttrs(link, linkInfo)
 	case *IPoIB:
 		addIPoIBAttrs(link, linkInfo)
+	case *BareUDP:
+		addBareUDPAttrs(link, linkInfo)
 	}
 
 	req.AddData(linkInfo)
@@ -1771,6 +1773,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						link = &IPoIB{}
 					case "can":
 						link = &Can{}
+					case "bareudp":
+						link = &BareUDP{}
 					default:
 						link = &GenericLink{LinkType: linkType}
 					}
@@ -1826,7 +1830,10 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 						parseIPoIBData(link, data)
 					case "can":
 						parseCanData(link, data)
+					case "bareudp":
+						parseBareUDPData(link, data)
 					}
+
 				case nl.IFLA_INFO_SLAVE_KIND:
 					slaveType = string(info.Value[:len(info.Value)-1])
 					switch slaveType {
@@ -3399,4 +3406,33 @@ func addIPoIBAttrs(ipoib *IPoIB, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_IPOIB_PKEY, nl.Uint16Attr(uint16(ipoib.Pkey)))
 	data.AddRtAttr(nl.IFLA_IPOIB_MODE, nl.Uint16Attr(uint16(ipoib.Mode)))
 	data.AddRtAttr(nl.IFLA_IPOIB_UMCAST, nl.Uint16Attr(uint16(ipoib.Umcast)))
+}
+
+func addBareUDPAttrs(bareudp *BareUDP, linkInfo *nl.RtAttr) {
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+
+	data.AddRtAttr(nl.IFLA_BAREUDP_PORT, nl.Uint16Attr(nl.Swap16(bareudp.Port)))
+	data.AddRtAttr(nl.IFLA_BAREUDP_ETHERTYPE, nl.Uint16Attr(nl.Swap16(bareudp.EtherType)))
+	if bareudp.SrcPortMin != 0 {
+		data.AddRtAttr(nl.IFLA_BAREUDP_SRCPORT_MIN, nl.Uint16Attr(bareudp.SrcPortMin))
+	}
+	if bareudp.MultiProto {
+		data.AddRtAttr(nl.IFLA_BAREUDP_MULTIPROTO_MODE, []byte{})
+	}
+}
+
+func parseBareUDPData(link Link, data []syscall.NetlinkRouteAttr) {
+	bareudp := link.(*BareUDP)
+	for _, attr := range data {
+		switch attr.Attr.Type {
+		case nl.IFLA_BAREUDP_PORT:
+			bareudp.Port = binary.BigEndian.Uint16(attr.Value)
+		case nl.IFLA_BAREUDP_ETHERTYPE:
+			bareudp.EtherType = binary.BigEndian.Uint16(attr.Value)
+		case nl.IFLA_BAREUDP_SRCPORT_MIN:
+			bareudp.SrcPortMin = native.Uint16(attr.Value)
+		case nl.IFLA_BAREUDP_MULTIPROTO_MODE:
+			bareudp.MultiProto = true
+		}
+	}
 }
