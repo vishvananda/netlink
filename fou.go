@@ -1,21 +1,16 @@
 package netlink
 
 import (
-	"errors"
-)
-
-var (
-	// ErrAttrHeaderTruncated is returned when a netlink attribute's header is
-	// truncated.
-	ErrAttrHeaderTruncated = errors.New("attribute header truncated")
-	// ErrAttrBodyTruncated is returned when a netlink attribute's body is
-	// truncated.
-	ErrAttrBodyTruncated = errors.New("attribute body truncated")
+	"net"
 )
 
 type Fou struct {
 	Family    int
-	Port      int
 	Protocol  int
 	EncapType int
+	Port      int
+	PeerPort  int
+	LocalAddr net.IP
+	PeerAddr  net.IP
+	IfIndex   int
 }

@@ -6,47 +6,45 @@ import (
 	"testing"
 )
 
-func TestFouDeserializeMsg(t *testing.T) {
+func TestFouDeserializeMsgEncapDirect(t *testing.T) {
 	var msg []byte
 
 	// deserialize a valid message
 	msg = []byte{3, 1, 0, 0, 5, 0, 2, 0, 2, 0, 0, 0, 6, 0, 1, 0, 21, 179, 0, 0, 5, 0, 3, 0, 4, 0, 0, 0, 5, 0, 4, 0, 1, 0, 0, 0}
-	if fou, err := deserializeFouMsg(msg); err != nil {
-		t.Error(err.Error())
-	} else {
+	fou := deserializeFouMsg(msg)
 
-		// check if message was deserialized correctly
-		if fou.Family != FAMILY_V4 {
-			t.Errorf("expected family %d, got %d", FAMILY_V4, fou.Family)
-		}
+	// check if message was deserialized correctly
+	if fou.Family != FAMILY_V4 {
+		t.Errorf("expected family %d, got %d", FAMILY_V4, fou.Family)
+	}
 
-		if fou.Port != 5555 {
-			t.Errorf("expected port 5555, got %d", fou.Port)
-		}
+	if fou.Port != 5555 {
+		t.Errorf("expected port 5555, got %d", fou.Port)
+	}
 
-		if fou.Protocol != 4 { // ipip
-			t.Errorf("expected protocol 4, got %d", fou.Protocol)
-		}
+	if fou.Protocol != 4 { // ipip
+		t.Errorf("expected protocol 4, got %d", fou.Protocol)
+	}
 
-		if fou.EncapType != FOU_ENCAP_DIRECT {
-			t.Errorf("expected encap type %d, got %d", FOU_ENCAP_DIRECT, fou.EncapType)
-		}
+	if fou.EncapType != FOU_ENCAP_DIRECT {
+		t.Errorf("expected encap type %d, got %d", FOU_ENCAP_DIRECT, fou.EncapType)
 	}
 
 	// deserialize truncated attribute header
 	msg = []byte{3, 1, 0, 0, 5, 0}
-	if _, err := deserializeFouMsg(msg); err == nil {
-		t.Error("expected attribute header truncated error")
-	} else if err != ErrAttrHeaderTruncated {
-		t.Errorf("unexpected error: %s", err.Error())
+	fou = deserializeFouMsg(msg)
+	if fou.Family != 0 {
+		t.Errorf("expected family 0, got %d", fou.Family)
 	}
 
 	// deserialize truncated attribute header
 	msg = []byte{3, 1, 0, 0, 5, 0, 2, 0, 2, 0, 0}
-	if _, err := deserializeFouMsg(msg); err == nil {
-		t.Error("expected attribute body truncated error")
-	} else if err != ErrAttrBodyTruncated {
-		t.Errorf("unexpected error: %s", err.Error())
+	fou = deserializeFouMsg(msg)
+	if fou.Family != 2 {
+		t.Errorf("expected family 2, got %d", fou.Family)
+	}
+	if fou.Protocol != 0 {
+		t.Errorf("expected protocol 0, got %d", fou.Protocol)
 	}
 }
 
