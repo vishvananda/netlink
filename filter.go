@@ -309,6 +309,41 @@ func (filter *BpfFilter) Attrs() *FilterAttrs {
 	return &filter.FilterAttrs
 }
 
+type VlanKeyAct uint8
+
+const (
+	TCA_VLAN_KEY_POP VlanKeyAct = 1 // pop vlan
+)
+
+func (k VlanKeyAct) String() string {
+	switch k {
+	case TCA_VLAN_KEY_POP:
+		return "pop"
+	}
+	return "undefined"
+}
+
+type VlanAction struct {
+	ActionAttrs
+	Action   VlanKeyAct
+}
+
+func (action *VlanAction) Type() string {
+	return "vlan"
+}
+
+func (action *VlanAction) Attrs() *ActionAttrs {
+	return &action.ActionAttrs
+}
+
+func NewVlanKeyAction() *VlanAction {
+	return &VlanAction{
+		ActionAttrs: ActionAttrs{
+			Action: TC_ACT_RECLASSIFY,
+		},
+	}
+}
+
 // GenericFilter filters represent types that are not currently understood
 // by this netlink library.
 type GenericFilter struct {
