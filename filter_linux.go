@@ -502,6 +502,16 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			aopts.AddRtAttr(nl.TCA_ACT_BPF_PARMS, gen.Serialize())
 			aopts.AddRtAttr(nl.TCA_ACT_BPF_FD, nl.Uint32Attr(uint32(action.Fd)))
 			aopts.AddRtAttr(nl.TCA_ACT_BPF_NAME, nl.ZeroTerminated(action.Name))
+		case *VlanAction:
+			table := attr.AddRtAttr(tabIndex, nil)
+			tabIndex++
+			table.AddRtAttr(nl.TCA_ACT_KIND, nl.ZeroTerminated("vlan"))
+			aopts := table.AddRtAttr(nl.TCA_ACT_OPTIONS, nil)
+			tun := nl.TcTunnelKey{
+				Action: int32(action.Action),
+			}
+			toTcGen(action.Attrs(), &tun.TcGen)
+			aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_PARMS, tun.Serialize())
 		case *GenericAction:
 			table := attr.AddRtAttr(tabIndex, nil)
 			tabIndex++
@@ -539,6 +549,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 					action = &ConnmarkAction{}
 				case "gact":
 					action = &GenericAction{}
+				case "vlan":
+					action = &VlanAction{}
 				case "tunnel_key":
 					action = &TunnelKeyAction{}
 				case "skbedit":
@@ -553,6 +565,14 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 				}
 				for _, adatum := range adata {
 					switch actionType {
+					case "vlan":
+						switch adatum.Attr.Type {
+						case nl.TCA_VLAN_PARMS:
+							tun := *nl.DeserializeTunnelKey(adatum.Value)
+							action.(*VlanAction).ActionAttrs = ActionAttrs{}
+							toAttrs(&tun.TcGen, action.Attrs())
+							action.(*VlanAction).Action = VlanKeyAct(tun.Action)
+						}
 					case "mirred":
 						switch adatum.Attr.Type {
 						case nl.TCA_MIRRED_PARMS:

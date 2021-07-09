@@ -882,6 +882,16 @@ const (
 	TCA_HFSC_USC
 )
 
+const (
+	TCA_VLAN_UNSPEC = iota
+	TCA_VLAN_TM
+	TCA_VLAN_PARMS
+	TCA_VLAN_PUSH_VLAN_ID
+	TCA_VLAN_PUSH_VLAN_PROTOCOL
+	TCA_VLAN_PAD
+	TCA_VLAN_PUSH_VLAN_PRIORITY
+)
+
 // struct tc_sfq_qopt {
 // 	unsigned	quantum;	/* Bytes per round allocated to flow */
 // 	int		perturb_period;	/* Period of hash perturbation */

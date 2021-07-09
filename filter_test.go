@@ -10,6 +10,62 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func TestFilterListVlan(t *testing.T) {
+	link, err := LinkByName("eth0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filters, err := FilterList(link, HANDLE_MIN_INGRESS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, filter := range filters {
+		if u32, ok := filter.(*U32); ok {
+			if vlan, ok := u32.Actions[0].(*VlanAction); ok {
+				t.Logf("action: %+v, %+v\n", vlan, vlan.Action)
+			}
+		}
+	}
+}
+
+func TestFilterADDVlan(t *testing.T) {
+	link, err := LinkByName("eth0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	vlanAct := NewVlanKeyAction()
+	vlanAct.Action = TCA_VLAN_KEY_POP
+
+	//tunAct := NewTunnelKeyAction()
+	//tunAct.Action = TCA_TUNNEL_KEY_UNSET
+
+	u32 := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    HANDLE_MIN_INGRESS,
+			Priority:  40000,
+			Protocol:  uint16(VLAN_PROTOCOL_8021Q),
+		},
+		Sel: &TcU32Sel{
+			Nkeys: 1,
+			Flags: TC_U32_TERMINAL,
+			Keys: []TcU32Key{
+				{
+					Mask: 0x0,
+					Val:  0x0,
+					Off:  0x0,
+				},
+			},
+		},
+		Actions: []Action{vlanAct},
+	}
+	err = FilterAdd(u32)
+	t.Logf("err%v", err)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFilterAddDel(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
