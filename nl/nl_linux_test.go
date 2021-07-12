@@ -98,3 +98,35 @@ func TestIfSocketCloses(t *testing.T) {
 		t.Fatalf("Expected error instead received nil")
 	}
 }
+
+func (msg *CnMsgOp) write(b []byte) {
+	native := NativeEndian()
+	native.PutUint32(b[0:4], msg.ID.Idx)
+	native.PutUint32(b[4:8], msg.ID.Val)
+	native.PutUint32(b[8:12], msg.Seq)
+	native.PutUint32(b[12:16], msg.Ack)
+	native.PutUint16(b[16:18], msg.Length)
+	native.PutUint16(b[18:20], msg.Flags)
+	native.PutUint32(b[20:24], msg.Op)
+}
+
+func (msg *CnMsgOp) serializeSafe() []byte {
+	length := msg.Len()
+	b := make([]byte, length)
+	msg.write(b)
+	return b
+}
+
+func deserializeCnMsgOpSafe(b []byte) *CnMsgOp {
+	var msg = CnMsgOp{}
+	binary.Read(bytes.NewReader(b[0:SizeofCnMsgOp]), NativeEndian(), &msg)
+	return &msg
+}
+
+func TestCnMsgOpDeserializeSerialize(t *testing.T) {
+	var orig = make([]byte, SizeofCnMsgOp)
+	rand.Read(orig)
+	safemsg := deserializeCnMsgOpSafe(orig)
+	msg := DeserializeCnMsgOp(orig)
+	testDeserializeSerialize(t, orig, safemsg, msg)
+}
