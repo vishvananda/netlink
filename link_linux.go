@@ -1260,9 +1260,26 @@ func (h *Handle) linkModify(link Link, flags int) error {
 
 		}
 
+		control := func(file *os.File, f func(fd uintptr)) error {
+			name := file.Name()
+			conn, err := file.SyscallConn()
+			if err != nil {
+				return fmt.Errorf("SyscallConn() failed on %s: %v", name, err)
+			}
+			if err := conn.Control(f); err != nil {
+				return fmt.Errorf("Failed to get file descriptor for %s: %v", name, err)
+			}
+			return nil
+		}
+
 		// only persist interface if NonPersist is NOT set
 		if !tuntap.NonPersist {
-			_, _, errno := unix.Syscall(unix.SYS_IOCTL, fds[0].Fd(), uintptr(unix.TUNSETPERSIST), 1)
+			var errno syscall.Errno
+			if err := control(fds[0], func(fd uintptr) {
+				_, _, errno = unix.Syscall(unix.SYS_IOCTL, fd, uintptr(unix.TUNSETPERSIST), 1)
+			}); err != nil {
+				return err
+			}
 			if errno != 0 {
 				cleanupFds(fds)
 				return fmt.Errorf("Tuntap IOCTL TUNSETPERSIST failed, errno %v", errno)
@@ -1279,7 +1296,10 @@ func (h *Handle) linkModify(link Link, flags int) error {
 				// un-persist (e.g. allow the interface to be removed) the tuntap
 				// should not hurt if not set prior, condition might be not needed
 				if !tuntap.NonPersist {
-					_, _, _ = unix.Syscall(unix.SYS_IOCTL, fds[0].Fd(), uintptr(unix.TUNSETPERSIST), 0)
+					// ignore error
+					_ = control(fds[0], func(fd uintptr) {
+						_, _, _ = unix.Syscall(unix.SYS_IOCTL, fd, uintptr(unix.TUNSETPERSIST), 0)
+					})
 				}
 				cleanupFds(fds)
 				return err
