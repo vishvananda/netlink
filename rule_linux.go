@@ -162,6 +162,12 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 		req.AddData(nl.NewRtAttr(nl.FRA_SPORT_RANGE, b))
 	}
 
+	if rule.IPProto > 0 {
+		b := make([]byte, 4)
+		native.PutUint32(b, uint32(rule.IPProto))
+		req.AddData(nl.NewRtAttr(nl.FRA_IP_PROTO, b))
+	}
+
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	return err
 }
