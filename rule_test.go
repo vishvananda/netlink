@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -347,6 +348,50 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 
 			if (err != nil) != wantErr {
 				t.Errorf("Error expectation not met, want %v, got %v", (err != nil), wantErr)
+			}
+		})
+	}
+}
+
+func TestRuleString(t *testing.T) {
+	t.Parallel()
+
+	testCases := map[string]struct {
+		r Rule
+		s string
+	}{
+		"empty rule": {
+			s: "ip rule 0: from all to all table 0",
+		},
+		"rule with src and dst equivalent to <nil>": {
+			r: Rule{
+				Priority: 100,
+				Src:      &net.IPNet{IP: net.IPv4(10, 0, 0, 0)},
+				Dst:      &net.IPNet{IP: net.IPv4(20, 0, 0, 0)},
+				Table:    99,
+			},
+			s: "ip rule 100: from all to all table 99",
+		},
+		"rule with src and dst": {
+			r: Rule{
+				Priority: 100,
+				Src:      &net.IPNet{IP: net.IPv4(10, 0, 0, 0), Mask: net.IPv4Mask(255, 255, 255, 0)},
+				Dst:      &net.IPNet{IP: net.IPv4(20, 0, 0, 0), Mask: net.IPv4Mask(255, 255, 255, 0)},
+				Table:    99,
+			},
+			s: "ip rule 100: from 10.0.0.0/24 to 20.0.0.0/24 table 99",
+		},
+	}
+
+	for name, testCase := range testCases {
+		testCase := testCase
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			s := testCase.r.String()
+
+			if s != testCase.s {
+				t.Errorf("expected %q but got %q", testCase.s, s)
 			}
 		})
 	}
