@@ -408,7 +408,7 @@ func TestNeighSubscribeAt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	// Subscribe for Neigh events on the custom netns
 	ch := make(chan NeighUpdate)
@@ -462,7 +462,7 @@ func TestNeighSubscribeListExisting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	dummy := &Dummy{LinkAttrs{Name: "neigh0"}}
 	if err := nh.LinkAdd(dummy); err != nil {

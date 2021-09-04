@@ -12,6 +12,6 @@ func TestSetGetSocketTimeout(t *testing.T) {
 	}
 
 	if val := GetSocketTimeout(); val != timeout {
-		t.Fatalf("Unexpcted socket timeout value: got=%v, expected=%v", val, timeout)
+		t.Fatalf("Unexpected socket timeout value: got=%v, expected=%v", val, timeout)
 	}
 }

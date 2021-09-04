@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func TestHandleCreateDelete(t *testing.T) {
+func TestHandleCreateClose(t *testing.T) {
 	h, err := NewHandle()
 	if err != nil {
 		t.Fatal(err)
@@ -34,9 +34,9 @@ func TestHandleCreateDelete(t *testing.T) {
 		}
 	}
 
-	h.Delete()
+	h.Close()
 	if h.sockets != nil {
-		t.Fatalf("Handle socket(s) were not destroyed")
+		t.Fatalf("Handle socket(s) were not closed")
 	}
 }
 
@@ -60,7 +60,7 @@ func TestHandleCreateNetns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ch.Delete()
+	defer ch.Close()
 
 	// Create an handle on a custom netns
 	newNs, err := netns.New()
@@ -73,7 +73,7 @@ func TestHandleCreateNetns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	// Create an interface using the current handle
 	err = ch.LinkAdd(&Dummy{LinkAttrs{Name: ifName}})
@@ -119,7 +119,7 @@ func TestHandleTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer h.Delete()
+	defer h.Close()
 
 	for _, sh := range h.sockets {
 		verifySockTimeVal(t, sh.Socket.GetFd(), unix.Timeval{Sec: 0, Usec: 0})
@@ -137,7 +137,7 @@ func TestHandleReceiveBuffer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer h.Delete()
+	defer h.Close()
 	if err := h.SetSocketReceiveBufferSize(65536, false); err != nil {
 		t.Fatal(err)
 	}
@@ -255,10 +255,10 @@ func parallelDone() {
 			ns2.Close()
 		}
 		if handle1 != nil {
-			handle1.Delete()
+			handle1.Close()
 		}
 		if handle2 != nil {
-			handle2.Delete()
+			handle2.Close()
 		}
 	}
 }
