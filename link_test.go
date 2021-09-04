@@ -1830,7 +1830,7 @@ func TestLinkSubscribeAt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	// Subscribe for Link events on the custom netns
 	ch := make(chan LinkUpdate)
@@ -1880,7 +1880,7 @@ func TestLinkSubscribeListExisting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	link := &Veth{LinkAttrs{Name: "test", TxQLen: testTxQLen, MTU: 1400}, "bar", nil, nil}
 	if err := nh.LinkAdd(link); err != nil {

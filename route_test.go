@@ -416,7 +416,7 @@ func TestRouteSubscribeAt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	// Subscribe for Route events on the custom netns
 	ch := make(chan RouteUpdate)
@@ -474,7 +474,7 @@ func TestRouteSubscribeListExisting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer nh.Delete()
+	defer nh.Close()
 
 	// get loopback interface
 	link, err := nh.LinkByName("lo")
