@@ -62,14 +62,14 @@ func TestBridgeVlan(t *testing.T) {
 		if vInfo, ok := vlanMap[int32(bridge.Index)]; !ok {
 			t.Fatal("vlanMap should include foo port vlan info")
 		} else {
-			if "[{Flags:6 Vid:1}]" != fmt.Sprintf("%v", vInfo) {
+			if fmt.Sprintf("%v", vInfo) != "[{Flags:6 Vid:1}]" {
 				t.Fatalf("unexpected result %v", vInfo)
 			}
 		}
 		if vInfo, ok := vlanMap[int32(dummy.Index)]; !ok {
 			t.Fatal("vlanMap should include dum1 port vlan info")
 		} else {
-			if "[{Flags:4 Vid:1} {Flags:0 Vid:2} {Flags:6 Vid:3}]" != fmt.Sprintf("%v", vInfo) {
+			if fmt.Sprintf("%v", vInfo) != "[{Flags:4 Vid:1} {Flags:0 Vid:2} {Flags:6 Vid:3}]" {
 				t.Fatalf("unexpected result %v", vInfo)
 			}
 		}

@@ -55,8 +55,6 @@ const (
 	VF_LINK_STATE_DISABLE uint32 = 2
 )
 
-var lookupByDump = false
-
 var macvlanModes = [...]uint32{
 	0,
 	nl.MACVLAN_MODE_PRIVATE,
@@ -591,13 +589,13 @@ func (h *Handle) LinkSetVfVlanQos(link Link, vf, vlan, qos int) error {
 	req.AddData(msg)
 
 	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
-	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
+	info := data.AddRtAttr(nl.IFLA_VF_INFO, nil)
 	vfmsg := nl.VfVlan{
 		Vf:   uint32(vf),
 		Vlan: uint32(vlan),
 		Qos:  uint32(qos),
 	}
-	nl.NewRtAttrChild(info, nl.IFLA_VF_VLAN, vfmsg.Serialize())
+	info.AddRtAttr(nl.IFLA_VF_VLAN, vfmsg.Serialize())
 	req.AddData(data)
 
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)

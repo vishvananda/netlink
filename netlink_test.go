@@ -107,10 +107,10 @@ func setUpNetlinkTestWithLoopback(t *testing.T) tearDownNetlinkTest {
 
 func setUpF(t *testing.T, path, value string) {
 	file, err := os.Create(path)
-	defer file.Close()
 	if err != nil {
 		t.Fatalf("Failed to open %s: %s", path, err)
 	}
+	defer file.Close()
 	file.WriteString(value)
 }
 

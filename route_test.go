@@ -1339,8 +1339,7 @@ func TestSEG6LocalRoute6AddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Confirm route is deleted.
-	routesFound, err = RouteGet(dst1.IP)
-	if err == nil {
+	if _, err = RouteGet(dst1.IP); err == nil {
 		t.Fatal("SEG6Local route still exists.")
 	}
 

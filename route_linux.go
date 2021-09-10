@@ -249,7 +249,7 @@ func (e *SEG6Encap) String() string {
 	segs := make([]string, 0, len(e.Segments))
 	// append segment backwards (from n to 0) since seg#0 is the last segment.
 	for i := len(e.Segments); i > 0; i-- {
-		segs = append(segs, fmt.Sprintf("%s", e.Segments[i-1]))
+		segs = append(segs, e.Segments[i-1].String())
 	}
 	str := fmt.Sprintf("mode %s segs %d [ %s ]", nl.SEG6EncapModeString(e.Mode),
 		len(e.Segments), strings.Join(segs, " "))
@@ -419,7 +419,7 @@ func (e *SEG6LocalEncap) String() string {
 		segs := make([]string, 0, len(e.Segments))
 		//append segment backwards (from n to 0) since seg#0 is the last segment.
 		for i := len(e.Segments); i > 0; i-- {
-			segs = append(segs, fmt.Sprintf("%s", e.Segments[i-1]))
+			segs = append(segs, e.Segments[i-1].String())
 		}
 		strs = append(strs, fmt.Sprintf("segs %d [ %s ]", len(e.Segments), strings.Join(segs, " ")))
 	}
@@ -529,7 +529,7 @@ func (e *BpfEncap) Decode(buf []byte) error {
 				case nl.LWT_BPF_PROG_FD:
 					bpfO.progFd = int(native.Uint32(parsedAttr.Value))
 				case nl.LWT_BPF_PROG_NAME:
-					bpfO.progName = fmt.Sprintf("%s", parsedAttr.Value)
+					bpfO.progName = string(parsedAttr.Value)
 				default:
 					return fmt.Errorf("lwt bpf decode: received unknown attribute: type: %d, len: %d", parsedAttr.Attr.Type, parsedAttr.Attr.Len)
 				}
@@ -598,7 +598,7 @@ func (e *BpfEncap) Equal(x Encap) bool {
 	if e.headroom != o.headroom {
 		return false
 	}
-	for i, _ := range o.progs {
+	for i := range o.progs {
 		if o.progs[i] != e.progs[i] {
 			return false
 		}

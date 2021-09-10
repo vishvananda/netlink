@@ -25,7 +25,7 @@ const (
 )
 
 func testLinkAddDel(t *testing.T, link Link) {
-	links, err := LinkList()
+	_, err := LinkList()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func testLinkAddDel(t *testing.T, link Link) {
 				if bond.AdUserPortKey != other.AdUserPortKey {
 					t.Fatalf("Got unexpected AdUserPortKey: %d, expected: %d", other.AdUserPortKey, bond.AdUserPortKey)
 				}
-				if bytes.Compare(bond.AdActorSystem, other.AdActorSystem) != 0 {
+				if !bytes.Equal(bond.AdActorSystem, other.AdActorSystem) {
 					t.Fatalf("Got unexpected AdActorSystem: %d, expected: %d", other.AdActorSystem, bond.AdActorSystem)
 				}
 			case "balance-tlb":
@@ -299,7 +299,7 @@ func testLinkAddDel(t *testing.T, link Link) {
 		t.Fatal(err)
 	}
 
-	links, err = LinkList()
+	links, err := LinkList()
 	if err != nil {
 		t.Fatal(err)
 	}
