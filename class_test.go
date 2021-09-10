@@ -617,7 +617,7 @@ func TestClassHfsc(t *testing.T) {
 	}
 
 	// Check the amount of qdiscs
-	qdiscs, err = SafeQdiscList(link)
+	qdiscs, _ = SafeQdiscList(link)
 	if len(qdiscs) != 3 {
 		t.Fatal("Failed to add qdisc")
 	}
@@ -641,7 +641,7 @@ func TestClassHfsc(t *testing.T) {
 		t.Fatal("Failed to delete classes")
 	}
 	// Check qdisc
-	qdiscs, err = SafeQdiscList(link)
+	qdiscs, _ = SafeQdiscList(link)
 	if len(qdiscs) != 2 {
 		t.Fatal("Failed to delete qdisc")
 	}

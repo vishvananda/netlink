@@ -493,11 +493,11 @@ func (h *Handle) DevlinkPortFnSet(Bus string, Device string, PortIndex uint32, F
 
 	fnAttr := nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_FUNCTION|unix.NLA_F_NESTED, nil)
 
-	if FnAttrs.HwAddrValid == true {
+	if FnAttrs.HwAddrValid {
 		fnAttr.AddRtAttr(nl.DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR, []byte(FnAttrs.FnAttrs.HwAddr))
 	}
 
-	if FnAttrs.StateValid == true {
+	if FnAttrs.StateValid {
 		fnAttr.AddRtAttr(nl.DEVLINK_PORT_FN_ATTR_STATE, nl.Uint8Attr(FnAttrs.FnAttrs.State))
 	}
 	req.AddData(fnAttr)

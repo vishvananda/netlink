@@ -328,7 +328,7 @@ func runParallelTests(t *testing.T, thread int) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		l, err = handle1.LinkByName(ifName)
+		_, err = handle1.LinkByName(ifName)
 		if err != nil {
 			t.Fatal(err)
 		}

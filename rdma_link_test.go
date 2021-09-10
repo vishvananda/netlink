@@ -85,9 +85,9 @@ func TestRdmaSystemSetNetnsMode(t *testing.T) {
 	}
 	// Flip the mode from current mode
 	if mode == "exclusive" {
-		err = RdmaSystemSetNetnsMode("shared")
+		RdmaSystemSetNetnsMode("shared")
 	} else {
-		err = RdmaSystemSetNetnsMode("exclusive")
+		RdmaSystemSetNetnsMode("exclusive")
 	}
 	newMode, err = RdmaSystemGetNetnsMode()
 	if err != nil {
