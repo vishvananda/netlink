@@ -2,10 +2,11 @@ package netlink
 
 import (
 	"fmt"
-	"github.com/vishvananda/netlink/nl"
-	"golang.org/x/sys/unix"
 	"net"
 	"syscall"
+
+	"github.com/vishvananda/netlink/nl"
+	"golang.org/x/sys/unix"
 )
 
 // DevlinkDevEswitchAttr represents device's eswitch attributes
@@ -163,12 +164,12 @@ func (h *Handle) getEswitchAttrs(family *GenlFamily, dev *DevlinkDevice) {
 	req := h.newNetlinkRequest(int(family.ID), unix.NLM_F_REQUEST|unix.NLM_F_ACK)
 	req.AddData(msg)
 
-	b := make([]byte, len(dev.BusName))
+	b := make([]byte, len(dev.BusName)+1)
 	copy(b, dev.BusName)
 	data := nl.NewRtAttr(nl.DEVLINK_ATTR_BUS_NAME, b)
 	req.AddData(data)
 
-	b = make([]byte, len(dev.DeviceName))
+	b = make([]byte, len(dev.DeviceName)+1)
 	copy(b, dev.DeviceName)
 	data = nl.NewRtAttr(nl.DEVLINK_ATTR_DEV_NAME, b)
 	req.AddData(data)
