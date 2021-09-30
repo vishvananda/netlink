@@ -615,7 +615,7 @@ func TestLinkModify(t *testing.T) {
 	}
 
 	link.MTU = updatedMTU
-	if err := pkgHandle.LinkModify(link); err != nil {
+	if err := LinkModify(link); err != nil {
 		t.Fatal(err)
 	}
 
