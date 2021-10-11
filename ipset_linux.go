@@ -72,6 +72,7 @@ type IpsetCreateOptions struct {
 	IPTo     net.IP
 	PortFrom uint16
 	PortTo   uint16
+	Family   uint8
 }
 
 // IpsetProtocol returns the ipset protocol version from the kernel
@@ -153,7 +154,9 @@ func (h *Handle) IpsetCreate(setname, typename string, options IpsetCreateOption
 		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_PORT_FROM|int(nl.NLA_F_NET_BYTEORDER), buf[:2]))
 		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_PORT_TO|int(nl.NLA_F_NET_BYTEORDER), buf[2:]))
 	default:
-		family = unix.AF_INET
+		if family = options.Family; family == 0 {
+			family = unix.AF_INET
+		}
 	}
 
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_FAMILY, nl.Uint8Attr(family)))
@@ -255,7 +258,12 @@ func (h *Handle) ipsetAddDel(nlCmd int, setname string, entry *IPSetEntry) error
 	}
 
 	if entry.IP != nil {
-		nestedData := nl.NewRtAttr(nl.IPSET_ATTR_IP|int(nl.NLA_F_NET_BYTEORDER), entry.IP)
+		var nestedData *nl.RtAttr
+		if entry.IP.To4() != nil {
+			nestedData = nl.NewRtAttr(nl.IPSET_ATTR_IPV4|int(nl.NLA_F_NET_BYTEORDER), entry.IP)
+		} else {
+			nestedData = nl.NewRtAttr(nl.IPSET_ATTR_IPV6|int(nl.NLA_F_NET_BYTEORDER), entry.IP)
+		}
 		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_IP|int(nl.NLA_F_NESTED), nestedData.Serialize()))
 	}
 
@@ -268,7 +276,12 @@ func (h *Handle) ipsetAddDel(nlCmd int, setname string, entry *IPSetEntry) error
 	}
 
 	if entry.IP2 != nil {
-		nestedData := nl.NewRtAttr(nl.IPSET_ATTR_IP|int(nl.NLA_F_NET_BYTEORDER), entry.IP2)
+		var nestedData *nl.RtAttr
+		if entry.IP2.To4() != nil {
+			nestedData = nl.NewRtAttr(nl.IPSET_ATTR_IPV4|int(nl.NLA_F_NET_BYTEORDER), entry.IP2)
+		} else {
+			nestedData = nl.NewRtAttr(nl.IPSET_ATTR_IPV6|int(nl.NLA_F_NET_BYTEORDER), entry.IP2)
+		}
 		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_IP2|int(nl.NLA_F_NESTED), nestedData.Serialize()))
 	}
 
@@ -401,9 +414,13 @@ func (result *IPSetResult) parseAttrData(data []byte) {
 		case nl.IPSET_ATTR_IP | nl.NLA_F_NESTED:
 			for nested := range nl.ParseAttributes(attr.Value) {
 				switch nested.Type {
-				case nl.IPSET_ATTR_IP | nl.NLA_F_NET_BYTEORDER:
+				case nl.IPSET_ATTR_IPV4 | nl.NLA_F_NET_BYTEORDER:
+					fallthrough
+				case nl.IPSET_ATTR_IPV6 | nl.NLA_F_NET_BYTEORDER:
 					result.Entries = append(result.Entries, IPSetEntry{IP: nested.Value})
-				case nl.IPSET_ATTR_IP:
+				case nl.IPSET_ATTR_IPV4:
+					fallthrough
+				case nl.IPSET_ATTR_IPV6:
 					result.IPFrom = nested.Value
 				default:
 					log.Printf("unknown nested ipset data attribute from kernel: %+v %v", nested, nested.Type&nl.NLA_TYPE_MASK)
@@ -412,7 +429,9 @@ func (result *IPSetResult) parseAttrData(data []byte) {
 		case nl.IPSET_ATTR_IP_TO | nl.NLA_F_NESTED:
 			for nested := range nl.ParseAttributes(attr.Value) {
 				switch nested.Type {
-				case nl.IPSET_ATTR_IP:
+				case nl.IPSET_ATTR_IPV4:
+					fallthrough
+				case nl.IPSET_ATTR_IPV6:
 					result.IPTo = nested.Value
 				default:
 					log.Printf("unknown nested ipset data attribute from kernel: %+v %v", nested, nested.Type&nl.NLA_TYPE_MASK)
@@ -466,7 +485,9 @@ func parseIPSetEntry(data []byte) (entry IPSetEntry) {
 		case nl.IPSET_ATTR_IP | nl.NLA_F_NESTED:
 			for attr := range nl.ParseAttributes(attr.Value) {
 				switch attr.Type {
-				case nl.IPSET_ATTR_IP:
+				case nl.IPSET_ATTR_IPV4:
+					fallthrough
+				case nl.IPSET_ATTR_IPV6:
 					entry.IP = net.IP(attr.Value)
 				default:
 					log.Printf("unknown nested ADT attribute from kernel: %+v", attr)
@@ -475,7 +496,9 @@ func parseIPSetEntry(data []byte) (entry IPSetEntry) {
 		case nl.IPSET_ATTR_IP2 | nl.NLA_F_NESTED:
 			for attr := range nl.ParseAttributes(attr.Value) {
 				switch attr.Type {
-				case nl.IPSET_ATTR_IP:
+				case nl.IPSET_ATTR_IPV4:
+					fallthrough
+				case nl.IPSET_ATTR_IPV6:
 					entry.IP2 = net.IP(attr.Value)
 				default:
 					log.Printf("unknown nested ADT attribute from kernel: %+v", attr)
