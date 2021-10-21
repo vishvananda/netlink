@@ -1707,6 +1707,7 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 	base.RawFlags = msg.Flags
 	base.Flags = linkFlags(msg.Flags)
 	base.EncapType = msg.EncapType()
+	base.NetNsID = -1
 	if msg.Flags&unix.IFF_PROMISC != 0 {
 		base.Promisc = 1
 	}
