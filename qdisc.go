@@ -137,19 +137,23 @@ func (qdisc *Htb) Type() string {
 // Netem is a classless qdisc that rate limits based on tokens
 
 type NetemQdiscAttrs struct {
-	Latency       uint32  // in us
-	DelayCorr     float32 // in %
-	Limit         uint32
-	Loss          float32 // in %
-	LossCorr      float32 // in %
-	Gap           uint32
-	Duplicate     float32 // in %
-	DuplicateCorr float32 // in %
-	Jitter        uint32  // in us
-	ReorderProb   float32 // in %
-	ReorderCorr   float32 // in %
-	CorruptProb   float32 // in %
-	CorruptCorr   float32 // in %
+	Latency        uint64  // in us
+	DelayCorr      float32 // in %
+	Limit          uint32
+	Loss           float32 // in %
+	LossCorr       float32 // in %
+	Gap            uint32
+	Duplicate      float32 // in %
+	DuplicateCorr  float32 // in %
+	Jitter         uint64  // in us
+	ReorderProb    float32 // in %
+	ReorderCorr    float32 // in %
+	CorruptProb    float32 // in %
+	CorruptCorr    float32 // in %
+	Rate           uint64  // in bytes/s
+	PacketOverhead int32   // in bytes
+	CellSize       uint32  // in byte
+	CellOverhead   int32   // in byte
 }
 
 func (q NetemQdiscAttrs) String() string {
@@ -161,19 +165,23 @@ func (q NetemQdiscAttrs) String() string {
 
 type Netem struct {
 	QdiscAttrs
-	Latency       uint32
-	DelayCorr     uint32
-	Limit         uint32
-	Loss          uint32
-	LossCorr      uint32
-	Gap           uint32
-	Duplicate     uint32
-	DuplicateCorr uint32
-	Jitter        uint32
-	ReorderProb   uint32
-	ReorderCorr   uint32
-	CorruptProb   uint32
-	CorruptCorr   uint32
+	Latency        uint64
+	DelayCorr      uint32
+	Limit          uint32
+	Loss           uint32
+	LossCorr       uint32
+	Gap            uint32
+	Duplicate      uint32
+	DuplicateCorr  uint32
+	Jitter         uint64
+	ReorderProb    uint32
+	ReorderCorr    uint32
+	CorruptProb    uint32
+	CorruptCorr    uint32
+	Rate           uint64
+	PacketOverhead int32
+	CellSize       uint32
+	CellOverhead   int32
 }
 
 func (netem *Netem) String() string {

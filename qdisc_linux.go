@@ -23,6 +23,10 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 	gap := nattrs.Gap
 	duplicate := Percentage2u32(nattrs.Duplicate)
 	jitter := nattrs.Jitter
+	rate := nattrs.Rate
+	packetOverhead := nattrs.PacketOverhead
+	cellSize := nattrs.CellSize
+	cellOverhead := nattrs.CellOverhead
 
 	// Correlation
 	if latency > 0 && jitter > 0 {
@@ -49,7 +53,7 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 	reorderCorr = Percentage2u32(nattrs.ReorderCorr)
 
 	if reorderProb > 0 {
-		// ERROR if lantency == 0
+		// ERROR if latency == 0
 		if gap == 0 {
 			gap = 1
 		}
@@ -59,20 +63,24 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 	corruptCorr = Percentage2u32(nattrs.CorruptCorr)
 
 	return &Netem{
-		QdiscAttrs:    attrs,
-		Latency:       latency,
-		DelayCorr:     delayCorr,
-		Limit:         limit,
-		Loss:          loss,
-		LossCorr:      lossCorr,
-		Gap:           gap,
-		Duplicate:     duplicate,
-		DuplicateCorr: duplicateCorr,
-		Jitter:        jitter,
-		ReorderProb:   reorderProb,
-		ReorderCorr:   reorderCorr,
-		CorruptProb:   corruptProb,
-		CorruptCorr:   corruptCorr,
+		QdiscAttrs:     attrs,
+		Latency:        latency,
+		DelayCorr:      delayCorr,
+		Limit:          limit,
+		Loss:           loss,
+		LossCorr:       lossCorr,
+		Gap:            gap,
+		Duplicate:      duplicate,
+		DuplicateCorr:  duplicateCorr,
+		Jitter:         jitter,
+		ReorderProb:    reorderProb,
+		ReorderCorr:    reorderCorr,
+		CorruptProb:    corruptProb,
+		CorruptCorr:    corruptCorr,
+		Rate:           rate,
+		PacketOverhead: packetOverhead,
+		CellSize:       cellSize,
+		CellOverhead:   cellOverhead,
 	}
 }
 
@@ -201,13 +209,25 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		options = nl.NewRtAttr(nl.TCA_OPTIONS, opt.Serialize())
 	case *Netem:
 		opt := nl.TcNetemQopt{}
-		opt.Latency = qdisc.Latency
 		opt.Limit = qdisc.Limit
 		opt.Loss = qdisc.Loss
 		opt.Gap = qdisc.Gap
 		opt.Duplicate = qdisc.Duplicate
-		opt.Jitter = qdisc.Jitter
 		options = nl.NewRtAttr(nl.TCA_OPTIONS, opt.Serialize())
+		// Latency
+		if qdisc.Latency >= 1<<32 {
+			options.AddRtAttr(nl.TCA_NETEM_LATENCY64, nl.Uint64Attr(qdisc.Latency))
+			opt.Latency = 0
+		} else {
+			opt.Latency = uint32(qdisc.Latency)
+		}
+		// Jitter
+		if qdisc.Jitter >= 1<<32 {
+			options.AddRtAttr(nl.TCA_NETEM_JITTER64, nl.Uint64Attr(qdisc.Jitter))
+			opt.Latency = 0
+		} else {
+			opt.Jitter = uint32(qdisc.Jitter)
+		}
 		// Correlation
 		corr := nl.TcNetemCorr{}
 		corr.DelayCorr = qdisc.DelayCorr
@@ -230,6 +250,20 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		reorder.Correlation = qdisc.ReorderCorr
 		if reorder.Probability > 0 {
 			options.AddRtAttr(nl.TCA_NETEM_REORDER, reorder.Serialize())
+		}
+		// Rate
+		rate := nl.TcNetemRate{}
+		if qdisc.Rate >= 1<<32 {
+			options.AddRtAttr(nl.TCA_NETEM_RATE64, nl.Uint64Attr(qdisc.Rate))
+			rate.Rate = 0
+		} else {
+			rate.Rate = uint32(qdisc.Rate)
+		}
+		rate.PacketOverhead = qdisc.PacketOverhead
+		rate.CellSize = qdisc.CellSize
+		rate.CellOverhead = qdisc.CellOverhead
+		if rate.Rate > 0 || rate.CellSize > 0 || rate.PacketOverhead != 0 || rate.CellOverhead != 0 {
+			options.AddRtAttr(nl.TCA_NETEM_RATE, rate.Serialize())
 		}
 	case *Ingress:
 		// ingress filters must use the proper handle
@@ -554,12 +588,12 @@ func parseFqData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 func parseNetemData(qdisc Qdisc, value []byte) error {
 	netem := qdisc.(*Netem)
 	opt := nl.DeserializeTcNetemQopt(value)
-	netem.Latency = opt.Latency
+	netem.Latency = uint64(opt.Latency)
 	netem.Limit = opt.Limit
 	netem.Loss = opt.Loss
 	netem.Gap = opt.Gap
 	netem.Duplicate = opt.Duplicate
-	netem.Jitter = opt.Jitter
+	netem.Jitter = uint64(opt.Jitter)
 	data, err := nl.ParseRouteAttr(value[nl.SizeofTcNetemQopt:])
 	if err != nil {
 		return err
@@ -579,6 +613,18 @@ func parseNetemData(qdisc Qdisc, value []byte) error {
 			opt := nl.DeserializeTcNetemReorder(datum.Value)
 			netem.ReorderProb = opt.Probability
 			netem.ReorderCorr = opt.Correlation
+		case nl.TCA_NETEM_RATE:
+			opt := nl.DeserializeTcNetemRate(datum.Value)
+			netem.Rate = uint64(opt.Rate)
+			netem.PacketOverhead = opt.PacketOverhead
+			netem.CellSize = opt.CellSize
+			netem.CellOverhead = opt.CellOverhead
+		case nl.TCA_NETEM_RATE64:
+			netem.Rate = native.Uint64(datum.Value)
+		case nl.TCA_NETEM_LATENCY64:
+			netem.Latency = native.Uint64(datum.Value)
+		case nl.TCA_NETEM_JITTER64:
+			netem.Jitter = native.Uint64(datum.Value)
 		}
 	}
 	return nil
@@ -678,12 +724,12 @@ func Hz() float64 {
 	return hz
 }
 
-func time2Tick(time uint32) uint32 {
-	return uint32(float64(time) * TickInUsec())
+func time2Tick(time uint64) uint64 {
+	return uint64(float64(time) * TickInUsec())
 }
 
-func tick2Time(tick uint32) uint32 {
-	return uint32(float64(tick) / TickInUsec())
+func tick2Time(tick uint64) uint64 {
+	return uint64(float64(tick) / TickInUsec())
 }
 
 func time2Ktime(time uint32) uint32 {
@@ -694,19 +740,19 @@ func ktime2Time(ktime uint32) uint32 {
 	return uint32(float64(ktime) / ClockFactor())
 }
 
-func burst(rate uint64, buffer uint32) uint32 {
+func burst(rate uint64, buffer uint64) uint32 {
 	return uint32(float64(rate) * float64(tick2Time(buffer)) / TIME_UNITS_PER_SEC)
 }
 
-func latency(rate uint64, limit, buffer uint32) float64 {
+func latency(rate uint64, limit, buffer uint64) float64 {
 	return TIME_UNITS_PER_SEC*(float64(limit)/float64(rate)) - float64(tick2Time(buffer))
 }
 
 func Xmittime(rate uint64, size uint32) uint32 {
 	// https://git.kernel.org/pub/scm/network/iproute2/iproute2.git/tree/tc/tc_core.c#n62
-	return time2Tick(uint32(TIME_UNITS_PER_SEC * (float64(size) / float64(rate))))
+	return uint32(time2Tick(uint64(TIME_UNITS_PER_SEC * (float64(size) / float64(rate)))))
 }
 
 func Xmitsize(rate uint64, ticks uint32) uint32 {
-	return uint32((float64(rate) * float64(tick2Time(ticks))) / TIME_UNITS_PER_SEC)
+	return uint32((float64(rate) * float64(tick2Time(uint64(ticks)))) / TIME_UNITS_PER_SEC)
 }

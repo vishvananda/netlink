@@ -83,6 +83,7 @@ const (
 	SizeofTcNetemCorr    = 0x0c
 	SizeofTcNetemReorder = 0x08
 	SizeofTcNetemCorrupt = 0x08
+	SizeofTcNetemRate    = 0x10
 	SizeofTcTbfQopt      = 2*SizeofTcRateSpec + 0x0c
 	SizeofTcHtbCopt      = 2*SizeofTcRateSpec + 0x14
 	SizeofTcHtbGlob      = 0x14
@@ -235,7 +236,12 @@ const (
 	TCA_NETEM_RATE
 	TCA_NETEM_ECN
 	TCA_NETEM_RATE64
-	TCA_NETEM_MAX = TCA_NETEM_RATE64
+	TCA_NETEM_PAD
+	TCA_NETEM_LATENCY64
+	TCA_NETEM_JITTER64
+	TCA_NETEM_SLOT
+	TCA_NETEM_SLOT_DIST
+	TCA_NETEM_MAX = TCA_NETEM_SLOT_DIST
 )
 
 // struct tc_netem_qopt {
@@ -334,6 +340,32 @@ func DeserializeTcNetemCorrupt(b []byte) *TcNetemCorrupt {
 
 func (x *TcNetemCorrupt) Serialize() []byte {
 	return (*(*[SizeofTcNetemCorrupt]byte)(unsafe.Pointer(x)))[:]
+}
+
+// struct tc_netem_rate {
+// 	__u32	rate;	/* byte/s */
+// 	__s32	packet_overhead;
+// 	__u32	cell_size;
+// 	__s32	cell_overhead;
+// };
+
+type TcNetemRate struct {
+	Rate           uint32
+	PacketOverhead int32
+	CellSize       uint32
+	CellOverhead   int32
+}
+
+func (msg *TcNetemRate) Len() int {
+	return SizeofTcNetemRate
+}
+
+func DeserializeTcNetemRate(b []byte) *TcNetemRate {
+	return (*TcNetemRate)(unsafe.Pointer(&b[0:SizeofTcNetemRate][0]))
+}
+
+func (x *TcNetemRate) Serialize() []byte {
+	return (*(*[SizeofTcNetemRate]byte)(unsafe.Pointer(x)))[:]
 }
 
 // struct tc_tbf_qopt {
