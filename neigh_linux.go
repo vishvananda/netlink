@@ -174,7 +174,7 @@ func neighHandle(neigh *Neigh, req *nl.NetlinkRequest) error {
 	if neigh.LLIPAddr != nil {
 		llIPData := nl.NewRtAttr(NDA_LLADDR, neigh.LLIPAddr.To4())
 		req.AddData(llIPData)
-	} else if neigh.Flags != NTF_PROXY || neigh.HardwareAddr != nil {
+	} else if neigh.HardwareAddr != nil {
 		hwData := nl.NewRtAttr(NDA_LLADDR, []byte(neigh.HardwareAddr))
 		req.AddData(hwData)
 	}
