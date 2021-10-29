@@ -372,6 +372,13 @@ func TestRuleString(t *testing.T) {
 			},
 			s: "ip rule 100: from all to all table 99",
 		},
+		"rule with type": {
+			r: Rule{
+				Priority: 101,
+				Type:     unix.RTN_UNREACHABLE,
+			},
+			s: "ip rule 101: from all to all table 0 unreachable",
+		},
 		"rule with src and dst": {
 			r: Rule{
 				Priority: 100,
@@ -417,5 +424,6 @@ func ruleEquals(a, b Rule) bool {
 		a.Priority == b.Priority &&
 		a.IifName == b.IifName &&
 		a.Invert == b.Invert &&
-		a.Tos == b.Tos
+		a.Tos == b.Tos &&
+		a.Type == b.Type
 }

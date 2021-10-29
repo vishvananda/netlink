@@ -3,6 +3,8 @@ package netlink
 import (
 	"fmt"
 	"net"
+
+	"golang.org/x/sys/unix"
 )
 
 // Rule represents a netlink rule.
@@ -25,6 +27,11 @@ type Rule struct {
 	Invert            bool
 	Dport             *RulePortRange
 	Sport             *RulePortRange
+
+	// Type is the unix.RTN_* rule type, such as RTN_UNICAST
+	// or RTN_UNREACHABLE.
+	// When adding a new rule, zero means automatic.
+	Type uint8
 }
 
 func (r Rule) String() string {
@@ -38,8 +45,37 @@ func (r Rule) String() string {
 		to = r.Dst.String()
 	}
 
-	return fmt.Sprintf("ip rule %d: from %s to %s table %d",
-		r.Priority, from, to, r.Table)
+	var typ string
+	switch r.Type {
+	case unix.RTN_UNSPEC: // zero
+		typ = ""
+	case unix.RTN_UNICAST:
+		typ = ""
+	case unix.RTN_LOCAL:
+		typ = " local"
+	case unix.RTN_BROADCAST:
+		typ = " broadcast"
+	case unix.RTN_ANYCAST:
+		typ = " anycast"
+	case unix.RTN_MULTICAST:
+		typ = " multicast"
+	case unix.RTN_BLACKHOLE:
+		typ = " blackhole"
+	case unix.RTN_UNREACHABLE:
+		typ = " unreachable"
+	case unix.RTN_PROHIBIT:
+		typ = " prohibit"
+	case unix.RTN_THROW:
+		typ = " throw"
+	case unix.RTN_NAT:
+		typ = " nat"
+	case unix.RTN_XRESOLVE:
+		typ = " xresolve"
+	default:
+		typ = fmt.Sprintf(" type(0x%x)", r.Type)
+	}
+	return fmt.Sprintf("ip rule %d: from %s to %s table %d%s",
+		r.Priority, from, to, r.Table, typ)
 }
 
 // NewRule return empty rules.

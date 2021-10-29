@@ -43,8 +43,8 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 	msg.Protocol = unix.RTPROT_BOOT
 	msg.Scope = unix.RT_SCOPE_UNIVERSE
 	msg.Table = unix.RT_TABLE_UNSPEC
-	msg.Type = unix.RTN_UNSPEC
-	if req.NlMsghdr.Flags&unix.NLM_F_CREATE > 0 {
+	msg.Type = rule.Type // usually 0, same as unix.RTN_UNSPEC
+	if msg.Type == 0 && req.NlMsghdr.Flags&unix.NLM_F_CREATE > 0 {
 		msg.Type = unix.RTN_UNICAST
 	}
 	if rule.Invert {
@@ -209,6 +209,7 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 
 		rule.Invert = msg.Flags&FibRuleInvert > 0
 		rule.Tos = uint(msg.Tos)
+		rule.Type = msg.Type
 
 		for j := range attrs {
 			switch attrs[j].Attr.Type {
