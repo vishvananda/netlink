@@ -785,6 +785,135 @@ func TestFilterU32ConnmarkAddDel(t *testing.T) {
 	}
 }
 
+func TestFilterU32CsumAddDel(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatalf("add link foo error: %v", err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatalf("add link foo error: %v", err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatalf("set foo link up error: %v", err)
+	}
+
+	qdisc := &Ingress{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(0xffff, 0),
+			Parent:    HANDLE_INGRESS,
+		},
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatalf("get qdisc error: %v", err)
+	}
+
+	found := false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("Qdisc is the wrong type")
+	}
+
+	classId := MakeHandle(1, 1)
+	filter := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		ClassId: classId,
+		Actions: []Action{
+			&CsumAction{
+				ActionAttrs: ActionAttrs{
+					Action: TC_ACT_PIPE,
+				},
+				UpdateFlags: TCA_CSUM_UPDATE_FLAG_TCP,
+			},
+		},
+	}
+
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+
+	filters, err := FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatalf("get filter error: %v", err)
+	}
+
+	if len(filters) != 1 {
+		t.Fatalf("the count filters error, expect: 1, acutal: %d", len(filters))
+	}
+
+	ft, ok := filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+
+	if ft.LinkIndex != link.Attrs().Index {
+		t.Fatal("link index error")
+	}
+
+	if len(ft.Actions) != 1 {
+		t.Fatalf("filter has wrong number of actions, expect: 1, acutal: %d", len(filters))
+	}
+
+	csum, ok := ft.Actions[0].(*CsumAction)
+	if !ok {
+		t.Fatal("action is the wrong type")
+	}
+
+	if csum.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("Csum action isn't TC_ACT_PIPE")
+	}
+
+	if csum.UpdateFlags != TCA_CSUM_UPDATE_FLAG_TCP {
+		t.Fatalf("Csum action isn't TCA_CSUM_UPDATE_FLAG_TCP, got %d", csum.UpdateFlags)
+	}
+
+	if err := FilterDel(ft); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found = false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if found {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
+
 func setupLinkForTestWithQdisc(t *testing.T, linkName string) (Qdisc, Link) {
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: linkName}}); err != nil {
 		t.Fatal(err)
