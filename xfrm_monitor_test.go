@@ -1,14 +1,19 @@
+//go:build linux
 // +build linux
 
 package netlink
 
 import (
+	"os"
 	"testing"
 
 	"github.com/vishvananda/netlink/nl"
 )
 
 func TestXfrmMonitorExpire(t *testing.T) {
+	if os.Getenv("CI") == "true" {
+		t.Skipf("Flaky in CI: Intermittently causes 10 minute timeout")
+	}
 	defer setUpNetlinkTest(t)()
 
 	ch := make(chan XfrmMsg)
