@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -510,7 +511,7 @@ func TestFilterFwAddDel(t *testing.T) {
 }
 
 func TestFilterU32BpfAddDel(t *testing.T) {
-	t.Skipf("Fd does not match in travis")
+	t.Skipf("Fd does not match in ci")
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
@@ -822,7 +823,7 @@ func setupLinkForTestWithQdisc(t *testing.T, linkName string) (Qdisc, Link) {
 }
 
 func TestFilterClsActBpfAddDel(t *testing.T) {
-	t.Skipf("Fd does not match in travis")
+	t.Skipf("Fd does not match in ci")
 	// This feature was added in kernel 4.5
 	minKernelRequired(t, 4, 5)
 
