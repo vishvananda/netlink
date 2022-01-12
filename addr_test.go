@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -20,10 +21,11 @@ func TestAddrReplace(t *testing.T) {
 }
 
 func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
-	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
-		t.Skipf("Fails in travis with: addr_test.go:68: Address flags not set properly, got=0, expected=128")
+	if os.Getenv("CI") == "true" {
+		t.Skipf("Fails in CI with: addr_test.go:*: Address flags not set properly, got=128, expected=132")
 	}
 	// TODO: IFA_F_PERMANENT does not seem to be set by default on older kernels?
+	// TODO: IFA_F_OPTIMISTIC failing in CI. should we just skip that one check?
 	var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(32, 32)}
 	var peer = &net.IPNet{IP: net.IPv4(127, 0, 0, 3), Mask: net.CIDRMask(24, 32)}
 	var addrTests = []struct {

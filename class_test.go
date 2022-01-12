@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -14,12 +15,13 @@ func SafeQdiscList(link Link) ([]Qdisc, error) {
 	}
 	result := []Qdisc{}
 	for _, qdisc := range qdiscs {
-		// filter out pfifo_fast qdiscs because
-		// older kernels don't return them
-		_, pfifo := qdisc.(*PfifoFast)
-		if !pfifo {
-			result = append(result, qdisc)
+		// fmt.Printf("%+v\n", qdisc)
+		// filter default qdisc created by kernel when custom one deleted
+		attrs := qdisc.Attrs()
+		if attrs.Handle == HANDLE_NONE && attrs.Parent == HANDLE_ROOT {
+			continue
 		}
+		result = append(result, qdisc)
 	}
 	return result, nil
 }
@@ -195,6 +197,7 @@ func TestClassAddDel(t *testing.T) {
 	}
 
 	// Deletion
+	// automatically removes netem qdisc
 	if err := ClassDel(class); err != nil {
 		t.Fatal(err)
 	}
