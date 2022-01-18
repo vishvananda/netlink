@@ -418,5 +418,6 @@ func ruleEquals(a, b Rule) bool {
 		a.Priority == b.Priority &&
 		a.IifName == b.IifName &&
 		a.Invert == b.Invert &&
-		a.Tos == b.Tos
+		a.Tos == b.Tos &&
+		a.IPProto == b.IPProto
 }
