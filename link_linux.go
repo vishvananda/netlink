@@ -3462,3 +3462,41 @@ func parseBareUDPData(link Link, data []syscall.NetlinkRouteAttr) {
 		}
 	}
 }
+
+func SetInet6AddrGenMode(link Link, mode int) error {
+	if mode < nl.IN6_ADDR_GEN_MODE_EUI64 || mode > nl.IN6_ADDR_GEN_MODE_RANDOM {
+		return fmt.Errorf("invalid addrgenmode: %d", mode)
+	}
+	return pkgHandle.SetInet6AddrGenMode(link, mode)
+}
+
+func (h *Handle) SetInet6AddrGenMode(link Link, mode int) error {
+	return h.setInet6AddrGenMode(link, mode)
+}
+
+func (h *Handle) setInet6AddrGenMode(link Link, mode int) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_NEWLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	bs := make([]byte, 8)
+	binary.LittleEndian.PutUint64(bs, uint64(mode))
+	t := make([]byte, 1)
+	t[0] = bs[0]
+
+	afs6 := nl.NewRtAttr(unix.AF_INET6, nil)
+	afs6.AddRtAttr(nl.IFLA_INET6_ADDR_GEN_MODE, t)
+	afs := nl.NewRtAttr(unix.IFLA_AF_SPEC, afs6.Serialize())
+
+	req.AddData(afs)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	if err != nil {
+		err = fmt.Errorf("%d: %d .. %d: %s", base.Index, mode, t[0], err.Error())
+	}
+	return err
+}
