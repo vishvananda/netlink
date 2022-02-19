@@ -3229,8 +3229,9 @@ func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) VfInfo {
 func addXfrmiAttrs(xfrmi *Xfrmi, linkInfo *nl.RtAttr) {
 	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
 	data.AddRtAttr(nl.IFLA_XFRM_LINK, nl.Uint32Attr(uint32(xfrmi.ParentIndex)))
-	data.AddRtAttr(nl.IFLA_XFRM_IF_ID, nl.Uint32Attr(xfrmi.Ifid))
-
+	if xfrmi.Ifid != 0 {
+		data.AddRtAttr(nl.IFLA_XFRM_IF_ID, nl.Uint32Attr(xfrmi.Ifid))
+	}
 }
 
 func parseXfrmiData(link Link, data []syscall.NetlinkRouteAttr) {
