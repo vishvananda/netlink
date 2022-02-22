@@ -280,7 +280,7 @@ func getPolicy() *XfrmPolicy {
 		Dst:   net.ParseIP("127.0.0.2"),
 		Proto: XFRM_PROTO_ESP,
 		Mode:  XFRM_MODE_TUNNEL,
-		Spi:   0xabcdef99,
+		Spi:   0x1bcdef99,
 	}
 	policy.Tmpls = append(policy.Tmpls, tmpl)
 	return policy
