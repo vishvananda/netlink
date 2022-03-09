@@ -748,7 +748,9 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		} else {
 			dstData = route.Dst.IP.To16()
 		}
-		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_DST, dstData))
+		if route.Type != unix.RTN_UNREACHABLE && route.Type != unix.RTN_BLACKHOLE && route.Type != unix.RTN_PROHIBIT {
+			rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_DST, dstData))
+		}
 	} else if route.MPLSDst != nil {
 		family = nl.FAMILY_MPLS
 		msg.Dst_len = uint8(20)
@@ -991,10 +993,11 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		req.AddData(attr)
 	}
 
-	b := make([]byte, 4)
-	native.PutUint32(b, uint32(route.LinkIndex))
-
-	req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
+	if route.LinkIndex != 0 {
+		b := make([]byte, 4)
+		native.PutUint32(b, uint32(route.LinkIndex))
+		req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
+	}
 
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	return err
