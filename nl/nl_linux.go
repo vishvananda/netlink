@@ -518,6 +518,10 @@ func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.NETLINK_GET_STRICT_CHK, 1)
+	if err != nil {
+		return nil, err
+	}
 	s := &NetlinkSocket{
 		fd: int32(fd),
 	}
