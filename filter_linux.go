@@ -859,7 +859,7 @@ func parseBpfData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 		case nl.TCA_BPF_ID:
 			bpf.Id = int(native.Uint32(datum.Value[0:4]))
 		case nl.TCA_BPF_TAG:
-			bpf.Tag = hex.EncodeToString(datum.Value[:len(datum.Value)-1])
+			bpf.Tag = hex.EncodeToString(datum.Value)
 		}
 	}
 	return detailed, nil
