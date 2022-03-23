@@ -176,7 +176,7 @@ func AddrList(link Link, family int) ([]Addr, error) {
 // The list can be filtered by link and ip family.
 func (h *Handle) AddrList(link Link, family int) ([]Addr, error) {
 	req := h.newNetlinkRequest(unix.RTM_GETADDR, unix.NLM_F_DUMP)
-	msg := nl.NewIfInfomsg(family)
+	msg := nl.NewIfAddrmsg(family)
 	req.AddData(msg)
 
 	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWADDR)

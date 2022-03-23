@@ -1030,8 +1030,9 @@ func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, e
 // All rules must be defined in RouteFilter struct
 func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
 	req := h.newNetlinkRequest(unix.RTM_GETROUTE, unix.NLM_F_DUMP)
-	infmsg := nl.NewIfInfomsg(family)
-	req.AddData(infmsg)
+	rtmsg := nl.NewRtMsg()
+	rtmsg.Family = uint8(family)
+	req.AddData(rtmsg)
 
 	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWROUTE)
 	if err != nil {
