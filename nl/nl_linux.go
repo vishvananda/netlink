@@ -793,11 +793,18 @@ func (s *NetlinkSocket) SetReceiveTimeout(timeout *unix.Timeval) error {
 
 // SetExtAck requests error messages to be reported on the socket
 func (s *NetlinkSocket) SetExtAck(enable bool) error {
-	if !enable {
+	var enableN int
+	if enable {
+		enableN = 1
+	}
+
+	var err error
+	if err = unix.SetsockoptInt(int(s.fd), unix.SOL_NETLINK, unix.NETLINK_EXT_ACK, enableN); err == unix.ENOPROTOOPT && !enable {
+		// older kernels may not support NETLINK_EXT_ACK
 		return nil
 	}
 
-	return unix.SetsockoptInt(int(s.fd), unix.SOL_NETLINK, unix.NETLINK_EXT_ACK, 1)
+	return err
 }
 
 func (s *NetlinkSocket) GetPid() (uint32, error) {
