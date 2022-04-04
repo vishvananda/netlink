@@ -504,10 +504,8 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 		if err := s.SetReceiveTimeout(&SocketTimeoutTv); err != nil {
 			return nil, err
 		}
-		if EnableErrorMessageReporting {
-			if err := s.SetExtAck(true); err != nil {
-				return nil, err
-			}
+		if err := s.SetExtAck(EnableErrorMessageReporting); err != nil {
+			return nil, err
 		}
 
 		defer s.Close()
@@ -795,12 +793,11 @@ func (s *NetlinkSocket) SetReceiveTimeout(timeout *unix.Timeval) error {
 
 // SetExtAck requests error messages to be reported on the socket
 func (s *NetlinkSocket) SetExtAck(enable bool) error {
-	var enableN int
-	if enable {
-		enableN = 1
+	if !enable {
+		return nil
 	}
 
-	return unix.SetsockoptInt(int(s.fd), unix.SOL_NETLINK, unix.NETLINK_EXT_ACK, enableN)
+	return unix.SetsockoptInt(int(s.fd), unix.SOL_NETLINK, unix.NETLINK_EXT_ACK, 1)
 }
 
 func (s *NetlinkSocket) GetPid() (uint32, error) {
