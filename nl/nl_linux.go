@@ -798,13 +798,7 @@ func (s *NetlinkSocket) SetExtAck(enable bool) error {
 		enableN = 1
 	}
 
-	var err error
-	if err = unix.SetsockoptInt(int(s.fd), unix.SOL_NETLINK, unix.NETLINK_EXT_ACK, enableN); err == unix.ENOPROTOOPT && !enable {
-		// older kernels may not support NETLINK_EXT_ACK
-		return nil
-	}
-
-	return err
+	return unix.SetsockoptInt(int(s.fd), unix.SOL_NETLINK, unix.NETLINK_EXT_ACK, enableN)
 }
 
 func (s *NetlinkSocket) GetPid() (uint32, error) {
