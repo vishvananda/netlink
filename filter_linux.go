@@ -340,6 +340,12 @@ func (h *Handle) filterModify(filter Filter, flags int) error {
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
 
+	if base.ChainId != 0 {
+		chainBuf := make([]byte, 4)
+		nl.NativeEndian().PutUint32(chainBuf, base.ChainId)
+		req.AddData(nl.NewRtAttr(nl.TCA_CHAIN, chainBuf))
+	}
+
 	switch filter := filter.(type) {
 	case *U32:
 		sel := filter.Sel
