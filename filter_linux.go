@@ -64,8 +64,9 @@ type Flower struct {
 	EncSrcIPMask  net.IPMask
 	EncDestPort   uint16
 	EncKeyId      uint32
-
-	Actions []Action
+	ClassID       uint32
+	Flags         uint32
+	Actions       []Action
 }
 
 func (filter *Flower) Attrs() *FilterAttrs {
@@ -129,7 +130,12 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 	if filter.EncKeyId != 0 {
 		parent.AddRtAttr(nl.TCA_FLOWER_KEY_ENC_KEY_ID, htonl(filter.EncKeyId))
 	}
-
+	if filter.ClassID != 0 {
+		parent.AddRtAttr(nl.TCA_FLOWER_CLASSID, nl.Uint32Attr(filter.ClassID))
+	}
+	if filter.Flags != 0 {
+		parent.AddRtAttr(nl.TCA_FLOWER_FLAGS, nl.Uint32Attr(filter.Flags))
+	}
 	actionsAttr := parent.AddRtAttr(nl.TCA_FLOWER_ACT, nil)
 	if err := EncodeActions(actionsAttr, filter.Actions); err != nil {
 		return err
@@ -171,6 +177,10 @@ func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
 			if err != nil {
 				return err
 			}
+		case nl.TCA_FLOWER_CLASSID:
+			filter.ClassID = native.Uint32(datum.Value)
+		case nl.TCA_FLOWER_FLAGS:
+			filter.Flags = native.Uint32(datum.Value)
 		}
 	}
 	return nil

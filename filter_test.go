@@ -1788,6 +1788,8 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		EncSrcIPMask:  testMask,
 		EncDestPort:   8472,
 		EncKeyId:      1234,
+		ClassID:       12,
+		Flags:         nl.TCA_CLS_FLAGS_SKIP_HW,
 		Actions: []Action{
 			&MirredAction{
 				ActionAttrs: ActionAttrs{
@@ -1849,6 +1851,12 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	}
 	if filter.EncDestPort != flower.EncDestPort {
 		t.Fatalf("Flower EncDestPort doesn't match")
+	}
+	if filter.ClassID != flower.ClassID {
+		t.Fatalf("Flower ClassID doesn't match")
+	}
+	if filter.Flags|nl.TCA_CLS_FLAGS_NOT_IN_HW != flower.Flags {
+		t.Fatalf("Flower Flags doesn't match")
 	}
 
 	mia, ok := flower.Actions[0].(*MirredAction)
