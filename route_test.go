@@ -1152,6 +1152,66 @@ func TestMPLSRouteAddDel(t *testing.T) {
 
 }
 
+func TestIP6tnlRouteAddDel(t *testing.T) {
+	_, err := RouteList(nil, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// get loopback interface
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bring the interface up
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	_, dst, err := net.ParseCIDR("192.168.99.0/24")
+	if err != nil {
+		t.Fatalf("cannot parse destination prefix: %v", err)
+	}
+
+	encap := IP6tnlEncap{
+		Dst: net.ParseIP("2001:db8::"),
+		Src: net.ParseIP("::"),
+	}
+
+	route := &Route{
+		LinkIndex: link.Attrs().Index,
+		Dst:       dst,
+		Encap:     &encap,
+	}
+
+	if err := RouteAdd(route); err != nil {
+		t.Fatalf("Cannot add route: %v", err)
+	}
+	routes, err := RouteList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatal("Route not added properly")
+	}
+
+	if err := RouteDel(route); err != nil {
+		t.Fatal(err)
+	}
+	routes, err = RouteList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 0 {
+		t.Fatal("Route not removed properly")
+	}
+
+}
+
 func TestRouteEqual(t *testing.T) {
 	mplsDst := 100
 	seg6encap := &SEG6Encap{Mode: nl.SEG6_IPTUN_MODE_ENCAP}
