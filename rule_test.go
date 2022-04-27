@@ -34,6 +34,7 @@ func TestRuleAddDel(t *testing.T) {
 	rule.Dport = NewRulePortRange(80, 80)
 	rule.Sport = NewRulePortRange(1000, 1024)
 	rule.IPProto = unix.IPPROTO_UDP
+	rule.UIDRange = NewRuleUIDRange(100, 100)
 	if err := RuleAdd(rule); err != nil {
 		t.Fatal(err)
 	}
