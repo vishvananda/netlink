@@ -390,3 +390,27 @@ func (filter *GenericFilter) Attrs() *FilterAttrs {
 func (filter *GenericFilter) Type() string {
 	return filter.FilterType
 }
+
+type SkbModAction struct {
+	ActionAttrs
+	Flags   uint64
+	EthType *uint16
+	EthDst  *net.HardwareAddr
+	EthSrc  *net.HardwareAddr
+}
+
+func (action *SkbModAction) Type() string {
+	return "skbmod"
+}
+
+func (action *SkbModAction) Attrs() *ActionAttrs {
+	return &action.ActionAttrs
+}
+
+func NewSkbModAction() *SkbModAction {
+	return &SkbModAction{
+		ActionAttrs: ActionAttrs{
+			Action: TC_ACT_PIPE,
+		},
+	}
+}
