@@ -28,6 +28,11 @@ const (
 	XFRM_STATE_ESN        = 128
 )
 
+const (
+	XFRM_SA_XFLAG_DONT_ENCAP_DSCP = 1
+	XFRM_SA_XFLAG_OSEQ_MAY_WRAP   = 2
+)
+
 // struct xfrm_usersa_id {
 //   xfrm_address_t      daddr;
 //   __be32        spi;
@@ -103,6 +108,7 @@ func (msg *XfrmStats) Serialize() []byte {
 // };
 //
 // #define XFRM_SA_XFLAG_DONT_ENCAP_DSCP 1
+// #define XFRM_SA_XFLAG_OSEQ_MAY_WRAP   2
 //
 
 type XfrmUsersaInfo struct {
