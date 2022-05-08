@@ -77,6 +77,14 @@ func writeReplayEsn(replayWindow int) []byte {
 	return replayEsn.Serialize()
 }
 
+func writeReplay(r *XfrmReplayState) []byte {
+	return (&nl.XfrmReplayState{
+		OSeq:   r.OSeq,
+		Seq:    r.Seq,
+		BitMap: r.BitMap,
+	}).Serialize()
+}
+
 // XfrmStateAdd will add an xfrm state to the system.
 // Equivalent to: `ip xfrm state add $state`
 func XfrmStateAdd(state *XfrmState) error {
@@ -175,6 +183,10 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 			flags |= nl.XFRM_SA_XFLAG_OSEQ_MAY_WRAP
 		}
 		out := nl.NewRtAttr(nl.XFRMA_SA_EXTRA_FLAGS, nl.Uint32Attr(flags))
+		req.AddData(out)
+	}
+	if state.Replay != nil {
+		out := nl.NewRtAttr(nl.XFRMA_REPLAY_VAL, writeReplay(state.Replay))
 		req.AddData(out)
 	}
 
@@ -419,6 +431,14 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 			}
 		case nl.XFRMA_IF_ID:
 			state.Ifid = int(native.Uint32(attr.Value))
+		case nl.XFRMA_REPLAY_VAL:
+			if state.Replay == nil {
+				state.Replay = new(XfrmReplayState)
+			}
+			replay := nl.DeserializeXfrmReplayState(attr.Value[:])
+			state.Replay.OSeq = replay.OSeq
+			state.Replay.Seq = replay.Seq
+			state.Replay.BitMap = replay.BitMap
 		}
 	}
 
