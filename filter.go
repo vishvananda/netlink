@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/vishvananda/netlink/nl"
+	"golang.org/x/sys/unix"
 	"net"
 	"unsafe"
 )
@@ -259,6 +260,28 @@ func NewTunnelKeyAction() *TunnelKeyAction {
 	}
 }
 
+type CsumAction struct {
+	ActionAttrs
+	UpdateFlag uint32
+}
+
+func (action *CsumAction) Type() string {
+	return "csum"
+}
+
+func (action *CsumAction) Attrs() *ActionAttrs {
+	return &action.ActionAttrs
+}
+
+func NewCsumAction(action TcAct, flag uint32) *CsumAction {
+	return &CsumAction{
+		ActionAttrs: ActionAttrs{
+			Action: action,
+		},
+		UpdateFlag: flag,
+	}
+}
+
 type SkbEditAction struct {
 	ActionAttrs
 	QueueMapping *uint16
@@ -391,6 +414,52 @@ func (p *PeditAction) SetEthSrc(mac net.HardwareAddr) {
 	p.Keys = append(p.Keys, tKey)
 	p.KeysEx = append(p.KeysEx, tKeyEx)
 
+	p.Sel.NKeys++
+}
+
+// SetDstPort only tcp and udp are supported to set port
+func (p *PeditAction) SetDstPort(dstPort uint16, protocol int) {
+	tKey := nl.TcPeditKey{}
+	tKeyEx := nl.TcPeditKeyEx{}
+
+	switch protocol {
+	case unix.IPPROTO_TCP:
+		tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_TCP
+	case unix.IPPROTO_UDP:
+		tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_UDP
+	default:
+		return
+	}
+
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	tKey.Val = uint32(dstPort)
+	tKey.Mask = 0xffff0000
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+	p.Sel.NKeys++
+}
+
+// SetSrcPort only tcp and udp are supported to set port
+func (p *PeditAction) SetSrcPort(srcPort uint16, protocol int) {
+	tKey := nl.TcPeditKey{}
+	tKeyEx := nl.TcPeditKeyEx{}
+
+	switch protocol {
+	case unix.IPPROTO_TCP:
+		tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_TCP
+	case unix.IPPROTO_UDP:
+		tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_UDP
+	default:
+		return
+	}
+
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	tKey.Val = uint32(srcPort) << 16
+	tKey.Mask = 0x0000ffff
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
 	p.Sel.NKeys++
 }
 
