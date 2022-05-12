@@ -460,7 +460,7 @@ func (p *PeditAction) SetIPv6Src(ip6 net.IP) {
 
 	p.Sel.NKeys++
 
-	u32 = nl.NativeEndian().Uint32(ip6[8:12])
+	u32 = nl.NativeEndian().Uint32(ip6[12:16])
 	tKey = nl.TcPeditKey{}
 	tKeyEx = nl.TcPeditKeyEx{}
 
@@ -518,7 +518,7 @@ func (p *PeditAction) SetIPv6Dst(ip6 net.IP) {
 
 	p.Sel.NKeys++
 
-	u32 = nl.NativeEndian().Uint32(ip6[8:12])
+	u32 = nl.NativeEndian().Uint32(ip6[12:16])
 	tKey = nl.TcPeditKey{}
 	tKeyEx = nl.TcPeditKeyEx{}
 
