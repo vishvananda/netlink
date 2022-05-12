@@ -417,8 +417,124 @@ func (p *PeditAction) SetEthSrc(mac net.HardwareAddr) {
 	p.Sel.NKeys++
 }
 
+func (p *PeditAction) SetIPv6Src(ip6 net.IP) {
+	u32 := nl.NativeEndian().Uint32(ip6[:4])
+
+	tKey := nl.TcPeditKey{}
+	tKeyEx := nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 8
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[4:8])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 12
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[8:12])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 16
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[8:12])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 20
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+}
+
+func (p *PeditAction) SetIPv6Dst(ip6 net.IP) {
+	u32 := nl.NativeEndian().Uint32(ip6[:4])
+
+	tKey := nl.TcPeditKey{}
+	tKeyEx := nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 24
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[4:8])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 28
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[8:12])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 32
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[8:12])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 36
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+}
+
 // SetDstPort only tcp and udp are supported to set port
-func (p *PeditAction) SetDstPort(dstPort uint16, protocol int) {
+func (p *PeditAction) SetDstPort(dstPort uint16, protocol uint8) {
 	tKey := nl.TcPeditKey{}
 	tKeyEx := nl.TcPeditKeyEx{}
 
