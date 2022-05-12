@@ -557,7 +557,7 @@ func (p *PeditAction) SetDstPort(dstPort uint16, protocol uint8) {
 }
 
 // SetSrcPort only tcp and udp are supported to set port
-func (p *PeditAction) SetSrcPort(srcPort uint16, protocol int) {
+func (p *PeditAction) SetSrcPort(srcPort uint16, protocol uint8) {
 	tKey := nl.TcPeditKey{}
 	tKeyEx := nl.TcPeditKeyEx{}
 
