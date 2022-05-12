@@ -549,8 +549,8 @@ func (p *PeditAction) SetDstPort(dstPort uint16, protocol uint8) {
 
 	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
 
-	tKey.Val = uint32(dstPort)
-	tKey.Mask = 0xffff0000
+	tKey.Val = uint32(nl.Swap16(dstPort)) << 16
+	tKey.Mask = 0x0000ffff
 	p.Keys = append(p.Keys, tKey)
 	p.KeysEx = append(p.KeysEx, tKeyEx)
 	p.Sel.NKeys++
@@ -572,8 +572,8 @@ func (p *PeditAction) SetSrcPort(srcPort uint16, protocol uint8) {
 
 	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
 
-	tKey.Val = uint32(srcPort) << 16
-	tKey.Mask = 0x0000ffff
+	tKey.Val = uint32(nl.Swap16(srcPort))
+	tKey.Mask = 0xffff0000
 	p.Keys = append(p.Keys, tKey)
 	p.KeysEx = append(p.KeysEx, tKeyEx)
 	p.Sel.NKeys++
