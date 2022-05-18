@@ -172,6 +172,45 @@ func SocketGet(local, remote net.Addr) (*Socket, error) {
 	return sock, nil
 }
 
+// SocketDestroy kills the Socket identified by its local and remote addresses.
+func SocketDestroy(local, remote net.Addr) error {
+	localTCP, ok := local.(*net.TCPAddr)
+	if !ok {
+		return ErrNotImplemented
+	}
+	remoteTCP, ok := remote.(*net.TCPAddr)
+	if !ok {
+		return ErrNotImplemented
+	}
+	localIP := localTCP.IP.To4()
+	if localIP == nil {
+		return ErrNotImplemented
+	}
+	remoteIP := remoteTCP.IP.To4()
+	if remoteIP == nil {
+		return ErrNotImplemented
+	}
+
+	s, err := nl.Subscribe(unix.NETLINK_INET_DIAG)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	req := nl.NewNetlinkRequest(nl.SOCK_DESTROY, unix.NLM_F_ACK)
+	req.AddData(&socketRequest{
+		Family:   unix.AF_INET,
+		Protocol: unix.IPPROTO_TCP,
+		ID: SocketID{
+			SourcePort:      uint16(localTCP.Port),
+			DestinationPort: uint16(remoteTCP.Port),
+			Source:          localIP,
+			Destination:     remoteIP,
+			Cookie:          [2]uint32{nl.TCPDIAG_NOCOOKIE, nl.TCPDIAG_NOCOOKIE},
+		},
+	})
+	return s.Send(req)
+}
+
 // SocketDiagTCPInfo requests INET_DIAG_INFO for TCP protocol for specified family type and return with extension TCP info.
 func SocketDiagTCPInfo(family uint8) ([]*InetDiagTCPInfoResp, error) {
 	var result []*InetDiagTCPInfoResp

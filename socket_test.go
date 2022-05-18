@@ -58,6 +58,33 @@ func TestSocketGet(t *testing.T) {
 	}
 }
 
+func TestSocketDestroy(t *testing.T) {
+	defer setUpNetlinkTestWithLoopback(t)()
+
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		log.Fatal(err)
+	}
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer l.Close()
+
+	conn, err := net.Dial(l.Addr().Network(), l.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.TCPAddr)
+	remoteAddr := conn.RemoteAddr().(*net.TCPAddr)
+	err = SocketDestroy(localAddr, remoteAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSocketDiagTCPInfo(t *testing.T) {
 	Family4 := uint8(syscall.AF_INET)
 	Family6 := uint8(syscall.AF_INET6)
