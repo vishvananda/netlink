@@ -135,6 +135,9 @@ type Flower struct {
 	EncKeyId      uint32
 	Tos           *uint8
 	TosMask       *uint8
+	IpProto       uint8
+	DstPort       uint16
+	SrcPort       uint16
 
 	Actions []Action
 }
@@ -226,6 +229,27 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 		parent.AddRtAttr(nl.TCA_FLOWER_KEY_IP_TOS_MASK, []byte{*filter.TosMask})
 	}
 
+	if filter.IpProto != 0 {
+		parent.AddRtAttr(nl.TCA_FLOWER_KEY_IP_PROTO, nl.Uint8Attr(filter.IpProto))
+		if filter.IpProto == unix.IPPROTO_TCP {
+			if filter.SrcPort != 0 {
+				parent.AddRtAttr(nl.TCA_FLOWER_KEY_TCP_SRC, htons(filter.SrcPort))
+			}
+			if filter.DstPort != 0 {
+				parent.AddRtAttr(nl.TCA_FLOWER_KEY_TCP_DST, htons(filter.DstPort))
+			}
+		}
+
+		if filter.IpProto == unix.IPPROTO_UDP {
+			if filter.SrcPort != 0 {
+				parent.AddRtAttr(nl.TCA_FLOWER_KEY_UDP_SRC, htons(filter.SrcPort))
+			}
+			if filter.DstPort != 0 {
+				parent.AddRtAttr(nl.TCA_FLOWER_KEY_UDP_DST, htons(filter.DstPort))
+			}
+		}
+	}
+
 	actionsAttr := parent.AddRtAttr(nl.TCA_FLOWER_ACT, nil)
 	if err := EncodeActions(actionsAttr, filter.Actions); err != nil {
 		return err
@@ -262,6 +286,16 @@ func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
 			filter.Tos = &datum.Value[0]
 		case nl.TCA_FLOWER_KEY_IP_TOS_MASK:
 			filter.TosMask = &datum.Value[0]
+		case nl.TCA_FLOWER_KEY_IP_PROTO:
+			filter.IpProto = datum.Value[0]
+		case nl.TCA_FLOWER_KEY_TCP_SRC:
+			filter.SrcPort = ntohs(datum.Value)
+		case nl.TCA_FLOWER_KEY_TCP_DST:
+			filter.DstPort = ntohs(datum.Value)
+		case nl.TCA_FLOWER_KEY_UDP_SRC:
+			filter.SrcPort = ntohs(datum.Value)
+		case nl.TCA_FLOWER_KEY_UDP_DST:
+			filter.DstPort = ntohs(datum.Value)
 		case nl.TCA_FLOWER_ACT:
 			tables, err := nl.ParseRouteAttr(datum.Value)
 			if err != nil {
@@ -295,7 +329,9 @@ func (h *Handle) FilterDel(filter Filter) error {
 		Info:    MakeHandle(base.Priority, nl.Swap16(base.Protocol)),
 	}
 	req.AddData(msg)
-
+	if base.ChainId != 0 {
+		req.AddData(nl.NewRtAttr(nl.TCA_CHAIN, nl.Uint32Attr(base.ChainId)))
+	}
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	return err
 }
@@ -339,6 +375,10 @@ func (h *Handle) filterModify(filter Filter, flags int) error {
 	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(filter.Type())))
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
+
+	if base.ChainId != 0 {
+		req.AddData(nl.NewRtAttr(nl.TCA_CHAIN, nl.Uint32Attr(base.ChainId)))
+	}
 
 	switch filter := filter.(type) {
 	case *U32:
@@ -551,6 +591,12 @@ func (h *Handle) FilterList(link Link, parent uint32) ([]Filter, error) {
 				default:
 					detailed = true
 				}
+			case nl.TCA_CHAIN:
+				// uint32 byte length should be 4
+				if len(attr.Value) < 4 {
+					return nil, unix.EINVAL
+				}
+				base.ChainId = nl.NativeEndian().Uint32(attr.Value)
 			}
 		}
 		// only return the detailed version of the filter
@@ -597,6 +643,16 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			}
 			toTcGen(action.Attrs(), &mirred.TcGen)
 			aopts.AddRtAttr(nl.TCA_MIRRED_PARMS, mirred.Serialize())
+		case *CsumAction:
+			table := attr.AddRtAttr(tabIndex, nil)
+			tabIndex++
+			table.AddRtAttr(nl.TCA_ACT_KIND, nl.ZeroTerminated("csum"))
+			aopts := table.AddRtAttr(nl.TCA_ACT_OPTIONS, nil)
+			csum := nl.TcCsum{
+				UpdateFlag: action.UpdateFlag,
+			}
+			toTcGen(action.Attrs(), &csum.TcGen)
+			aopts.AddRtAttr(nl.TCA_CSUM_PARMS, csum.Serialize())
 		case *TunnelKeyAction:
 			table := attr.AddRtAttr(tabIndex, nil)
 			tabIndex++

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/vishvananda/netlink/nl"
+	"golang.org/x/sys/unix"
 	"net"
 	"unsafe"
 )
@@ -22,26 +23,45 @@ type FilterAttrs struct {
 	Parent    uint32
 	Priority  uint16 // lower is higher priority
 	Protocol  uint16 // unix.ETH_P_*
+	ChainId   uint32
 }
 
 func (q FilterAttrs) String() string {
-	return fmt.Sprintf("{LinkIndex: %d, Handle: %s, Parent: %s, Priority: %d, Protocol: %d}", q.LinkIndex, HandleStr(q.Handle), HandleStr(q.Parent), q.Priority, q.Protocol)
+	return fmt.Sprintf("{LinkIndex: %d, Handle: %s, Parent: %s, Priority: %d, Protocol: %d, Chain: %d}",
+		q.LinkIndex, HandleStr(q.Handle), HandleStr(q.Parent), q.Priority, q.Protocol, q.ChainId)
 }
+
+const (
+	TC_ACT_EXT_SHIFT    = 28
+	TC_ACT_EXT_VAL_MASK = (1 << TC_ACT_EXT_SHIFT) - 1
+)
 
 type TcAct int32
 
 const (
-	TC_ACT_UNSPEC     TcAct = -1
-	TC_ACT_OK         TcAct = 0
-	TC_ACT_RECLASSIFY TcAct = 1
-	TC_ACT_SHOT       TcAct = 2
-	TC_ACT_PIPE       TcAct = 3
-	TC_ACT_STOLEN     TcAct = 4
-	TC_ACT_QUEUED     TcAct = 5
-	TC_ACT_REPEAT     TcAct = 6
-	TC_ACT_REDIRECT   TcAct = 7
-	TC_ACT_JUMP       TcAct = 0x10000000
+	TC_ACT_UNSPEC         TcAct = -1
+	TC_ACT_OK             TcAct = 0
+	TC_ACT_RECLASSIFY     TcAct = 1
+	TC_ACT_SHOT           TcAct = 2
+	TC_ACT_PIPE           TcAct = 3
+	TC_ACT_STOLEN         TcAct = 4
+	TC_ACT_QUEUED         TcAct = 5
+	TC_ACT_REPEAT         TcAct = 6
+	TC_ACT_REDIRECT       TcAct = 7
+	TC_ACT_TRAP           TcAct = 8
+	TC_ACT_VALUE_MAX      TcAct = TC_ACT_TRAP
+	TC_ACT_JUMP           TcAct = 1 << TC_ACT_EXT_SHIFT
+	TC_ACT_GOTO_CHAIN     TcAct = 2 << TC_ACT_EXT_SHIFT
+	TC_ACT_EXT_OPCODE_MAX       = TC_ACT_GOTO_CHAIN
 )
+
+func tcActExtOpcode(combined TcAct) TcAct {
+	return combined & (^TC_ACT_EXT_VAL_MASK)
+}
+
+func tcActExtCmp(combined, opcode TcAct) bool {
+	return tcActExtOpcode(combined) == opcode
+}
 
 func (a TcAct) String() string {
 	switch a {
@@ -63,8 +83,14 @@ func (a TcAct) String() string {
 		return "repeat"
 	case TC_ACT_REDIRECT:
 		return "redirect"
-	case TC_ACT_JUMP:
+	case TC_ACT_TRAP:
+		return "trap"
+	}
+	if tcActExtCmp(a, TC_ACT_JUMP) {
 		return "jump"
+	}
+	if tcActExtCmp(a, TC_ACT_GOTO_CHAIN) {
+		return "goto"
 	}
 	return fmt.Sprintf("0x%x", int32(a))
 }
@@ -258,6 +284,28 @@ func NewTunnelKeyAction() *TunnelKeyAction {
 	}
 }
 
+type CsumAction struct {
+	ActionAttrs
+	UpdateFlag uint32
+}
+
+func (action *CsumAction) Type() string {
+	return "csum"
+}
+
+func (action *CsumAction) Attrs() *ActionAttrs {
+	return &action.ActionAttrs
+}
+
+func NewCsumAction(action TcAct, flag uint32) *CsumAction {
+	return &CsumAction{
+		ActionAttrs: ActionAttrs{
+			Action: action,
+		},
+		UpdateFlag: flag,
+	}
+}
+
 type SkbEditAction struct {
 	ActionAttrs
 	QueueMapping *uint16
@@ -390,6 +438,168 @@ func (p *PeditAction) SetEthSrc(mac net.HardwareAddr) {
 	p.Keys = append(p.Keys, tKey)
 	p.KeysEx = append(p.KeysEx, tKeyEx)
 
+	p.Sel.NKeys++
+}
+
+func (p *PeditAction) SetIPv6Src(ip6 net.IP) {
+	u32 := nl.NativeEndian().Uint32(ip6[:4])
+
+	tKey := nl.TcPeditKey{}
+	tKeyEx := nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 8
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[4:8])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 12
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[8:12])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 16
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[12:16])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 20
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+}
+
+func (p *PeditAction) SetIPv6Dst(ip6 net.IP) {
+	u32 := nl.NativeEndian().Uint32(ip6[:4])
+
+	tKey := nl.TcPeditKey{}
+	tKeyEx := nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 24
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[4:8])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 28
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[8:12])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 32
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+
+	u32 = nl.NativeEndian().Uint32(ip6[12:16])
+	tKey = nl.TcPeditKey{}
+	tKeyEx = nl.TcPeditKeyEx{}
+
+	tKey.Val = u32
+	tKey.Off = 36
+	tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+
+	p.Sel.NKeys++
+}
+
+// SetDstPort only tcp and udp are supported to set port
+func (p *PeditAction) SetDstPort(dstPort uint16, protocol uint8) {
+	tKey := nl.TcPeditKey{}
+	tKeyEx := nl.TcPeditKeyEx{}
+
+	switch protocol {
+	case unix.IPPROTO_TCP:
+		tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_TCP
+	case unix.IPPROTO_UDP:
+		tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_UDP
+	default:
+		return
+	}
+
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	tKey.Val = uint32(nl.Swap16(dstPort)) << 16
+	tKey.Mask = 0x0000ffff
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
+	p.Sel.NKeys++
+}
+
+// SetSrcPort only tcp and udp are supported to set port
+func (p *PeditAction) SetSrcPort(srcPort uint16, protocol uint8) {
+	tKey := nl.TcPeditKey{}
+	tKeyEx := nl.TcPeditKeyEx{}
+
+	switch protocol {
+	case unix.IPPROTO_TCP:
+		tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_TCP
+	case unix.IPPROTO_UDP:
+		tKeyEx.HeaderType = nl.TCA_PEDIT_KEY_EX_HDR_TYPE_UDP
+	default:
+		return
+	}
+
+	tKeyEx.Cmd = nl.TCA_PEDIT_KEY_EX_CMD_SET
+
+	tKey.Val = uint32(nl.Swap16(srcPort))
+	tKey.Mask = 0xffff0000
+	p.Keys = append(p.Keys, tKey)
+	p.KeysEx = append(p.KeysEx, tKeyEx)
 	p.Sel.NKeys++
 }
 

@@ -42,7 +42,14 @@ const (
 	TCA_FCNT
 	TCA_STATS2
 	TCA_STAB
-	TCA_MAX = TCA_STAB
+	TCA_PAD
+	TCA_DUMP_INVISIBLE
+	TCA_CHAIN
+	TCA_HW_OFFLOAD
+	TCA_INGRESS_BLOCK
+	TCA_EGRESS_BLOCK
+	TCA_DUMP_FLAGS
+	TCA_MAX = TCA_DUMP_FLAGS
 )
 
 const (
@@ -94,6 +101,7 @@ const (
 	SizeofTcTunnelKey    = SizeofTcGen + 0x04
 	SizeofTcSkbEdit      = SizeofTcGen
 	SizeofTcPolice       = 2*SizeofTcRateSpec + 0x20
+	SizeofTcCsum         = SizeofTcGen + 0x04
 )
 
 // struct tcmsg {
@@ -693,6 +701,40 @@ const (
 //   tc_gen;
 //   __u16 zone;
 // };
+const (
+	TCA_CSUM_UNSPEC = iota
+	TCA_CSUM_PARMS
+	TCA_CSUM_TM
+	TCA_CSUM_PAD
+	TCA_CSUM_MAX = TCA_CSUM_PAD
+)
+
+const (
+	TCA_CSUM_UPDATE_FLAG_IPV4HDR = 1
+	TCA_CSUM_UPDATE_FLAG_ICMP    = 2
+	TCA_CSUM_UPDATE_FLAG_IGMP    = 4
+	TCA_CSUM_UPDATE_FLAG_TCP     = 8
+	TCA_CSUM_UPDATE_FLAG_UDP     = 16
+	TCA_CSUM_UPDATE_FLAG_UDPLITE = 32
+	TCA_CSUM_UPDATE_FLAG_SCTP    = 64
+)
+
+type TcCsum struct {
+	TcGen
+	UpdateFlag uint32
+}
+
+func (c *TcCsum) Len() int {
+	return SizeofTcCsum
+}
+
+func (c *TcCsum) Serialize() []byte {
+	return (*(*[SizeofTcCsum]byte)(unsafe.Pointer(c)))[:]
+}
+
+func DeserializeTcCsum(b []byte) *TcCsum {
+	return (*TcCsum)(unsafe.Pointer(&b[0:SizeofTcCsum][0]))
+}
 
 type TcConnmark struct {
 	TcGen
