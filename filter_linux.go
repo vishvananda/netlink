@@ -591,6 +591,12 @@ func (h *Handle) FilterList(link Link, parent uint32) ([]Filter, error) {
 				default:
 					detailed = true
 				}
+			case nl.TCA_CHAIN:
+				// uint32 byte length should be 4
+				if len(attr.Value) < 4 {
+					return nil, unix.EINVAL
+				}
+				base.ChainId = nl.NativeEndian().Uint32(attr.Value)
 			}
 		}
 		// only return the detailed version of the filter

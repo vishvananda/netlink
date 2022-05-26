@@ -27,23 +27,41 @@ type FilterAttrs struct {
 }
 
 func (q FilterAttrs) String() string {
-	return fmt.Sprintf("{LinkIndex: %d, Handle: %s, Parent: %s, Priority: %d, Protocol: %d}", q.LinkIndex, HandleStr(q.Handle), HandleStr(q.Parent), q.Priority, q.Protocol)
+	return fmt.Sprintf("{LinkIndex: %d, Handle: %s, Parent: %s, Priority: %d, Protocol: %d, Chain: %d}",
+		q.LinkIndex, HandleStr(q.Handle), HandleStr(q.Parent), q.Priority, q.Protocol, q.ChainId)
 }
+
+const (
+	TC_ACT_EXT_SHIFT    = 28
+	TC_ACT_EXT_VAL_MASK = (1 << TC_ACT_EXT_SHIFT) - 1
+)
 
 type TcAct int32
 
 const (
-	TC_ACT_UNSPEC     TcAct = -1
-	TC_ACT_OK         TcAct = 0
-	TC_ACT_RECLASSIFY TcAct = 1
-	TC_ACT_SHOT       TcAct = 2
-	TC_ACT_PIPE       TcAct = 3
-	TC_ACT_STOLEN     TcAct = 4
-	TC_ACT_QUEUED     TcAct = 5
-	TC_ACT_REPEAT     TcAct = 6
-	TC_ACT_REDIRECT   TcAct = 7
-	TC_ACT_JUMP       TcAct = 0x10000000
+	TC_ACT_UNSPEC         TcAct = -1
+	TC_ACT_OK             TcAct = 0
+	TC_ACT_RECLASSIFY     TcAct = 1
+	TC_ACT_SHOT           TcAct = 2
+	TC_ACT_PIPE           TcAct = 3
+	TC_ACT_STOLEN         TcAct = 4
+	TC_ACT_QUEUED         TcAct = 5
+	TC_ACT_REPEAT         TcAct = 6
+	TC_ACT_REDIRECT       TcAct = 7
+	TC_ACT_TRAP           TcAct = 8
+	TC_ACT_VALUE_MAX      TcAct = TC_ACT_TRAP
+	TC_ACT_JUMP           TcAct = 1 << TC_ACT_EXT_SHIFT
+	TC_ACT_GOTO_CHAIN     TcAct = 2 << TC_ACT_EXT_SHIFT
+	TC_ACT_EXT_OPCODE_MAX       = TC_ACT_GOTO_CHAIN
 )
+
+func tcActExtOpcode(combined TcAct) TcAct {
+	return combined & (^TC_ACT_EXT_VAL_MASK)
+}
+
+func tcActExtCmp(combined, opcode TcAct) bool {
+	return tcActExtOpcode(combined) == opcode
+}
 
 func (a TcAct) String() string {
 	switch a {
@@ -65,8 +83,14 @@ func (a TcAct) String() string {
 		return "repeat"
 	case TC_ACT_REDIRECT:
 		return "redirect"
-	case TC_ACT_JUMP:
+	case TC_ACT_TRAP:
+		return "trap"
+	}
+	if tcActExtCmp(a, TC_ACT_JUMP) {
 		return "jump"
+	}
+	if tcActExtCmp(a, TC_ACT_GOTO_CHAIN) {
+		return "goto"
 	}
 	return fmt.Sprintf("0x%x", int32(a))
 }
