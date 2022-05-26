@@ -4,6 +4,8 @@ package netlink
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -43,6 +45,43 @@ func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
 	}
 }
 
+// setUpNamedNetlinkTest create a temporary named names space with a random name
+func setUpNamedNetlinkTest(t *testing.T) (string, tearDownNetlinkTest) {
+	skipUnlessRoot(t)
+
+	origNS, err := netns.Get()
+	if err != nil {
+		t.Fatal("Failed saving orig namespace")
+	}
+
+	// create a random name
+	rnd := make([]byte, 4)
+	if _, err := rand.Read(rnd); err != nil {
+		t.Fatal("failed creating random ns name")
+	}
+	name := "netlinktest-" + hex.EncodeToString(rnd)
+
+	ns, err := netns.NewNamed(name)
+	if err != nil {
+		t.Fatal("Failed to create new ns", err)
+	}
+
+	runtime.LockOSThread()
+	cleanup := func() {
+		ns.Close()
+		netns.DeleteNamed(name)
+		netns.Set(origNS)
+		runtime.UnlockOSThread()
+	}
+
+	if err := netns.Set(ns); err != nil {
+		cleanup()
+		t.Fatal("Failed entering new namespace", err)
+	}
+
+	return name, cleanup
+}
+
 func setUpNetlinkTestWithLoopback(t *testing.T) tearDownNetlinkTest {
 	skipUnlessRoot(t)
 
@@ -68,10 +107,10 @@ func setUpNetlinkTestWithLoopback(t *testing.T) tearDownNetlinkTest {
 
 func setUpF(t *testing.T, path, value string) {
 	file, err := os.Create(path)
-	defer file.Close()
 	if err != nil {
 		t.Fatalf("Failed to open %s: %s", path, err)
 	}
+	defer file.Close()
 	file.WriteString(value)
 }
 

@@ -33,7 +33,7 @@ func TestNetNsIdByFd(t *testing.T) {
 	CheckErrorFail(t, err)
 
 	// Get the ID back, make sure it matches
-	haveID, err := h.GetNetNsIdByFd(int(ns))
+	haveID, _ := h.GetNetNsIdByFd(int(ns))
 	if haveID != wantID {
 		t.Errorf("GetNetNsIdByFd returned %d, want %d", haveID, wantID)
 	}
@@ -72,7 +72,7 @@ func TestNetNsIdByPid(t *testing.T) {
 	CheckErrorFail(t, err)
 
 	//Get the ID and see if it worked
-	haveID, err := h.GetNetNsIdByPid(syscall.Gettid())
+	haveID, _ := h.GetNetNsIdByPid(syscall.Gettid())
 	if haveID != wantID {
 		t.Errorf("GetNetNsIdByPid returned %d, want %d", haveID, wantID)
 	}

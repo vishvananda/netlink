@@ -97,6 +97,8 @@ func TestClassAddDel(t *testing.T) {
 	htbclassattrs := HtbClassAttrs{
 		Rate:    1234000,
 		Cbuffer: 1690,
+		Prio:    2,
+		Quantum: 1000,
 	}
 	class := NewHtbClass(classattrs, htbclassattrs)
 	if err := ClassAdd(class); err != nil {
@@ -125,6 +127,12 @@ func TestClassAddDel(t *testing.T) {
 	}
 	if htb.Cbuffer != class.Cbuffer {
 		t.Fatal("Cbuffer doesn't match")
+	}
+	if htb.Prio != class.Prio {
+		t.Fatal("Prio doesn't match")
+	}
+	if htb.Quantum != class.Quantum {
+		t.Fatal("Quantum doesn't match")
 	}
 
 	testClassStats(htb.ClassAttrs.Statistics, NewClassStatistics(), t)
@@ -260,7 +268,8 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 	}
 
 	htbclassattrs := HtbClassAttrs{
-		Rate:    1234000,
+		Rate:    uint64(1<<32) + 10,
+		Ceil:    uint64(1<<32) + 20,
 		Cbuffer: 1690,
 	}
 	class := NewHtbClass(classattrs, htbclassattrs)
@@ -608,7 +617,7 @@ func TestClassHfsc(t *testing.T) {
 	}
 
 	// Check the amount of qdiscs
-	qdiscs, err = SafeQdiscList(link)
+	qdiscs, _ = SafeQdiscList(link)
 	if len(qdiscs) != 3 {
 		t.Fatal("Failed to add qdisc")
 	}
@@ -632,7 +641,7 @@ func TestClassHfsc(t *testing.T) {
 		t.Fatal("Failed to delete classes")
 	}
 	// Check qdisc
-	qdiscs, err = SafeQdiscList(link)
+	qdiscs, _ = SafeQdiscList(link)
 	if len(qdiscs) != 2 {
 		t.Fatal("Failed to delete qdisc")
 	}

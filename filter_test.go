@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -7,6 +8,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 )
 
@@ -427,6 +429,12 @@ func TestFilterFwAddDel(t *testing.T) {
 		t.Fatal("Failed to add class")
 	}
 
+	police := NewPoliceAction()
+	police.Burst = 12345
+	police.Rate = 1234
+	police.PeakRate = 2345
+	police.Action = TcAct(TC_POLICE_SHOT)
+
 	filterattrs := FilterAttrs{
 		LinkIndex: link.Attrs().Index,
 		Parent:    MakeHandle(0xffff, 0),
@@ -434,20 +442,14 @@ func TestFilterFwAddDel(t *testing.T) {
 		Priority:  1,
 		Protocol:  unix.ETH_P_IP,
 	}
-	fwattrs := FilterFwAttrs{
-		Buffer:   12345,
-		Rate:     1234,
-		PeakRate: 2345,
-		Action:   TC_POLICE_SHOT,
-		ClassId:  MakeHandle(0xffff, 2),
+
+	filter := FwFilter{
+		FilterAttrs: filterattrs,
+		ClassId:     MakeHandle(0xffff, 2),
+		Police:      police,
 	}
 
-	filter, err := NewFw(filterattrs, fwattrs)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := FilterAdd(filter); err != nil {
+	if err := FilterAdd(&filter); err != nil {
 		t.Fatal(err)
 	}
 
@@ -458,11 +460,11 @@ func TestFilterFwAddDel(t *testing.T) {
 	if len(filters) != 1 {
 		t.Fatal("Failed to add filter")
 	}
-	fw, ok := filters[0].(*Fw)
+	fw, ok := filters[0].(*FwFilter)
 	if !ok {
 		t.Fatal("Filter is the wrong type")
 	}
-	if fw.Police.Rate.Rate != filter.Police.Rate.Rate {
+	if fw.Police.Rate != filter.Police.Rate {
 		t.Fatal("Police Rate doesn't match")
 	}
 	if fw.ClassId != filter.ClassId {
@@ -471,11 +473,11 @@ func TestFilterFwAddDel(t *testing.T) {
 	if fw.InDev != filter.InDev {
 		t.Fatal("InDev doesn't match")
 	}
-	if fw.AvRate != filter.AvRate {
+	if fw.Police.AvRate != filter.Police.AvRate {
 		t.Fatal("AvRate doesn't match")
 	}
 
-	if err := FilterDel(filter); err != nil {
+	if err := FilterDel(&filter); err != nil {
 		t.Fatal(err)
 	}
 	filters, err = FilterList(link, MakeHandle(0xffff, 0))
@@ -1619,6 +1621,326 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	mia, ok := flower.Actions[0].(*MirredAction)
 	if !ok {
 		t.Fatal("Unable to find mirred action")
+	}
+
+	if mia.Attrs().Action != TC_ACT_STOLEN {
+		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
+	}
+
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found = false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if found {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
+func TestFilterU32LinkOption(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatalf("add link foo error: %v", err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatalf("add link foo error: %v", err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatalf("set foo link up error: %v", err)
+	}
+
+	qdisc := &Ingress{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(0xffff, 0),
+			Parent:    HANDLE_INGRESS,
+		},
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatalf("get qdisc error: %v", err)
+	}
+
+	found := false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("Qdisc is the wrong type")
+	}
+
+	htid := uint32(10)
+	size := uint32(8)
+	priority := uint16(200)
+	u32Table := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    htid << 20,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  priority,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		Divisor: size,
+	}
+	if err := FilterAdd(u32Table); err != nil {
+		t.Fatal(err)
+	}
+
+	u32 := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Handle:    1,
+			Priority:  priority,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		Link: uint32(htid << 20),
+		Sel: &TcU32Sel{
+			Nkeys:    1,
+			Flags:    TC_U32_TERMINAL | TC_U32_VAROFFSET,
+			Hmask:    0x0000ff00,
+			Hoff:     0,
+			Offshift: 8,
+			Keys: []TcU32Key{
+				{
+					Mask: 0,
+					Val:  0,
+					Off:  0,
+				},
+			},
+		},
+	}
+	if err := FilterAdd(u32); err != nil {
+		t.Fatal(err)
+	}
+
+	filters, err := FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatalf("get filter error: %v", err)
+	}
+
+	if len(filters) != 1 {
+		t.Fatalf("the count filters error, expect: 1, acutal: %d", len(filters))
+	}
+
+	ft, ok := filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+
+	if ft.LinkIndex != link.Attrs().Index {
+		t.Fatal("link index error")
+	}
+
+	if ft.Link != htid<<20 {
+		t.Fatal("hash table id error")
+	}
+
+	if ft.Priority != priority {
+		t.Fatal("priority error")
+	}
+
+	if err := FilterDel(ft); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found = false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if found {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
+
+func TestFilterU32PoliceAddDel(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "bar"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	redir, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(redir); err != nil {
+		t.Fatal(err)
+	}
+
+	qdisc := &Ingress{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(0xffff, 0),
+			Parent:    HANDLE_INGRESS,
+		},
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("Qdisc is the wrong type")
+	}
+
+	const (
+		policeRate     = 0x40000000 // 1 Gbps
+		policeBurst    = 0x19000    // 100 KB
+		policePeakRate = 0x4000     // 16 Kbps
+	)
+
+	police := NewPoliceAction()
+	police.Rate = policeRate
+	police.PeakRate = policePeakRate
+	police.Burst = policeBurst
+	police.ExceedAction = TC_POLICE_SHOT
+	police.NotExceedAction = TC_POLICE_UNSPEC
+
+	classId := MakeHandle(1, 1)
+	filter := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		ClassId: classId,
+		Actions: []Action{
+			police,
+			&MirredAction{
+				ActionAttrs: ActionAttrs{
+					Action: TC_ACT_STOLEN,
+				},
+				MirredAction: TCA_EGRESS_REDIR,
+				Ifindex:      redir.Attrs().Index,
+			},
+		},
+	}
+
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+
+	filters, err := FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	u32, ok := filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+
+	if len(u32.Actions) != 2 {
+		t.Fatalf("Too few Actions in filter")
+	}
+	if u32.ClassId != classId {
+		t.Fatalf("ClassId of the filter is the wrong value")
+	}
+
+	// actions can be returned in reverse order
+	p, ok := u32.Actions[0].(*PoliceAction)
+	if !ok {
+		p, ok = u32.Actions[1].(*PoliceAction)
+		if !ok {
+			t.Fatal("Unable to find police action")
+		}
+	}
+
+	if p.ExceedAction != TC_POLICE_SHOT {
+		t.Fatal("Police ExceedAction isn't TC_POLICE_SHOT")
+	}
+
+	if p.NotExceedAction != TC_POLICE_UNSPEC {
+		t.Fatal("Police NotExceedAction isn't TC_POLICE_UNSPEC")
+	}
+
+	if p.Rate != policeRate {
+		t.Fatal("Action Rate doesn't match")
+	}
+
+	if p.PeakRate != policePeakRate {
+		t.Fatal("Action PeakRate doesn't match")
+	}
+
+	if p.LinkLayer != nl.LINKLAYER_ETHERNET {
+		t.Fatal("Action LinkLayer doesn't match")
+	}
+
+	mia, ok := u32.Actions[0].(*MirredAction)
+	if !ok {
+		mia, ok = u32.Actions[1].(*MirredAction)
+		if !ok {
+			t.Fatal("Unable to find mirred action")
+		}
 	}
 
 	if mia.Attrs().Action != TC_ACT_STOLEN {
