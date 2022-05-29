@@ -41,7 +41,6 @@ func (s Scope) String() string {
 	}
 }
 
-
 const (
 	FLAG_ONLINK    NextHopFlag = unix.RTNH_F_ONLINK
 	FLAG_PERVASIVE NextHopFlag = unix.RTNH_F_PERVASIVE
@@ -1295,6 +1294,11 @@ type RouteGetOptions struct {
 	Oif     string
 	VrfName string
 	SrcAddr net.IP
+	Uid     *UID
+}
+
+type UID struct {
+	Uid uint32
 }
 
 // RouteGetWithOptions gets a route to a specific destination from the host system.
@@ -1380,6 +1384,12 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 			}
 
 			req.AddData(nl.NewRtAttr(unix.RTA_SRC, srcAddr))
+		}
+
+		if options.Uid != nil {
+			uidByte := make([]byte, 4)
+			native.PutUint32(uidByte, options.Uid.Uid)
+			req.AddData(nl.NewRtAttr(unix.RTA_UID, uidByte))
 		}
 	}
 
