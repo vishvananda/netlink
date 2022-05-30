@@ -469,6 +469,63 @@ func TestFqAddChangeDel(t *testing.T) {
 	}
 }
 
+func TestFqHorizon(t *testing.T) {
+	minKernelRequired(t, 5, 7)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	qdisc := &Fq{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(1, 0),
+			Parent:    HANDLE_ROOT,
+		},
+		Horizon:           1000,
+		HorizonDropPolicy: HORIZON_DROP_POLICY_CAP,
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 1 {
+		t.Fatal("Failed to add qdisc")
+	}
+	fq, ok := qdiscs[0].(*Fq)
+	if !ok {
+		t.Fatal("Qdisc is the wrong type")
+	}
+	if fq.Horizon != qdisc.Horizon {
+		t.Fatal("Horizon does not match")
+	}
+	if fq.HorizonDropPolicy != qdisc.HorizonDropPolicy {
+		t.Fatal("HorizonDropPolicy does not match")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 0 {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
+
 func TestFqCodelAddChangeDel(t *testing.T) {
 	minKernelRequired(t, 3, 4)
 
