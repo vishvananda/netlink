@@ -5,6 +5,7 @@ package netlink
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -2412,8 +2413,12 @@ func TestLinkAddDelXfrmiNoId(t *testing.T) {
 
 	lo, _ := LinkByName("lo")
 
-	testLinkAddDel(t, &Xfrmi{
+	err := LinkAdd(&Xfrmi{
 		LinkAttrs: LinkAttrs{Name: "xfrm0", ParentIndex: lo.Attrs().Index}})
+	if !errors.Is(err, unix.EINVAL) {
+		t.Errorf("Error returned expected to be EINVAL")
+	}
+
 }
 
 func TestLinkByNameWhenLinkIsNotFound(t *testing.T) {
