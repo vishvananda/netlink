@@ -1401,6 +1401,11 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		req.AddData(gsoAttr)
 	}
 
+	if base.GROMaxSize > 0 {
+		groAttr := nl.NewRtAttr(nl.IFLA_GRO_MAX_SIZE, nl.Uint32Attr(base.GROMaxSize))
+		req.AddData(groAttr)
+	}
+
 	if base.Group > 0 {
 		groupAttr := nl.NewRtAttr(unix.IFLA_GROUP, nl.Uint32Attr(base.Group))
 		req.AddData(groupAttr)
@@ -1941,6 +1946,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			base.GSOMaxSize = native.Uint32(attr.Value[0:4])
 		case unix.IFLA_GSO_MAX_SEGS:
 			base.GSOMaxSegs = native.Uint32(attr.Value[0:4])
+		case nl.IFLA_GRO_MAX_SIZE:
+			base.GROMaxSize = native.Uint32(attr.Value[0:4])
 		case unix.IFLA_VFINFO_LIST:
 			data, err := nl.ParseRouteAttr(attr.Value)
 			if err != nil {
