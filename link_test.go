@@ -984,6 +984,32 @@ func TestLinkAddDelDummyWithGSO(t *testing.T) {
 	}
 }
 
+func TestLinkAddDelDummyWithGRO(t *testing.T) {
+	const (
+		groMaxSize = 1 << 14
+	)
+	minKernelRequired(t, 5, 19)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	dummy := &Dummy{LinkAttrs: LinkAttrs{Name: "foo", GROMaxSize: groMaxSize}}
+	if err := LinkAdd(dummy); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dummy, ok := link.(*Dummy)
+	if !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	}
+
+	if dummy.GROMaxSize != groMaxSize {
+		t.Fatalf("GROMaxSize is %d, should be %d", dummy.GROMaxSize, groMaxSize)
+	}
+}
+
 func TestLinkAddDummyWithTxQLen(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
