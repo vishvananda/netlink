@@ -946,6 +946,60 @@ func LinkSetXdpFdWithFlags(link Link, fd, flags int) error {
 	return err
 }
 
+// LinkSetGSOMaxSize sets the GSO maximum size of the link device.
+// Equivalent to: `ip link set $link gso_max_size $maxSize`
+func LinkSetGSOMaxSize(link Link, maxSize int) error {
+	return pkgHandle.LinkSetGSOMaxSize(link, maxSize)
+}
+
+// LinkSetGSOMaxSize sets the GSO maximum size of the link device.
+// Equivalent to: `ip link set $link gso_max_size $maxSize`
+func (h *Handle) LinkSetGSOMaxSize(link Link, maxSize int) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	b := make([]byte, 4)
+	native.PutUint32(b, uint32(maxSize))
+
+	data := nl.NewRtAttr(unix.IFLA_GSO_MAX_SIZE, b)
+	req.AddData(data)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
+// LinkSetGROMaxSize sets the GRO maximum size of the link device.
+// Equivalent to: `ip link set $link gro_max_size $maxSize`
+func LinkSetGROMaxSize(link Link, maxSize int) error {
+	return pkgHandle.LinkSetGROMaxSize(link, maxSize)
+}
+
+// LinkSetGROMaxSize sets the GRO maximum size of the link device.
+// Equivalent to: `ip link set $link gro_max_size $maxSize`
+func (h *Handle) LinkSetGROMaxSize(link Link, maxSize int) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	b := make([]byte, 4)
+	native.PutUint32(b, uint32(maxSize))
+
+	data := nl.NewRtAttr(nl.IFLA_GRO_MAX_SIZE, b)
+	req.AddData(data)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
 func boolAttr(val bool) []byte {
 	var v uint8
 	if val {
