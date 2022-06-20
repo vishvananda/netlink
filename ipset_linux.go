@@ -94,6 +94,11 @@ func IpsetFlush(setname string) error {
 	return pkgHandle.IpsetFlush(setname)
 }
 
+// IpsetSwap swaps two ipsets.
+func IpsetSwap(setname, othersetname string) error {
+	return pkgHandle.IpsetSwap(setname, othersetname)
+}
+
 // IpsetList dumps an specific ipset.
 func IpsetList(setname string) (*IPSetResult, error) {
 	return pkgHandle.IpsetList(setname)
@@ -193,6 +198,14 @@ func (h *Handle) IpsetDestroy(setname string) error {
 func (h *Handle) IpsetFlush(setname string) error {
 	req := h.newIpsetRequest(nl.IPSET_CMD_FLUSH)
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(setname)))
+	_, err := ipsetExecute(req)
+	return err
+}
+
+func (h *Handle) IpsetSwap(setname, othersetname string) error {
+	req := h.newIpsetRequest(nl.IPSET_CMD_SWAP)
+	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(setname)))
+	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_TYPENAME, nl.ZeroTerminated(othersetname)))
 	_, err := ipsetExecute(req)
 	return err
 }
