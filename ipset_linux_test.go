@@ -564,3 +564,72 @@ func TestIpsetBitmapCreateListWithTestCases(t *testing.T) {
 		})
 	}
 }
+
+func TestIpsetSwap(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	ipset1 := "my-test-ipset-swap-1"
+	ipset2 := "my-test-ipset-swap-2"
+
+	err := IpsetCreate(ipset1, "hash:ip", IpsetCreateOptions{
+		Replace: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = IpsetDestroy(ipset1)
+	}()
+
+	err = IpsetCreate(ipset2, "hash:ip", IpsetCreateOptions{
+		Replace: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = IpsetDestroy(ipset2)
+	}()
+
+	err = IpsetAdd(ipset1, &IPSetEntry{
+		IP: net.ParseIP("10.99.99.99").To4(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertHasOneEntry := func(name string) {
+		result, err := IpsetList(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Entries) != 1 {
+			t.Fatalf("expected 1 entry be created, got '%d'", len(result.Entries))
+		}
+		if result.Entries[0].IP.String() != "10.99.99.99" {
+			t.Fatalf("expected entry to be '10.99.99.99', got '%s'", result.Entries[0].IP.String())
+		}
+	}
+
+	assertIsEmpty := func(name string) {
+		result, err := IpsetList(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Entries) != 0 {
+			t.Fatalf("expected 0 entry be created, got '%d'", len(result.Entries))
+		}
+	}
+
+	assertHasOneEntry(ipset1)
+	assertIsEmpty(ipset2)
+
+	err = IpsetSwap(ipset1, ipset2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertIsEmpty(ipset1)
+	assertHasOneEntry(ipset2)
+}
