@@ -734,6 +734,7 @@ func SubscribeAt(newNs, curNs netns.NsHandle, protocol int, groups ...uint) (*Ne
 
 func (s *NetlinkSocket) Close() {
 	fd := int(atomic.SwapInt32(&s.fd, -1))
+	unix.Shutdown(fd, unix.SHUT_RDWR)
 	unix.Close(fd)
 }
 
