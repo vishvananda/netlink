@@ -355,6 +355,24 @@ func TestRouteSubscribe(t *testing.T) {
 	}
 }
 
+func TestRouteSubscribeClose(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	ch := make(chan RouteUpdate)
+	done := make(chan struct{})
+	if err := RouteSubscribe(ch, done); err != nil {
+		t.Fatal(err)
+	}
+	close(done)
+	select {
+	case <-ch:
+		// OK
+	case <-time.After(5 * time.Second):
+		t.Fatal("Unable to close subscription channel")
+	}
+}
+
 func TestRouteSubscribeWithOptions(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
