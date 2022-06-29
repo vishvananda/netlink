@@ -48,7 +48,10 @@ type RtNexthop struct {
 }
 
 func DeserializeRtNexthop(b []byte) *RtNexthop {
-	return (*RtNexthop)(unsafe.Pointer(&b[0:unix.SizeofRtNexthop][0]))
+	// Can't just cast to our RtNextHop struct because our struct is longer than the kernel data.
+	var nh RtNexthop
+	copy((*[unsafe.Sizeof(nh.RtNexthop)]byte)(unsafe.Pointer(&nh.RtNexthop))[:], b[:unix.SizeofRtNexthop])
+	return &nh
 }
 
 func (msg *RtNexthop) Len() int {

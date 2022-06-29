@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"reflect"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -41,4 +42,33 @@ func TestRtMsgDeserializeSerialize(t *testing.T) {
 	safemsg := deserializeRtMsgSafe(orig)
 	msg := DeserializeRtMsg(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
+}
+
+func TestDeserializeRtNexthop(t *testing.T) {
+	buf := make([]byte, unix.SizeofRtNexthop+64)
+	native := NativeEndian()
+	native.PutUint16(buf[0:2], unix.SizeofRtNexthop)
+	buf[2] = 17
+	buf[3] = 1
+	native.PutUint32(buf[4:8], 1234)
+
+	// Canary data to catch accidental read past end of buffer.
+	buf[8] = 13
+	buf[9] = 14
+	buf[10] = 15
+	buf[11] = 16
+
+	msg := DeserializeRtNexthop(buf)
+	safemsg := &RtNexthop{
+		unix.RtNexthop{
+			Len:     unix.SizeofRtNexthop,
+			Flags:   17,
+			Hops:    1,
+			Ifindex: 1234,
+		},
+		nil,
+	}
+	if !reflect.DeepEqual(msg, safemsg) {
+		t.Fatal("Deserialization failed.\nIn:", buf, "\nOut:", msg, "\n", msg.Serialize(), "\nExpected:", safemsg, "\n", safemsg.Serialize())
+	}
 }
