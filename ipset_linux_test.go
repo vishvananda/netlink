@@ -673,3 +673,52 @@ func TestIpsetSwap(t *testing.T) {
 	assertIsEmpty(ipset1)
 	assertHasOneEntry(ipset2)
 }
+
+func nextIP(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
+}
+
+// TestIpsetMaxElements tests that we can create an ipset containing
+// 128k elements, which is double the default size (64k elements).
+func TestIpsetMaxElements(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	ipsetName := "my-test-ipset-max"
+	maxElements := uint32(128 << 10)
+
+	err := IpsetCreate(ipsetName, "hash:ip", IpsetCreateOptions{
+		Replace:     true,
+		MaxElements: maxElements,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = IpsetDestroy(ipsetName)
+	}()
+
+	ip := net.ParseIP("10.0.0.0")
+	for i := uint32(0); i < maxElements; i++ {
+		err = IpsetAdd(ipsetName, &IPSetEntry{
+			IP: ip,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		nextIP(ip)
+	}
+
+	result, err := IpsetList(ipsetName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Entries) != int(maxElements) {
+		t.Fatalf("expected '%d' entry be created, got '%d'", maxElements, len(result.Entries))
+	}
+}
