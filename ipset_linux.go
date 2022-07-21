@@ -67,12 +67,13 @@ type IpsetCreateOptions struct {
 	Comments bool
 	Skbinfo  bool
 
-	Family   uint8
-	Revision uint8
-	IPFrom   net.IP
-	IPTo     net.IP
-	PortFrom uint16
-	PortTo   uint16
+	Family      uint8
+	Revision    uint8
+	IPFrom      net.IP
+	IPTo        net.IP
+	PortFrom    uint16
+	PortTo      uint16
+	MaxElements uint32
 }
 
 // IpsetProtocol returns the ipset protocol version from the kernel
@@ -166,6 +167,10 @@ func (h *Handle) IpsetCreate(setname, typename string, options IpsetCreateOption
 	}
 
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_FAMILY, nl.Uint8Attr(family)))
+
+	if options.MaxElements != 0 {
+		data.AddChild(&nl.Uint32Attribute{Type: nl.IPSET_ATTR_MAXELEM | nl.NLA_F_NET_BYTEORDER, Value: options.MaxElements})
+	}
 
 	if timeout := options.Timeout; timeout != nil {
 		data.AddChild(&nl.Uint32Attribute{Type: nl.IPSET_ATTR_TIMEOUT | nl.NLA_F_NET_BYTEORDER, Value: *timeout})
