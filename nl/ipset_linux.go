@@ -54,6 +54,8 @@ const (
 
 /* CADT specific attributes */
 const (
+	IPSET_ATTR_IPV4        = 1
+	IPSET_ATTR_IPV6        = 2
 	IPSET_ATTR_IP          = 1
 	IPSET_ATTR_IP_FROM     = 1
 	IPSET_ATTR_IP_TO       = 2
