@@ -2714,7 +2714,7 @@ func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
 
 	if gretap.FlowBased {
 		// In flow based mode, no other attributes need to be configured
-		data.AddRtAttr(nl.IFLA_GRE_COLLECT_METADATA, boolAttr(gretap.FlowBased))
+		data.AddRtAttr(nl.IFLA_GRE_COLLECT_METADATA, []byte{})
 		return
 	}
 
