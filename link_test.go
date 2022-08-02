@@ -455,6 +455,9 @@ func compareGretun(t *testing.T, expected, actual *Gretun) {
 	if actual.EncapDport != expected.EncapDport {
 		t.Fatal("Gretun.EncapDport doesn't match")
 	}
+	if actual.FlowBased != expected.FlowBased {
+		t.Fatal("Gretun.FlowBased doesn't match")
+	}
 }
 
 func compareVxlan(t *testing.T, expected, actual *Vxlan) {
@@ -740,6 +743,17 @@ func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
 		Local:     net.ParseIP("2001:db8:1234::4"),
 		IKey:      5678,
 		OKey:      7890})
+}
+
+func TestLinkAddDelGretunFlowBased(t *testing.T) {
+	minKernelRequired(t, 4, 3)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		FlowBased: true})
 }
 
 func TestLinkAddDelGretapFlowBased(t *testing.T) {
