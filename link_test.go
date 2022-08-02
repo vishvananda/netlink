@@ -394,14 +394,9 @@ func compareGretap(t *testing.T, expected, actual *Gretap) {
 		t.Fatal("Gretap.Link doesn't match")
 	}
 
-	/*
-		 * NOTE: setting the FlowBased flag doesn't seem to work, but by lack of
-		 * a proper way to debug this, this test is disabled for now
-
-		 if actual.FlowBased != expected.FlowBased {
-			t.Fatal("Gretap.FlowBased doesn't match")
-		 }
-	*/
+	if actual.FlowBased != expected.FlowBased {
+		t.Fatal("Gretap.FlowBased doesn't match")
+	 }
 }
 
 func compareGretun(t *testing.T, expected, actual *Gretun) {
@@ -748,9 +743,6 @@ func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
 }
 
 func TestLinkAddDelGretapFlowBased(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skipf("Fails in CI with: link_test.go:34: numerical result out of range")
-	}
 	minKernelRequired(t, 4, 3)
 
 	tearDown := setUpNetlinkTest(t)
