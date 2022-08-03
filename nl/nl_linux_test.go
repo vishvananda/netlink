@@ -68,14 +68,12 @@ func TestIfSocketCloses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error on creating the socket: %v", err)
 	}
-	nlSock.SetReceiveTimeout(&unix.Timeval{Sec: 2, Usec: 0})
 	endCh := make(chan error)
 	go func(sk *NetlinkSocket, endCh chan error) {
 		endCh <- nil
 		for {
 			_, _, err := sk.Receive()
-			// Receive returned because of a timeout and the FD == -1 means that the socket got closed
-			if err == unix.EAGAIN && nlSock.GetFd() == -1 {
+			if err == unix.EAGAIN {
 				endCh <- err
 				return
 			}
