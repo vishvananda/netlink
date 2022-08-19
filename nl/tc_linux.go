@@ -56,6 +56,12 @@ const (
 	TCA_ACT_OPTIONS
 	TCA_ACT_INDEX
 	TCA_ACT_STATS
+	TCA_ACT_PAD
+	TCA_ACT_COOKIE
+	TCA_ACT_FLAGS
+	TCA_ACT_HW_STATS
+	TCA_ACT_USED_HW_STATS
+	TCA_ACT_IN_HW_COUNT
 	TCA_ACT_MAX
 )
 
@@ -98,6 +104,7 @@ const (
 	SizeofTcSfqQopt      = 0x0b
 	SizeofTcSfqRedStats  = 0x18
 	SizeofTcSfqQoptV1    = SizeofTcSfqQopt + SizeofTcSfqRedStats + 0x1c
+	SizeofUint32Bitfield = 0x8
 )
 
 // struct tcmsg {
@@ -1021,6 +1028,9 @@ const (
 
 	__TCA_FLOWER_MAX
 )
+
+const TCA_CLS_FLAGS_SKIP_HW = 1 << 0 /* don't offload filter to HW */
+const TCA_CLS_FLAGS_SKIP_SW = 1 << 1 /* don't use filter in SW */
 
 // struct tc_sfq_qopt {
 // 	unsigned	quantum;	/* Bytes per round allocated to flow */
