@@ -64,6 +64,8 @@ type Flower struct {
 	EncSrcIPMask  net.IPMask
 	EncDestPort   uint16
 	EncKeyId      uint32
+	SkipHw        bool
+	SkipSw        bool
 
 	Actions []Action
 }
@@ -130,6 +132,15 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 		parent.AddRtAttr(nl.TCA_FLOWER_KEY_ENC_KEY_ID, htonl(filter.EncKeyId))
 	}
 
+	var flags uint32 = 0
+	if filter.SkipHw {
+		flags |= nl.TCA_CLS_FLAGS_SKIP_HW
+	}
+	if filter.SkipSw {
+		flags |= nl.TCA_CLS_FLAGS_SKIP_SW
+	}
+	parent.AddRtAttr(nl.TCA_FLOWER_FLAGS, htonl(flags))
+
 	actionsAttr := parent.AddRtAttr(nl.TCA_FLOWER_ACT, nil)
 	if err := EncodeActions(actionsAttr, filter.Actions); err != nil {
 		return err
@@ -170,6 +181,16 @@ func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
 			filter.Actions, err = parseActions(tables)
 			if err != nil {
 				return err
+			}
+		case nl.TCA_FLOWER_FLAGS:
+			attr := nl.DeserializeUint32Bitfield(datum.Value)
+			skipSw := attr.Value & nl.TCA_CLS_FLAGS_SKIP_HW
+			skipHw := attr.Value & nl.TCA_CLS_FLAGS_SKIP_SW
+			if skipSw != 0 {
+				filter.SkipSw = true
+			}
+			if skipHw != 0 {
+				filter.SkipHw = true
 			}
 		}
 	}
@@ -344,7 +365,6 @@ func (h *Handle) filterModify(filter Filter, flags int) error {
 			return err
 		}
 	}
-
 	req.AddData(options)
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	return err

@@ -1850,7 +1850,6 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	if filter.EncDestPort != flower.EncDestPort {
 		t.Fatalf("Flower EncDestPort doesn't match")
 	}
-
 	mia, ok := flower.Actions[0].(*MirredAction)
 	if !ok {
 		t.Fatal("Unable to find mirred action")
