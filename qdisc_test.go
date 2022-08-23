@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -533,10 +534,13 @@ func TestIngressAddDel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ingressBlock := new(uint32)
+	*ingressBlock = 8
 	qdisc := &Ingress{
 		QdiscAttrs: QdiscAttrs{
-			LinkIndex: link.Attrs().Index,
-			Parent:    HANDLE_INGRESS,
+			LinkIndex:    link.Attrs().Index,
+			Parent:       HANDLE_INGRESS,
+			IngressBlock: ingressBlock,
 		},
 	}
 	err = QdiscAdd(qdisc)
@@ -549,6 +553,9 @@ func TestIngressAddDel(t *testing.T) {
 	}
 	if len(qdiscs) != 1 {
 		t.Fatal("Failed to add qdisc")
+	}
+	if *qdiscs[0].Attrs().IngressBlock != *ingressBlock {
+		t.Fatal("IngressBlock does not match")
 	}
 	if err = QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
