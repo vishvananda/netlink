@@ -66,6 +66,7 @@ type Flower struct {
 	EncKeyId      uint32
 	SkipHw        bool
 	SkipSw        bool
+	IPProto       *nl.IPProto
 
 	Actions []Action
 }
@@ -131,6 +132,10 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 	if filter.EncKeyId != 0 {
 		parent.AddRtAttr(nl.TCA_FLOWER_KEY_ENC_KEY_ID, htonl(filter.EncKeyId))
 	}
+	if filter.IPProto != nil {
+		ipproto := *filter.IPProto
+		parent.AddRtAttr(nl.TCA_FLOWER_KEY_IP_PROTO, ipproto.Serialize())
+	}
 
 	var flags uint32 = 0
 	if filter.SkipHw {
@@ -173,6 +178,10 @@ func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
 			filter.EncDestPort = ntohs(datum.Value)
 		case nl.TCA_FLOWER_KEY_ENC_KEY_ID:
 			filter.EncKeyId = ntohl(datum.Value)
+		case nl.TCA_FLOWER_KEY_IP_PROTO:
+			val := new(nl.IPProto)
+			*val = nl.IPProto(datum.Value[0])
+			filter.IPProto = val
 		case nl.TCA_FLOWER_ACT:
 			tables, err := nl.ParseRouteAttr(datum.Value)
 			if err != nil {
