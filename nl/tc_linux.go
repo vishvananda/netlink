@@ -2,7 +2,10 @@ package nl
 
 import (
 	"encoding/binary"
+	"fmt"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 // LinkLayer
@@ -1138,4 +1141,37 @@ func DeserializeTcSfqQoptV1(b []byte) *TcSfqQoptV1 {
 
 func (x *TcSfqQoptV1) Serialize() []byte {
 	return (*(*[SizeofTcSfqQoptV1]byte)(unsafe.Pointer(x)))[:]
+}
+
+// IPProto represents Flower ip_proto attribute
+type IPProto uint8
+
+const (
+	IPPROTO_TCP    IPProto = unix.IPPROTO_TCP
+	IPPROTO_UDP    IPProto = unix.IPPROTO_UDP
+	IPPROTO_SCTP   IPProto = unix.IPPROTO_SCTP
+	IPPROTO_ICMP   IPProto = unix.IPPROTO_ICMP
+	IPPROTO_ICMPV6 IPProto = unix.IPPROTO_ICMPV6
+)
+
+func (i IPProto) Serialize() []byte {
+	arr := make([]byte, 1)
+	arr[0] = byte(i)
+	return arr
+}
+
+func (i IPProto) String() string {
+	switch i {
+	case IPPROTO_TCP:
+		return "tcp"
+	case IPPROTO_UDP:
+		return "udp"
+	case IPPROTO_SCTP:
+		return "sctp"
+	case IPPROTO_ICMP:
+		return "icmp"
+	case IPPROTO_ICMPV6:
+		return "icmpv6"
+	}
+	return fmt.Sprintf("%d", i)
 }
