@@ -67,6 +67,8 @@ type Flower struct {
 	SkipHw        bool
 	SkipSw        bool
 	IPProto       *nl.IPProto
+	DestPort      uint16
+	SrcPort       uint16
 
 	Actions []Action
 }
@@ -135,6 +137,26 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 	if filter.IPProto != nil {
 		ipproto := *filter.IPProto
 		parent.AddRtAttr(nl.TCA_FLOWER_KEY_IP_PROTO, ipproto.Serialize())
+		if filter.SrcPort != 0 {
+			switch ipproto {
+			case nl.IPPROTO_TCP:
+				parent.AddRtAttr(nl.TCA_FLOWER_KEY_TCP_SRC, htons(filter.SrcPort))
+			case nl.IPPROTO_UDP:
+				parent.AddRtAttr(nl.TCA_FLOWER_KEY_UDP_SRC, htons(filter.SrcPort))
+			case nl.IPPROTO_SCTP:
+				parent.AddRtAttr(nl.TCA_FLOWER_KEY_SCTP_SRC, htons(filter.SrcPort))
+			}
+		}
+		if filter.DestPort != 0 {
+			switch ipproto {
+			case nl.IPPROTO_TCP:
+				parent.AddRtAttr(nl.TCA_FLOWER_KEY_TCP_DST, htons(filter.DestPort))
+			case nl.IPPROTO_UDP:
+				parent.AddRtAttr(nl.TCA_FLOWER_KEY_UDP_DST, htons(filter.DestPort))
+			case nl.IPPROTO_SCTP:
+				parent.AddRtAttr(nl.TCA_FLOWER_KEY_SCTP_DST, htons(filter.DestPort))
+			}
+		}
 	}
 
 	var flags uint32 = 0
@@ -182,6 +204,10 @@ func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
 			val := new(nl.IPProto)
 			*val = nl.IPProto(datum.Value[0])
 			filter.IPProto = val
+		case nl.TCA_FLOWER_KEY_TCP_SRC, nl.TCA_FLOWER_KEY_UDP_SRC, nl.TCA_FLOWER_KEY_SCTP_SRC:
+			filter.SrcPort = ntohs(datum.Value)
+		case nl.TCA_FLOWER_KEY_TCP_DST, nl.TCA_FLOWER_KEY_UDP_DST, nl.TCA_FLOWER_KEY_SCTP_DST:
+			filter.DestPort = ntohs(datum.Value)
 		case nl.TCA_FLOWER_ACT:
 			tables, err := nl.ParseRouteAttr(datum.Value)
 			if err != nil {
