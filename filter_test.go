@@ -1771,7 +1771,7 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	testMask := net.CIDRMask(24, 32)
 
 	ipproto := new(nl.IPProto)
-	*ipproto = nl.IPPROTO_ICMP
+	*ipproto = nl.IPPROTO_TCP
 
 	filter := &Flower{
 		FilterAttrs: FilterAttrs{
@@ -1792,6 +1792,8 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		EncDestPort:   8472,
 		EncKeyId:      1234,
 		IPProto:       ipproto,
+		DestPort:      1111,
+		SrcPort:       1111,
 		Actions: []Action{
 			&MirredAction{
 				ActionAttrs: ActionAttrs{
@@ -1854,8 +1856,14 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	if filter.EncDestPort != flower.EncDestPort {
 		t.Fatalf("Flower EncDestPort doesn't match")
 	}
-	if flower.IPProto != nil || *filter.IPProto != *flower.IPProto {
+	if flower.IPProto == nil || *filter.IPProto != *flower.IPProto {
 		t.Fatalf("Flower IPProto doesn't match")
+	}
+	if filter.DestPort != flower.DestPort {
+		t.Fatalf("Flower DestPort doesn't match")
+	}
+	if filter.SrcPort != flower.SrcPort {
+		t.Fatalf("Flower SrcPort doesn't match")
 	}
 
 	mia, ok := flower.Actions[0].(*MirredAction)
