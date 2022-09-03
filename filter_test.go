@@ -1635,6 +1635,14 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	}
 
 	testMask := net.CIDRMask(24, 32)
+	srcMac, err := net.ParseMAC("2C:54:91:88:C9:E3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	destMac, err := net.ParseMAC("2C:54:91:88:C9:E5")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	filter := &Flower{
 		FilterAttrs: FilterAttrs{
@@ -1654,6 +1662,8 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		EncSrcIPMask:  testMask,
 		EncDestPort:   8472,
 		EncKeyId:      1234,
+		SrcMac:        srcMac,
+		DestMac:       destMac,
 		Actions: []Action{
 			&MirredAction{
 				ActionAttrs: ActionAttrs{
@@ -1715,6 +1725,12 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	}
 	if filter.EncDestPort != flower.EncDestPort {
 		t.Fatalf("Flower EncDestPort doesn't match")
+	}
+	if !(filter.SrcMac.String() == flower.SrcMac.String()) {
+		t.Fatalf("Flower SrcMac doesn't match")
+	}
+	if !(filter.DestMac.String() == flower.DestMac.String()) {
+		t.Fatalf("Flower DestMac doesn't match")
 	}
 
 	mia, ok := flower.Actions[0].(*MirredAction)
