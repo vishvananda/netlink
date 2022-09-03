@@ -1655,6 +1655,19 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		EncDestPort:   8472,
 		EncKeyId:      1234,
 		Actions: []Action{
+			&VlanAction{
+				ActionAttrs: ActionAttrs{
+					Action: TC_ACT_PIPE,
+				},
+				Action: TCA_VLAN_ACT_POP,
+			},
+			&VlanAction{
+				ActionAttrs: ActionAttrs{
+					Action: TC_ACT_PIPE,
+				},
+				Action: TCA_VLAN_ACT_PUSH,
+				VlanID: 1234,
+			},
 			&MirredAction{
 				ActionAttrs: ActionAttrs{
 					Action: TC_ACT_STOLEN,
@@ -1717,7 +1730,33 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		t.Fatalf("Flower EncDestPort doesn't match")
 	}
 
-	mia, ok := flower.Actions[0].(*MirredAction)
+	va1, ok := flower.Actions[0].(*VlanAction)
+	if !ok {
+		t.Fatal("Unable to find vlan action")
+	}
+
+	if va1.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("Vlan action isn't TC_ACT_PIPE")
+	}
+
+	if va1.Action != TCA_VLAN_ACT_POP {
+		t.Fatal("First Vlan action isn't pop")
+	}
+
+	va2, ok := flower.Actions[1].(*VlanAction)
+	if !ok {
+		t.Fatal("Unable to find vlan action")
+	}
+
+	if va2.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("Vlan action isn't TC_ACT_PIPE")
+	}
+
+	if va2.Action != TCA_VLAN_ACT_PUSH {
+		t.Fatal("Second Vlan action isn't push")
+	}
+
+	mia, ok := flower.Actions[2].(*MirredAction)
 	if !ok {
 		t.Fatal("Unable to find mirred action")
 	}

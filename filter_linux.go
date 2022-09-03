@@ -547,6 +547,22 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			}
 			toTcGen(action.Attrs(), &mirred.TcGen)
 			aopts.AddRtAttr(nl.TCA_MIRRED_PARMS, mirred.Serialize())
+		case *VlanAction:
+			table := attr.AddRtAttr(tabIndex, nil)
+			tabIndex++
+			table.AddRtAttr(nl.TCA_ACT_KIND, nl.ZeroTerminated("vlan"))
+			aopts := table.AddRtAttr(nl.TCA_ACT_OPTIONS, nil)
+			vlan := nl.TcVlan{
+				Action: int32(action.Action),
+			}
+			toTcGen(action.Attrs(), &vlan.TcGen)
+			aopts.AddRtAttr(nl.TCA_VLAN_PARMS, vlan.Serialize())
+			if action.Action == TCA_VLAN_ACT_PUSH && action.VlanID == 0 {
+				return fmt.Errorf("vlan id is required for push action")
+			}
+			if action.VlanID != 0 {
+				aopts.AddRtAttr(nl.TCA_VLAN_PUSH_VLAN_ID, nl.Uint16Attr(action.VlanID))
+			}
 		case *TunnelKeyAction:
 			table := attr.AddRtAttr(tabIndex, nil)
 			tabIndex++
@@ -693,6 +709,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 					action = &TunnelKeyAction{}
 				case "skbedit":
 					action = &SkbEditAction{}
+				case "vlan":
+					action = &VlanAction{}	
 				case "police":
 					action = &PoliceAction{}
 				default:
@@ -714,6 +732,14 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 							action.(*MirredAction).Ifindex = int(mirred.Ifindex)
 							action.(*MirredAction).MirredAction = MirredAct(mirred.Eaction)
 						}
+					case "vlan":
+						switch adatum.Attr.Type {
+						case nl.TCA_VLAN_PARMS:
+							vlan := *nl.DeserializeTcVlan(adatum.Value)
+							action.(*VlanAction).ActionAttrs = ActionAttrs{}
+							toAttrs(&vlan.TcGen, action.Attrs())
+							action.(*VlanAction).Action = VlanAct(vlan.Action)
+						}	
 					case "tunnel_key":
 						switch adatum.Attr.Type {
 						case nl.TCA_TUNNEL_KEY_PARMS:
