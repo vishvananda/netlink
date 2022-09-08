@@ -66,6 +66,7 @@ type Flower struct {
 	EncKeyId      uint32
 	SrcMac        net.HardwareAddr
 	DestMac       net.HardwareAddr
+	VlanId        uint16
 
 	Actions []Action
 }
@@ -137,6 +138,9 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 	if filter.DestMac != nil {
 		parent.AddRtAttr(nl.TCA_FLOWER_KEY_ETH_DST, []byte(filter.DestMac))
 	}
+	if filter.VlanId != 0 {
+		parent.AddRtAttr(nl.TCA_FLOWER_KEY_VLAN_ID, nl.Uint16Attr(filter.VlanId))
+	}
 
 	actionsAttr := parent.AddRtAttr(nl.TCA_FLOWER_ACT, nil)
 	if err := EncodeActions(actionsAttr, filter.Actions); err != nil {
@@ -174,6 +178,8 @@ func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
 			filter.SrcMac = net.HardwareAddr(datum.Value)
 		case nl.TCA_FLOWER_KEY_ETH_DST:
 			filter.DestMac = net.HardwareAddr(datum.Value)
+		case nl.TCA_FLOWER_KEY_VLAN_ID:
+			filter.VlanId = native.Uint16(datum.Value[0:2])
 		case nl.TCA_FLOWER_ACT:
 			tables, err := nl.ParseRouteAttr(datum.Value)
 			if err != nil {
