@@ -53,6 +53,7 @@ type DevlinkPort struct {
 	NetdevIfIndex  uint32
 	RdmaDeviceName string
 	PortFlavour    uint16
+	VfNumber       uint16
 	Fn             *DevlinkPortFn
 }
 
@@ -339,6 +340,8 @@ func (port *DevlinkPort) parseAttributes(attrs []syscall.NetlinkRouteAttr) error
 			port.PortIndex = native.Uint32(a.Value)
 		case nl.DEVLINK_ATTR_PORT_TYPE:
 			port.PortType = native.Uint16(a.Value)
+		case nl.DEVLINK_ATTR_PORT_PCI_VF_NUMBER:
+			port.VfNumber = native.Uint16(a.Value)
 		case nl.DEVLINK_ATTR_PORT_NETDEV_NAME:
 			port.NetdeviceName = string(a.Value[:len(a.Value)-1])
 		case nl.DEVLINK_ATTR_PORT_NETDEV_IFINDEX:
