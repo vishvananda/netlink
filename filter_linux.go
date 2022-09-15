@@ -206,19 +206,7 @@ func FilterDel(filter Filter) error {
 // FilterDel will delete a filter from the system.
 // Equivalent to: `tc filter del $filter`
 func (h *Handle) FilterDel(filter Filter) error {
-	req := h.newNetlinkRequest(unix.RTM_DELTFILTER, unix.NLM_F_ACK)
-	base := filter.Attrs()
-	msg := &nl.TcMsg{
-		Family:  nl.FAMILY_ALL,
-		Ifindex: int32(base.LinkIndex),
-		Handle:  base.Handle,
-		Parent:  base.Parent,
-		Info:    MakeHandle(base.Priority, nl.Swap16(base.Protocol)),
-	}
-	req.AddData(msg)
-
-	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
-	return err
+	return h.filterModify(filter, unix.RTM_DELTFILTER, 0)
 }
 
 // FilterAdd will add a filter to the system.
@@ -230,7 +218,7 @@ func FilterAdd(filter Filter) error {
 // FilterAdd will add a filter to the system.
 // Equivalent to: `tc filter add $filter`
 func (h *Handle) FilterAdd(filter Filter) error {
-	return h.filterModify(filter, unix.NLM_F_CREATE|unix.NLM_F_EXCL)
+	return h.filterModify(filter, unix.RTM_NEWTFILTER, unix.NLM_F_CREATE|unix.NLM_F_EXCL)
 }
 
 // FilterReplace will replace a filter.
@@ -242,11 +230,11 @@ func FilterReplace(filter Filter) error {
 // FilterReplace will replace a filter.
 // Equivalent to: `tc filter replace $filter`
 func (h *Handle) FilterReplace(filter Filter) error {
-	return h.filterModify(filter, unix.NLM_F_CREATE)
+	return h.filterModify(filter, unix.RTM_NEWTFILTER, unix.NLM_F_CREATE)
 }
 
-func (h *Handle) filterModify(filter Filter, flags int) error {
-	req := h.newNetlinkRequest(unix.RTM_NEWTFILTER, flags|unix.NLM_F_ACK)
+func (h *Handle) filterModify(filter Filter, proto, flags int) error {
+	req := h.newNetlinkRequest(proto, flags|unix.NLM_F_ACK)
 	base := filter.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
@@ -256,6 +244,9 @@ func (h *Handle) filterModify(filter Filter, flags int) error {
 		Info:    MakeHandle(base.Priority, nl.Swap16(base.Protocol)),
 	}
 	req.AddData(msg)
+	if filter.Attrs().Chain != nil {
+		req.AddData(nl.NewRtAttr(nl.TCA_CHAIN, nl.Uint32Attr(*filter.Attrs().Chain)))
+	}
 	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(filter.Type())))
 
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
@@ -470,6 +461,10 @@ func (h *Handle) FilterList(link Link, parent uint32) ([]Filter, error) {
 				default:
 					detailed = true
 				}
+			case nl.TCA_CHAIN:
+				val := new(uint32)
+				*val = native.Uint32(attr.Value)
+				base.Chain = val
 			}
 		}
 		// only return the detailed version of the filter
