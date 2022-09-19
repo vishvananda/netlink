@@ -711,6 +711,14 @@ func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, e
 // All rules must be defined in RouteFilter struct
 func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
 	req := h.newNetlinkRequest(unix.RTM_GETROUTE, unix.NLM_F_DUMP)
+	// the message between userspace and netlink contains, nlHeader, rtMsg, and rtAttr, both rtMsg and rtAttr play some
+	// roles in dumping filters when in strict check mode, filters are ignored in non strict mode
+	// but for netlink 1.1.0 , the netlink message contain rtAttr which is not correct and does not matter for non strict mode
+	// for netlink 1.2.0-beta, the netlink message contains rtMsg which is not wildcard, so it only return routes in main table , proto boot.
+	// netlink main branch fixes this, but we don't want to use it, so take part of handle.RouteListFiltered() code here
+	// so we modify here which partially contains upstream fix of 
+	//https://github.com/vishvananda/netlink/commit/657c30750ad2d398fc0507d6a229402f09155d9d and
+	// https://github.com/vishvananda/netlink/commit/7b913bc23ecb7f817bebf8ac50fe1ef1b9d36799
 	rtmsg := &nl.RtMsg{}
         rtmsg.Family = uint8(family)
         req.AddData(rtmsg)
