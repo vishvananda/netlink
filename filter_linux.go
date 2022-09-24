@@ -312,6 +312,10 @@ func (h *Handle) filterModify(filter Filter, flags int) error {
 			native.PutUint32(b, filter.ClassId)
 			options.AddRtAttr(nl.TCA_FW_CLASSID, b)
 		}
+		actionsAttr := options.AddRtAttr(nl.TCA_FW_ACT, nil)
+		if err := EncodeActions(actionsAttr, filter.Actions); err != nil {
+			return err
+		}
 	case *BpfFilter:
 		var bpfFlags uint32
 		if filter.ClassId != 0 {
@@ -855,6 +859,15 @@ func parseFwData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
 				parsePolice(aattr, &police)
 			}
 			fw.Police = &police
+		case nl.TCA_FW_ACT:
+			tables, err := nl.ParseRouteAttr(datum.Value)
+			if err != nil {
+				return detailed, err
+			}
+			fw.Actions, err = parseActions(tables)
+			if err != nil {
+				return detailed, err
+			}
 		}
 	}
 	return detailed, nil
