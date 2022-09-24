@@ -349,6 +349,7 @@ type FwFilter struct {
 	InDev   string
 	Mask    uint32
 	Police  *PoliceAction
+	Actions []Action
 }
 
 func (filter *FwFilter) Attrs() *FilterAttrs {
