@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -11,7 +12,12 @@ import (
 )
 
 func TestXfrmStateAddGetDel(t *testing.T) {
-	for _, s := range []*XfrmState{getBaseState(), getAeadState()} {
+	for _, s := range []*XfrmState{
+		getBaseState(),
+		getAeadState(),
+		getBaseStateV6oV4(),
+		getBaseStateV4oV6(),
+	} {
 		testXfrmStateAddGetDel(t, s)
 	}
 }
@@ -26,7 +32,6 @@ func testXfrmStateAddGetDel(t *testing.T, state *XfrmState) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if len(states) != 1 {
 		t.Fatal("State not added properly")
 	}
@@ -77,6 +82,7 @@ func TestXfrmStateAllocSpi(t *testing.T) {
 		t.Fatalf("SPI is not allocated")
 	}
 	rstate.Spi = 0
+
 	if !compareStates(state, rstate) {
 		t.Fatalf("State not properly allocated")
 	}
@@ -268,6 +274,21 @@ func TestXfrmStateWithOutputMarkAndMask(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+func genStateSelectorForV6Payload() *XfrmPolicy {
+	_, wildcardV6Net, _ := net.ParseCIDR("::/0")
+	return &XfrmPolicy{
+		Src: wildcardV6Net,
+		Dst: wildcardV6Net,
+	}
+}
+
+func genStateSelectorForV4Payload() *XfrmPolicy {
+	_, wildcardV4Net, _ := net.ParseCIDR("0.0.0.0/0")
+	return &XfrmPolicy{
+		Src: wildcardV4Net,
+		Dst: wildcardV4Net,
+	}
+}
 
 func getBaseState() *XfrmState {
 	return &XfrmState{
@@ -292,6 +313,54 @@ func getBaseState() *XfrmState {
 	}
 }
 
+func getBaseStateV4oV6() *XfrmState {
+	return &XfrmState{
+		// Force 4 byte notation for the IPv4 addressesd
+		Src:   net.ParseIP("2001:dead::1").To16(),
+		Dst:   net.ParseIP("2001:beef::1").To16(),
+		Proto: XFRM_PROTO_ESP,
+		Mode:  XFRM_MODE_TUNNEL,
+		Spi:   1,
+		Auth: &XfrmStateAlgo{
+			Name: "hmac(sha256)",
+			Key:  []byte("abcdefghijklmnopqrstuvwzyzABCDEF"),
+		},
+		Crypt: &XfrmStateAlgo{
+			Name: "cbc(aes)",
+			Key:  []byte("abcdefghijklmnopqrstuvwzyzABCDEF"),
+		},
+		Mark: &XfrmMark{
+			Value: 0x12340000,
+			Mask:  0xffff0000,
+		},
+		Selector: genStateSelectorForV4Payload(),
+	}
+}
+
+func getBaseStateV6oV4() *XfrmState {
+	return &XfrmState{
+		// Force 4 byte notation for the IPv4 addressesd
+		Src:   net.ParseIP("192.168.1.1").To4(),
+		Dst:   net.ParseIP("192.168.2.2").To4(),
+		Proto: XFRM_PROTO_ESP,
+		Mode:  XFRM_MODE_TUNNEL,
+		Spi:   1,
+		Auth: &XfrmStateAlgo{
+			Name: "hmac(sha256)",
+			Key:  []byte("abcdefghijklmnopqrstuvwzyzABCDEF"),
+		},
+		Crypt: &XfrmStateAlgo{
+			Name: "cbc(aes)",
+			Key:  []byte("abcdefghijklmnopqrstuvwzyzABCDEF"),
+		},
+		Mark: &XfrmMark{
+			Value: 0x12340000,
+			Mask:  0xffff0000,
+		},
+		Selector: genStateSelectorForV6Payload(),
+	}
+}
+
 func getAeadState() *XfrmState {
 	// 128 key bits + 32 salt bits
 	k, _ := hex.DecodeString("d0562776bf0e75830ba3f7f8eb6c09b555aa1177")
@@ -309,6 +378,14 @@ func getAeadState() *XfrmState {
 		},
 	}
 }
+func compareSelector(a, b *XfrmPolicy) bool {
+	return a.Src.String() == b.Src.String() &&
+		a.Dst.String() == b.Dst.String() &&
+		a.Proto == b.Proto &&
+		a.DstPort == b.DstPort &&
+		a.SrcPort == b.SrcPort &&
+		a.Ifindex == b.Ifindex
+}
 
 func compareStates(a, b *XfrmState) bool {
 	if a == b {
@@ -317,6 +394,12 @@ func compareStates(a, b *XfrmState) bool {
 	if a == nil || b == nil {
 		return false
 	}
+	if a.Selector != nil && b.Selector != nil {
+		if !compareSelector(a.Selector, b.Selector) {
+			return false
+		}
+	}
+
 	return a.Src.Equal(b.Src) && a.Dst.Equal(b.Dst) &&
 		a.Mode == b.Mode && a.Spi == b.Spi && a.Proto == b.Proto &&
 		a.Ifid == b.Ifid &&
@@ -325,6 +408,7 @@ func compareStates(a, b *XfrmState) bool {
 		compareAlgo(a.Aead, b.Aead) &&
 		compareMarks(a.Mark, b.Mark) &&
 		compareMarks(a.OutputMark, b.OutputMark)
+
 }
 
 func compareLimits(a, b *XfrmState) bool {
