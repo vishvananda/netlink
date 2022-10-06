@@ -101,7 +101,7 @@ const (
 	SizeofTcHtbGlob      = 0x14
 	SizeofTcU32Key       = 0x10
 	SizeofTcU32Sel       = 0x10 // without keys
-	SizeofTcGen          = 0x14
+	SizeofTcGen          = 0x16
 	SizeofTcConnmark     = SizeofTcGen + 0x04
 	SizeofTcCsum         = SizeofTcGen + 0x04
 	SizeofTcMirred       = SizeofTcGen + 0x08
