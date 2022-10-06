@@ -1662,6 +1662,12 @@ func TestFilterFlowerAddDel(t *testing.T) {
 				MirredAction: TCA_EGRESS_REDIR,
 				Ifindex:      redir.Attrs().Index,
 			},
+			&GenericAction{
+				ActionAttrs: ActionAttrs{
+					Action: getTcActGotoChain(),
+				},
+				Chain: 20,
+			},
 		},
 	}
 
@@ -1724,6 +1730,15 @@ func TestFilterFlowerAddDel(t *testing.T) {
 
 	if mia.Attrs().Action != TC_ACT_STOLEN {
 		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
+	}
+
+	ga, ok := flower.Actions[1].(*GenericAction)
+	if !ok {
+		t.Fatal("Unable to find generic action")
+	}
+
+	if ga.Attrs().Action != getTcActGotoChain() {
+		t.Fatal("Generic action isn't TC_ACT_GOTO_CHAIN")
 	}
 
 	if err := FilterDel(filter); err != nil {

@@ -780,6 +780,9 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						case nl.TCA_GACT_PARMS:
 							gen := *nl.DeserializeTcGen(adatum.Value)
 							toAttrs(&gen, action.Attrs())
+							if action.Attrs().Action.String() == "goto" {
+								action.(*GenericAction).Chain = TC_ACT_EXT_VAL_MASK & gen.Action
+							}
 						}
 					case "police":
 						parsePolice(adatum, action.(*PoliceAction))
