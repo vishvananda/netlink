@@ -90,13 +90,10 @@ func (h *Handle) ConntrackTableFlush(table ConntrackTableType) error {
 // ConntrackDeleteFilter deletes entries on the specified table on the base of the filter using the netlink handle passed
 // conntrack -D [table] parameters         Delete conntrack or expectation
 func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
-	res, err := h.dumpConntrackTable(table, family)
-	if err != nil {
-		return 0, err
-	}
+	req := h.newConntrackRequest(table, family, nl.IPCTNL_MSG_CT_GET, unix.NLM_F_DUMP)
 
 	var matched uint
-	for _, dataRaw := range res {
+	err := req.ExecuteWithHandleFunc(unix.NETLINK_NETFILTER, 0, func(dataRaw []byte) {
 		flow := parseRawData(dataRaw)
 		if match := filter.MatchConntrackFlow(flow); match {
 			req2 := h.newConntrackRequest(table, family, nl.IPCTNL_MSG_CT_DELETE, unix.NLM_F_ACK)
@@ -105,9 +102,9 @@ func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFami
 			req2.Execute(unix.NETLINK_NETFILTER, 0)
 			matched++
 		}
-	}
+	})
 
-	return matched, nil
+	return matched, err
 }
 
 func (h *Handle) newConntrackRequest(table ConntrackTableType, family InetFamily, operation, flags int) *nl.NetlinkRequest {

@@ -479,6 +479,16 @@ func (req *NetlinkRequest) AddRawData(data []byte) {
 // Returns a list of netlink messages in serialized format, optionally filtered
 // by resType.
 func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, error) {
+	var res [][]byte
+	var msgHandleFunc = func(msg []byte) { res = append(res, msg) }
+
+	err := req.ExecuteWithHandleFunc(sockType, resType, msgHandleFunc)
+	return res, err
+}
+
+// ExecuteWithHandleFunc execute the request against the given sockType.
+// Processing messages by msgHandleFunc, optionally filtered by resType.
+func (req *NetlinkRequest) ExecuteWithHandleFunc(sockType int, resType uint16, msgHandleFunc func(msg []byte)) error {
 	var (
 		s   *NetlinkSocket
 		err error
@@ -495,18 +505,18 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 	if s == nil {
 		s, err = getNetlinkSocket(sockType)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if err := s.SetSendTimeout(&SocketTimeoutTv); err != nil {
-			return nil, err
+			return err
 		}
 		if err := s.SetReceiveTimeout(&SocketTimeoutTv); err != nil {
-			return nil, err
+			return err
 		}
 		if EnableErrorMessageReporting {
 			if err := s.SetExtAck(true); err != nil {
-				return nil, err
+				return err
 			}
 		}
 
@@ -517,31 +527,29 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 	}
 
 	if err := s.Send(req); err != nil {
-		return nil, err
+		return err
 	}
 
 	pid, err := s.GetPid()
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	var res [][]byte
 
 done:
 	for {
 		msgs, from, err := s.Receive()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if from.Pid != PidKernel {
-			return nil, fmt.Errorf("Wrong sender portid %d, expected %d", from.Pid, PidKernel)
+			return fmt.Errorf("Wrong sender portid %d, expected %d", from.Pid, PidKernel)
 		}
 		for _, m := range msgs {
 			if m.Header.Seq != req.Seq {
 				if sharedSocket {
 					continue
 				}
-				return nil, fmt.Errorf("Wrong Seq nr %d, expected %d", m.Header.Seq, req.Seq)
+				return fmt.Errorf("Wrong Seq nr %d, expected %d", m.Header.Seq, req.Seq)
 			}
 			if m.Header.Pid != pid {
 				continue
@@ -578,18 +586,18 @@ done:
 					}
 				}
 
-				return nil, err
+				return err
 			}
 			if resType != 0 && m.Header.Type != resType {
 				continue
 			}
-			res = append(res, m.Data)
+			msgHandleFunc(m.Data)
 			if m.Header.Flags&unix.NLM_F_MULTI == 0 {
 				break done
 			}
 		}
 	}
-	return res, nil
+	return nil
 }
 
 // Create a new netlink request from proto and flags
