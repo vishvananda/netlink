@@ -1301,6 +1301,7 @@ type RouteGetOptions struct {
 	VrfName string
 	SrcAddr net.IP
 	UID     *uint32
+	Mark    int
 }
 
 // RouteGetWithOptions gets a route to a specific destination from the host system.
@@ -1392,7 +1393,15 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 			uid := *options.UID
 			b := make([]byte, 4)
 			native.PutUint32(b, uid)
+
 			req.AddData(nl.NewRtAttr(unix.RTA_UID, b))
+		}
+
+		if options.Mark > 0 {
+			b := make([]byte, 4)
+			native.PutUint32(b, uint32(options.Mark))
+
+			req.AddData(nl.NewRtAttr(unix.RTA_MARK, b))
 		}
 	}
 

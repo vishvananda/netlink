@@ -1748,3 +1748,98 @@ func TestRouteUIDOption(t *testing.T) {
 		t.Fatal(routes)
 	}
 }
+
+func TestRouteFWMarkOption(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// setup eth0 so that network is reachable
+	err := LinkAdd(&Dummy{LinkAttrs{Name: "eth0"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("eth0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	addr := &Addr{
+		IPNet: &net.IPNet{
+			IP:   net.IPv4(192, 168, 1, 1),
+			Mask: net.CIDRMask(16, 32),
+		},
+	}
+	if err = AddrAdd(link, addr); err != nil {
+		t.Fatal(err)
+	}
+
+	// a table different than unix.RT_TABLE_MAIN
+	testtable := 1000
+
+	gw1 := net.IPv4(192, 168, 1, 254)
+	gw2 := net.IPv4(192, 168, 2, 254)
+
+	// add default route via gw1 (in main route table by default)
+	defaultRouteMain := Route{
+		Dst: nil,
+		Gw:  gw1,
+	}
+	if err := RouteAdd(&defaultRouteMain); err != nil {
+		t.Fatal(err)
+	}
+
+	// add default route via gw2 in test route table
+	defaultRouteTest := Route{
+		Dst:   nil,
+		Gw:    gw2,
+		Table: testtable,
+	}
+	if err := RouteAdd(&defaultRouteTest); err != nil {
+		t.Fatal(err)
+	}
+
+	// check the routes are in different tables
+	routes, err := RouteListFiltered(FAMILY_V4, &Route{
+		Dst:   nil,
+		Table: unix.RT_TABLE_UNSPEC,
+	}, RT_FILTER_DST|RT_FILTER_TABLE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 2 || routes[0].Table == routes[1].Table {
+		t.Fatal("Routes not added properly")
+	}
+
+	// add a rule that fwmark match should result in route lookup of test table
+	fwmark := 1000
+
+	rule := NewRule()
+	rule.Mark = fwmark
+	rule.Mask = 0xFFFFFFFF
+	rule.Table = testtable
+	if err := RuleAdd(rule); err != nil {
+		t.Fatal(err)
+	}
+
+	dstIP := net.IPv4(10, 1, 1, 1)
+
+	// check getting route without FWMark option
+	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 || !routes[0].Gw.Equal(gw1) {
+		t.Fatal(routes)
+	}
+
+	// check getting route with FWMark option
+	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{Mark: fwmark})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 || !routes[0].Gw.Equal(gw2) {
+		t.Fatal(routes)
+	}
+}
