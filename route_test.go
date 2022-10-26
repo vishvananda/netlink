@@ -49,6 +49,14 @@ func TestRouteAddDel(t *testing.T) {
 		t.Fatal("Route not added properly")
 	}
 
+	routes, err = RouteList(nil, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatal("Route not listed properly")
+	}
+
 	dstIP := net.IPv4(192, 168, 0, 42)
 	routeToDstIP, err := RouteGet(dstIP)
 	if err != nil {
