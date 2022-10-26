@@ -275,6 +275,7 @@ type SkbEditAction struct {
 	PType        *uint16
 	Priority     *uint32
 	Mark         *uint32
+	Mask         *uint32
 }
 
 func (action *SkbEditAction) Type() string {
