@@ -1004,8 +1004,10 @@ func (h *Handle) RouteList(link Link, family int) ([]Route, error) {
 	routeFilter := &Route{}
 	if link != nil {
 		routeFilter.LinkIndex = link.Attrs().Index
+
+		return h.RouteListFiltered(family, routeFilter, RT_FILTER_OIF)
 	}
-	return h.RouteListFiltered(family, routeFilter, RT_FILTER_OIF)
+	return h.RouteListFiltered(family, routeFilter, 0)
 }
 
 // RouteListFiltered gets a list of routes in the system filtered with specified rules.
