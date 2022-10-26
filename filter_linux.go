@@ -597,6 +597,9 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			if action.Mark != nil {
 				aopts.AddRtAttr(nl.TCA_SKBEDIT_MARK, nl.Uint32Attr(*action.Mark))
 			}
+			if action.Mask != nil {
+				aopts.AddRtAttr(nl.TCA_SKBEDIT_MASK, nl.Uint32Attr(*action.Mask))
+			}
 		case *ConnmarkAction:
 			table := attr.AddRtAttr(tabIndex, nil)
 			tabIndex++
@@ -739,6 +742,9 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						case nl.TCA_SKBEDIT_MARK:
 							mark := native.Uint32(adatum.Value[0:4])
 							action.(*SkbEditAction).Mark = &mark
+						case nl.TCA_SKBEDIT_MASK:
+							mask := native.Uint32(adatum.Value[0:4])
+							action.(*SkbEditAction).Mask = &mask
 						case nl.TCA_SKBEDIT_PRIORITY:
 							priority := native.Uint32(adatum.Value[0:4])
 							action.(*SkbEditAction).Priority = &priority

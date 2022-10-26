@@ -1327,6 +1327,8 @@ func TestFilterU32SkbEditAddDel(t *testing.T) {
 	skbedit.Priority = &priority
 	mark := uint32(0xfe)
 	skbedit.Mark = &mark
+	mask := uint32(0xff)
+	skbedit.Mask = &mask
 	mapping := uint16(0xf)
 	skbedit.QueueMapping = &mapping
 
@@ -1394,6 +1396,9 @@ func TestFilterU32SkbEditAddDel(t *testing.T) {
 	}
 	if edit.Mark == nil || *edit.Mark != *skbedit.Mark {
 		t.Fatal("Action Mark doesn't match")
+	}
+	if edit.Mask == nil || *edit.Mask != *skbedit.Mask {
+		t.Fatal("Action Mask doesn't match")
 	}
 	if edit.Priority == nil || *edit.Priority != *skbedit.Priority {
 		t.Fatal("Action Priority doesn't match")
