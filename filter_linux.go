@@ -642,6 +642,27 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			gen := nl.TcGen{}
 			toTcGen(action.Attrs(), &gen)
 			aopts.AddRtAttr(nl.TCA_GACT_PARMS, gen.Serialize())
+		case *SkbModAction:
+			table := attr.AddRtAttr(tabIndex, nil)
+			tabIndex++
+			table.AddRtAttr(nl.TCA_ACT_KIND, nl.ZeroTerminated("skbmod"))
+			aopts := table.AddRtAttr(nl.TCA_ACT_OPTIONS, nil)
+			skbmod := nl.TcSkbMod{
+				Flags: action.Flags,
+			}
+			toTcGen(action.Attrs(), &skbmod.TcGen)
+			aopts.AddRtAttr(nl.TCA_SKBMOD_PARMS, skbmod.Serialize())
+			if action.EthType != nil {
+				aopts.AddRtAttr(nl.TCA_SKBMOD_ETYPE, nl.Uint16Attr(*action.EthType))
+			}
+			if action.EthSrc != nil {
+				ethSrc := *action.EthSrc
+				aopts.AddRtAttr(nl.TCA_SKBMOD_SMAC, ethSrc[:])
+			}
+			if action.EthDst != nil {
+				ethDst := *action.EthDst
+				aopts.AddRtAttr(nl.TCA_SKBMOD_DMAC, ethDst[:])
+			}
 		}
 	}
 	return nil
@@ -702,6 +723,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 					action = &SkbEditAction{}
 				case "police":
 					action = &PoliceAction{}
+				case "skbmod":
+					action = &SkbModAction{}
 				default:
 					break nextattr
 				}
@@ -793,6 +816,23 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						}
 					case "police":
 						parsePolice(adatum, action.(*PoliceAction))
+					case "skbmod":
+						switch adatum.Attr.Type {
+						case nl.TCA_SKBMOD_PARMS:
+							skbmod := *nl.DeserializeSkbMod(adatum.Value)
+							action.(*SkbModAction).ActionAttrs = ActionAttrs{}
+							toAttrs(&skbmod.TcGen, action.Attrs())
+							action.(*SkbModAction).Flags = skbmod.Flags
+						case nl.TCA_SKBMOD_ETYPE:
+							etype := native.Uint16(adatum.Value[0:2])
+							action.(*SkbModAction).EthType = &etype
+						case nl.TCA_SKBMOD_SMAC:
+							ethSrc := net.HardwareAddr(adatum.Value[:])
+							action.(*SkbModAction).EthSrc = &ethSrc
+						case nl.TCA_SKBMOD_DMAC:
+							ethDst := net.HardwareAddr(adatum.Value[:])
+							action.(*SkbModAction).EthDst = &ethDst
+						}
 					}
 				}
 			}
