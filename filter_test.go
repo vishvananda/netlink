@@ -2069,3 +2069,377 @@ func TestFilterU32PoliceAddDel(t *testing.T) {
 		t.Fatal("Failed to remove qdisc")
 	}
 }
+
+func TestFilterU32SkbModAddDel(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "bar"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	redir, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(redir); err != nil {
+		t.Fatal(err)
+	}
+
+	qdiscHandle := MakeHandle(0x1, 0x0)
+	qdiscAttrs := QdiscAttrs{
+		LinkIndex: link.Attrs().Index,
+		Handle:    qdiscHandle,
+		Parent:    HANDLE_ROOT,
+	}
+	qdisc := NewHtb(qdiscAttrs)
+	if err = QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 1 {
+		t.Fatal("Failed to add qdisc")
+	}
+	if _, ok := qdiscs[0].(*Htb); !ok {
+		t.Fatal("Qdisc is the wrong type")
+	}
+
+	mac, err := net.ParseMAC("02:15:15:15:15:15")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mirrmod := &MirredAction{
+		ActionAttrs: ActionAttrs{
+			Action: TC_ACT_STOLEN,
+		},
+		MirredAction: TCA_EGRESS_REDIR,
+		Ifindex:      redir.Attrs().Index,
+	}
+
+	// set src mac
+	skbmod := NewSkbModAction()
+	skbmod.Flags = nl.SKBMOD_F_SMAC
+	skbmod.EthSrc = &mac
+	filter := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    qdiscHandle,
+			Priority:  1,
+			Protocol:  unix.ETH_P_IP,
+		},
+		Actions: []Action{
+			skbmod,
+			mirrmod,
+		},
+	}
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err := FilterList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	u32, ok := filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+	if len(u32.Actions) != 2 {
+		t.Fatalf("Too few Actions in filter")
+	}
+	mod, ok := u32.Actions[0].(*SkbModAction)
+	if !ok {
+		mod, ok = u32.Actions[1].(*SkbModAction)
+		if !ok {
+			t.Fatal("Unable to find skbmod action")
+		}
+	}
+	if mod.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("SkbMod action isn't TC_ACT_PIPE")
+	}
+	if mod.Flags != nl.SKBMOD_F_SMAC {
+		t.Fatal("Action Flags doesn't match")
+	}
+	if mod.EthType != nil {
+		t.Fatal("Action EthType doesn't match")
+	}
+	if mod.EthDst != nil {
+		t.Fatal("Action EthDst doesn't match")
+	}
+	if mod.EthSrc.String() != mac.String() {
+		t.Fatal("Action EthSrc doesn't match")
+	}
+	mia, ok := u32.Actions[0].(*MirredAction)
+	if !ok {
+		mia, ok = u32.Actions[1].(*MirredAction)
+		if !ok {
+			t.Fatal("Unable to find mirred action")
+		}
+	}
+	if mia.Attrs().Action != TC_ACT_STOLEN {
+		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
+	}
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	// set dst mac
+	skbmod = NewSkbModAction()
+	skbmod.Flags = nl.SKBMOD_F_DMAC
+	skbmod.EthDst = &mac
+	filter = &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    qdiscHandle,
+			Priority:  1,
+			Protocol:  unix.ETH_P_IP,
+		},
+		Actions: []Action{
+			skbmod,
+			mirrmod,
+		},
+	}
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	u32, ok = filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+	if len(u32.Actions) != 2 {
+		t.Fatalf("Too few Actions in filter")
+	}
+	mod, ok = u32.Actions[0].(*SkbModAction)
+	if !ok {
+		mod, ok = u32.Actions[1].(*SkbModAction)
+		if !ok {
+			t.Fatal("Unable to find skbmod action")
+		}
+	}
+	if mod.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("SkbMod action isn't TC_ACT_PIPE")
+	}
+	if mod.Flags != nl.SKBMOD_F_DMAC {
+		t.Fatal("Action Flags doesn't match")
+	}
+	if mod.EthType != nil {
+		t.Fatal("Action EthType doesn't match")
+	}
+	if mod.EthDst.String() != mac.String() {
+		t.Fatal("Action EthDst doesn't match")
+	}
+	if mod.EthSrc != nil {
+		t.Fatal("Action EthSrc doesn't match")
+	}
+	mia, ok = u32.Actions[0].(*MirredAction)
+	if !ok {
+		mia, ok = u32.Actions[1].(*MirredAction)
+		if !ok {
+			t.Fatal("Unable to find mirred action")
+		}
+	}
+	if mia.Attrs().Action != TC_ACT_STOLEN {
+		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
+	}
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	// swap mac
+	skbmod = NewSkbModAction()
+	skbmod.Flags = nl.SKBMOD_F_SWAPMAC
+	filter = &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    qdiscHandle,
+			Priority:  1,
+			Protocol:  unix.ETH_P_IP,
+		},
+		Actions: []Action{
+			skbmod,
+			mirrmod,
+		},
+	}
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	u32, ok = filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+	if len(u32.Actions) != 2 {
+		t.Fatalf("Too few Actions in filter")
+	}
+	mod, ok = u32.Actions[0].(*SkbModAction)
+	if !ok {
+		mod, ok = u32.Actions[1].(*SkbModAction)
+		if !ok {
+			t.Fatal("Unable to find skbmod action")
+		}
+	}
+	if mod.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("SkbMod action isn't TC_ACT_PIPE")
+	}
+	if mod.Flags != nl.SKBMOD_F_SWAPMAC {
+		t.Fatal("Action Flags doesn't match")
+	}
+	if mod.EthType != nil {
+		t.Fatal("Action EthType doesn't match")
+	}
+	if mod.EthDst != nil {
+		t.Fatal("Action EthDst doesn't match")
+	}
+	if mod.EthSrc != nil {
+		t.Fatal("Action EthSrc doesn't match")
+	}
+	mia, ok = u32.Actions[0].(*MirredAction)
+	if !ok {
+		mia, ok = u32.Actions[1].(*MirredAction)
+		if !ok {
+			t.Fatal("Unable to find mirred action")
+		}
+	}
+	if mia.Attrs().Action != TC_ACT_STOLEN {
+		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
+	}
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	// set etype
+	skbmod = NewSkbModAction()
+	skbmod.Flags = nl.SKBMOD_F_ETYPE
+	etype := uint16(0xBEEF)
+	skbmod.EthType = &etype
+	filter = &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    qdiscHandle,
+			Priority:  1,
+			Protocol:  unix.ETH_P_IP,
+		},
+		Actions: []Action{
+			skbmod,
+			mirrmod,
+		},
+	}
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	u32, ok = filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+	if len(u32.Actions) != 2 {
+		t.Fatalf("Too few Actions in filter")
+	}
+	mod, ok = u32.Actions[0].(*SkbModAction)
+	if !ok {
+		mod, ok = u32.Actions[1].(*SkbModAction)
+		if !ok {
+			t.Fatal("Unable to find skbmod action")
+		}
+	}
+	if mod.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("SkbMod action isn't TC_ACT_PIPE")
+	}
+	if mod.Flags != nl.SKBMOD_F_ETYPE {
+		t.Fatal("Action Flags doesn't match")
+	}
+	if *mod.EthType != *skbmod.EthType {
+		t.Fatal("Action EthType doesn't match")
+	}
+	if mod.EthDst != nil {
+		t.Fatal("Action EthDst doesn't match")
+	}
+	if mod.EthSrc != nil {
+		t.Fatal("Action EthSrc doesn't match")
+	}
+	mia, ok = u32.Actions[0].(*MirredAction)
+	if !ok {
+		mia, ok = u32.Actions[1].(*MirredAction)
+		if !ok {
+			t.Fatal("Unable to find mirred action")
+		}
+	}
+	if mia.Attrs().Action != TC_ACT_STOLEN {
+		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
+	}
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, qdiscHandle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err = QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 0 {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
