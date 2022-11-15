@@ -199,8 +199,6 @@ func deserializeFouMsg(msg []byte) (Fou, error) {
 			fou.Family = int(msg[5])
 		case FOU_ATTR_PORT:
 			fou.Port = int(binary.BigEndian.Uint16(msg[5:7]))
-			// port is 2 bytes
-			shift = lgt + 2
 		case FOU_ATTR_IPPROTO:
 			fou.Protocol = int(msg[5])
 		case FOU_ATTR_TYPE:
