@@ -274,14 +274,14 @@ func (h *Handle) ipsetAddDel(nlCmd int, setname string, entry *IPSetEntry) error
 	req := h.newIpsetRequest(nlCmd)
 	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(setname)))
 
-	if entry.Comment != "" {
-		req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_COMMENT, nl.ZeroTerminated(entry.Comment)))
-	}
-
 	data := nl.NewRtAttr(nl.IPSET_ATTR_DATA|int(nl.NLA_F_NESTED), nil)
 
 	if !entry.Replace {
 		req.Flags |= unix.NLM_F_EXCL
+	}
+
+	if entry.Comment != "" {
+		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_COMMENT, nl.ZeroTerminated(entry.Comment)))
 	}
 
 	if entry.Timeout != nil {
