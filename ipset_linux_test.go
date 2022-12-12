@@ -95,7 +95,7 @@ func TestIpsetCreateListAddDelDestroy(t *testing.T) {
 		Replace:  true,
 		Timeout:  &timeout,
 		Counters: true,
-		Comments: false,
+		Comments: true,
 		Skbinfo:  false,
 	})
 	if err != nil {
@@ -219,7 +219,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 				Replace:  true,
 				Timeout:  &timeout,
 				Counters: true,
-				Comments: false,
+				Comments: true,
 				Skbinfo:  false,
 			},
 			entry: &IPSetEntry{
@@ -333,7 +333,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 				Replace:  true,
 				Timeout:  &timeout,
 				Counters: true,
-				Comments: false,
+				Comments: true,
 				Skbinfo:  false,
 			},
 			entry: &IPSetEntry{
@@ -350,7 +350,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 				Replace:  true,
 				Timeout:  &timeout,
 				Counters: true,
-				Comments: false,
+				Comments: true,
 				Skbinfo:  false,
 			},
 			entry: &IPSetEntry{
@@ -369,7 +369,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 				Replace:  true,
 				Timeout:  &timeout,
 				Counters: true,
-				Comments: false,
+				Comments: true,
 				Skbinfo:  false,
 			},
 			entry: &IPSetEntry{
