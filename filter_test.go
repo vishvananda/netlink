@@ -1055,14 +1055,12 @@ func setupLinkForTestWithQdisc(t *testing.T, linkName string) (Qdisc, Link) {
 	if err := LinkSetUp(link); err != nil {
 		t.Fatal(err)
 	}
-	attrs := QdiscAttrs{
-		LinkIndex: link.Attrs().Index,
-		Handle:    MakeHandle(0xffff, 0),
-		Parent:    HANDLE_CLSACT,
-	}
-	qdisc := &GenericQdisc{
-		QdiscAttrs: attrs,
-		QdiscType:  "clsact",
+	qdisc := &Clsact{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(0xffff, 0),
+			Parent:    HANDLE_CLSACT,
+		},
 	}
 
 	if err := QdiscAdd(qdisc); err != nil {
@@ -1075,7 +1073,7 @@ func setupLinkForTestWithQdisc(t *testing.T, linkName string) (Qdisc, Link) {
 	if len(qdiscs) != 1 {
 		t.Fatal("Failed to add qdisc", len(qdiscs))
 	}
-	if q, ok := qdiscs[0].(*GenericQdisc); !ok || q.Type() != "clsact" {
+	if q, ok := qdiscs[0].(*Clsact); !ok || q.Type() != "clsact" {
 		t.Fatal("qdisc is the wrong type")
 	}
 	return qdiscs[0], link

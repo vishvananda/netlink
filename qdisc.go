@@ -217,6 +217,19 @@ func (qdisc *Tbf) Type() string {
 	return "tbf"
 }
 
+// Clsact is a qdisc for adding filters
+type Clsact struct {
+	QdiscAttrs
+}
+
+func (qdisc *Clsact) Attrs() *QdiscAttrs {
+	return &qdisc.QdiscAttrs
+}
+
+func (qdisc *Clsact) Type() string {
+	return "clsact"
+}
+
 // Ingress is a qdisc for adding ingress filters
 type Ingress struct {
 	QdiscAttrs
