@@ -1027,7 +1027,18 @@ const (
 	TCA_FLOWER_KEY_ENC_OPTS
 	TCA_FLOWER_KEY_ENC_OPTS_MASK
 
+	TCA_FLOWER_IN_HW_COUNT /* be32 */
+
 	__TCA_FLOWER_MAX
+)
+
+// tca flags definitions from include/uapi/linux/pkt_cls.h
+const (
+	TCA_CLS_FLAGS_SKIP_HW   uint32 = 1 << iota /* don't offload filter to HW */
+	TCA_CLS_FLAGS_SKIP_SW                      /* don't use filter in SW */
+	TCA_CLS_FLAGS_IN_HW                        /* filter is offloaded to HW */
+	TCA_CLS_FLAGS_NOT_IN_HW                    /* filter isn't offloaded to HW */
+	TCA_CLS_FLAGS_VERBOSE                      /* verbose logging */
 )
 
 // struct tc_sfq_qopt {
