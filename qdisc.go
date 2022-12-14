@@ -3,6 +3,8 @@ package netlink
 import (
 	"fmt"
 	"math"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 const (
@@ -373,4 +375,28 @@ func (qdisc *Sfq) Attrs() *QdiscAttrs {
 
 func (qdisc *Sfq) Type() string {
 	return "sfq"
+}
+
+type MqPrio struct {
+	QdiscAttrs
+	Opt       nl.TcMqPrioQopt
+	Mode      uint16
+	Shaper    uint16
+	MinRate64 uint64
+	MaxRate64 uint64
+}
+
+func (qdisc *MqPrio) Attrs() *QdiscAttrs {
+	return &qdisc.QdiscAttrs
+}
+
+func (qdisc *MqPrio) Type() string {
+	return "mqprio"
+}
+
+func (qdisc *MqPrio) String() string {
+	return fmt.Sprintf(
+		"{%v -- Opt %+v, Mode: %v Shaper %v MinRate64 %v MaxRate64 %v}",
+		qdisc.Attrs(), qdisc.Opt, qdisc.Mode, qdisc.Shaper, qdisc.MinRate64, qdisc.MaxRate64,
+	)
 }
