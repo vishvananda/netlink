@@ -339,8 +339,8 @@ type Tuntap struct {
 	NonPersist bool
 	Queues     int
 	Fds        []*os.File
-	Owner      uint32
-	Group      uint32
+	Owner      int64 // -1 for no owner
+	Group      int64 // -1 for no group
 }
 
 func (tuntap *Tuntap) Attrs() *LinkAttrs {

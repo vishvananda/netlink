@@ -1265,16 +1265,20 @@ func (h *Handle) linkModify(link Link, flags int) error {
 				return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed [%d], errno %v", i, errno)
 			}
 
-			_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TUNSETOWNER, uintptr(tuntap.Owner))
-			if errno != 0 {
-				cleanupFds(fds)
-				return fmt.Errorf("Tuntap IOCTL TUNSETOWNER failed [%d], errno %v", i, errno)
+			if tuntap.Owner >= 0 {
+				_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TUNSETOWNER, uintptr(tuntap.Owner))
+				if errno != 0 {
+					cleanupFds(fds)
+					return fmt.Errorf("Tuntap IOCTL TUNSETOWNER failed [%d], errno %v", i, errno)
+				}
 			}
 
-			_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TUNSETGROUP, uintptr(tuntap.Group))
-			if errno != 0 {
-				cleanupFds(fds)
-				return fmt.Errorf("Tuntap IOCTL TUNSETGROUP failed [%d], errno %v", i, errno)
+			if tuntap.Group >= 0 {
+				_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TUNSETGROUP, uintptr(tuntap.Group))
+				if errno != 0 {
+					cleanupFds(fds)
+					return fmt.Errorf("Tuntap IOCTL TUNSETGROUP failed [%d], errno %v", i, errno)
+				}
 			}
 
 			// Set the tun device to non-blocking before use. The below comment
@@ -1850,7 +1854,7 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 					case "xfrm":
 						link = &Xfrmi{}
 					case "tun":
-						link = &Tuntap{}
+						link = &Tuntap{Owner: -1, Group: -1}
 					case "ipoib":
 						link = &IPoIB{}
 					case "can":
@@ -2058,11 +2062,15 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			// The sysfs interface for owner/group returns -1 for root user, instead of returning 0.
 			// So explicitly check for negative value, before assigning the owner uid/gid.
 			if owner, err := readSysPropAsInt64(ifname, "owner"); err == nil && owner > 0 {
-				tuntap.Owner = uint32(owner)
+				tuntap.Owner = int64(owner)
+			} else if owner == -1 {
+				tuntap.Owner = 0
 			}
 
 			if group, err := readSysPropAsInt64(ifname, "group"); err == nil && group > 0 {
-				tuntap.Group = uint32(group)
+				tuntap.Group = int64(group)
+			} else if group == -1 {
+				tuntap.Group = 0
 			}
 		}
 	}
@@ -3421,9 +3429,9 @@ func parseTuntapData(link Link, data []syscall.NetlinkRouteAttr) {
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.IFLA_TUN_OWNER:
-			tuntap.Owner = native.Uint32(datum.Value)
+			tuntap.Owner = int64(native.Uint32(datum.Value))
 		case nl.IFLA_TUN_GROUP:
-			tuntap.Group = native.Uint32(datum.Value)
+			tuntap.Group = int64(native.Uint32(datum.Value))
 		case nl.IFLA_TUN_TYPE:
 			tuntap.Mode = TuntapMode(uint8(datum.Value[0]))
 		case nl.IFLA_TUN_PERSIST:
