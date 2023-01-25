@@ -2599,3 +2599,135 @@ func TestFilterChainAddDel(t *testing.T) {
 		t.Fatal("Failed to remove qdisc")
 	}
 }
+
+func TestFilterSampleAddDel(t *testing.T) {
+	minKernelRequired(t, 4, 11)
+	if _, err := GenlFamilyGet("psample"); err != nil {
+		t.Skip("psample genetlink family unavailable - is CONFIG_PSAMPLE enabled?")
+	}
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	qdisc := &Ingress{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(0xffff, 0),
+			Parent:    HANDLE_INGRESS,
+		},
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("Qdisc is the wrong type")
+	}
+
+	sample := NewSampleAction()
+	sample.Group = 7
+	sample.Rate = 12
+	sample.TruncSize = 200
+
+	classId := MakeHandle(1, 1)
+	filter := &MatchAll{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		ClassId: classId,
+		Actions: []Action{
+			sample,
+		},
+	}
+
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+
+	filters, err := FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	mf, ok := filters[0].(*MatchAll)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+
+	if len(mf.Actions) < 1 {
+		t.Fatalf("Too few Actions in filter")
+	}
+	if mf.ClassId != classId {
+		t.Fatalf("ClassId of the filter is the wrong value")
+	}
+
+	lsample, ok := mf.Actions[0].(*SampleAction)
+	if !ok {
+		t.Fatal("Unable to find sample action")
+	}
+	if lsample.Group != sample.Group {
+		t.Fatalf("Inconsistent sample action group")
+	}
+	if lsample.Rate != sample.Rate {
+		t.Fatalf("Inconsistent sample action rate")
+	}
+	if lsample.TruncSize != sample.TruncSize {
+		t.Fatalf("Inconsistent sample truncation size")
+	}
+
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err = SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found = false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if found {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
