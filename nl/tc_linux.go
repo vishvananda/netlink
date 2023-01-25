@@ -1139,3 +1139,14 @@ func DeserializeTcSfqQoptV1(b []byte) *TcSfqQoptV1 {
 func (x *TcSfqQoptV1) Serialize() []byte {
 	return (*(*[SizeofTcSfqQoptV1]byte)(unsafe.Pointer(x)))[:]
 }
+
+const (
+	TCA_ACT_SAMPLE_UNSPEC = iota
+	TCA_ACT_SAMPLE_TM
+	TCA_ACT_SAMPLE_PARMS
+	TCA_ACT_SAMPLE_RATE
+	TCA_ACT_SAMPLE_TRUNC_SIZE
+	TCA_ACT_SAMPLE_PSAMPLE_GROUP
+	TCA_ACT_SAMPLE_PAD
+	TCA_ACT_SAMPLE_MAX
+)
