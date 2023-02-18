@@ -981,7 +981,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		req.AddData(attr)
 	}
 
-	if (req.NlMsghdr.Type != unix.RTM_GETROUTE) || (req.NlMsghdr.Type == unix.RTM_GETROUTE && route.LinkIndex > 0) {
+	if req.NlMsghdr.Type != unix.RTM_GETROUTE || route.LinkIndex > 0 {
 		b := make([]byte, 4)
 		native.PutUint32(b, uint32(route.LinkIndex))
 		req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
