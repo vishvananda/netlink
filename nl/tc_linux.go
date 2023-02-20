@@ -115,6 +115,7 @@ const (
 	SizeofTcSfqRedStats  = 0x18
 	SizeofTcSfqQoptV1    = SizeofTcSfqQopt + SizeofTcSfqRedStats + 0x1c
 	SizeofUint32Bitfield = 0x8
+	SizeofTcSkbMod       = SizeofTcGen + 0x0c
 )
 
 // struct tcmsg {
@@ -1174,4 +1175,43 @@ func (i IPProto) String() string {
 		return "icmpv6"
 	}
 	return fmt.Sprintf("%d", i)
+}
+
+// struct tc_skbmod {
+//  tc_gen;
+//  __u64 flags;
+// };
+type TcSkbMod struct {
+	TcGen
+	Flags uint64
+}
+
+const (
+	TCA_SKBMOD_UNSPEC = iota
+	TCA_SKBMOD_TM
+	TCA_SKBMOD_PARMS
+	TCA_SKBMOD_DMAC
+	TCA_SKBMOD_SMAC
+	TCA_SKBMOD_ETYPE
+	TCA_SKBMOD_PAD
+	TCA_SKBMOD_MAX = TCA_SKBMOD_PAD
+)
+
+const (
+	SKBMOD_F_DMAC    uint64 = 0x1
+	SKBMOD_F_SMAC    uint64 = 0x2
+	SKBMOD_F_ETYPE   uint64 = 0x4
+	SKBMOD_F_SWAPMAC uint64 = 0x8
+)
+
+func (x *TcSkbMod) Len() int {
+	return SizeofTcSkbMod
+}
+
+func DeserializeSkbMod(b []byte) *TcSkbMod {
+	return (*TcSkbMod)(unsafe.Pointer(&b[0:SizeofTcSkbMod][0]))
+}
+
+func (x *TcSkbMod) Serialize() []byte {
+	return (*(*[SizeofTcSkbMod]byte)(unsafe.Pointer(x)))[:]
 }
