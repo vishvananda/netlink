@@ -11,6 +11,7 @@ const (
 )
 
 var L4ProtoMap = map[uint8]string{
+	1:  "icmp",
 	6:  "tcp",
 	17: "udp",
 }
@@ -88,7 +89,10 @@ const (
 	CTA_COUNTERS_REPLY = 10
 	CTA_USE            = 11
 	CTA_ID             = 12
+	CTA_ZONE           = 18
 	CTA_TIMESTAMP      = 20
+	CTA_LABELS         = 22
+	CTA_LABELS_MASK    = 23
 )
 
 // enum ctattr_tuple {
@@ -135,9 +139,12 @@ const (
 // };
 // #define CTA_PROTO_MAX (__CTA_PROTO_MAX - 1)
 const (
-	CTA_PROTO_NUM      = 1
-	CTA_PROTO_SRC_PORT = 2
-	CTA_PROTO_DST_PORT = 3
+	CTA_PROTO_NUM       = 1
+	CTA_PROTO_SRC_PORT  = 2
+	CTA_PROTO_DST_PORT  = 3
+	CTA_PROTO_ICMP_ID   = 4
+	CTA_PROTO_ICMP_TYPE = 5
+	CTA_PROTO_ICMP_CODE = 6
 )
 
 // enum ctattr_protoinfo {
