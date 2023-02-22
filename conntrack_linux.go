@@ -154,7 +154,7 @@ type ProtoInfo struct {
 	TCP *ProtoInfoTCP
 }
 
-type ipTuple struct {
+type IpTuple struct {
 	Bytes    uint64
 	DstIP    net.IP
 	DstPort  uint16
@@ -171,8 +171,8 @@ type ipTuple struct {
 
 type ConntrackFlow struct {
 	FamilyType uint8
-	Forward    ipTuple
-	Reverse    ipTuple
+	Forward    IpTuple
+	Reverse    IpTuple
 	Mark       uint32
 	Zone       uint16
 	TimeStart  uint64
@@ -218,7 +218,7 @@ func (s *ConntrackFlow) String() string {
 // <len, NLA_F_NESTED|nl.CTA_TUPLE_PROTO, 1 byte for the protocol, 3 bytes of padding>
 // <len, CTA_PROTO_SRC_PORT, 2 bytes for the source port, 2 bytes of padding>
 // <len, CTA_PROTO_DST_PORT, 2 bytes for the source port, 2 bytes of padding>
-func parseIpTuple(reader *bytes.Reader, tpl *ipTuple) uint8 {
+func parseIpTuple(reader *bytes.Reader, tpl *IpTuple) uint8 {
 	for i := 0; i < 2; i++ {
 		_, t, _, v := parseNfAttrTLV(reader)
 		switch t {

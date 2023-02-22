@@ -349,14 +349,14 @@ func TestConntrackFilter(t *testing.T) {
 	var flowList []ConntrackFlow
 	flowList = append(flowList, ConntrackFlow{
 		FamilyType: unix.AF_INET,
-		Forward: ipTuple{
+		Forward: IpTuple{
 			SrcIP:    net.ParseIP("10.0.0.1"),
 			DstIP:    net.ParseIP("20.0.0.1"),
 			SrcPort:  1000,
 			DstPort:  2000,
 			Protocol: 17,
 		},
-		Reverse: ipTuple{
+		Reverse: IpTuple{
 			SrcIP:    net.ParseIP("20.0.0.1"),
 			DstIP:    net.ParseIP("192.168.1.1"),
 			SrcPort:  2000,
@@ -366,14 +366,14 @@ func TestConntrackFilter(t *testing.T) {
 	},
 		ConntrackFlow{
 			FamilyType: unix.AF_INET,
-			Forward: ipTuple{
+			Forward: IpTuple{
 				SrcIP:    net.ParseIP("10.0.0.2"),
 				DstIP:    net.ParseIP("20.0.0.2"),
 				SrcPort:  5000,
 				DstPort:  6000,
 				Protocol: 6,
 			},
-			Reverse: ipTuple{
+			Reverse: IpTuple{
 				SrcIP:    net.ParseIP("20.0.0.2"),
 				DstIP:    net.ParseIP("192.168.1.1"),
 				SrcPort:  6000,
@@ -383,14 +383,14 @@ func TestConntrackFilter(t *testing.T) {
 		},
 		ConntrackFlow{
 			FamilyType: unix.AF_INET6,
-			Forward: ipTuple{
+			Forward: IpTuple{
 				SrcIP:    net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"),
 				DstIP:    net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"),
 				SrcPort:  1000,
 				DstPort:  2000,
 				Protocol: 132,
 			},
-			Reverse: ipTuple{
+			Reverse: IpTuple{
 				SrcIP:    net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"),
 				DstIP:    net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"),
 				SrcPort:  2000,
