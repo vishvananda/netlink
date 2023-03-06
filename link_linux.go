@@ -2100,6 +2100,16 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			base.NumRxQueues = int(native.Uint32(attr.Value[0:4]))
 		case unix.IFLA_GROUP:
 			base.Group = native.Uint32(attr.Value[0:4])
+		case unix.IFLA_PERM_ADDRESS:
+			var nonzero bool
+			for _, b := range attr.Value {
+				if b != 0 {
+					nonzero = true
+				}
+			}
+			if nonzero {
+				base.PermHWAddr = attr.Value[:]
+			}
 		}
 	}
 
