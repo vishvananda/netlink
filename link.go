@@ -55,6 +55,7 @@ type LinkAttrs struct {
 	GROIPv4MaxSize uint32
 	Vfs            []VfInfo // virtual functions available on link
 	Group          uint32
+	PermHWAddr     net.HardwareAddr
 	Slave          LinkSlave
 }
 
