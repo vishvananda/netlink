@@ -2997,6 +2997,10 @@ func linkFlags(rawFlags uint32) net.Flags {
 func addGeneveAttrs(geneve *Geneve, linkInfo *nl.RtAttr) {
 	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
 
+	if geneve.InnerProtoInherit {
+		data.AddRtAttr(nl.IFLA_GENEVE_INNER_PROTO_INHERIT, []byte{})
+	}
+
 	if geneve.FlowBased {
 		geneve.ID = 0
 		data.AddRtAttr(nl.IFLA_GENEVE_COLLECT_METADATA, []byte{})
@@ -3043,6 +3047,8 @@ func parseGeneveData(link Link, data []syscall.NetlinkRouteAttr) {
 			geneve.Tos = uint8(datum.Value[0])
 		case nl.IFLA_GENEVE_COLLECT_METADATA:
 			geneve.FlowBased = true
+		case nl.IFLA_GENEVE_INNER_PROTO_INHERIT:
+			geneve.InnerProtoInherit = true
 		}
 	}
 }

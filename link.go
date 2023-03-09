@@ -1022,16 +1022,17 @@ func (v *VrfSlave) SlaveType() string {
 // https://github.com/torvalds/linux/blob/47ec5303d73ea344e84f46660fff693c57641386/drivers/net/geneve.c#L1209-L1223
 type Geneve struct {
 	LinkAttrs
-	ID             uint32 // vni
-	Remote         net.IP
-	Ttl            uint8
-	Tos            uint8
-	Dport          uint16
-	UdpCsum        uint8
-	UdpZeroCsum6Tx uint8
-	UdpZeroCsum6Rx uint8
-	Link           uint32
-	FlowBased      bool
+	ID                uint32 // vni
+	Remote            net.IP
+	Ttl               uint8
+	Tos               uint8
+	Dport             uint16
+	UdpCsum           uint8
+	UdpZeroCsum6Tx    uint8
+	UdpZeroCsum6Rx    uint8
+	Link              uint32
+	FlowBased         bool
+	InnerProtoInherit bool
 }
 
 func (geneve *Geneve) Attrs() *LinkAttrs {
