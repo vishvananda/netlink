@@ -35,6 +35,7 @@ func TestRuleAddDel(t *testing.T) {
 	rule.Sport = NewRulePortRange(1000, 1024)
 	rule.IPProto = unix.IPPROTO_UDP
 	rule.UIDRange = NewRuleUIDRange(100, 100)
+	rule.Protocol = unix.RTPROT_KERNEL
 	if err := RuleAdd(rule); err != nil {
 		t.Fatal(err)
 	}
@@ -420,5 +421,6 @@ func ruleEquals(a, b Rule) bool {
 		a.IifName == b.IifName &&
 		a.Invert == b.Invert &&
 		a.Tos == b.Tos &&
-		a.IPProto == b.IPProto
+		a.IPProto == b.IPProto &&
+		a.Protocol == b.Protocol
 }
