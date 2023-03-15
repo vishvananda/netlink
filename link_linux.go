@@ -956,6 +956,33 @@ func LinkSetXdpFdWithFlags(link Link, fd, flags int) error {
 	return err
 }
 
+// LinkSetGSOMaxSegs sets the GSO maximum segment count of the link device.
+// Equivalent to: `ip link set $link gso_max_segs $maxSegs`
+func LinkSetGSOMaxSegs(link Link, maxSegs int) error {
+       return pkgHandle.LinkSetGSOMaxSegs(link, maxSegs)
+}
+
+// LinkSetGSOMaxSegs sets the GSO maximum segment count of the link device.
+// Equivalent to: `ip link set $link gso_max_segs $maxSegs`
+func (h *Handle) LinkSetGSOMaxSegs(link Link, maxSize int) error {
+       base := link.Attrs()
+       h.ensureIndex(base)
+       req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+       msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+       msg.Index = int32(base.Index)
+       req.AddData(msg)
+
+       b := make([]byte, 4)
+       native.PutUint32(b, uint32(maxSize))
+
+       data := nl.NewRtAttr(unix.IFLA_GSO_MAX_SEGS, b)
+       req.AddData(data)
+
+       _, err := req.Execute(unix.NETLINK_ROUTE, 0)
+       return err
+}
+
 // LinkSetGSOMaxSize sets the IPv6 GSO maximum size of the link device.
 // Equivalent to: `ip link set $link gso_max_size $maxSize`
 func LinkSetGSOMaxSize(link Link, maxSize int) error {
