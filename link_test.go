@@ -2146,6 +2146,36 @@ func TestLinkSetGSOMaxSize(t *testing.T) {
 	}
 }
 
+func TestLinkSetGSOMaxSegs(t *testing.T) {
+       minKernelRequired(t, 5, 19)
+       tearDown := setUpNetlinkTest(t)
+       defer tearDown()
+
+       iface := &Veth{LinkAttrs: LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1500}, PeerName: "bar"}
+       if err := LinkAdd(iface); err != nil {
+               t.Fatal(err)
+       }
+
+       link, err := LinkByName("foo")
+       if err != nil {
+               t.Fatal(err)
+       }
+
+       err = LinkSetGSOMaxSegs(link, 16)
+       if err != nil {
+               t.Fatal(err)
+       }
+
+       link, err = LinkByName("foo")
+       if err != nil {
+               t.Fatal(err)
+       }
+
+       if link.Attrs().GSOMaxSegs != 16 {
+               t.Fatalf("GSO max segments was not modified")
+       }
+}
+
 func TestLinkSetGROMaxSize(t *testing.T) {
 	minKernelRequired(t, 5, 19)
 	tearDown := setUpNetlinkTest(t)
