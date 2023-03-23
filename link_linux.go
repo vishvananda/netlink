@@ -345,6 +345,16 @@ func (h *Handle) BridgeSetVlanFiltering(link Link, on bool) error {
 	return h.linkModify(bridge, unix.NLM_F_ACK)
 }
 
+func BridgeSetVlanDefaultPVID(link Link, pvid uint16) error {
+	return pkgHandle.BridgeSetVlanDefaultPVID(link, pvid)
+}
+
+func (h *Handle) BridgeSetVlanDefaultPVID(link Link, pvid uint16) error {
+	bridge := link.(*Bridge)
+	bridge.VlanDefaultPVID = &pvid
+	return h.linkModify(bridge, unix.NLM_F_ACK)
+}
+
 func SetPromiscOn(link Link) error {
 	return pkgHandle.SetPromiscOn(link)
 }
@@ -3184,6 +3194,9 @@ func addBridgeAttrs(bridge *Bridge, linkInfo *nl.RtAttr) {
 	if bridge.VlanFiltering != nil {
 		data.AddRtAttr(nl.IFLA_BR_VLAN_FILTERING, boolToByte(*bridge.VlanFiltering))
 	}
+	if bridge.VlanDefaultPVID != nil {
+		data.AddRtAttr(nl.IFLA_BR_VLAN_DEFAULT_PVID, nl.Uint16Attr(*bridge.VlanDefaultPVID))
+	}
 }
 
 func parseBridgeData(bridge Link, data []syscall.NetlinkRouteAttr) {
@@ -3202,6 +3215,9 @@ func parseBridgeData(bridge Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_BR_VLAN_FILTERING:
 			vlanFiltering := datum.Value[0] == 1
 			br.VlanFiltering = &vlanFiltering
+		case nl.IFLA_BR_VLAN_DEFAULT_PVID:
+			vlanDefaultPVID := native.Uint16(datum.Value[0:2])
+			br.VlanDefaultPVID = &vlanDefaultPVID
 		}
 	}
 }
