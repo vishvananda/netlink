@@ -396,7 +396,7 @@ func compareGretap(t *testing.T, expected, actual *Gretap) {
 
 	if actual.FlowBased != expected.FlowBased {
 		t.Fatal("Gretap.FlowBased doesn't match")
-	 }
+	}
 }
 
 func compareGretun(t *testing.T, expected, actual *Gretun) {
@@ -2254,6 +2254,34 @@ func TestBridgeSetVlanFiltering(t *testing.T) {
 	}
 }
 
+func TestBridgeDefaultPVID(t *testing.T) {
+	minKernelRequired(t, 4, 4)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	bridgeName := "foo"
+	bridge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeName}}
+	if err := LinkAdd(bridge); err != nil {
+		t.Fatal(err)
+	}
+	expectVlanDefaultPVID(t, bridgeName, 1)
+
+	if err := BridgeSetVlanDefaultPVID(bridge, 100); err != nil {
+		t.Fatal(err)
+	}
+	expectVlanDefaultPVID(t, bridgeName, 100)
+
+	if err := BridgeSetVlanDefaultPVID(bridge, 0); err != nil {
+		t.Fatal(err)
+	}
+	expectVlanDefaultPVID(t, bridgeName, 0)
+
+	if err := LinkDel(bridge); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func expectVlanFiltering(t *testing.T, linkName string, expected bool) {
 	bridge, err := LinkByName(linkName)
 	if err != nil {
@@ -2262,6 +2290,17 @@ func expectVlanFiltering(t *testing.T, linkName string, expected bool) {
 
 	if actual := *bridge.(*Bridge).VlanFiltering; actual != expected {
 		t.Fatalf("expected %t got %t", expected, actual)
+	}
+}
+
+func expectVlanDefaultPVID(t *testing.T, linkName string, expected uint16) {
+	bridge, err := LinkByName(linkName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual := *bridge.(*Bridge).VlanDefaultPVID; actual != expected {
+		t.Fatalf("expected %d got %d", expected, actual)
 	}
 }
 
