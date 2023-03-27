@@ -8,6 +8,7 @@ linters:
     - gofumpt
     - gosimple
     - govet
+    - nilerr
     - unconvert
     - whitespace
   disable:

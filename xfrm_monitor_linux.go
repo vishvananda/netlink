@@ -37,7 +37,7 @@ func XfrmMonitor(ch chan<- XfrmMsg, done <-chan struct{}, errorChan chan<- error
 ) error {
 	groups, err := xfrmMcastGroups(types)
 	if err != nil {
-		return nil
+		return err
 	}
 	s, err := nl.SubscribeAt(netns.None(), netns.None(), unix.NETLINK_XFRM, groups...)
 	if err != nil {
