@@ -6,9 +6,10 @@ import (
 	"syscall"
 	"unsafe"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -309,9 +310,10 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 			// #define RTA_LENGTH(len) (RTA_ALIGN(sizeof(struct rtattr)) + (len))
 			// #define RTA_PAYLOAD(rta) ((int)((rta)->rta_len) - RTA_LENGTH(0))
 			attrLen := attr.Attr.Len - unix.SizeofRtAttr
-			if attrLen == 4 {
+			switch attrLen {
+			case 4:
 				neigh.LLIPAddr = net.IP(attr.Value)
-			} else if attrLen == 16 {
+			case 16:
 				// Can be IPv6 or FireWire HWAddr
 				link, err := LinkByIndex(neigh.LinkIndex)
 				if err == nil && link.Attrs().EncapType == "tunnel6" {
@@ -319,7 +321,7 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 				} else {
 					neigh.HardwareAddr = net.HardwareAddr(attr.Value)
 				}
-			} else {
+			default:
 				neigh.HardwareAddr = net.HardwareAddr(attr.Value)
 			}
 		case NDA_FLAGS_EXT:

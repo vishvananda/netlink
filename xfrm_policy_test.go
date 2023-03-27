@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -112,9 +113,7 @@ func TestXfrmPolicyFlush(t *testing.T) {
 	}
 
 	p1.Dir = XFRM_DIR_IN
-	s := p1.Src
-	p1.Src = p1.Dst
-	p1.Dst = s
+	p1.Src, p1.Dst = p1.Dst, p1.Src
 	if err := XfrmPolicyAdd(p1); err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +137,6 @@ func TestXfrmPolicyFlush(t *testing.T) {
 	if len(policies) != 0 {
 		t.Fatalf("unexpected number of policies: %d", len(policies))
 	}
-
 }
 
 func TestXfrmPolicyBlockWithIfindex(t *testing.T) {

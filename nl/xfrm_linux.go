@@ -119,7 +119,7 @@ const (
 type XfrmAddress [SizeofXfrmAddress]byte
 
 func (x *XfrmAddress) ToIP() net.IP {
-	var empty = [12]byte{}
+	empty := [12]byte{}
 	ip := make(net.IP, net.IPv6len)
 	if bytes.Equal(x[4:16], empty[:]) {
 		ip[10] = 0xff
@@ -148,13 +148,14 @@ func (x *XfrmAddress) ToIPNet(prefixlen uint8, family uint16) *net.IPNet {
 }
 
 func (x *XfrmAddress) FromIP(ip net.IP) {
-	var empty = [16]byte{}
-	if len(ip) < net.IPv4len {
+	empty := [16]byte{}
+	switch {
+	case len(ip) < net.IPv4len:
 		copy(x[4:16], empty[:])
-	} else if GetIPFamily(ip) == FAMILY_V4 {
+	case GetIPFamily(ip) == FAMILY_V4:
 		copy(x[0:4], ip.To4()[0:4])
 		copy(x[4:16], empty[:12])
-	} else {
+	default:
 		copy(x[0:16], ip.To16()[0:16])
 	}
 }

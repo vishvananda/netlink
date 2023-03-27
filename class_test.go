@@ -675,5 +675,4 @@ func TestClassHfsc(t *testing.T) {
 	if err := ClassChange(hfscClass); err != nil {
 		t.Fatal(err)
 	}
-
 }

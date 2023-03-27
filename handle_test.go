@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -14,9 +15,10 @@ import (
 	"time"
 	"unsafe"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 func TestHandleCreateClose(t *testing.T) {
@@ -226,6 +228,7 @@ func getXfrmPolicy(thread int) *XfrmPolicy {
 		},
 	}
 }
+
 func initParallel() {
 	ns1, initError = netns.New()
 	if initError != nil {

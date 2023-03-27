@@ -1,0 +1,27 @@
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+linters:
+  enable:
+    - gci
+    - gofumpt
+    - gosimple
+    - govet
+    - unconvert
+    - whitespace
+  disable:
+    - errcheck
+    - ineffassign
+    - staticcheck
+    - unused
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/vishvananda)
+
+run:
+  timeout: 5m

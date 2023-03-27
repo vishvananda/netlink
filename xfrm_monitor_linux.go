@@ -3,9 +3,10 @@ package netlink
 import (
 	"fmt"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 type XfrmMsg interface {
@@ -32,8 +33,8 @@ func parseXfrmMsgExpire(b []byte) *XfrmMsgExpire {
 }
 
 func XfrmMonitor(ch chan<- XfrmMsg, done <-chan struct{}, errorChan chan<- error,
-	types ...nl.XfrmMsgType) error {
-
+	types ...nl.XfrmMsgType,
+) error {
 	groups, err := xfrmMcastGroups(types)
 	if err != nil {
 		return nil
@@ -48,7 +49,6 @@ func XfrmMonitor(ch chan<- XfrmMsg, done <-chan struct{}, errorChan chan<- error
 			<-done
 			s.Close()
 		}()
-
 	}
 
 	go func() {

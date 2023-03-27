@@ -26,13 +26,13 @@ func (msg *IfAddrmsg) serializeSafe() []byte {
 }
 
 func deserializeIfAddrmsgSafe(b []byte) *IfAddrmsg {
-	var msg = IfAddrmsg{}
+	msg := IfAddrmsg{}
 	binary.Read(bytes.NewReader(b[0:unix.SizeofIfAddrmsg]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestIfAddrmsgDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, unix.SizeofIfAddrmsg)
+	orig := make([]byte, unix.SizeofIfAddrmsg)
 	rand.Read(orig)
 	safemsg := deserializeIfAddrmsgSafe(orig)
 	msg := DeserializeIfAddrmsg(orig)
@@ -41,10 +41,10 @@ func TestIfAddrmsgDeserializeSerialize(t *testing.T) {
 
 func (msg *IfaCacheInfo) write(b []byte) {
 	native := NativeEndian()
-	native.PutUint32(b[0:4], uint32(msg.Prefered))
-	native.PutUint32(b[4:8], uint32(msg.Valid))
-	native.PutUint32(b[8:12], uint32(msg.Cstamp))
-	native.PutUint32(b[12:16], uint32(msg.Tstamp))
+	native.PutUint32(b[0:4], msg.Prefered)
+	native.PutUint32(b[4:8], msg.Valid)
+	native.PutUint32(b[8:12], msg.Cstamp)
+	native.PutUint32(b[12:16], msg.Tstamp)
 }
 
 func (msg *IfaCacheInfo) serializeSafe() []byte {
@@ -55,13 +55,13 @@ func (msg *IfaCacheInfo) serializeSafe() []byte {
 }
 
 func deserializeIfaCacheInfoSafe(b []byte) *IfaCacheInfo {
-	var msg = IfaCacheInfo{}
+	msg := IfaCacheInfo{}
 	binary.Read(bytes.NewReader(b[0:unix.SizeofIfaCacheinfo]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestIfaCacheInfoDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, unix.SizeofIfaCacheinfo)
+	orig := make([]byte, unix.SizeofIfaCacheinfo)
 	rand.Read(orig)
 	safemsg := deserializeIfaCacheInfoSafe(orig)
 	msg := DeserializeIfaCacheInfo(orig)

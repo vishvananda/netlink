@@ -45,7 +45,7 @@ type Encap interface {
 	Equal(Encap) bool
 }
 
-//Protocol describe what was the originator of the route
+// Protocol describe what was the originator of the route
 type RouteProtocol int
 
 // Route represents a netlink route.

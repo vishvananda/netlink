@@ -6,8 +6,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 type PDP struct {

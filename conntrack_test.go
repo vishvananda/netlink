@@ -12,9 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 func CheckErrorFail(t *testing.T, err error) {
@@ -22,6 +23,7 @@ func CheckErrorFail(t *testing.T, err error) {
 		t.Fatalf("Fatal Error: %s", err)
 	}
 }
+
 func CheckError(t *testing.T, err error) {
 	if err != nil {
 		t.Errorf("Error: %s", err)
@@ -754,7 +756,6 @@ func TestConntrackFilter(t *testing.T) {
 	if v4Match != 1 || v6Match != 0 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
-
 }
 
 func TestParseRawData(t *testing.T) {
@@ -852,7 +853,8 @@ func TestParseRawData(t *testing.T) {
 				22, 134, 80, 142, 230, 127, 74, 166,
 				/* >> CTA_LABELS */
 				20, 0, 22, 0,
-				0, 0, 0, 0, 5, 0, 18, 172, 66, 2, 1, 0, 0, 0, 0, 0},
+				0, 0, 0, 0, 5, 0, 18, 172, 66, 2, 1, 0, 0, 0, 0, 0,
+			},
 			expConntrackFlow: "udp\t17 src=192.168.0.10 dst=192.168.0.3 sport=48385 dport=53 packets=1 bytes=55\t" +
 				"src=192.168.0.3 dst=192.168.0.10 sport=53 dport=48385 packets=1 bytes=71 mark=0x5 labels=0x00000000050012ac4202010000000000 " +
 				"start=2021-06-07 13:41:30.39632247 +0000 UTC stop=1970-01-01 00:00:00 +0000 UTC timeout=32(sec)",
@@ -947,7 +949,8 @@ func TestParseRawData(t *testing.T) {
 				16, 0, 20, 128,
 				/* >>>> CTA_TIMESTAMP_START */
 				12, 0, 1, 0,
-				22, 134, 80, 175, 134, 10, 182, 221},
+				22, 134, 80, 175, 134, 10, 182, 221,
+			},
 			expConntrackFlow: "tcp\t6 src=192.168.0.10 dst=192.168.77.73 sport=42625 dport=3333 packets=11 bytes=1914\t" +
 				"src=192.168.77.73 dst=192.168.0.10 sport=3333 dport=42625 packets=10 bytes=1858 mark=0x5 " +
 				"start=2021-06-07 13:43:50.511990493 +0000 UTC stop=1970-01-01 00:00:00 +0000 UTC timeout=152(sec)",

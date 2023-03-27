@@ -3,8 +3,9 @@ package netlink
 import (
 	"fmt"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 // BridgeVlanList gets a map of device id to bridge vlan infos.
@@ -34,16 +35,14 @@ func (h *Handle) BridgeVlanList() (map[int32][]*nl.BridgeVlanInfo, error) {
 			return nil, err
 		}
 		for _, attr := range attrs {
-			switch attr.Attr.Type {
-			case unix.IFLA_AF_SPEC:
-				//nested attr
+			if attr.Attr.Type == unix.IFLA_AF_SPEC {
+				// nested attr
 				nestAttrs, err := nl.ParseRouteAttr(attr.Value)
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse nested attr %v", err)
 				}
 				for _, nestAttr := range nestAttrs {
-					switch nestAttr.Attr.Type {
-					case nl.IFLA_BRIDGE_VLAN_INFO:
+					if nestAttr.Attr.Type == nl.IFLA_BRIDGE_VLAN_INFO {
 						vlanInfo := nl.DeserializeBridgeVlanInfo(nestAttr.Value)
 						ret[msg.Index] = append(ret[msg.Index], vlanInfo)
 					}

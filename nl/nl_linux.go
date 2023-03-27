@@ -12,8 +12,9 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netns"
 )
 
 const (
@@ -457,7 +458,7 @@ func (req *NetlinkRequest) Serialize() []byte {
 	dataBytes := make([][]byte, len(req.Data))
 	for i, data := range req.Data {
 		dataBytes[i] = data.Serialize()
-		length = length + len(dataBytes[i])
+		length += len(dataBytes[i])
 	}
 	length += len(req.RawData)
 
@@ -469,7 +470,7 @@ func (req *NetlinkRequest) Serialize() []byte {
 	for _, data := range dataBytes {
 		for _, dataByte := range data {
 			b[next] = dataByte
-			next = next + 1
+			next++
 		}
 	}
 	// Add the raw data if any
@@ -662,12 +663,14 @@ func GetNetlinkSocketAt(newNs, curNs netns.NsHandle, protocol int) (*NetlinkSock
 // In case of success, the caller is expected to execute the returned function
 // at the end of the code that needs to be executed in the network namespace.
 // Example:
-// func jobAt(...) error {
-//      d, err := executeInNetns(...)
-//      if err != nil { return err}
-//      defer d()
-//      < code which needs to be executed in specific netns>
-//  }
+//
+//	func jobAt(...) error {
+//	     d, err := executeInNetns(...)
+//	     if err != nil { return err}
+//	     defer d()
+//	     < code which needs to be executed in specific netns>
+//	 }
+//
 // TODO: his function probably belongs to netns pkg.
 func executeInNetns(newNs, curNs netns.NsHandle) (func(), error) {
 	var (
@@ -822,8 +825,7 @@ func (s *NetlinkSocket) GetPid() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	switch v := lsa.(type) {
-	case *unix.SockaddrNetlink:
+	if v, ok := lsa.(*unix.SockaddrNetlink); ok {
 		return v.Pid, nil
 	}
 	return 0, fmt.Errorf("Wrong socket type")
@@ -852,7 +854,7 @@ func BytesToString(b []byte) string {
 }
 
 func Uint8Attr(v uint8) []byte {
-	return []byte{byte(v)}
+	return []byte{v}
 }
 
 func Uint16Attr(v uint16) []byte {

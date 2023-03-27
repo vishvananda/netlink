@@ -1,8 +1,9 @@
 package netlink
 
 import (
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
@@ -257,7 +258,7 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 				policy.Tmpls = append(policy.Tmpls, resTmpl)
 			}
 		case nl.XFRMA_MARK:
-			mark := nl.DeserializeXfrmMark(attr.Value[:])
+			mark := nl.DeserializeXfrmMark(attr.Value)
 			policy.Mark = new(XfrmMark)
 			policy.Mark.Value = mark.Value
 			policy.Mark.Mask = mark.Mask

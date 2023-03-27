@@ -52,7 +52,7 @@ func TestRuleAddDel(t *testing.T) {
 	// find this rule
 	found := ruleExists(rules, *rule)
 	if !found {
-		t.Fatal("Rule has diffrent options than one added")
+		t.Fatal("Rule has different options than one added")
 	}
 
 	if err := RuleDel(rule); err != nil {

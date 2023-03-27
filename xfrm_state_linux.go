@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 func writeStateAlgo(a *XfrmStateAlgo) []byte {
@@ -116,7 +117,6 @@ func (h *Handle) XfrmStateUpdate(state *XfrmState) error {
 }
 
 func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
-
 	// A state with spi 0 can't be deleted so don't allow it to be set
 	if state.Spi == 0 {
 		return fmt.Errorf("Spi must be set when adding xfrm state")
@@ -270,7 +270,7 @@ func (h *Handle) XfrmStateList(family int) ([]XfrmState, error) {
 
 // XfrmStateGet gets the xfrm state described by the ID, if found.
 // Equivalent to: `ip xfrm state get ID [ mark MARK [ mask MASK ] ]`.
-// Only the fields which constitue the SA ID must be filled in:
+// Only the fields which constitutes the SA ID must be filled in:
 // ID := [ src ADDR ] [ dst ADDR ] [ proto XFRM-PROTO ] [ spi SPI ]
 // mark is optional
 func XfrmStateGet(state *XfrmState) (*XfrmState, error) {
@@ -279,7 +279,7 @@ func XfrmStateGet(state *XfrmState) (*XfrmState, error) {
 
 // XfrmStateGet gets the xfrm state described by the ID, if found.
 // Equivalent to: `ip xfrm state get ID [ mark MARK [ mask MASK ] ]`.
-// Only the fields which constitue the SA ID must be filled in:
+// Only the fields which constitutes the SA ID must be filled in:
 // ID := [ src ADDR ] [ dst ADDR ] [ proto XFRM-PROTO ] [ spi SPI ]
 // mark is optional
 func (h *Handle) XfrmStateGet(state *XfrmState) (*XfrmState, error) {
@@ -382,32 +382,32 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 				state.Crypt = new(XfrmStateAlgo)
 				resAlgo = state.Crypt
 			}
-			algo := nl.DeserializeXfrmAlgo(attr.Value[:])
-			(*resAlgo).Name = nl.BytesToString(algo.AlgName[:])
-			(*resAlgo).Key = algo.AlgKey
+			algo := nl.DeserializeXfrmAlgo(attr.Value)
+			resAlgo.Name = nl.BytesToString(algo.AlgName[:])
+			resAlgo.Key = algo.AlgKey
 		case nl.XFRMA_ALG_AUTH_TRUNC:
 			if state.Auth == nil {
 				state.Auth = new(XfrmStateAlgo)
 			}
-			algo := nl.DeserializeXfrmAlgoAuth(attr.Value[:])
+			algo := nl.DeserializeXfrmAlgoAuth(attr.Value)
 			state.Auth.Name = nl.BytesToString(algo.AlgName[:])
 			state.Auth.Key = algo.AlgKey
 			state.Auth.TruncateLen = int(algo.AlgTruncLen)
 		case nl.XFRMA_ALG_AEAD:
 			state.Aead = new(XfrmStateAlgo)
-			algo := nl.DeserializeXfrmAlgoAEAD(attr.Value[:])
+			algo := nl.DeserializeXfrmAlgoAEAD(attr.Value)
 			state.Aead.Name = nl.BytesToString(algo.AlgName[:])
 			state.Aead.Key = algo.AlgKey
 			state.Aead.ICVLen = int(algo.AlgICVLen)
 		case nl.XFRMA_ENCAP:
-			encap := nl.DeserializeXfrmEncapTmpl(attr.Value[:])
+			encap := nl.DeserializeXfrmEncapTmpl(attr.Value)
 			state.Encap = new(XfrmStateEncap)
 			state.Encap.Type = EncapType(encap.EncapType)
 			state.Encap.SrcPort = int(nl.Swap16(encap.EncapSport))
 			state.Encap.DstPort = int(nl.Swap16(encap.EncapDport))
 			state.Encap.OriginalAddress = encap.EncapOa.ToIP()
 		case nl.XFRMA_MARK:
-			mark := nl.DeserializeXfrmMark(attr.Value[:])
+			mark := nl.DeserializeXfrmMark(attr.Value)
 			state.Mark = new(XfrmMark)
 			state.Mark.Value = mark.Value
 			state.Mark.Mask = mark.Mask
@@ -438,7 +438,7 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 			if state.Replay == nil {
 				state.Replay = new(XfrmReplayState)
 			}
-			replay := nl.DeserializeXfrmReplayState(attr.Value[:])
+			replay := nl.DeserializeXfrmReplayState(attr.Value)
 			state.Replay.OSeq = replay.OSeq
 			state.Replay.Seq = replay.Seq
 			state.Replay.BitMap = replay.BitMap

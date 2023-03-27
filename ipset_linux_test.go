@@ -6,8 +6,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 func TestParseIpsetProtocolResult(t *testing.T) {
@@ -114,7 +115,6 @@ func TestIpsetCreateListAddDelDestroy(t *testing.T) {
 	}
 
 	results, err := IpsetListAll()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,6 @@ func TestIpsetCreateListAddDelDestroy(t *testing.T) {
 	}
 
 	result, err := IpsetList("my-test-ipset-1")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,7 +599,6 @@ func TestIpsetBitmapCreateListWithTestCases(t *testing.T) {
 					t.Fatalf("expected ip range %v-%v, got %v-%v", tC.options.IPFrom, tC.options.IPTo, result.IPFrom, result.IPTo)
 				}
 			}
-
 		})
 	}
 }

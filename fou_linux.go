@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -6,8 +7,9 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 const (

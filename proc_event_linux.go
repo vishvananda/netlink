@@ -7,9 +7,10 @@ import (
 	"os"
 	"syscall"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 const CN_IDX_PROC = 0x1
@@ -171,7 +172,6 @@ func ProcEventMonitor(ch chan<- ProcEvent, done <-chan struct{}, errorChan chan<
 					ch <- *e
 				}
 			}
-
 		}
 	}()
 

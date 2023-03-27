@@ -15,8 +15,9 @@ package netlink
 import (
 	"fmt"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 // These can be replaced by the values from sys/unix when it is next released.
@@ -93,7 +94,6 @@ func (h *Handle) getNetNsId(attrType int, val uint32) (int, error) {
 	req.AddData(attr)
 
 	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWNSID)
-
 	if err != nil {
 		return 0, err
 	}
@@ -107,8 +107,7 @@ func (h *Handle) getNetNsId(attrType int, val uint32) (int, error) {
 		}
 
 		for _, attr := range attrs {
-			switch attr.Attr.Type {
-			case NETNSA_NSID:
+			if attr.Attr.Type == NETNSA_NSID {
 				return int(int32(native.Uint32(attr.Value))), nil
 			}
 		}

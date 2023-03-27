@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"syscall"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 func LinkGetProtinfo(link Link) (Protinfo, error) {

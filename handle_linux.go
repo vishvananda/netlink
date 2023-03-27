@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 // Empty handle used by the netlink package methods

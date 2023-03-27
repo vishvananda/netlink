@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -15,8 +16,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netns"
 )
 
 type tearDownNetlinkTest func()
@@ -166,7 +168,6 @@ func setUpNetlinkTestWithKModule(t *testing.T, name string) tearDownNetlinkTest 
 			found = true
 			break
 		}
-
 	}
 	if !found {
 		t.Skipf("Test requires kmodule %q.", name)
@@ -206,7 +207,7 @@ func KernelVersion() (kernel, major int, err error) {
 		if b == 0 {
 			break
 		}
-		ba = append(ba, byte(b))
+		ba = append(ba, b)
 	}
 	var rest string
 	if n, _ := fmt.Sscanf(string(ba), "%d.%d%s", &kernel, &major, &rest); n < 2 {

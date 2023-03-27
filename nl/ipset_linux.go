@@ -211,11 +211,9 @@ func GetIpsetFlags(cmd int) int {
 		IPSET_CMD_SWAP,
 		IPSET_CMD_TEST:
 		return unix.NLM_F_REQUEST | unix.NLM_F_ACK
-	case IPSET_CMD_LIST,
-		IPSET_CMD_SAVE:
+	case IPSET_CMD_LIST, IPSET_CMD_SAVE:
 		return unix.NLM_F_REQUEST | unix.NLM_F_ACK | unix.NLM_F_ROOT | unix.NLM_F_MATCH | unix.NLM_F_DUMP
-	case IPSET_CMD_ADD,
-		IPSET_CMD_DEL:
+	case IPSET_CMD_ADD, IPSET_CMD_DEL:
 		return unix.NLM_F_REQUEST | unix.NLM_F_ACK
 	case IPSET_CMD_HEADER,
 		IPSET_CMD_TYPE,
