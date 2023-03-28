@@ -1108,12 +1108,12 @@ type IP6TunnelFlag uint16
 
 const (
 	IP6_TNL_F_IGN_ENCAP_LIMIT    IP6TunnelFlag = 1  // don't add encapsulation limit if one isn't present in inner packet
-	IP6_TNL_F_USE_ORIG_TCLASS                  = 2  // copy the traffic class field from the inner packet
-	IP6_TNL_F_USE_ORIG_FLOWLABEL               = 4  // copy the flowlabel from the inner packet
-	IP6_TNL_F_MIP6_DEV                         = 8  // being used for Mobile IPv6
-	IP6_TNL_F_RCV_DSCP_COPY                    = 10 // copy DSCP from the outer packet
-	IP6_TNL_F_USE_ORIG_FWMARK                  = 20 // copy fwmark from inner packet
-	IP6_TNL_F_ALLOW_LOCAL_REMOTE               = 40 // allow remote endpoint on the local node
+	IP6_TNL_F_USE_ORIG_TCLASS    IP6TunnelFlag = 2  // copy the traffic class field from the inner packet
+	IP6_TNL_F_USE_ORIG_FLOWLABEL IP6TunnelFlag = 4  // copy the flowlabel from the inner packet
+	IP6_TNL_F_MIP6_DEV           IP6TunnelFlag = 8  // being used for Mobile IPv6
+	IP6_TNL_F_RCV_DSCP_COPY      IP6TunnelFlag = 10 // copy DSCP from the outer packet
+	IP6_TNL_F_USE_ORIG_FWMARK    IP6TunnelFlag = 20 // copy fwmark from inner packet
+	IP6_TNL_F_ALLOW_LOCAL_REMOTE IP6TunnelFlag = 40 // allow remote endpoint on the local node
 )
 
 type Sittun struct {

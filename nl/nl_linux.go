@@ -29,7 +29,7 @@ const (
 	RECEIVE_BUFFER_SIZE = 65536
 	// Kernel netlink pid
 	PidKernel     uint32 = 0
-	SizeofCnMsgOp        = 0x18
+	SizeofCnMsgOp int    = 0x18
 )
 
 // SupportedNlFamilies contains the list of netlink families this netlink package supports

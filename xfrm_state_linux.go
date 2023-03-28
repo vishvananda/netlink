@@ -95,7 +95,7 @@ func XfrmStateAdd(state *XfrmState) error {
 // XfrmStateAdd will add an xfrm state to the system.
 // Equivalent to: `ip xfrm state add $state`
 func (h *Handle) XfrmStateAdd(state *XfrmState) error {
-	return h.xfrmStateAddOrUpdate(state, nl.XFRM_MSG_NEWSA)
+	return h.xfrmStateAddOrUpdate(state, int(nl.XFRM_MSG_NEWSA))
 }
 
 // XfrmStateAllocSpi will allocate an xfrm state in the system.
@@ -113,7 +113,7 @@ func XfrmStateUpdate(state *XfrmState) error {
 // XfrmStateUpdate will update an xfrm state to the system.
 // Equivalent to: `ip xfrm state update $state`
 func (h *Handle) XfrmStateUpdate(state *XfrmState) error {
-	return h.xfrmStateAddOrUpdate(state, nl.XFRM_MSG_UPDSA)
+	return h.xfrmStateAddOrUpdate(state, int(nl.XFRM_MSG_UPDSA))
 }
 
 func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
@@ -200,7 +200,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 }
 
 func (h *Handle) xfrmStateAllocSpi(state *XfrmState) (*XfrmState, error) {
-	req := h.newNetlinkRequest(nl.XFRM_MSG_ALLOCSPI,
+	req := h.newNetlinkRequest(int(nl.XFRM_MSG_ALLOCSPI),
 		unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
 
 	msg := &nl.XfrmUserSpiInfo{}
@@ -233,7 +233,7 @@ func XfrmStateDel(state *XfrmState) error {
 // the Algos are ignored when matching the state to delete.
 // Equivalent to: `ip xfrm state del $state`
 func (h *Handle) XfrmStateDel(state *XfrmState) error {
-	_, err := h.xfrmStateGetOrDelete(state, nl.XFRM_MSG_DELSA)
+	_, err := h.xfrmStateGetOrDelete(state, int(nl.XFRM_MSG_DELSA))
 	return err
 }
 
@@ -248,9 +248,9 @@ func XfrmStateList(family int) ([]XfrmState, error) {
 // Equivalent to: `ip xfrm state show`.
 // The list can be filtered by ip family.
 func (h *Handle) XfrmStateList(family int) ([]XfrmState, error) {
-	req := h.newNetlinkRequest(nl.XFRM_MSG_GETSA, unix.NLM_F_DUMP)
+	req := h.newNetlinkRequest(int(nl.XFRM_MSG_GETSA), unix.NLM_F_DUMP)
 
-	msgs, err := req.Execute(unix.NETLINK_XFRM, nl.XFRM_MSG_NEWSA)
+	msgs, err := req.Execute(unix.NETLINK_XFRM, uint16(nl.XFRM_MSG_NEWSA))
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +283,7 @@ func XfrmStateGet(state *XfrmState) (*XfrmState, error) {
 // ID := [ src ADDR ] [ dst ADDR ] [ proto XFRM-PROTO ] [ spi SPI ]
 // mark is optional
 func (h *Handle) XfrmStateGet(state *XfrmState) (*XfrmState, error) {
-	return h.xfrmStateGetOrDelete(state, nl.XFRM_MSG_GETSA)
+	return h.xfrmStateGetOrDelete(state, int(nl.XFRM_MSG_GETSA))
 }
 
 func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState, error) {
@@ -311,7 +311,7 @@ func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState
 	}
 
 	resType := nl.XFRM_MSG_NEWSA
-	if nlProto == nl.XFRM_MSG_DELSA {
+	if nlProto == int(nl.XFRM_MSG_DELSA) {
 		resType = 0
 	}
 
@@ -320,7 +320,7 @@ func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState
 		return nil, err
 	}
 
-	if nlProto == nl.XFRM_MSG_DELSA {
+	if nlProto == int(nl.XFRM_MSG_DELSA) {
 		return nil, nil
 	}
 
@@ -459,7 +459,7 @@ func XfrmStateFlush(proto Proto) error {
 // proto = 0 means any transformation protocols
 // Equivalent to: `ip xfrm state flush [ proto XFRM-PROTO ]`
 func (h *Handle) XfrmStateFlush(proto Proto) error {
-	req := h.newNetlinkRequest(nl.XFRM_MSG_FLUSHSA, unix.NLM_F_ACK)
+	req := h.newNetlinkRequest(int(nl.XFRM_MSG_FLUSHSA), unix.NLM_F_ACK)
 
 	req.AddData(&nl.XfrmUsersaFlush{Proto: uint8(proto)})
 

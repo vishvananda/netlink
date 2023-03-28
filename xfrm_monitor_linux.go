@@ -65,7 +65,7 @@ func XfrmMonitor(ch chan<- XfrmMsg, done <-chan struct{}, errorChan chan<- error
 			}
 			for _, m := range msgs {
 				switch m.Header.Type {
-				case nl.XFRM_MSG_EXPIRE:
+				case uint16(nl.XFRM_MSG_EXPIRE):
 					ch <- parseXfrmMsgExpire(m.Data)
 				default:
 					errorChan <- fmt.Errorf("unsupported msg type: %x", m.Header.Type)

@@ -9,12 +9,12 @@ linters:
     - gosimple
     - govet
     - nilerr
+    - staticcheck
     - unconvert
     - whitespace
   disable:
     - errcheck
     - ineffassign
-    - staticcheck
     - unused
 
 linters-settings:
