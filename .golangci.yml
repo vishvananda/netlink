@@ -8,13 +8,13 @@ linters:
     - gofumpt
     - gosimple
     - govet
+    - ineffassign
     - nilerr
     - staticcheck
     - unconvert
     - whitespace
   disable:
     - errcheck
-    - ineffassign
     - unused
 
 linters-settings:
