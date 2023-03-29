@@ -3,7 +3,6 @@ package netlink
 import (
 	"fmt"
 	"net"
-	"strings"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -75,9 +74,6 @@ func (h *Handle) AddrDel(link Link, addr *Addr) error {
 
 func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error {
 	base := link.Attrs()
-	if addr.Label != "" && !strings.HasPrefix(addr.Label, base.Name) {
-		return fmt.Errorf("label must begin with interface name")
-	}
 	h.ensureIndex(base)
 
 	family := nl.GetIPFamily(addr.IP)

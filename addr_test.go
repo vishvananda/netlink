@@ -37,6 +37,10 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 			&Addr{IPNet: address, Label: "lo", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
 		},
 		{
+			&Addr{IPNet: address, Label: "label-lo"},
+			&Addr{IPNet: address, Label: "label-lo", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
+		},
+		{
 			&Addr{IPNet: address, Label: "local"},
 			&Addr{IPNet: address, Label: "local", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
 		},
