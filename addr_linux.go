@@ -381,13 +381,13 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					continue
 				}
 				if m.Header.Type == unix.NLMSG_ERROR {
-					error := int32(native.Uint32(m.Data[0:4]))
-					if error == 0 {
+					errno := int32(native.Uint32(m.Data[0:4]))
+					if errno == 0 {
 						continue
 					}
 					if cberr != nil {
 						cberr(fmt.Errorf("error message: %v",
-							syscall.Errno(-error)))
+							syscall.Errno(-errno)))
 					}
 					continue
 				}

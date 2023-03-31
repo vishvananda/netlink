@@ -259,7 +259,7 @@ func (h *Handle) XfrmStateList(family int) ([]XfrmState, error) {
 	for _, m := range msgs {
 		if state, err := parseXfrmState(m, family); err == nil {
 			res = append(res, *state)
-		} else if err == familyError {
+		} else if err == errFamily {
 			continue
 		} else {
 			return nil, err
@@ -332,7 +332,7 @@ func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState
 	return s, nil
 }
 
-var familyError = fmt.Errorf("family error")
+var errFamily = fmt.Errorf("family error")
 
 func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	var state XfrmState
@@ -361,7 +361,7 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 	msg := nl.DeserializeXfrmUsersaInfo(m)
 	// This is mainly for the state dump
 	if family != FAMILY_ALL && family != int(msg.Family) {
-		return nil, familyError
+		return nil, errFamily
 	}
 	state := xfrmStateFromXfrmUsersaInfo(msg)
 	attrs, err := nl.ParseRouteAttr(m[nl.SizeofXfrmUsersaInfo:])

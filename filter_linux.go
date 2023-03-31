@@ -160,7 +160,7 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 		}
 	}
 
-	var flags uint32 = 0
+	var flags uint32
 	if filter.SkipHw {
 		flags |= nl.TCA_CLS_FLAGS_SKIP_HW
 	}
@@ -170,10 +170,7 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 	parent.AddRtAttr(nl.TCA_FLOWER_FLAGS, htonl(flags))
 
 	actionsAttr := parent.AddRtAttr(nl.TCA_FLOWER_ACT, nil)
-	if err := EncodeActions(actionsAttr, filter.Actions); err != nil {
-		return err
-	}
-	return nil
+	return EncodeActions(actionsAttr, filter.Actions)
 }
 
 func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {

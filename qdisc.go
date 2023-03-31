@@ -191,11 +191,11 @@ func (netem *Netem) String() string {
 	)
 }
 
-func (qdisc *Netem) Attrs() *QdiscAttrs {
-	return &qdisc.QdiscAttrs
+func (netem *Netem) Attrs() *QdiscAttrs {
+	return &netem.QdiscAttrs
 }
 
-func (qdisc *Netem) Type() string {
+func (netem *Netem) Type() string {
 	return "netem"
 }
 
@@ -210,11 +210,11 @@ type Tbf struct {
 	// TODO: handle other settings
 }
 
-func (qdisc *Tbf) Attrs() *QdiscAttrs {
-	return &qdisc.QdiscAttrs
+func (tbf *Tbf) Attrs() *QdiscAttrs {
+	return &tbf.QdiscAttrs
 }
 
-func (qdisc *Tbf) Type() string {
+func (tbf *Tbf) Type() string {
 	return "tbf"
 }
 
@@ -223,11 +223,11 @@ type Ingress struct {
 	QdiscAttrs
 }
 
-func (qdisc *Ingress) Attrs() *QdiscAttrs {
-	return &qdisc.QdiscAttrs
+func (ingress *Ingress) Attrs() *QdiscAttrs {
+	return &ingress.QdiscAttrs
 }
 
-func (qdisc *Ingress) Type() string {
+func (ingress *Ingress) Type() string {
 	return "ingress"
 }
 
@@ -308,11 +308,11 @@ func NewFq(attrs QdiscAttrs) *Fq {
 	}
 }
 
-func (qdisc *Fq) Attrs() *QdiscAttrs {
-	return &qdisc.QdiscAttrs
+func (fq *Fq) Attrs() *QdiscAttrs {
+	return &fq.QdiscAttrs
 }
 
-func (qdisc *Fq) Type() string {
+func (fq *Fq) Type() string {
 	return "fq"
 }
 
@@ -330,10 +330,10 @@ type FqCodel struct {
 	MemoryLimit   uint32
 }
 
-func (fqcodel *FqCodel) String() string {
+func (fqCodel *FqCodel) String() string {
 	return fmt.Sprintf(
 		"{%v -- Target: %v, Limit: %v, Interval: %v, ECM: %v, Flows: %v, Quantum: %v}",
-		fqcodel.Attrs(), fqcodel.Target, fqcodel.Limit, fqcodel.Interval, fqcodel.ECN, fqcodel.Flows, fqcodel.Quantum,
+		fqCodel.Attrs(), fqCodel.Target, fqCodel.Limit, fqCodel.Interval, fqCodel.ECN, fqCodel.Flows, fqCodel.Quantum,
 	)
 }
 
@@ -344,11 +344,11 @@ func NewFqCodel(attrs QdiscAttrs) *FqCodel {
 	}
 }
 
-func (qdisc *FqCodel) Attrs() *QdiscAttrs {
-	return &qdisc.QdiscAttrs
+func (fqCodel *FqCodel) Attrs() *QdiscAttrs {
+	return &fqCodel.QdiscAttrs
 }
 
-func (qdisc *FqCodel) Type() string {
+func (fqCodel *FqCodel) Type() string {
 	return "fq_codel"
 }
 
@@ -368,10 +368,10 @@ func (sfq *Sfq) String() string {
 	)
 }
 
-func (qdisc *Sfq) Attrs() *QdiscAttrs {
-	return &qdisc.QdiscAttrs
+func (sfq *Sfq) Attrs() *QdiscAttrs {
+	return &sfq.QdiscAttrs
 }
 
-func (qdisc *Sfq) Type() string {
+func (sfq *Sfq) Type() string {
 	return "sfq"
 }

@@ -144,8 +144,8 @@ func DeserializeTcMsg(b []byte) *TcMsg {
 	return (*TcMsg)(unsafe.Pointer(&b[0:SizeofTcMsg][0]))
 }
 
-func (x *TcMsg) Serialize() []byte {
-	return (*(*[SizeofTcMsg]byte)(unsafe.Pointer(x)))[:]
+func (msg *TcMsg) Serialize() []byte {
+	return (*(*[SizeofTcMsg]byte)(unsafe.Pointer(msg)))[:]
 }
 
 // struct tcamsg {
@@ -159,7 +159,7 @@ type TcActionMsg struct {
 	Pad    [3]byte
 }
 
-func (msg *TcActionMsg) Len() int {
+func (actionMsg *TcActionMsg) Len() int {
 	return SizeofTcActionMsg
 }
 
@@ -167,8 +167,8 @@ func DeserializeTcActionMsg(b []byte) *TcActionMsg {
 	return (*TcActionMsg)(unsafe.Pointer(&b[0:SizeofTcActionMsg][0]))
 }
 
-func (x *TcActionMsg) Serialize() []byte {
-	return (*(*[SizeofTcActionMsg]byte)(unsafe.Pointer(x)))[:]
+func (actionMsg *TcActionMsg) Serialize() []byte {
+	return (*(*[SizeofTcActionMsg]byte)(unsafe.Pointer(actionMsg)))[:]
 }
 
 const (
@@ -185,7 +185,7 @@ type TcPrioMap struct {
 	Priomap [TC_PRIO_MAX + 1]uint8
 }
 
-func (msg *TcPrioMap) Len() int {
+func (prioMap *TcPrioMap) Len() int {
 	return SizeofTcPrioMap
 }
 
@@ -193,8 +193,8 @@ func DeserializeTcPrioMap(b []byte) *TcPrioMap {
 	return (*TcPrioMap)(unsafe.Pointer(&b[0:SizeofTcPrioMap][0]))
 }
 
-func (x *TcPrioMap) Serialize() []byte {
-	return (*(*[SizeofTcPrioMap]byte)(unsafe.Pointer(x)))[:]
+func (prioMap *TcPrioMap) Serialize() []byte {
+	return (*(*[SizeofTcPrioMap]byte)(unsafe.Pointer(prioMap)))[:]
 }
 
 const (
@@ -227,7 +227,7 @@ type TcRateSpec struct {
 	Rate      uint32
 }
 
-func (msg *TcRateSpec) Len() int {
+func (rateSpec *TcRateSpec) Len() int {
 	return SizeofTcRateSpec
 }
 
@@ -235,8 +235,8 @@ func DeserializeTcRateSpec(b []byte) *TcRateSpec {
 	return (*TcRateSpec)(unsafe.Pointer(&b[0:SizeofTcRateSpec][0]))
 }
 
-func (x *TcRateSpec) Serialize() []byte {
-	return (*(*[SizeofTcRateSpec]byte)(unsafe.Pointer(x)))[:]
+func (rateSpec *TcRateSpec) Serialize() []byte {
+	return (*(*[SizeofTcRateSpec]byte)(unsafe.Pointer(rateSpec)))[:]
 }
 
 /**
@@ -274,7 +274,7 @@ type TcNetemQopt struct {
 	Jitter    uint32
 }
 
-func (msg *TcNetemQopt) Len() int {
+func (netemQopt *TcNetemQopt) Len() int {
 	return SizeofTcNetemQopt
 }
 
@@ -282,8 +282,8 @@ func DeserializeTcNetemQopt(b []byte) *TcNetemQopt {
 	return (*TcNetemQopt)(unsafe.Pointer(&b[0:SizeofTcNetemQopt][0]))
 }
 
-func (x *TcNetemQopt) Serialize() []byte {
-	return (*(*[SizeofTcNetemQopt]byte)(unsafe.Pointer(x)))[:]
+func (netemQopt *TcNetemQopt) Serialize() []byte {
+	return (*(*[SizeofTcNetemQopt]byte)(unsafe.Pointer(netemQopt)))[:]
 }
 
 // struct tc_netem_corr {
@@ -298,7 +298,7 @@ type TcNetemCorr struct {
 	DupCorr   uint32
 }
 
-func (msg *TcNetemCorr) Len() int {
+func (netemCorr *TcNetemCorr) Len() int {
 	return SizeofTcNetemCorr
 }
 
@@ -306,8 +306,8 @@ func DeserializeTcNetemCorr(b []byte) *TcNetemCorr {
 	return (*TcNetemCorr)(unsafe.Pointer(&b[0:SizeofTcNetemCorr][0]))
 }
 
-func (x *TcNetemCorr) Serialize() []byte {
-	return (*(*[SizeofTcNetemCorr]byte)(unsafe.Pointer(x)))[:]
+func (netemCorr *TcNetemCorr) Serialize() []byte {
+	return (*(*[SizeofTcNetemCorr]byte)(unsafe.Pointer(netemCorr)))[:]
 }
 
 // struct tc_netem_reorder {
@@ -320,7 +320,7 @@ type TcNetemReorder struct {
 	Correlation uint32
 }
 
-func (msg *TcNetemReorder) Len() int {
+func (netemReorder *TcNetemReorder) Len() int {
 	return SizeofTcNetemReorder
 }
 
@@ -328,8 +328,8 @@ func DeserializeTcNetemReorder(b []byte) *TcNetemReorder {
 	return (*TcNetemReorder)(unsafe.Pointer(&b[0:SizeofTcNetemReorder][0]))
 }
 
-func (x *TcNetemReorder) Serialize() []byte {
-	return (*(*[SizeofTcNetemReorder]byte)(unsafe.Pointer(x)))[:]
+func (netemReorder *TcNetemReorder) Serialize() []byte {
+	return (*(*[SizeofTcNetemReorder]byte)(unsafe.Pointer(netemReorder)))[:]
 }
 
 // struct tc_netem_corrupt {
@@ -342,7 +342,7 @@ type TcNetemCorrupt struct {
 	Correlation uint32
 }
 
-func (msg *TcNetemCorrupt) Len() int {
+func (netemCorrupt *TcNetemCorrupt) Len() int {
 	return SizeofTcNetemCorrupt
 }
 
@@ -350,8 +350,8 @@ func DeserializeTcNetemCorrupt(b []byte) *TcNetemCorrupt {
 	return (*TcNetemCorrupt)(unsafe.Pointer(&b[0:SizeofTcNetemCorrupt][0]))
 }
 
-func (x *TcNetemCorrupt) Serialize() []byte {
-	return (*(*[SizeofTcNetemCorrupt]byte)(unsafe.Pointer(x)))[:]
+func (netemCorrupt *TcNetemCorrupt) Serialize() []byte {
+	return (*(*[SizeofTcNetemCorrupt]byte)(unsafe.Pointer(netemCorrupt)))[:]
 }
 
 // struct tc_tbf_qopt {
@@ -370,7 +370,7 @@ type TcTbfQopt struct {
 	Mtu      uint32
 }
 
-func (msg *TcTbfQopt) Len() int {
+func (tbfQopt *TcTbfQopt) Len() int {
 	return SizeofTcTbfQopt
 }
 
@@ -378,8 +378,8 @@ func DeserializeTcTbfQopt(b []byte) *TcTbfQopt {
 	return (*TcTbfQopt)(unsafe.Pointer(&b[0:SizeofTcTbfQopt][0]))
 }
 
-func (x *TcTbfQopt) Serialize() []byte {
-	return (*(*[SizeofTcTbfQopt]byte)(unsafe.Pointer(x)))[:]
+func (tbfQopt *TcTbfQopt) Serialize() []byte {
+	return (*(*[SizeofTcTbfQopt]byte)(unsafe.Pointer(tbfQopt)))[:]
 }
 
 const (
@@ -414,7 +414,7 @@ type TcHtbCopt struct {
 	Prio    uint32
 }
 
-func (msg *TcHtbCopt) Len() int {
+func (htbCopt *TcHtbCopt) Len() int {
 	return SizeofTcHtbCopt
 }
 
@@ -422,8 +422,8 @@ func DeserializeTcHtbCopt(b []byte) *TcHtbCopt {
 	return (*TcHtbCopt)(unsafe.Pointer(&b[0:SizeofTcHtbCopt][0]))
 }
 
-func (x *TcHtbCopt) Serialize() []byte {
-	return (*(*[SizeofTcHtbCopt]byte)(unsafe.Pointer(x)))[:]
+func (htbCopt *TcHtbCopt) Serialize() []byte {
+	return (*(*[SizeofTcHtbCopt]byte)(unsafe.Pointer(htbCopt)))[:]
 }
 
 type TcHtbGlob struct {
@@ -434,7 +434,7 @@ type TcHtbGlob struct {
 	DirectPkts   uint32
 }
 
-func (msg *TcHtbGlob) Len() int {
+func (htbGlob *TcHtbGlob) Len() int {
 	return SizeofTcHtbGlob
 }
 
@@ -442,8 +442,8 @@ func DeserializeTcHtbGlob(b []byte) *TcHtbGlob {
 	return (*TcHtbGlob)(unsafe.Pointer(&b[0:SizeofTcHtbGlob][0]))
 }
 
-func (x *TcHtbGlob) Serialize() []byte {
-	return (*(*[SizeofTcHtbGlob]byte)(unsafe.Pointer(x)))[:]
+func (htbGlob *TcHtbGlob) Serialize() []byte {
+	return (*(*[SizeofTcHtbGlob]byte)(unsafe.Pointer(htbGlob)))[:]
 }
 
 // HFSC
@@ -493,8 +493,8 @@ type TcHfscOpt struct {
 	Defcls uint16
 }
 
-func (x *TcHfscOpt) Serialize() []byte {
-	return (*(*[2]byte)(unsafe.Pointer(x)))[:]
+func (hfscOpt *TcHfscOpt) Serialize() []byte {
+	return (*(*[2]byte)(unsafe.Pointer(hfscOpt)))[:]
 }
 
 const (
@@ -526,7 +526,7 @@ type TcU32Key struct {
 	OffMask int32
 }
 
-func (msg *TcU32Key) Len() int {
+func (u32Key *TcU32Key) Len() int {
 	return SizeofTcU32Key
 }
 
@@ -534,8 +534,8 @@ func DeserializeTcU32Key(b []byte) *TcU32Key {
 	return (*TcU32Key)(unsafe.Pointer(&b[0:SizeofTcU32Key][0]))
 }
 
-func (x *TcU32Key) Serialize() []byte {
-	return (*(*[SizeofTcU32Key]byte)(unsafe.Pointer(x)))[:]
+func (u32Key *TcU32Key) Serialize() []byte {
+	return (*(*[SizeofTcU32Key]byte)(unsafe.Pointer(u32Key)))[:]
 }
 
 // struct tc_u32_sel {
@@ -572,8 +572,8 @@ type TcU32Sel struct {
 	Keys     []TcU32Key
 }
 
-func (msg *TcU32Sel) Len() int {
-	return SizeofTcU32Sel + int(msg.Nkeys)*SizeofTcU32Key
+func (u32Sel *TcU32Sel) Len() int {
+	return SizeofTcU32Sel + int(u32Sel.Nkeys)*SizeofTcU32Key
 }
 
 func DeserializeTcU32Sel(b []byte) *TcU32Sel {
@@ -588,12 +588,12 @@ func DeserializeTcU32Sel(b []byte) *TcU32Sel {
 	return x
 }
 
-func (x *TcU32Sel) Serialize() []byte {
+func (u32Sel *TcU32Sel) Serialize() []byte {
 	// This can't just unsafe.cast because it must iterate through keys.
-	buf := make([]byte, x.Len())
-	copy(buf, (*(*[SizeofTcU32Sel]byte)(unsafe.Pointer(x)))[:])
+	buf := make([]byte, u32Sel.Len())
+	copy(buf, (*(*[SizeofTcU32Sel]byte)(unsafe.Pointer(u32Sel)))[:])
 	next := SizeofTcU32Sel
-	for _, key := range x.Keys {
+	for _, key := range u32Sel.Keys {
 		keyBuf := key.Serialize()
 		copy(buf[next:], keyBuf)
 		next += SizeofTcU32Key
@@ -609,7 +609,7 @@ type TcGen struct {
 	Bindcnt int32
 }
 
-func (msg *TcGen) Len() int {
+func (gen *TcGen) Len() int {
 	return SizeofTcGen
 }
 
@@ -617,8 +617,8 @@ func DeserializeTcGen(b []byte) *TcGen {
 	return (*TcGen)(unsafe.Pointer(&b[0:SizeofTcGen][0]))
 }
 
-func (x *TcGen) Serialize() []byte {
-	return (*(*[SizeofTcGen]byte)(unsafe.Pointer(x)))[:]
+func (gen *TcGen) Serialize() []byte {
+	return (*(*[SizeofTcGen]byte)(unsafe.Pointer(gen)))[:]
 }
 
 // #define tc_gen \
@@ -700,7 +700,7 @@ type TcConnmark struct {
 	Zone uint16
 }
 
-func (msg *TcConnmark) Len() int {
+func (connmark *TcConnmark) Len() int {
 	return SizeofTcConnmark
 }
 
@@ -708,8 +708,8 @@ func DeserializeTcConnmark(b []byte) *TcConnmark {
 	return (*TcConnmark)(unsafe.Pointer(&b[0:SizeofTcConnmark][0]))
 }
 
-func (x *TcConnmark) Serialize() []byte {
-	return (*(*[SizeofTcConnmark]byte)(unsafe.Pointer(x)))[:]
+func (connmark *TcConnmark) Serialize() []byte {
+	return (*(*[SizeofTcConnmark]byte)(unsafe.Pointer(connmark)))[:]
 }
 
 const (
@@ -730,7 +730,7 @@ type TcCsum struct {
 	UpdateFlags uint32
 }
 
-func (msg *TcCsum) Len() int {
+func (csum *TcCsum) Len() int {
 	return SizeofTcCsum
 }
 
@@ -738,8 +738,8 @@ func DeserializeTcCsum(b []byte) *TcCsum {
 	return (*TcCsum)(unsafe.Pointer(&b[0:SizeofTcCsum][0]))
 }
 
-func (x *TcCsum) Serialize() []byte {
-	return (*(*[SizeofTcCsum]byte)(unsafe.Pointer(x)))[:]
+func (csum *TcCsum) Serialize() []byte {
+	return (*(*[SizeofTcCsum]byte)(unsafe.Pointer(csum)))[:]
 }
 
 const (
@@ -765,7 +765,7 @@ type TcMirred struct {
 	Ifindex uint32
 }
 
-func (msg *TcMirred) Len() int {
+func (mirred *TcMirred) Len() int {
 	return SizeofTcMirred
 }
 
@@ -773,8 +773,8 @@ func DeserializeTcMirred(b []byte) *TcMirred {
 	return (*TcMirred)(unsafe.Pointer(&b[0:SizeofTcMirred][0]))
 }
 
-func (x *TcMirred) Serialize() []byte {
-	return (*(*[SizeofTcMirred]byte)(unsafe.Pointer(x)))[:]
+func (mirred *TcMirred) Serialize() []byte {
+	return (*(*[SizeofTcMirred]byte)(unsafe.Pointer(mirred)))[:]
 }
 
 const (
@@ -800,7 +800,7 @@ type TcTunnelKey struct {
 	Action int32
 }
 
-func (x *TcTunnelKey) Len() int {
+func (tunnelKey *TcTunnelKey) Len() int {
 	return SizeofTcTunnelKey
 }
 
@@ -808,8 +808,8 @@ func DeserializeTunnelKey(b []byte) *TcTunnelKey {
 	return (*TcTunnelKey)(unsafe.Pointer(&b[0:SizeofTcTunnelKey][0]))
 }
 
-func (x *TcTunnelKey) Serialize() []byte {
-	return (*(*[SizeofTcTunnelKey]byte)(unsafe.Pointer(x)))[:]
+func (tunnelKey *TcTunnelKey) Serialize() []byte {
+	return (*(*[SizeofTcTunnelKey]byte)(unsafe.Pointer(tunnelKey)))[:]
 }
 
 const (
@@ -829,7 +829,7 @@ type TcSkbEdit struct {
 	TcGen
 }
 
-func (x *TcSkbEdit) Len() int {
+func (skbEdit *TcSkbEdit) Len() int {
 	return SizeofTcSkbEdit
 }
 
@@ -837,8 +837,8 @@ func DeserializeSkbEdit(b []byte) *TcSkbEdit {
 	return (*TcSkbEdit)(unsafe.Pointer(&b[0:SizeofTcSkbEdit][0]))
 }
 
-func (x *TcSkbEdit) Serialize() []byte {
-	return (*(*[SizeofTcSkbEdit]byte)(unsafe.Pointer(x)))[:]
+func (skbEdit *TcSkbEdit) Serialize() []byte {
+	return (*(*[SizeofTcSkbEdit]byte)(unsafe.Pointer(skbEdit)))[:]
 }
 
 // struct tc_police {
@@ -867,7 +867,7 @@ type TcPolice struct {
 	Capab    uint32
 }
 
-func (msg *TcPolice) Len() int {
+func (police *TcPolice) Len() int {
 	return SizeofTcPolice
 }
 
@@ -875,8 +875,8 @@ func DeserializeTcPolice(b []byte) *TcPolice {
 	return (*TcPolice)(unsafe.Pointer(&b[0:SizeofTcPolice][0]))
 }
 
-func (x *TcPolice) Serialize() []byte {
-	return (*(*[SizeofTcPolice]byte)(unsafe.Pointer(x)))[:]
+func (police *TcPolice) Serialize() []byte {
+	return (*(*[SizeofTcPolice]byte)(unsafe.Pointer(police)))[:]
 }
 
 const (
@@ -1060,7 +1060,7 @@ type TcSfqQopt struct {
 	Flows   uint8
 }
 
-func (x *TcSfqQopt) Len() int {
+func (sfqQopt *TcSfqQopt) Len() int {
 	return SizeofTcSfqQopt
 }
 
@@ -1068,8 +1068,8 @@ func DeserializeTcSfqQopt(b []byte) *TcSfqQopt {
 	return (*TcSfqQopt)(unsafe.Pointer(&b[0:SizeofTcSfqQopt][0]))
 }
 
-func (x *TcSfqQopt) Serialize() []byte {
-	return (*(*[SizeofTcSfqQopt]byte)(unsafe.Pointer(x)))[:]
+func (sfqQopt *TcSfqQopt) Serialize() []byte {
+	return (*(*[SizeofTcSfqQopt]byte)(unsafe.Pointer(sfqQopt)))[:]
 }
 
 //	struct tc_sfqred_stats {
@@ -1089,7 +1089,7 @@ type TcSfqRedStats struct {
 	ForcedMarkHead uint32
 }
 
-func (x *TcSfqRedStats) Len() int {
+func (sfqRedStats *TcSfqRedStats) Len() int {
 	return SizeofTcSfqRedStats
 }
 
@@ -1097,8 +1097,8 @@ func DeserializeTcSfqRedStats(b []byte) *TcSfqRedStats {
 	return (*TcSfqRedStats)(unsafe.Pointer(&b[0:SizeofTcSfqRedStats][0]))
 }
 
-func (x *TcSfqRedStats) Serialize() []byte {
-	return (*(*[SizeofTcSfqRedStats]byte)(unsafe.Pointer(x)))[:]
+func (sfqRedStats *TcSfqRedStats) Serialize() []byte {
+	return (*(*[SizeofTcSfqRedStats]byte)(unsafe.Pointer(sfqRedStats)))[:]
 }
 
 //	struct tc_sfq_qopt_v1 {
@@ -1136,7 +1136,7 @@ type TcSfqQoptV1 struct {
 	TcSfqRedStats
 }
 
-func (x *TcSfqQoptV1) Len() int {
+func (sfqQoptV1 *TcSfqQoptV1) Len() int {
 	return SizeofTcSfqQoptV1
 }
 
@@ -1144,8 +1144,8 @@ func DeserializeTcSfqQoptV1(b []byte) *TcSfqQoptV1 {
 	return (*TcSfqQoptV1)(unsafe.Pointer(&b[0:SizeofTcSfqQoptV1][0]))
 }
 
-func (x *TcSfqQoptV1) Serialize() []byte {
-	return (*(*[SizeofTcSfqQoptV1]byte)(unsafe.Pointer(x)))[:]
+func (sfqQoptV1 *TcSfqQoptV1) Serialize() []byte {
+	return (*(*[SizeofTcSfqQoptV1]byte)(unsafe.Pointer(sfqQoptV1)))[:]
 }
 
 // IPProto represents Flower ip_proto attribute

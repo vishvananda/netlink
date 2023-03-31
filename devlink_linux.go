@@ -119,9 +119,8 @@ func parseEswitchMode(mode uint16) string {
 	}
 	if eswitchMode[mode] == "" {
 		return "unknown"
-	} else {
-		return eswitchMode[mode]
 	}
+	return eswitchMode[mode]
 }
 
 func parseEswitchInlineMode(inlinemode uint8) string {
@@ -133,9 +132,8 @@ func parseEswitchInlineMode(inlinemode uint8) string {
 	}
 	if eswitchInlineMode[inlinemode] == "" {
 		return "unknown"
-	} else {
-		return eswitchInlineMode[inlinemode]
 	}
+	return eswitchInlineMode[inlinemode]
 }
 
 func parseEswitchEncapMode(encapmode uint8) string {
@@ -145,9 +143,8 @@ func parseEswitchEncapMode(encapmode uint8) string {
 	}
 	if eswitchEncapMode[encapmode] == "" {
 		return "unknown"
-	} else {
-		return eswitchEncapMode[encapmode]
 	}
+	return eswitchEncapMode[encapmode]
 }
 
 func (d *DevlinkDevice) parseAttributes(attrs []syscall.NetlinkRouteAttr) error {
@@ -168,13 +165,13 @@ func (d *DevlinkDevice) parseAttributes(attrs []syscall.NetlinkRouteAttr) error 
 	return nil
 }
 
-func (dev *DevlinkDevice) parseEswitchAttrs(msgs [][]byte) {
+func (d *DevlinkDevice) parseEswitchAttrs(msgs [][]byte) {
 	m := msgs[0]
 	attrs, err := nl.ParseRouteAttr(m[nl.SizeofGenlmsg:])
 	if err != nil {
 		return
 	}
-	dev.parseAttributes(attrs)
+	d.parseAttributes(attrs)
 }
 
 func (h *Handle) getEswitchAttrs(family *GenlFamily, dev *DevlinkDevice) {

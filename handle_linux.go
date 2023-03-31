@@ -111,7 +111,7 @@ func (h *Handle) GetSocketReceiveBufferSize() ([]int, error) {
 // SetStrictCheck sets the strict check socket option for each socket in the netlink handle. Returns early if any set operation fails
 func (h *Handle) SetStrictCheck(state bool) error {
 	for _, sh := range h.sockets {
-		var stateInt int = 0
+		var stateInt int
 		if state {
 			stateInt = 1
 		}

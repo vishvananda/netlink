@@ -35,25 +35,25 @@ func (pdp *PDP) String() string {
 	return fmt.Sprintf("{%s}", strings.Join(elems, " "))
 }
 
-func (p *PDP) parseAttributes(attrs []syscall.NetlinkRouteAttr) error {
+func (pdp *PDP) parseAttributes(attrs []syscall.NetlinkRouteAttr) error {
 	for _, a := range attrs {
 		switch a.Attr.Type {
 		case nl.GENL_GTP_ATTR_VERSION:
-			p.Version = native.Uint32(a.Value)
+			pdp.Version = native.Uint32(a.Value)
 		case nl.GENL_GTP_ATTR_TID:
-			p.TID = native.Uint64(a.Value)
+			pdp.TID = native.Uint64(a.Value)
 		case nl.GENL_GTP_ATTR_PEER_ADDRESS:
-			p.PeerAddress = net.IP(a.Value)
+			pdp.PeerAddress = net.IP(a.Value)
 		case nl.GENL_GTP_ATTR_MS_ADDRESS:
-			p.MSAddress = net.IP(a.Value)
+			pdp.MSAddress = net.IP(a.Value)
 		case nl.GENL_GTP_ATTR_FLOW:
-			p.Flow = native.Uint16(a.Value)
+			pdp.Flow = native.Uint16(a.Value)
 		case nl.GENL_GTP_ATTR_NET_NS_FD:
-			p.NetNSFD = native.Uint32(a.Value)
+			pdp.NetNSFD = native.Uint32(a.Value)
 		case nl.GENL_GTP_ATTR_I_TEI:
-			p.ITEI = native.Uint32(a.Value)
+			pdp.ITEI = native.Uint32(a.Value)
 		case nl.GENL_GTP_ATTR_O_TEI:
-			p.OTEI = native.Uint32(a.Value)
+			pdp.OTEI = native.Uint32(a.Value)
 		}
 	}
 	return nil

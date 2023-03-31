@@ -375,10 +375,7 @@ func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <
 		req := pkgHandle.newNetlinkRequest(unix.RTM_GETNEIGH, unix.NLM_F_DUMP)
 		ndmsg := &Ndmsg{Family: uint8(family)}
 		req.AddData(ndmsg)
-		if err := s.Send(req); err != nil {
-			return err
-		}
-		return nil
+		return s.Send(req)
 	}
 	if err != nil {
 		return err

@@ -252,8 +252,8 @@ loop:
 			case unix.NLMSG_DONE:
 				break loop
 			case unix.NLMSG_ERROR:
-				error := int32(native.Uint32(m.Data[0:4]))
-				return syscall.Errno(-error)
+				errno := int32(native.Uint32(m.Data[0:4]))
+				return syscall.Errno(-errno)
 			}
 			if err := receiver(m); err != nil {
 				return err

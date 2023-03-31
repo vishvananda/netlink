@@ -229,27 +229,27 @@ func parseIpTuple(reader *bytes.Reader, tpl *ipTuple) uint8 {
 	return tpl.Protocol
 }
 
-func parseNfAttrTLV(r *bytes.Reader) (isNested bool, attrType, len uint16, value []byte) {
-	isNested, attrType, len = parseNfAttrTL(r)
+func parseNfAttrTLV(r *bytes.Reader) (isNested bool, attrType, length uint16, value []byte) {
+	isNested, attrType, length = parseNfAttrTL(r)
 
-	value = make([]byte, len)
+	value = make([]byte, length)
 	binary.Read(r, binary.BigEndian, &value)
-	return isNested, attrType, len, value
+	return isNested, attrType, length, value
 }
 
-func parseNfAttrTL(r *bytes.Reader) (isNested bool, attrType, len uint16) {
-	binary.Read(r, nl.NativeEndian(), &len)
-	len -= nl.SizeofNfattr
+func parseNfAttrTL(r *bytes.Reader) (isNested bool, attrType, length uint16) {
+	binary.Read(r, nl.NativeEndian(), &length)
+	length -= nl.SizeofNfattr
 
 	binary.Read(r, nl.NativeEndian(), &attrType)
 	isNested = (attrType & nl.NLA_F_NESTED) == nl.NLA_F_NESTED
 	attrType &= (nl.NLA_F_NESTED - 1)
-	return isNested, attrType, len
+	return isNested, attrType, length
 }
 
-func skipNfAttrValue(r *bytes.Reader, len uint16) {
-	len = (len + nl.NLA_ALIGNTO - 1) & ^(nl.NLA_ALIGNTO - 1)
-	r.Seek(int64(len), seekCurrent)
+func skipNfAttrValue(r *bytes.Reader, length uint16) {
+	length = (length + nl.NLA_ALIGNTO - 1) & ^(nl.NLA_ALIGNTO - 1)
+	r.Seek(int64(length), seekCurrent)
 }
 
 func parseBERaw16(r *bytes.Reader, v *uint16) {

@@ -46,7 +46,7 @@ func executeOneGetRdmaLink(data []byte) (*RdmaLink, error) {
 
 	reader := bytes.NewReader(data)
 	for reader.Len() >= 4 {
-		_, attrType, len, value := parseNfAttrTLV(reader)
+		_, attrType, length, value := parseNfAttrTLV(reader)
 
 		switch attrType {
 		case nl.RDMA_NLDEV_ATTR_DEV_INDEX:
@@ -55,9 +55,9 @@ func executeOneGetRdmaLink(data []byte) (*RdmaLink, error) {
 			binary.Read(r, nl.NativeEndian(), &Index)
 			link.Attrs.Index = Index
 		case nl.RDMA_NLDEV_ATTR_DEV_NAME:
-			link.Attrs.Name = string(value[0 : len-1])
+			link.Attrs.Name = string(value[0 : length-1])
 		case nl.RDMA_NLDEV_ATTR_FW_VERSION:
-			link.Attrs.FirmwareVersion = string(value[0 : len-1])
+			link.Attrs.FirmwareVersion = string(value[0 : length-1])
 		case nl.RDMA_NLDEV_ATTR_NODE_GUID:
 			var guid uint64
 			r := bytes.NewReader(value)
@@ -69,9 +69,9 @@ func executeOneGetRdmaLink(data []byte) (*RdmaLink, error) {
 			binary.Read(r, nl.NativeEndian(), &sysGuid)
 			link.Attrs.SysImageGuid = uint64ToGuidString(sysGuid)
 		}
-		if (len % 4) != 0 {
+		if (length % 4) != 0 {
 			// Skip pad bytes
-			reader.Seek(int64(4-(len%4)), seekCurrent)
+			reader.Seek(int64(4-(length%4)), seekCurrent)
 		}
 	}
 	return &link, nil
@@ -173,7 +173,7 @@ func netnsModeToString(mode uint8) string {
 func executeOneGetRdmaNetnsMode(data []byte) (string, error) {
 	reader := bytes.NewReader(data)
 	for reader.Len() >= 4 {
-		_, attrType, len, value := parseNfAttrTLV(reader)
+		_, attrType, length, value := parseNfAttrTLV(reader)
 
 		if attrType == nl.RDMA_NLDEV_SYS_ATTR_NETNS_MODE {
 			var mode uint8
@@ -181,9 +181,9 @@ func executeOneGetRdmaNetnsMode(data []byte) (string, error) {
 			binary.Read(r, nl.NativeEndian(), &mode)
 			return netnsModeToString(mode), nil
 		}
-		if (len % 4) != 0 {
+		if (length % 4) != 0 {
 			// Skip pad bytes
-			reader.Seek(int64(4-(len%4)), seekCurrent)
+			reader.Seek(int64(4-(length%4)), seekCurrent)
 		}
 	}
 	return "", fmt.Errorf("Invalid netns mode")

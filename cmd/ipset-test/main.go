@@ -116,7 +116,7 @@ func cmdList(args []string) {
 	log.Printf("%+v", result)
 }
 
-func cmdListAll(args []string) {
+func cmdListAll(_ []string) {
 	result, err := netlink.IpsetListAll()
 	check(err)
 	for _, ipset := range result {

@@ -192,11 +192,11 @@ func TestDevlinkGetDeviceInfoByNameFail(t *testing.T) {
 	}
 }
 
-func mockDevlinkInfoGetter(bus, device string) ([]byte, error) {
+func mockDevlinkInfoGetter(_ string, _ string) ([]byte, error) {
 	return devlinkInfo(), nil
 }
 
-func mockDevlinkInfoGetterEmpty(bus, device string) ([]byte, error) {
+func mockDevlinkInfoGetterEmpty(_ string, _ string) ([]byte, error) {
 	return []byte{}, nil
 }
 

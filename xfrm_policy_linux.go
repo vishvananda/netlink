@@ -144,7 +144,7 @@ func (h *Handle) XfrmPolicyList(family int) ([]XfrmPolicy, error) {
 	for _, m := range msgs {
 		if policy, err := parseXfrmPolicy(m, family); err == nil {
 			res = append(res, *policy)
-		} else if err == familyError {
+		} else if err == errFamily {
 			continue
 		} else {
 			return nil, err
@@ -220,7 +220,7 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 
 	// This is mainly for the policy dump
 	if family != FAMILY_ALL && family != int(msg.Sel.Family) {
-		return nil, familyError
+		return nil, errFamily
 	}
 
 	var policy XfrmPolicy

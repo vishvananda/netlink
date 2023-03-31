@@ -23,8 +23,8 @@ func (msg *RtMsg) write(b []byte) {
 }
 
 func (msg *RtMsg) serializeSafe() []byte {
-	len := unix.SizeofRtMsg
-	b := make([]byte, len)
+	length := unix.SizeofRtMsg
+	b := make([]byte, length)
 	msg.write(b)
 	return b
 }

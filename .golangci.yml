@@ -1,4 +1,8 @@
 issues:
+  exclude-rules:
+    - linters:
+        - revive
+      text: var-naming
   max-issues-per-linter: 0
   max-same-issues: 0
 
@@ -10,6 +14,7 @@ linters:
     - govet
     - ineffassign
     - nilerr
+    - revive
     - staticcheck
     - unconvert
     - whitespace

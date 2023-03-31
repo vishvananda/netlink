@@ -19,8 +19,8 @@ func (msg *IfAddrmsg) write(b []byte) {
 }
 
 func (msg *IfAddrmsg) serializeSafe() []byte {
-	len := unix.SizeofIfAddrmsg
-	b := make([]byte, len)
+	length := unix.SizeofIfAddrmsg
+	b := make([]byte, length)
 	msg.write(b)
 	return b
 }

@@ -41,7 +41,7 @@ var nextSeqNr uint32
 var SocketTimeoutTv = unix.Timeval{Sec: 60, Usec: 0}
 
 // ErrorMessageReporting is the default error message reporting configuration for the new netlink sockets
-var EnableErrorMessageReporting bool = false
+var EnableErrorMessageReporting = false
 
 // GetIPFamily returns the family type of a net.IP.
 func GetIPFamily(ip net.IP) int {
@@ -762,10 +762,7 @@ func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
 	if fd < 0 {
 		return fmt.Errorf("Send called on a closed socket")
 	}
-	if err := unix.Sendto(fd, request.Serialize(), 0, &s.lsa); err != nil {
-		return err
-	}
-	return nil
+	return unix.Sendto(fd, request.Serialize(), 0, &s.lsa)
 }
 
 func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetlink, error) {
