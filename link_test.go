@@ -1885,6 +1885,80 @@ func TestLinkSet(t *testing.T) {
 	}
 }
 
+func TestLinkAltName(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	iface := &Dummy{LinkAttrs{Name: "bar"}}
+	if err := LinkAdd(iface); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkAddAltName(link, "altname")
+	if err != nil {
+		t.Fatalf("Could not add altname: %v", err)
+	}
+
+	err = LinkAddAltName(link, "altname2")
+	if err != nil {
+		t.Fatalf("Could not add altname: %v", err)
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	altNameExist := false
+	altName2Exist := false
+	for _, altName := range link.Attrs().AltNames {
+		if altName == "altname" {
+			altNameExist = true
+		} else if altName == "altname2" {
+			altName2Exist = true
+		}
+
+	}
+	if !altNameExist {
+		t.Fatal("Could not find altname")
+	}
+
+	if !altName2Exist {
+		t.Fatal("Could not find altname2")
+	}
+
+	link, err = LinkByName("altname")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkDelAltName(link, "altname")
+	if err != nil {
+		t.Fatalf("Could not delete altname: %v", err)
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	altNameExist = false
+	for _, altName := range link.Attrs().AltNames {
+		if altName == "altname" {
+			altNameExist = true
+			break
+		}
+	}
+	if altNameExist {
+		t.Fatal("altname still exist")
+	}
+}
+
 func TestLinkSetARP(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
