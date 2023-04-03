@@ -143,14 +143,35 @@ func TestIpsetCreateListAddDelDestroy(t *testing.T) {
 		t.Errorf("expected timeout to be 3, but got '%d'", *results[0].Timeout)
 	}
 
+	ip := net.ParseIP("10.99.99.99")
+	exist, err := IpsetTest("my-test-ipset-1", &IPSetEntry{
+		IP: ip,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exist {
+		t.Errorf("entry should not exist before being added: %s", ip.String())
+	}
+
 	err = IpsetAdd("my-test-ipset-1", &IPSetEntry{
 		Comment: "test comment",
-		IP:      net.ParseIP("10.99.99.99"),
+		IP:      ip,
 		Replace: false,
 	})
 
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	exist, err = IpsetTest("my-test-ipset-1", &IPSetEntry{
+		IP: ip,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exist {
+		t.Errorf("entry should exist after being added: %s", ip.String())
 	}
 
 	result, err := IpsetList("my-test-ipset-1")
@@ -455,6 +476,14 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			exist, err := IpsetTest(tC.setname, tC.entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !exist {
+				t.Errorf("entry should exist, but 'test' got false, case: %s", tC.desc)
+			}
+
 			result, err = IpsetList(tC.setname)
 
 			if err != nil {
@@ -524,6 +553,14 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			err = IpsetDel(tC.setname, tC.entry)
 			if err != nil {
 				t.Fatal(err)
+			}
+
+			exist, err = IpsetTest(tC.setname, tC.entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if exist {
+				t.Errorf("entry should be deleted, but 'test' got true, case: %s", tC.desc)
 			}
 
 			result, err = IpsetList(tC.setname)
