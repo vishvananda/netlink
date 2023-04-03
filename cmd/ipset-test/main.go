@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package main
@@ -28,6 +29,7 @@ var (
 		"listall":  {cmdListAll, "list all ipsets", 0},
 		"add":      {cmdAddDel(netlink.IpsetAdd), "add entry", 2},
 		"del":      {cmdAddDel(netlink.IpsetDel), "delete entry", 2},
+		"test":     {cmdTest, "test whether an entry is in a set or not", 2},
 	}
 
 	timeoutVal   *uint32
@@ -138,6 +140,21 @@ func cmdAddDel(f func(string, *netlink.IPSetEntry) error) func([]string) {
 
 		check(f(setName, &entry))
 	}
+}
+
+func cmdTest(args []string) {
+	setName := args[0]
+	element := args[1]
+	ip := net.ParseIP(element)
+	entry := &netlink.IPSetEntry{
+		Timeout: timeoutVal,
+		IP:      ip,
+		Comment: *comment,
+		Replace: *replace,
+	}
+	exist, err := netlink.IpsetTest(setName, entry)
+	check(err)
+	log.Printf("existence: %t\n", exist)
 }
 
 // panic on error

@@ -121,6 +121,11 @@ func IpsetDel(setname string, entry *IPSetEntry) error {
 	return pkgHandle.IpsetDel(setname, entry)
 }
 
+// IpsetTest tests whether an entry is in a set or not.
+func IpsetTest(setname string, entry *IPSetEntry) (bool, error) {
+	return pkgHandle.IpsetTest(setname, entry)
+}
+
 func (h *Handle) IpsetProtocol() (protocol uint8, minVersion uint8, err error) {
 	req := h.newIpsetRequest(nl.IPSET_CMD_PROTOCOL)
 	msgs, err := req.Execute(unix.NETLINK_NETFILTER, 0)
@@ -270,15 +275,8 @@ func encodeIP(ip net.IP) (*nl.RtAttr, error) {
 	return nl.NewRtAttr(typ, ip), nil
 }
 
-func (h *Handle) ipsetAddDel(nlCmd int, setname string, entry *IPSetEntry) error {
-	req := h.newIpsetRequest(nlCmd)
-	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(setname)))
-
+func buildEntryData(entry *IPSetEntry) (*nl.RtAttr, error) {
 	data := nl.NewRtAttr(nl.IPSET_ATTR_DATA|int(nl.NLA_F_NESTED), nil)
-
-	if !entry.Replace {
-		req.Flags |= unix.NLM_F_EXCL
-	}
 
 	if entry.Comment != "" {
 		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_COMMENT, nl.ZeroTerminated(entry.Comment)))
@@ -291,7 +289,7 @@ func (h *Handle) ipsetAddDel(nlCmd int, setname string, entry *IPSetEntry) error
 	if entry.IP != nil {
 		nestedData, err := encodeIP(entry.IP)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_IP|int(nl.NLA_F_NESTED), nestedData.Serialize()))
 	}
@@ -307,7 +305,7 @@ func (h *Handle) ipsetAddDel(nlCmd int, setname string, entry *IPSetEntry) error
 	if entry.IP2 != nil {
 		nestedData, err := encodeIP(entry.IP2)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_IP2|int(nl.NLA_F_NESTED), nestedData.Serialize()))
 	}
@@ -335,12 +333,51 @@ func (h *Handle) ipsetAddDel(nlCmd int, setname string, entry *IPSetEntry) error
 	if entry.Mark != nil {
 		data.AddChild(&nl.Uint32Attribute{Type: nl.IPSET_ATTR_MARK | nl.NLA_F_NET_BYTEORDER, Value: *entry.Mark})
 	}
+	return data, nil
+}
 
+func (h *Handle) ipsetAddDel(nlCmd int, setname string, entry *IPSetEntry) error {
+	req := h.newIpsetRequest(nlCmd)
+	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(setname)))
+
+	if !entry.Replace {
+		req.Flags |= unix.NLM_F_EXCL
+	}
+
+	data, err := buildEntryData(entry)
+	if err != nil {
+		return err
+	}
 	data.AddChild(&nl.Uint32Attribute{Type: nl.IPSET_ATTR_LINENO | nl.NLA_F_NET_BYTEORDER, Value: 0})
 	req.AddData(data)
 
-	_, err := ipsetExecute(req)
+	_, err = ipsetExecute(req)
 	return err
+}
+
+func (h *Handle) IpsetTest(setname string, entry *IPSetEntry) (bool, error) {
+	req := h.newIpsetRequest(nl.IPSET_CMD_TEST)
+	req.AddData(nl.NewRtAttr(nl.IPSET_ATTR_SETNAME, nl.ZeroTerminated(setname)))
+
+	if !entry.Replace {
+		req.Flags |= unix.NLM_F_EXCL
+	}
+
+	data, err := buildEntryData(entry)
+	if err != nil {
+		return false, err
+	}
+	req.AddData(data)
+
+	_, err = ipsetExecute(req)
+	if err != nil {
+		if err == nl.IPSetError(nl.IPSET_ERR_EXIST) {
+			// not exist
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (h *Handle) newIpsetRequest(cmd int) *nl.NetlinkRequest {
