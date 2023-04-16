@@ -53,6 +53,9 @@ func TestBridgeVlan(t *testing.T) {
 	if err := BridgeVlanAdd(dummy, 3, true, true, false, false); err != nil {
 		t.Fatal(err)
 	}
+	if err := BridgeVlanAddRange(dummy, 4, 6, false, false, false, false); err != nil {
+		t.Fatal(err)
+	}
 	if vlanMap, err := BridgeVlanList(); err != nil {
 		t.Fatal(err)
 	} else {
@@ -69,7 +72,7 @@ func TestBridgeVlan(t *testing.T) {
 		if vInfo, ok := vlanMap[int32(dummy.Index)]; !ok {
 			t.Fatal("vlanMap should include dum1 port vlan info")
 		} else {
-			if fmt.Sprintf("%v", vInfo) != "[{Flags:4 Vid:1} {Flags:0 Vid:2} {Flags:6 Vid:3}]" {
+			if fmt.Sprintf("%v", vInfo) != "[{Flags:4 Vid:1} {Flags:0 Vid:2} {Flags:6 Vid:3} {Flags:0 Vid:4} {Flags:0 Vid:5} {Flags:0 Vid:6}]" {
 				t.Fatalf("unexpected result %v", vInfo)
 			}
 		}
