@@ -20,15 +20,15 @@ func TestAddrReplace(t *testing.T) {
 	DoTestAddr(t, AddrReplace)
 }
 
-func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
+func DoTestAddr(t *testing.T, functionUndertest func(Link, *Addr) error) {
 	if os.Getenv("CI") == "true" {
 		t.Skipf("Fails in CI with: addr_test.go:*: Address flags not set properly, got=128, expected=132")
 	}
 	// TODO: IFA_F_PERMANENT does not seem to be set by default on older kernels?
 	// TODO: IFA_F_OPTIMISTIC failing in CI. should we just skip that one check?
-	var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(32, 32)}
-	var peer = &net.IPNet{IP: net.IPv4(127, 0, 0, 3), Mask: net.CIDRMask(24, 32)}
-	var addrTests = []struct {
+	address := &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(32, 32)}
+	peer := &net.IPNet{IP: net.IPv4(127, 0, 0, 3), Mask: net.CIDRMask(24, 32)}
+	addrTests := []struct {
 		addr     *Addr
 		expected *Addr
 	}{
@@ -67,7 +67,7 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 	}
 
 	for _, tt := range addrTests {
-		if err = FunctionUndertest(link, tt.addr); err != nil {
+		if err = functionUndertest(link, tt.addr); err != nil {
 			t.Fatal(err)
 		}
 
@@ -138,15 +138,14 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 			t.Fatal("Address not removed properly")
 		}
 	}
-
 }
 
 func TestAddrAddReplace(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
-	var addr = &Addr{IPNet: address}
+	address := &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
+	addr := &Addr{IPNet: address}
 
 	link, err := LinkByName("lo")
 	if err != nil {

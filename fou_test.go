@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -14,7 +15,6 @@ func TestFouDeserializeMsg(t *testing.T) {
 	if fou, err := deserializeFouMsg(msg); err != nil {
 		t.Error(err.Error())
 	} else {
-
 		// check if message was deserialized correctly
 		if fou.Family != FAMILY_V4 {
 			t.Errorf("expected family %d, got %d", FAMILY_V4, fou.Family)

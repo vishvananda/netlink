@@ -1,8 +1,9 @@
 package netlink
 
 import (
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 // ChainDel will delete a chain from the system.
@@ -99,8 +100,7 @@ func (h *Handle) ChainList(link Link, parent uint32) ([]Chain, error) {
 
 		var chain Chain
 		for _, attr := range attrs {
-			switch attr.Attr.Type {
-			case nl.TCA_CHAIN:
+			if attr.Attr.Type == nl.TCA_CHAIN {
 				chain.Chain = native.Uint32(attr.Value)
 				chain.Parent = parent
 			}

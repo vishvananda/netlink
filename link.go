@@ -329,8 +329,10 @@ func (macvtap Macvtap) Type() string {
 	return "macvtap"
 }
 
-type TuntapMode uint16
-type TuntapFlag uint16
+type (
+	TuntapMode uint16
+	TuntapFlag uint16
+)
 
 // Tuntap links created via /dev/tun/tap, but can be destroyed via netlink
 type Tuntap struct {
@@ -552,6 +554,7 @@ var bondModeToString = map[BondMode]string{
 	BOND_MODE_BALANCE_TLB:   "balance-tlb",
 	BOND_MODE_BALANCE_ALB:   "balance-alb",
 }
+
 var StringToBondModeMap = map[string]BondMode{
 	"balance-rr":    BOND_MODE_BALANCE_RR,
 	"active-backup": BOND_MODE_ACTIVE_BACKUP,
@@ -579,6 +582,7 @@ var bondArpValidateToString = map[BondArpValidate]string{
 	BOND_ARP_VALIDATE_BACKUP: "backup",
 	BOND_ARP_VALIDATE_ALL:    "none",
 }
+
 var StringToBondArpValidateMap = map[string]BondArpValidate{
 	"none":   BOND_ARP_VALIDATE_NONE,
 	"active": BOND_ARP_VALIDATE_ACTIVE,
@@ -609,6 +613,7 @@ var bondPrimaryReselectToString = map[BondPrimaryReselect]string{
 	BOND_PRIMARY_RESELECT_BETTER:  "better",
 	BOND_PRIMARY_RESELECT_FAILURE: "failure",
 }
+
 var StringToBondPrimaryReselectMap = map[string]BondPrimaryReselect{
 	"always":  BOND_PRIMARY_RESELECT_ALWAYS,
 	"better":  BOND_PRIMARY_RESELECT_BETTER,
@@ -636,6 +641,7 @@ var bondArpAllTargetsToString = map[BondArpAllTargets]string{
 	BOND_ARP_ALL_TARGETS_ANY: "any",
 	BOND_ARP_ALL_TARGETS_ALL: "all",
 }
+
 var StringToBondArpAllTargetsMap = map[string]BondArpAllTargets{
 	"any": BOND_ARP_ALL_TARGETS_ANY,
 	"all": BOND_ARP_ALL_TARGETS_ALL,
@@ -664,6 +670,7 @@ var bondFailOverMacToString = map[BondFailOverMac]string{
 	BOND_FAIL_OVER_MAC_ACTIVE: "active",
 	BOND_FAIL_OVER_MAC_FOLLOW: "follow",
 }
+
 var StringToBondFailOverMacMap = map[string]BondFailOverMac{
 	"none":   BOND_FAIL_OVER_MAC_NONE,
 	"active": BOND_FAIL_OVER_MAC_ACTIVE,
@@ -715,6 +722,7 @@ var bondXmitHashPolicyToString = map[BondXmitHashPolicy]string{
 	BOND_XMIT_HASH_POLICY_ENCAP2_3: "encap2+3",
 	BOND_XMIT_HASH_POLICY_ENCAP3_4: "encap3+4",
 }
+
 var StringToBondXmitHashPolicyMap = map[string]BondXmitHashPolicy{
 	"layer2":   BOND_XMIT_HASH_POLICY_LAYER2,
 	"layer3+4": BOND_XMIT_HASH_POLICY_LAYER3_4,
@@ -754,6 +762,7 @@ var bondLacpRateToString = map[BondLacpRate]string{
 	BOND_LACP_RATE_SLOW: "slow",
 	BOND_LACP_RATE_FAST: "fast",
 }
+
 var StringToBondLacpRateMap = map[string]BondLacpRate{
 	"slow": BOND_LACP_RATE_SLOW,
 	"fast": BOND_LACP_RATE_FAST,
@@ -774,6 +783,7 @@ var bondAdSelectToString = map[BondAdSelect]string{
 	BOND_AD_SELECT_BANDWIDTH: "bandwidth",
 	BOND_AD_SELECT_COUNT:     "count",
 }
+
 var StringToBondAdSelectMap = map[string]BondAdSelect{
 	"stable":    BOND_AD_SELECT_STABLE,
 	"bandwidth": BOND_AD_SELECT_BANDWIDTH,
@@ -822,7 +832,7 @@ type Bond struct {
 	PacketsPerSlave int
 	LacpRate        BondLacpRate
 	AdSelect        BondAdSelect
-	// looking at iproute tool AdInfo can only be retrived. It can't be set.
+	// looking at iproute tool AdInfo can only be retrieved. It can't be set.
 	AdInfo         *BondAdInfo
 	AdActorSysPrio int
 	AdUserPortKey  int
@@ -902,9 +912,9 @@ func (bond *Bond) Type() string {
 type BondSlaveState uint8
 
 const (
-	//BondStateActive Link is active.
+	// BondStateActive Link is active.
 	BondStateActive BondSlaveState = iota
-	//BondStateBackup Link is backup.
+	// BondStateBackup Link is backup.
 	BondStateBackup
 )
 
@@ -924,13 +934,13 @@ func (s BondSlaveState) String() string {
 type BondSlaveMiiStatus uint8
 
 const (
-	//BondLinkUp link is up and running.
+	// BondLinkUp link is up and running.
 	BondLinkUp BondSlaveMiiStatus = iota
-	//BondLinkFail link has just gone down.
+	// BondLinkFail link has just gone down.
 	BondLinkFail
-	//BondLinkDown link has been down for too long time.
+	// BondLinkDown link has been down for too long time.
 	BondLinkDown
-	//BondLinkBack link is going back.
+	// BondLinkBack link is going back.
 	BondLinkBack
 )
 
@@ -1099,12 +1109,12 @@ type IP6TunnelFlag uint16
 
 const (
 	IP6_TNL_F_IGN_ENCAP_LIMIT    IP6TunnelFlag = 1  // don't add encapsulation limit if one isn't present in inner packet
-	IP6_TNL_F_USE_ORIG_TCLASS                  = 2  // copy the traffic class field from the inner packet
-	IP6_TNL_F_USE_ORIG_FLOWLABEL               = 4  // copy the flowlabel from the inner packet
-	IP6_TNL_F_MIP6_DEV                         = 8  // being used for Mobile IPv6
-	IP6_TNL_F_RCV_DSCP_COPY                    = 10 // copy DSCP from the outer packet
-	IP6_TNL_F_USE_ORIG_FWMARK                  = 20 // copy fwmark from inner packet
-	IP6_TNL_F_ALLOW_LOCAL_REMOTE               = 40 // allow remote endpoint on the local node
+	IP6_TNL_F_USE_ORIG_TCLASS    IP6TunnelFlag = 2  // copy the traffic class field from the inner packet
+	IP6_TNL_F_USE_ORIG_FLOWLABEL IP6TunnelFlag = 4  // copy the flowlabel from the inner packet
+	IP6_TNL_F_MIP6_DEV           IP6TunnelFlag = 8  // being used for Mobile IPv6
+	IP6_TNL_F_RCV_DSCP_COPY      IP6TunnelFlag = 10 // copy DSCP from the outer packet
+	IP6_TNL_F_USE_ORIG_FWMARK    IP6TunnelFlag = 20 // copy fwmark from inner packet
+	IP6_TNL_F_ALLOW_LOCAL_REMOTE IP6TunnelFlag = 40 // allow remote endpoint on the local node
 )
 
 type Sittun struct {

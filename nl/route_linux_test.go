@@ -23,20 +23,20 @@ func (msg *RtMsg) write(b []byte) {
 }
 
 func (msg *RtMsg) serializeSafe() []byte {
-	len := unix.SizeofRtMsg
-	b := make([]byte, len)
+	length := unix.SizeofRtMsg
+	b := make([]byte, length)
 	msg.write(b)
 	return b
 }
 
 func deserializeRtMsgSafe(b []byte) *RtMsg {
-	var msg = RtMsg{}
+	msg := RtMsg{}
 	binary.Read(bytes.NewReader(b[0:unix.SizeofRtMsg]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestRtMsgDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, unix.SizeofRtMsg)
+	orig := make([]byte, unix.SizeofRtMsg)
 	rand.Read(orig)
 	safemsg := deserializeRtMsgSafe(orig)
 	msg := DeserializeRtMsg(orig)

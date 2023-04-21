@@ -20,31 +20,31 @@ type XfrmMsg interface {
 // Message Types
 const (
 	XFRM_MSG_BASE        XfrmMsgType = 0x10
-	XFRM_MSG_NEWSA                   = 0x10
-	XFRM_MSG_DELSA                   = 0x11
-	XFRM_MSG_GETSA                   = 0x12
-	XFRM_MSG_NEWPOLICY               = 0x13
-	XFRM_MSG_DELPOLICY               = 0x14
-	XFRM_MSG_GETPOLICY               = 0x15
-	XFRM_MSG_ALLOCSPI                = 0x16
-	XFRM_MSG_ACQUIRE                 = 0x17
-	XFRM_MSG_EXPIRE                  = 0x18
-	XFRM_MSG_UPDPOLICY               = 0x19
-	XFRM_MSG_UPDSA                   = 0x1a
-	XFRM_MSG_POLEXPIRE               = 0x1b
-	XFRM_MSG_FLUSHSA                 = 0x1c
-	XFRM_MSG_FLUSHPOLICY             = 0x1d
-	XFRM_MSG_NEWAE                   = 0x1e
-	XFRM_MSG_GETAE                   = 0x1f
-	XFRM_MSG_REPORT                  = 0x20
-	XFRM_MSG_MIGRATE                 = 0x21
-	XFRM_MSG_NEWSADINFO              = 0x22
-	XFRM_MSG_GETSADINFO              = 0x23
-	XFRM_MSG_NEWSPDINFO              = 0x24
-	XFRM_MSG_GETSPDINFO              = 0x25
-	XFRM_MSG_MAPPING                 = 0x26
-	XFRM_MSG_MAX                     = 0x26
-	XFRM_NR_MSGTYPES                 = 0x17
+	XFRM_MSG_NEWSA       XfrmMsgType = 0x10
+	XFRM_MSG_DELSA       XfrmMsgType = 0x11
+	XFRM_MSG_GETSA       XfrmMsgType = 0x12
+	XFRM_MSG_NEWPOLICY   XfrmMsgType = 0x13
+	XFRM_MSG_DELPOLICY   XfrmMsgType = 0x14
+	XFRM_MSG_GETPOLICY   XfrmMsgType = 0x15
+	XFRM_MSG_ALLOCSPI    XfrmMsgType = 0x16
+	XFRM_MSG_ACQUIRE     XfrmMsgType = 0x17
+	XFRM_MSG_EXPIRE      XfrmMsgType = 0x18
+	XFRM_MSG_UPDPOLICY   XfrmMsgType = 0x19
+	XFRM_MSG_UPDSA       XfrmMsgType = 0x1a
+	XFRM_MSG_POLEXPIRE   XfrmMsgType = 0x1b
+	XFRM_MSG_FLUSHSA     XfrmMsgType = 0x1c
+	XFRM_MSG_FLUSHPOLICY XfrmMsgType = 0x1d
+	XFRM_MSG_NEWAE       XfrmMsgType = 0x1e
+	XFRM_MSG_GETAE       XfrmMsgType = 0x1f
+	XFRM_MSG_REPORT      XfrmMsgType = 0x20
+	XFRM_MSG_MIGRATE     XfrmMsgType = 0x21
+	XFRM_MSG_NEWSADINFO  XfrmMsgType = 0x22
+	XFRM_MSG_GETSADINFO  XfrmMsgType = 0x23
+	XFRM_MSG_NEWSPDINFO  XfrmMsgType = 0x24
+	XFRM_MSG_GETSPDINFO  XfrmMsgType = 0x25
+	XFRM_MSG_MAPPING     XfrmMsgType = 0x26
+	XFRM_MSG_MAX         XfrmMsgType = 0x26
+	XFRM_NR_MSGTYPES     XfrmMsgType = 0x17
 )
 
 // Attribute types
@@ -119,7 +119,7 @@ const (
 type XfrmAddress [SizeofXfrmAddress]byte
 
 func (x *XfrmAddress) ToIP() net.IP {
-	var empty = [12]byte{}
+	empty := [12]byte{}
 	ip := make(net.IP, net.IPv6len)
 	if bytes.Equal(x[4:16], empty[:]) {
 		ip[10] = 0xff
@@ -148,13 +148,14 @@ func (x *XfrmAddress) ToIPNet(prefixlen uint8, family uint16) *net.IPNet {
 }
 
 func (x *XfrmAddress) FromIP(ip net.IP) {
-	var empty = [16]byte{}
-	if len(ip) < net.IPv4len {
+	empty := [16]byte{}
+	switch {
+	case len(ip) < net.IPv4len:
 		copy(x[4:16], empty[:])
-	} else if GetIPFamily(ip) == FAMILY_V4 {
+	case GetIPFamily(ip) == FAMILY_V4:
 		copy(x[0:4], ip.To4()[0:4])
 		copy(x[4:16], empty[:12])
-	} else {
+	default:
 		copy(x[0:16], ip.To16()[0:16])
 	}
 }

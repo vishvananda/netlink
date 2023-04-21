@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -21,7 +22,6 @@ func setupRdmaKModule(t *testing.T, name string) {
 		if n == name {
 			return
 		}
-
 	}
 	t.Skipf("Test requires kmodule %q.", name)
 }
@@ -147,7 +147,7 @@ func TestRdmaLinkSetNsFd(t *testing.T) {
 	}
 
 	newns.Close()
-	//Set the old mode back at start of the test
+	// Set the old mode back at start of the test
 	err = RdmaSystemSetNetnsMode(mode)
 	if err != nil {
 		t.Fatal(err)

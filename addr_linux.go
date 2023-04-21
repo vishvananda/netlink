@@ -6,9 +6,10 @@ import (
 	"strings"
 	"syscall"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 // AddrAdd will add an IP address to a link device.
@@ -153,7 +154,7 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 	// value should be "forever". To compensate for that, only add the attributes if at least one of the values is
 	// non-zero, which means the caller has explicitly set them
 	if addr.ValidLft > 0 || addr.PreferedLft > 0 {
-		cachedata := nl.IfaCacheInfo{unix.IfaCacheinfo{
+		cachedata := nl.IfaCacheInfo{IfaCacheinfo: unix.IfaCacheinfo{
 			Valid:    uint32(addr.ValidLft),
 			Prefered: uint32(addr.PreferedLft),
 		}}
@@ -380,13 +381,13 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					continue
 				}
 				if m.Header.Type == unix.NLMSG_ERROR {
-					error := int32(native.Uint32(m.Data[0:4]))
-					if error == 0 {
+					errno := int32(native.Uint32(m.Data[0:4]))
+					if errno == 0 {
 						continue
 					}
 					if cberr != nil {
 						cberr(fmt.Errorf("error message: %v",
-							syscall.Errno(-error)))
+							syscall.Errno(-errno)))
 					}
 					continue
 				}
@@ -406,13 +407,15 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					continue
 				}
 
-				ch <- AddrUpdate{LinkAddress: *addr.IPNet,
+				ch <- AddrUpdate{
+					LinkAddress: *addr.IPNet,
 					LinkIndex:   addr.LinkIndex,
 					NewAddr:     msgType == unix.RTM_NEWADDR,
 					Flags:       addr.Flags,
 					Scope:       addr.Scope,
 					PreferedLft: addr.PreferedLft,
-					ValidLft:    addr.ValidLft}
+					ValidLft:    addr.ValidLft,
+				}
 			}
 		}
 	}()

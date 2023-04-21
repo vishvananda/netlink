@@ -6,8 +6,9 @@ import (
 	"net"
 	"syscall"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 // IPSetEntry is used for adding, updating, retreiving and deleting entries
@@ -129,7 +130,6 @@ func IpsetTest(setname string, entry *IPSetEntry) (bool, error) {
 func (h *Handle) IpsetProtocol() (protocol uint8, minVersion uint8, err error) {
 	req := h.newIpsetRequest(nl.IPSET_CMD_PROTOCOL)
 	msgs, err := req.Execute(unix.NETLINK_NETFILTER, 0)
-
 	if err != nil {
 		return 0, 0, err
 	}

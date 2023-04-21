@@ -8,8 +8,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 func TestFilterAddDel(t *testing.T) {
@@ -1224,7 +1225,6 @@ func TestFilterMatchAllAddDel(t *testing.T) {
 	if len(filters) != 0 {
 		t.Fatal("Failed to remove filter")
 	}
-
 }
 
 func TestFilterU32TunnelKeyAddDel(t *testing.T) {
@@ -1641,7 +1641,7 @@ func TestFilterU32LinkOption(t *testing.T) {
 			Priority:  priority,
 			Protocol:  unix.ETH_P_ALL,
 		},
-		Link: uint32(htid << 20),
+		Link: htid << 20,
 		Sel: &TcU32Sel{
 			Nkeys:    1,
 			Flags:    TC_U32_TERMINAL | TC_U32_VAROFFSET,

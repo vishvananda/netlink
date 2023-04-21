@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 // LinkAttrs represents data shared by most link types
@@ -29,24 +30,23 @@ func getProtoField(clientType int, op int) int {
 }
 
 func uint64ToGuidString(guid uint64) string {
-	//Convert to byte array
+	// Convert to byte array
 	sysGuidBytes := new(bytes.Buffer)
 	binary.Write(sysGuidBytes, binary.LittleEndian, guid)
 
-	//Convert to HardwareAddr
+	// Convert to HardwareAddr
 	sysGuidNet := net.HardwareAddr(sysGuidBytes.Bytes())
 
-	//Get the String
+	// Get the String
 	return sysGuidNet.String()
 }
 
 func executeOneGetRdmaLink(data []byte) (*RdmaLink, error) {
-
 	link := RdmaLink{}
 
 	reader := bytes.NewReader(data)
 	for reader.Len() >= 4 {
-		_, attrType, len, value := parseNfAttrTLV(reader)
+		_, attrType, length, value := parseNfAttrTLV(reader)
 
 		switch attrType {
 		case nl.RDMA_NLDEV_ATTR_DEV_INDEX:
@@ -55,9 +55,9 @@ func executeOneGetRdmaLink(data []byte) (*RdmaLink, error) {
 			binary.Read(r, nl.NativeEndian(), &Index)
 			link.Attrs.Index = Index
 		case nl.RDMA_NLDEV_ATTR_DEV_NAME:
-			link.Attrs.Name = string(value[0 : len-1])
+			link.Attrs.Name = string(value[0 : length-1])
 		case nl.RDMA_NLDEV_ATTR_FW_VERSION:
-			link.Attrs.FirmwareVersion = string(value[0 : len-1])
+			link.Attrs.FirmwareVersion = string(value[0 : length-1])
 		case nl.RDMA_NLDEV_ATTR_NODE_GUID:
 			var guid uint64
 			r := bytes.NewReader(value)
@@ -69,16 +69,15 @@ func executeOneGetRdmaLink(data []byte) (*RdmaLink, error) {
 			binary.Read(r, nl.NativeEndian(), &sysGuid)
 			link.Attrs.SysImageGuid = uint64ToGuidString(sysGuid)
 		}
-		if (len % 4) != 0 {
+		if (length % 4) != 0 {
 			// Skip pad bytes
-			reader.Seek(int64(4-(len%4)), seekCurrent)
+			reader.Seek(int64(4-(length%4)), seekCurrent)
 		}
 	}
 	return &link, nil
 }
 
 func execRdmaSetLink(req *nl.NetlinkRequest) error {
-
 	_, err := req.Execute(unix.NETLINK_RDMA, 0)
 	return err
 }
@@ -148,7 +147,7 @@ func (h *Handle) RdmaLinkSetName(link *RdmaLink, name string) error {
 	req := h.newNetlinkRequest(proto, unix.NLM_F_ACK)
 
 	b := make([]byte, 4)
-	native.PutUint32(b, uint32(link.Attrs.Index))
+	native.PutUint32(b, link.Attrs.Index)
 	data := nl.NewRtAttr(nl.RDMA_NLDEV_ATTR_DEV_INDEX, b)
 	req.AddData(data)
 
@@ -174,18 +173,17 @@ func netnsModeToString(mode uint8) string {
 func executeOneGetRdmaNetnsMode(data []byte) (string, error) {
 	reader := bytes.NewReader(data)
 	for reader.Len() >= 4 {
-		_, attrType, len, value := parseNfAttrTLV(reader)
+		_, attrType, length, value := parseNfAttrTLV(reader)
 
-		switch attrType {
-		case nl.RDMA_NLDEV_SYS_ATTR_NETNS_MODE:
+		if attrType == nl.RDMA_NLDEV_SYS_ATTR_NETNS_MODE {
 			var mode uint8
 			r := bytes.NewReader(value)
 			binary.Read(r, nl.NativeEndian(), &mode)
 			return netnsModeToString(mode), nil
 		}
-		if (len % 4) != 0 {
+		if (length % 4) != 0 {
 			// Skip pad bytes
-			reader.Seek(int64(4-(len%4)), seekCurrent)
+			reader.Seek(int64(4-(length%4)), seekCurrent)
 		}
 	}
 	return "", fmt.Errorf("Invalid netns mode")
@@ -204,7 +202,6 @@ func RdmaSystemGetNetnsMode() (string, error) {
 // otherwise.
 // Equivalent to: `rdma system show netns'
 func (h *Handle) RdmaSystemGetNetnsMode() (string, error) {
-
 	proto := getProtoField(nl.RDMA_NL_NLDEV, nl.RDMA_NLDEV_CMD_SYS_GET)
 	req := h.newNetlinkRequest(proto, unix.NLM_F_ACK)
 
@@ -232,15 +229,15 @@ func netnsModeStringToUint8(mode string) (uint8, error) {
 // RdmaSystemSetNetnsMode sets the net namespace mode for RDMA subsystem
 // Returns nil on success or appropriate error code.
 // Equivalent to: `rdma system set netns { shared | exclusive }'
-func RdmaSystemSetNetnsMode(NewMode string) error {
-	return pkgHandle.RdmaSystemSetNetnsMode(NewMode)
+func RdmaSystemSetNetnsMode(newMode string) error {
+	return pkgHandle.RdmaSystemSetNetnsMode(newMode)
 }
 
 // RdmaSystemSetNetnsMode sets the net namespace mode for RDMA subsystem
 // Returns nil on success or appropriate error code.
 // Equivalent to: `rdma system set netns { shared | exclusive }'
-func (h *Handle) RdmaSystemSetNetnsMode(NewMode string) error {
-	value, err := netnsModeStringToUint8(NewMode)
+func (h *Handle) RdmaSystemSetNetnsMode(newMode string) error {
+	value, err := netnsModeStringToUint8(newMode)
 	if err != nil {
 		return err
 	}
@@ -307,6 +304,7 @@ func (h *Handle) RdmaLinkDel(name string) error {
 
 // RdmaLinkAdd adds an rdma link for the specified type to the network device.
 // Similar to: rdma link add NAME type TYPE netdev NETDEV
+//
 //	NAME - specifies the new name of the rdma link to add
 //	TYPE - specifies which rdma type to use.  Link types:
 //		rxe - Soft RoCE driver

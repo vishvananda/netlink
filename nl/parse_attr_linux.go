@@ -64,16 +64,14 @@ func printAttributes(data []byte, level int) {
 func (attr *Attribute) Uint32() uint32 {
 	if attr.Type&NLA_F_NET_BYTEORDER != 0 {
 		return binary.BigEndian.Uint32(attr.Value)
-	} else {
-		return NativeEndian().Uint32(attr.Value)
 	}
+	return NativeEndian().Uint32(attr.Value)
 }
 
 // Uint64 returns the uint64 value respecting the NET_BYTEORDER flag
 func (attr *Attribute) Uint64() uint64 {
 	if attr.Type&NLA_F_NET_BYTEORDER != 0 {
 		return binary.BigEndian.Uint64(attr.Value)
-	} else {
-		return NativeEndian().Uint64(attr.Value)
 	}
+	return NativeEndian().Uint64(attr.Value)
 }

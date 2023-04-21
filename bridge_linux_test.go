@@ -33,10 +33,8 @@ func TestBridgeVlan(t *testing.T) {
 		} else {
 			if len(vInfo) != 1 {
 				t.Fatal()
-			} else {
-				if !vInfo[0].EngressUntag() || !vInfo[0].PortVID() || vInfo[0].Vid != 1 {
-					t.Fatalf("bridge vlan show get wrong return %s", vInfo[0].String())
-				}
+			} else if !vInfo[0].EngressUntag() || !vInfo[0].PortVID() || vInfo[0].Vid != 1 {
+				t.Fatalf("bridge vlan show get wrong return %s", vInfo[0].String())
 			}
 		}
 	}
@@ -61,17 +59,13 @@ func TestBridgeVlan(t *testing.T) {
 		}
 		if vInfo, ok := vlanMap[int32(bridge.Index)]; !ok {
 			t.Fatal("vlanMap should include foo port vlan info")
-		} else {
-			if fmt.Sprintf("%v", vInfo) != "[{Flags:6 Vid:1}]" {
-				t.Fatalf("unexpected result %v", vInfo)
-			}
+		} else if fmt.Sprintf("%v", vInfo) != "[{Flags:6 Vid:1}]" {
+			t.Fatalf("unexpected result %v", vInfo)
 		}
 		if vInfo, ok := vlanMap[int32(dummy.Index)]; !ok {
 			t.Fatal("vlanMap should include dum1 port vlan info")
-		} else {
-			if fmt.Sprintf("%v", vInfo) != "[{Flags:4 Vid:1} {Flags:0 Vid:2} {Flags:6 Vid:3}]" {
-				t.Fatalf("unexpected result %v", vInfo)
-			}
+		} else if fmt.Sprintf("%v", vInfo) != "[{Flags:4 Vid:1} {Flags:0 Vid:2} {Flags:6 Vid:3}]" {
+			t.Fatalf("unexpected result %v", vInfo)
 		}
 	}
 }

@@ -8,8 +8,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 // ConntrackTableType Conntrack table for the netlink operation
@@ -194,7 +195,7 @@ func parseIpTuple(reader *bytes.Reader, tpl *ipTuple) uint8 {
 	// Track the number of bytes read.
 	protoInfoBytesRead := uint16(nl.SizeofNfattr) + l
 	if t == nl.CTA_PROTO_NUM {
-		tpl.Protocol = uint8(v[0])
+		tpl.Protocol = v[0]
 	}
 	// We only parse TCP & UDP headers. Skip the others.
 	if tpl.Protocol != 6 && tpl.Protocol != 17 {
@@ -228,27 +229,27 @@ func parseIpTuple(reader *bytes.Reader, tpl *ipTuple) uint8 {
 	return tpl.Protocol
 }
 
-func parseNfAttrTLV(r *bytes.Reader) (isNested bool, attrType, len uint16, value []byte) {
-	isNested, attrType, len = parseNfAttrTL(r)
+func parseNfAttrTLV(r *bytes.Reader) (isNested bool, attrType, length uint16, value []byte) {
+	isNested, attrType, length = parseNfAttrTL(r)
 
-	value = make([]byte, len)
+	value = make([]byte, length)
 	binary.Read(r, binary.BigEndian, &value)
-	return isNested, attrType, len, value
+	return isNested, attrType, length, value
 }
 
-func parseNfAttrTL(r *bytes.Reader) (isNested bool, attrType, len uint16) {
-	binary.Read(r, nl.NativeEndian(), &len)
-	len -= nl.SizeofNfattr
+func parseNfAttrTL(r *bytes.Reader) (isNested bool, attrType, length uint16) {
+	binary.Read(r, nl.NativeEndian(), &length)
+	length -= nl.SizeofNfattr
 
 	binary.Read(r, nl.NativeEndian(), &attrType)
 	isNested = (attrType & nl.NLA_F_NESTED) == nl.NLA_F_NESTED
-	attrType = attrType & (nl.NLA_F_NESTED - 1)
-	return isNested, attrType, len
+	attrType &= (nl.NLA_F_NESTED - 1)
+	return isNested, attrType, length
 }
 
-func skipNfAttrValue(r *bytes.Reader, len uint16) {
-	len = (len + nl.NLA_ALIGNTO - 1) & ^(nl.NLA_ALIGNTO - 1)
-	r.Seek(int64(len), seekCurrent)
+func skipNfAttrValue(r *bytes.Reader, length uint16) {
+	length = (length + nl.NLA_ALIGNTO - 1) & ^(nl.NLA_ALIGNTO - 1)
+	r.Seek(int64(length), seekCurrent)
 }
 
 func parseBERaw16(r *bytes.Reader, v *uint16) {
@@ -281,11 +282,12 @@ func parseByteAndPacketCounters(r *bytes.Reader) (bytes, packets uint64) {
 func parseTimeStamp(r *bytes.Reader, readSize uint16) (tstart, tstop uint64) {
 	var numTimeStamps int
 	oneItem := nl.SizeofNfattr + 8 // 4 bytes attr header + 8 bytes timestamp
-	if readSize == uint16(oneItem) {
+	switch readSize {
+	case uint16(oneItem):
 		numTimeStamps = 1
-	} else if readSize == 2*uint16(oneItem) {
+	case 2 * uint16(oneItem):
 		numTimeStamps = 2
-	} else {
+	default:
 		return
 	}
 	for i := 0; i < numTimeStamps; i++ {
@@ -299,7 +301,6 @@ func parseTimeStamp(r *bytes.Reader, readSize uint16) (tstart, tstop uint64) {
 		}
 	}
 	return
-
 }
 
 func parseTimeOut(r *bytes.Reader) (ttimeout uint32) {
@@ -338,7 +339,7 @@ func parseRawData(data []byte) *ConntrackFlow {
 		if nested, t, l := parseNfAttrTL(reader); nested {
 			switch t {
 			case nl.CTA_TUPLE_ORIG:
-				if nested, t, l = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
+				if nested, t, _ = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
 					parseIpTuple(reader, &s.Forward)
 				}
 			case nl.CTA_TUPLE_REPLY:
@@ -413,18 +414,18 @@ func parseRawData(data []byte) *ConntrackFlow {
 type ConntrackFilterType uint8
 
 const (
-	ConntrackOrigSrcIP   = iota                // -orig-src ip    Source address from original direction
-	ConntrackOrigDstIP                         // -orig-dst ip    Destination address from original direction
-	ConntrackReplySrcIP                        // --reply-src ip  Reply Source IP
-	ConntrackReplyDstIP                        // --reply-dst ip  Reply Destination IP
-	ConntrackReplyAnyIP                        // Match source or destination reply IP
-	ConntrackOrigSrcPort                       // --orig-port-src port    Source port in original direction
-	ConntrackOrigDstPort                       // --orig-port-dst port    Destination port in original direction
-	ConntrackMatchLabels                       // --label label1,label2   Labels used in entry
-	ConntrackUnmatchLabels                     // --label label1,label2   Labels not used in entry
-	ConntrackNatSrcIP    = ConntrackReplySrcIP // deprecated use instead ConntrackReplySrcIP
-	ConntrackNatDstIP    = ConntrackReplyDstIP // deprecated use instead ConntrackReplyDstIP
-	ConntrackNatAnyIP    = ConntrackReplyAnyIP // deprecated use instead ConntrackReplyAnyIP
+	ConntrackOrigSrcIP     = iota                // -orig-src ip    Source address from original direction
+	ConntrackOrigDstIP                           // -orig-dst ip    Destination address from original direction
+	ConntrackReplySrcIP                          // --reply-src ip  Reply Source IP
+	ConntrackReplyDstIP                          // --reply-dst ip  Reply Destination IP
+	ConntrackReplyAnyIP                          // Match source or destination reply IP
+	ConntrackOrigSrcPort                         // --orig-port-src port    Source port in original direction
+	ConntrackOrigDstPort                         // --orig-port-dst port    Destination port in original direction
+	ConntrackMatchLabels                         // --label label1,label2   Labels used in entry
+	ConntrackUnmatchLabels                       // --label label1,label2   Labels not used in entry
+	ConntrackNatSrcIP      = ConntrackReplySrcIP // deprecated use instead ConntrackReplySrcIP
+	ConntrackNatDstIP      = ConntrackReplyDstIP // deprecated use instead ConntrackReplyDstIP
+	ConntrackNatAnyIP      = ConntrackReplyAnyIP // deprecated use instead ConntrackReplyAnyIP
 )
 
 type CustomConntrackFilter interface {
@@ -493,14 +494,14 @@ func (f *ConntrackFilter) AddProtocol(proto uint8) error {
 
 // AddLabels adds the provided list (zero or more) of labels to the conntrack filter
 // ConntrackFilterType here can be either:
-// 1) ConntrackMatchLabels: This matches every flow that has a label value (len(flow.Labels) > 0)
-//    against the list of provided labels. If `flow.Labels` contains ALL the provided labels
-//    it is considered a match. This can be used when you want to match flows that contain
-//    one or more labels.
-// 2) ConntrackUnmatchLabels:  This matches every flow that has a label value (len(flow.Labels) > 0)
-//    against the list of provided labels. If `flow.Labels` does NOT contain ALL the provided labels
-//    it is considered a match. This can be used when you want to match flows that don't contain
-//    one or more labels.
+//  1. ConntrackMatchLabels: This matches every flow that has a label value (len(flow.Labels) > 0)
+//     against the list of provided labels. If `flow.Labels` contains ALL the provided labels
+//     it is considered a match. This can be used when you want to match flows that contain
+//     one or more labels.
+//  2. ConntrackUnmatchLabels:  This matches every flow that has a label value (len(flow.Labels) > 0)
+//     against the list of provided labels. If `flow.Labels` does NOT contain ALL the provided labels
+//     it is considered a match. This can be used when you want to match flows that don't contain
+//     one or more labels.
 func (f *ConntrackFilter) AddLabels(tp ConntrackFilterType, labels [][]byte) error {
 	if len(labels) == 0 {
 		return errors.New("Invalid length for provided labels")

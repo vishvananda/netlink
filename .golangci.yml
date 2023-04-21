@@ -1,0 +1,33 @@
+issues:
+  exclude-rules:
+    - linters:
+        - revive
+      text: var-naming
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+linters:
+  enable:
+    - gci
+    - gofumpt
+    - gosimple
+    - govet
+    - ineffassign
+    - nilerr
+    - revive
+    - staticcheck
+    - unconvert
+    - whitespace
+  disable:
+    - errcheck
+    - unused
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/vishvananda)
+
+run:
+  timeout: 5m

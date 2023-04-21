@@ -136,7 +136,6 @@ func TestXfrmStateFlush(t *testing.T) {
 	if len(states) != 0 {
 		t.Fatal("State not flushed properly")
 	}
-
 }
 
 func TestXfrmStateUpdateLimits(t *testing.T) {
@@ -274,6 +273,7 @@ func TestXfrmStateWithOutputMarkAndMask(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func genStateSelectorForV6Payload() *XfrmPolicy {
 	_, wildcardV6Net, _ := net.ParseCIDR("::/0")
 	return &XfrmPolicy{
@@ -378,6 +378,7 @@ func getAeadState() *XfrmState {
 		},
 	}
 }
+
 func compareSelector(a, b *XfrmPolicy) bool {
 	return a.Src.String() == b.Src.String() &&
 		a.Dst.String() == b.Dst.String() &&
@@ -408,7 +409,6 @@ func compareStates(a, b *XfrmState) bool {
 		compareAlgo(a.Aead, b.Aead) &&
 		compareMarks(a.Mark, b.Mark) &&
 		compareMarks(a.OutputMark, b.OutputMark)
-
 }
 
 func compareLimits(a, b *XfrmState) bool {

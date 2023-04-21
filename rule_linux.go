@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 const FibRuleInvert = 0x2
@@ -212,7 +213,7 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 		return nil, err
 	}
 
-	var res = make([]Rule, 0)
+	res := make([]Rule, 0)
 	for i := range msgs {
 		msg := nl.DeserializeRtMsg(msgs[i])
 		attrs, err := nl.ParseRouteAttr(msgs[i][msg.Len():])
@@ -274,7 +275,7 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 			case nl.FRA_UID_RANGE:
 				rule.UIDRange = NewRuleUIDRange(native.Uint32(attrs[j].Value[0:4]), native.Uint32(attrs[j].Value[4:8]))
 			case nl.FRA_PROTOCOL:
-				rule.Protocol = uint8(attrs[j].Value[0])
+				rule.Protocol = attrs[j].Value[0]
 			}
 		}
 

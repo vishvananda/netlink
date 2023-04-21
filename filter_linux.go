@@ -9,8 +9,9 @@ import (
 	"net"
 	"syscall"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 // Constants used in TcU32Sel.Flags.
@@ -159,7 +160,7 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 		}
 	}
 
-	var flags uint32 = 0
+	var flags uint32
 	if filter.SkipHw {
 		flags |= nl.TCA_CLS_FLAGS_SKIP_HW
 	}
@@ -169,10 +170,7 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 	parent.AddRtAttr(nl.TCA_FLOWER_FLAGS, htonl(flags))
 
 	actionsAttr := parent.AddRtAttr(nl.TCA_FLOWER_ACT, nil)
-	if err := EncodeActions(actionsAttr, filter.Actions); err != nil {
-		return err
-	}
-	return nil
+	return EncodeActions(actionsAttr, filter.Actions)
 }
 
 func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
@@ -763,8 +761,7 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 				for _, adatum := range adata {
 					switch actionType {
 					case "mirred":
-						switch adatum.Attr.Type {
-						case nl.TCA_MIRRED_PARMS:
+						if adatum.Attr.Type == nl.TCA_MIRRED_PARMS {
 							mirred := *nl.DeserializeTcMirred(adatum.Value)
 							action.(*MirredAction).ActionAttrs = ActionAttrs{}
 							toAttrs(&mirred.TcGen, action.Attrs())
@@ -781,9 +778,9 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						case nl.TCA_TUNNEL_KEY_ENC_KEY_ID:
 							action.(*TunnelKeyAction).KeyID = networkOrder.Uint32(adatum.Value[0:4])
 						case nl.TCA_TUNNEL_KEY_ENC_IPV6_SRC, nl.TCA_TUNNEL_KEY_ENC_IPV4_SRC:
-							action.(*TunnelKeyAction).SrcAddr = adatum.Value[:]
+							action.(*TunnelKeyAction).SrcAddr = adatum.Value
 						case nl.TCA_TUNNEL_KEY_ENC_IPV6_DST, nl.TCA_TUNNEL_KEY_ENC_IPV4_DST:
-							action.(*TunnelKeyAction).DstAddr = adatum.Value[:]
+							action.(*TunnelKeyAction).DstAddr = adatum.Value
 						case nl.TCA_TUNNEL_KEY_ENC_DST_PORT:
 							action.(*TunnelKeyAction).DestPort = ntohs(adatum.Value)
 						}
@@ -820,24 +817,21 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 							action.(*BpfAction).Name = string(adatum.Value[:len(adatum.Value)-1])
 						}
 					case "connmark":
-						switch adatum.Attr.Type {
-						case nl.TCA_CONNMARK_PARMS:
+						if adatum.Attr.Type == nl.TCA_CONNMARK_PARMS {
 							connmark := *nl.DeserializeTcConnmark(adatum.Value)
 							action.(*ConnmarkAction).ActionAttrs = ActionAttrs{}
 							toAttrs(&connmark.TcGen, action.Attrs())
 							action.(*ConnmarkAction).Zone = connmark.Zone
 						}
 					case "csum":
-						switch adatum.Attr.Type {
-						case nl.TCA_CSUM_PARMS:
+						if adatum.Attr.Type == nl.TCA_CSUM_PARMS {
 							csum := *nl.DeserializeTcCsum(adatum.Value)
 							action.(*CsumAction).ActionAttrs = ActionAttrs{}
 							toAttrs(&csum.TcGen, action.Attrs())
 							action.(*CsumAction).UpdateFlags = CsumUpdateFlags(csum.UpdateFlags)
 						}
 					case "gact":
-						switch adatum.Attr.Type {
-						case nl.TCA_GACT_PARMS:
+						if adatum.Attr.Type == nl.TCA_GACT_PARMS {
 							gen := *nl.DeserializeTcGen(adatum.Value)
 							toAttrs(&gen, action.Attrs())
 							if action.Attrs().Action.String() == "goto" {
@@ -884,7 +878,7 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 			}
 			for _, action := range u32.Actions {
 				if action, ok := action.(*MirredAction); ok {
-					u32.RedirIndex = int(action.Ifindex)
+					u32.RedirIndex = action.Ifindex
 				}
 			}
 		case nl.TCA_U32_CLASSID:

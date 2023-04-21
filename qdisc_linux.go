@@ -7,8 +7,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 // NOTE function is here because it uses other linux functions
@@ -157,7 +158,6 @@ func (h *Handle) qdiscModify(cmd, flags int, qdisc Qdisc) error {
 }
 
 func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
-
 	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(qdisc.Type())))
 	if qdisc.Attrs().IngressBlock != nil {
 		req.AddData(nl.NewRtAttr(nl.TCA_INGRESS_BLOCK, nl.Uint32Attr(*qdisc.Attrs().IngressBlock)))
@@ -240,18 +240,18 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 			return fmt.Errorf("Ingress filters must set Parent to HANDLE_INGRESS")
 		}
 	case *FqCodel:
-		options.AddRtAttr(nl.TCA_FQ_CODEL_ECN, nl.Uint32Attr((uint32(qdisc.ECN))))
+		options.AddRtAttr(nl.TCA_FQ_CODEL_ECN, nl.Uint32Attr((qdisc.ECN)))
 		if qdisc.Limit > 0 {
-			options.AddRtAttr(nl.TCA_FQ_CODEL_LIMIT, nl.Uint32Attr((uint32(qdisc.Limit))))
+			options.AddRtAttr(nl.TCA_FQ_CODEL_LIMIT, nl.Uint32Attr((qdisc.Limit)))
 		}
 		if qdisc.Interval > 0 {
-			options.AddRtAttr(nl.TCA_FQ_CODEL_INTERVAL, nl.Uint32Attr((uint32(qdisc.Interval))))
+			options.AddRtAttr(nl.TCA_FQ_CODEL_INTERVAL, nl.Uint32Attr((qdisc.Interval)))
 		}
 		if qdisc.Flows > 0 {
-			options.AddRtAttr(nl.TCA_FQ_CODEL_FLOWS, nl.Uint32Attr((uint32(qdisc.Flows))))
+			options.AddRtAttr(nl.TCA_FQ_CODEL_FLOWS, nl.Uint32Attr((qdisc.Flows)))
 		}
 		if qdisc.Quantum > 0 {
-			options.AddRtAttr(nl.TCA_FQ_CODEL_QUANTUM, nl.Uint32Attr((uint32(qdisc.Quantum))))
+			options.AddRtAttr(nl.TCA_FQ_CODEL_QUANTUM, nl.Uint32Attr((qdisc.Quantum)))
 		}
 		if qdisc.CEThreshold > 0 {
 			options.AddRtAttr(nl.TCA_FQ_CODEL_CE_THRESHOLD, nl.Uint32Attr(qdisc.CEThreshold))
@@ -263,31 +263,31 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 			options.AddRtAttr(nl.TCA_FQ_CODEL_MEMORY_LIMIT, nl.Uint32Attr(qdisc.MemoryLimit))
 		}
 	case *Fq:
-		options.AddRtAttr(nl.TCA_FQ_RATE_ENABLE, nl.Uint32Attr((uint32(qdisc.Pacing))))
+		options.AddRtAttr(nl.TCA_FQ_RATE_ENABLE, nl.Uint32Attr((qdisc.Pacing)))
 
 		if qdisc.Buckets > 0 {
-			options.AddRtAttr(nl.TCA_FQ_BUCKETS_LOG, nl.Uint32Attr((uint32(qdisc.Buckets))))
+			options.AddRtAttr(nl.TCA_FQ_BUCKETS_LOG, nl.Uint32Attr((qdisc.Buckets)))
 		}
 		if qdisc.LowRateThreshold > 0 {
-			options.AddRtAttr(nl.TCA_FQ_LOW_RATE_THRESHOLD, nl.Uint32Attr((uint32(qdisc.LowRateThreshold))))
+			options.AddRtAttr(nl.TCA_FQ_LOW_RATE_THRESHOLD, nl.Uint32Attr((qdisc.LowRateThreshold)))
 		}
 		if qdisc.Quantum > 0 {
-			options.AddRtAttr(nl.TCA_FQ_QUANTUM, nl.Uint32Attr((uint32(qdisc.Quantum))))
+			options.AddRtAttr(nl.TCA_FQ_QUANTUM, nl.Uint32Attr((qdisc.Quantum)))
 		}
 		if qdisc.InitialQuantum > 0 {
-			options.AddRtAttr(nl.TCA_FQ_INITIAL_QUANTUM, nl.Uint32Attr((uint32(qdisc.InitialQuantum))))
+			options.AddRtAttr(nl.TCA_FQ_INITIAL_QUANTUM, nl.Uint32Attr((qdisc.InitialQuantum)))
 		}
 		if qdisc.FlowRefillDelay > 0 {
-			options.AddRtAttr(nl.TCA_FQ_FLOW_REFILL_DELAY, nl.Uint32Attr((uint32(qdisc.FlowRefillDelay))))
+			options.AddRtAttr(nl.TCA_FQ_FLOW_REFILL_DELAY, nl.Uint32Attr((qdisc.FlowRefillDelay)))
 		}
 		if qdisc.FlowPacketLimit > 0 {
-			options.AddRtAttr(nl.TCA_FQ_FLOW_PLIMIT, nl.Uint32Attr((uint32(qdisc.FlowPacketLimit))))
+			options.AddRtAttr(nl.TCA_FQ_FLOW_PLIMIT, nl.Uint32Attr((qdisc.FlowPacketLimit)))
 		}
 		if qdisc.FlowMaxRate > 0 {
-			options.AddRtAttr(nl.TCA_FQ_FLOW_MAX_RATE, nl.Uint32Attr((uint32(qdisc.FlowMaxRate))))
+			options.AddRtAttr(nl.TCA_FQ_FLOW_MAX_RATE, nl.Uint32Attr((qdisc.FlowMaxRate)))
 		}
 		if qdisc.FlowDefaultRate > 0 {
-			options.AddRtAttr(nl.TCA_FQ_FLOW_DEFAULT_RATE, nl.Uint32Attr((uint32(qdisc.FlowDefaultRate))))
+			options.AddRtAttr(nl.TCA_FQ_FLOW_DEFAULT_RATE, nl.Uint32Attr((qdisc.FlowDefaultRate)))
 		}
 		if qdisc.Horizon > 0 {
 			options.AddRtAttr(nl.TCA_FQ_HORIZON, nl.Uint32Attr(qdisc.Horizon))
@@ -493,7 +493,7 @@ func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 			htb.DirectPkts = opt.DirectPkts
 		case nl.TCA_HTB_DIRECT_QLEN:
 			// TODO
-			//htb.DirectQlen = native.uint32(datum.Value)
+			// htb.DirectQlen = native.uint32(datum.Value)
 		}
 	}
 	return nil
@@ -502,7 +502,6 @@ func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 func parseFqCodelData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 	fqCodel := qdisc.(*FqCodel)
 	for _, datum := range data {
-
 		switch datum.Attr.Type {
 		case nl.TCA_FQ_CODEL_TARGET:
 			fqCodel.Target = native.Uint32(datum.Value)
@@ -563,7 +562,6 @@ func parseFqData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 			fq.Horizon = native.Uint32(datum.Value)
 		case nl.TCA_FQ_HORIZON_DROP:
 			fq.HorizonDropPolicy = datum.Value[0]
-
 		}
 	}
 	return nil

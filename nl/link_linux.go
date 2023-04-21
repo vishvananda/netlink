@@ -346,14 +346,14 @@ func (msg *VfTxRate) Serialize() []byte {
 	return (*(*[SizeofVfTxRate]byte)(unsafe.Pointer(msg)))[:]
 }
 
-//struct ifla_vf_stats {
+// struct ifla_vf_stats {
 //	__u64 rx_packets;
 //	__u64 tx_packets;
 //	__u64 rx_bytes;
 //	__u64 tx_bytes;
 //	__u64 broadcast;
 //	__u64 multicast;
-//};
+// };
 
 type VfStats struct {
 	RxPackets uint64

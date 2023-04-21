@@ -9,9 +9,10 @@ import (
 	"strings"
 	"syscall"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 // RtAttr is shared so it is in netlink_linux.go
@@ -200,6 +201,7 @@ type SEG6Encap struct {
 func (e *SEG6Encap) Type() int {
 	return nl.LWTUNNEL_ENCAP_SEG6
 }
+
 func (e *SEG6Encap) Decode(buf []byte) error {
 	if len(buf) < 4 {
 		return fmt.Errorf("lack of bytes")
@@ -221,6 +223,7 @@ func (e *SEG6Encap) Decode(buf []byte) error {
 
 	return err
 }
+
 func (e *SEG6Encap) Encode() ([]byte, error) {
 	s, err := nl.EncodeSEG6Encap(e.Mode, e.Segments)
 	hdr := make([]byte, 4)
@@ -228,6 +231,7 @@ func (e *SEG6Encap) Encode() ([]byte, error) {
 	native.PutUint16(hdr[2:], nl.SEG6_IPTUNNEL_SRH)
 	return append(hdr, s...), err
 }
+
 func (e *SEG6Encap) String() string {
 	segs := make([]string, 0, len(e.Segments))
 	// append segment backwards (from n to 0) since seg#0 is the last segment.
@@ -238,6 +242,7 @@ func (e *SEG6Encap) String() string {
 		len(e.Segments), strings.Join(segs, " "))
 	return str
 }
+
 func (e *SEG6Encap) Equal(x Encap) bool {
 	o, ok := x.(*SEG6Encap)
 	if !ok {
@@ -278,6 +283,7 @@ type SEG6LocalEncap struct {
 func (e *SEG6LocalEncap) Type() int {
 	return nl.LWTUNNEL_ENCAP_SEG6_LOCAL
 }
+
 func (e *SEG6LocalEncap) Decode(buf []byte) error {
 	attrs, err := nl.ParseRouteAttr(buf)
 	if err != nil {
@@ -289,7 +295,7 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 			e.Action = int(native.Uint32(attr.Value[0:4]))
 			e.Flags[nl.SEG6_LOCAL_ACTION] = true
 		case nl.SEG6_LOCAL_SRH:
-			e.Segments, err = nl.DecodeSEG6Srh(attr.Value[:])
+			e.Segments, err = nl.DecodeSEG6Srh(attr.Value)
 			e.Flags[nl.SEG6_LOCAL_SRH] = true
 		case nl.SEG6_LOCAL_TABLE:
 			e.Table = int(native.Uint32(attr.Value[0:4]))
@@ -310,6 +316,7 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 	}
 	return err
 }
+
 func (e *SEG6LocalEncap) Encode() ([]byte, error) {
 	var err error
 	res := make([]byte, 8)
@@ -369,6 +376,7 @@ func (e *SEG6LocalEncap) Encode() ([]byte, error) {
 	}
 	return res, err
 }
+
 func (e *SEG6LocalEncap) String() string {
 	strs := make([]string, 0, nl.SEG6_LOCAL_MAX)
 	strs = append(strs, fmt.Sprintf("action %s", nl.SEG6LocalActionString(e.Action)))
@@ -400,7 +408,7 @@ func (e *SEG6LocalEncap) String() string {
 	}
 	if e.Flags[nl.SEG6_LOCAL_SRH] {
 		segs := make([]string, 0, len(e.Segments))
-		//append segment backwards (from n to 0) since seg#0 is the last segment.
+		// append segment backwards (from n to 0) since seg#0 is the last segment.
 		for i := len(e.Segments); i > 0; i-- {
 			segs = append(segs, e.Segments[i-1].String())
 		}
@@ -408,6 +416,7 @@ func (e *SEG6LocalEncap) String() string {
 	}
 	return strings.Join(strs, " ")
 }
+
 func (e *SEG6LocalEncap) Equal(x Encap) bool {
 	o, ok := x.(*SEG6LocalEncap)
 	if !ok {
@@ -481,6 +490,7 @@ func (e *BpfEncap) SetXmitHeadroom(headroom int) error {
 func (e *BpfEncap) Type() int {
 	return nl.LWTUNNEL_ENCAP_BPF
 }
+
 func (e *BpfEncap) Decode(buf []byte) error {
 	if len(buf) < 4 {
 		return fmt.Errorf("lwt bpf decode: lack of bytes")
@@ -768,7 +778,6 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		default:
 			rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_ENCAP, buf))
 		}
-
 	}
 
 	if route.Src != nil {
@@ -1153,8 +1162,7 @@ func deserializeRoute(m []byte) (Route, error) {
 						info.Gw = net.IP(attr.Value)
 					case unix.RTA_NEWDST:
 						var d Destination
-						switch msg.Family {
-						case nl.FAMILY_MPLS:
+						if msg.Family == nl.FAMILY_MPLS {
 							d = &MPLSDestination{}
 						}
 						if err := d.Decode(attr.Value); err != nil {
@@ -1177,8 +1185,7 @@ func deserializeRoute(m []byte) (Route, error) {
 				if len(encap.Value) != 0 && len(encapType.Value) != 0 {
 					typ := int(native.Uint16(encapType.Value[0:2]))
 					var e Encap
-					switch typ {
-					case nl.LWTUNNEL_ENCAP_MPLS:
+					if typ == nl.LWTUNNEL_ENCAP_MPLS {
 						e = &MPLSEncap{}
 						if err := e.Decode(encap.Value); err != nil {
 							return nil, nil, err
@@ -1200,8 +1207,7 @@ func deserializeRoute(m []byte) (Route, error) {
 			}
 		case unix.RTA_NEWDST:
 			var d Destination
-			switch msg.Family {
-			case nl.FAMILY_MPLS:
+			if msg.Family == nl.FAMILY_MPLS {
 				d = &MPLSDestination{}
 			}
 			if err := d.Decode(attr.Value); err != nil {
@@ -1500,13 +1506,13 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 					continue
 				}
 				if m.Header.Type == unix.NLMSG_ERROR {
-					error := int32(native.Uint32(m.Data[0:4]))
-					if error == 0 {
+					errno := int32(native.Uint32(m.Data[0:4]))
+					if errno == 0 {
 						continue
 					}
 					if cberr != nil {
 						cberr(fmt.Errorf("error message: %v",
-							syscall.Errno(-error)))
+							syscall.Errno(-errno)))
 					}
 					continue
 				}
@@ -1545,7 +1551,7 @@ func (p RouteProtocol) String() string {
 		return "gated"
 	case unix.RTPROT_ISIS:
 		return "isis"
-	//case unix.RTPROT_KEEPALIVED:
+	// case unix.RTPROT_KEEPALIVED:
 	//	return "keepalived"
 	case unix.RTPROT_KERNEL:
 		return "kernel"
