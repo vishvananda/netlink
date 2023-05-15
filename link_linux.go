@@ -3029,6 +3029,8 @@ func addGeneveAttrs(geneve *Geneve, linkInfo *nl.RtAttr) {
 	if geneve.Tos != 0 {
 		data.AddRtAttr(nl.IFLA_GENEVE_TOS, nl.Uint8Attr(geneve.Tos))
 	}
+
+	data.AddRtAttr(nl.IFLA_GENEVE_DF, nl.Uint8Attr(uint8(geneve.Df)))
 }
 
 func parseGeneveData(link Link, data []syscall.NetlinkRouteAttr) {

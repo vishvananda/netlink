@@ -1033,6 +1033,7 @@ type Geneve struct {
 	Link              uint32
 	FlowBased         bool
 	InnerProtoInherit bool
+	Df                GeneveDf
 }
 
 func (geneve *Geneve) Attrs() *LinkAttrs {
@@ -1042,6 +1043,15 @@ func (geneve *Geneve) Attrs() *LinkAttrs {
 func (geneve *Geneve) Type() string {
 	return "geneve"
 }
+
+type GeneveDf uint8
+
+const (
+	GENEVE_DF_UNSET GeneveDf = iota
+	GENEVE_DF_SET
+	GENEVE_DF_INHERIT
+	GENEVE_DF_MAX
+)
 
 // Gretap devices must specify LocalIP and RemoteIP on create
 type Gretap struct {
