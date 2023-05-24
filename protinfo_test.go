@@ -62,6 +62,9 @@ func TestProtinfo(t *testing.T) {
 	if !pi1.RootBlock {
 		t.Fatalf("RootBlock is not enabled for %s, but should", iface1.Name)
 	}
+	if pi1.Isolated {
+		t.Fatalf("Isolated mode is enabled for %s, but shouldn't", iface1.Name)
+	}
 	if pi1.ProxyArp != oldpi1.ProxyArp {
 		t.Fatalf("ProxyArp field was changed for %s but shouldn't", iface1.Name)
 	}
@@ -157,5 +160,19 @@ func TestProtinfo(t *testing.T) {
 	}
 	if pi4.Flood != oldpi4.Flood {
 		t.Fatalf("Flood field was changed for %s but shouldn't", iface4.Name)
+	}
+
+	// Setting kernel requirement for next tests which require BRPORT_ISOLATED
+	minKernelRequired(t, 4, 18)
+
+	if err := LinkSetIsolated(iface1, true); err != nil {
+		t.Fatal(err)
+	}
+	pi1, err = LinkGetProtinfo(iface1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pi1.Isolated {
+		t.Fatalf("Isolated mode is not enabled for %s, but should", iface1.Name)
 	}
 }
