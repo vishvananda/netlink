@@ -2357,6 +2357,14 @@ func (h *Handle) LinkSetFlood(link Link, mode bool) error {
 	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_UNICAST_FLOOD)
 }
 
+func LinkSetIsolated(link Link, mode bool) error {
+	return pkgHandle.LinkSetIsolated(link, mode)
+}
+
+func (h *Handle) LinkSetIsolated(link Link, mode bool) error {
+	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_ISOLATED)
+}
+
 func LinkSetBrProxyArp(link Link, mode bool) error {
 	return pkgHandle.LinkSetBrProxyArp(link, mode)
 }
