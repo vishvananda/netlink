@@ -53,6 +53,10 @@ func (filter *U32) Type() string {
 
 type Flower struct {
 	FilterAttrs
+	DestEth       net.HardwareAddr
+	DestEthMask   net.HardwareAddr
+	SrcEth        net.HardwareAddr
+	SrcEthMask    net.HardwareAddr
 	DestIP        net.IP
 	DestIPMask    net.IPMask
 	SrcIP         net.IP
@@ -81,6 +85,11 @@ func (filter *Flower) Type() string {
 	return "flower"
 }
 
+func (filter *Flower) encodeMac(parent *nl.RtAttr, mac net.HardwareAddr, mask net.HardwareAddr, macType, maskType int) {
+	parent.AddRtAttr(macType, mac)
+	parent.AddRtAttr(maskType, mask)
+}
+
 func (filter *Flower) encodeIP(parent *nl.RtAttr, ip net.IP, mask net.IPMask, v4Type, v6Type int, v4MaskType, v6MaskType int) {
 	ipType := v4Type
 	maskType := v4MaskType
@@ -107,6 +116,14 @@ func (filter *Flower) encodeIP(parent *nl.RtAttr, ip net.IP, mask net.IPMask, v4
 func (filter *Flower) encode(parent *nl.RtAttr) error {
 	if filter.EthType != 0 {
 		parent.AddRtAttr(nl.TCA_FLOWER_KEY_ETH_TYPE, htons(filter.EthType))
+	}
+	if filter.DestEth != nil {
+		filter.encodeMac(parent, filter.DestEth, filter.DestEthMask,
+			nl.TCA_FLOWER_KEY_ETH_DST, nl.TCA_FLOWER_KEY_ETH_DST_MASK)
+	}
+	if filter.SrcEth != nil {
+		filter.encodeMac(parent, filter.SrcEth, filter.SrcEthMask,
+			nl.TCA_FLOWER_KEY_ETH_SRC, nl.TCA_FLOWER_KEY_ETH_SRC_MASK)
 	}
 	if filter.SrcIP != nil {
 		filter.encodeIP(parent, filter.SrcIP, filter.SrcIPMask,
@@ -178,6 +195,14 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
 	for _, datum := range data {
 		switch datum.Attr.Type {
+		case nl.TCA_FLOWER_KEY_ETH_DST:
+			filter.DestEth = datum.Value
+		case nl.TCA_FLOWER_KEY_ETH_DST_MASK:
+			filter.DestEthMask = datum.Value
+		case nl.TCA_FLOWER_KEY_ETH_SRC:
+			filter.SrcEth = datum.Value
+		case nl.TCA_FLOWER_KEY_ETH_SRC_MASK:
+			filter.SrcEthMask = datum.Value
 		case nl.TCA_FLOWER_KEY_ETH_TYPE:
 			filter.EthType = ntohs(datum.Value)
 		case nl.TCA_FLOWER_KEY_IPV4_SRC, nl.TCA_FLOWER_KEY_IPV6_SRC:

@@ -1224,7 +1224,6 @@ func TestFilterMatchAllAddDel(t *testing.T) {
 	if len(filters) != 0 {
 		t.Fatal("Failed to remove filter")
 	}
-
 }
 
 func TestFilterU32TunnelKeyAddDel(t *testing.T) {
@@ -1780,6 +1779,10 @@ func TestFilterFlowerAddDel(t *testing.T) {
 			Priority:  1,
 			Protocol:  unix.ETH_P_ALL,
 		},
+		DestEth:       net.HardwareAddr([]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}),
+		DestEthMask:   net.HardwareAddr([]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}),
+		SrcEth:        net.HardwareAddr([]byte{0xba, 0xad, 0xca, 0xca, 0x00, 0x00}),
+		SrcEthMask:    net.HardwareAddr([]byte{0xff, 0xff, 0xff, 0xff, 0x00, 0x00}),
 		DestIP:        net.ParseIP("1.0.0.1"),
 		DestIPMask:    testMask,
 		SrcIP:         net.ParseIP("2.0.0.1"),
@@ -1827,6 +1830,18 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		t.Fatal("Filter is the wrong type")
 	}
 
+	if !reflect.DeepEqual(filter.DestEth, flower.DestEth) {
+		t.Fatalf("Flower DestEth doesn't match")
+	}
+	if !reflect.DeepEqual(filter.DestEthMask, flower.DestEthMask) {
+		t.Fatalf("Flower DestEthMask doesn't match")
+	}
+	if !reflect.DeepEqual(filter.SrcEth, flower.SrcEth) {
+		t.Fatalf("Flower SrcEth doesn't match")
+	}
+	if !reflect.DeepEqual(filter.SrcEthMask, flower.SrcEthMask) {
+		t.Fatalf("Flower SrcEthMask doesn't match")
+	}
 	if filter.EthType != flower.EthType {
 		t.Fatalf("Flower EthType doesn't match")
 	}
