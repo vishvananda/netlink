@@ -2148,6 +2148,66 @@ func TestLinkSetGROMaxSize(t *testing.T) {
 	}
 }
 
+func TestLinkSetGSOIPv4MaxSize(t *testing.T) {
+	minKernelRequired(t, 6, 3)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	iface := &Veth{LinkAttrs: LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1500}, PeerName: "bar"}
+	if err := LinkAdd(iface); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkSetGSOIPv4MaxSize(link, 32768)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().GSOIPv4MaxSize != 32768 {
+		t.Fatalf("GSO max size was not modified")
+	}
+}
+
+func TestLinkSetGROIPv4MaxSize(t *testing.T) {
+	minKernelRequired(t, 6, 3)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	iface := &Veth{LinkAttrs: LinkAttrs{Name: "foo", TxQLen: testTxQLen, MTU: 1500}, PeerName: "bar"}
+	if err := LinkAdd(iface); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkSetGROIPv4MaxSize(link, 32768)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().GROIPv4MaxSize != 32768 {
+		t.Fatalf("GRO max size was not modified")
+	}
+}
+
 func TestBridgeCreationWithMulticastSnooping(t *testing.T) {
 	minKernelRequired(t, 4, 4)
 
