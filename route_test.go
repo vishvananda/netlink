@@ -1767,6 +1767,9 @@ func TestSEG6LocalEqual(t *testing.T) {
 	var flags_end_b6_encaps [nl.SEG6_LOCAL_MAX]bool
 	flags_end_b6_encaps[nl.SEG6_LOCAL_ACTION] = true
 	flags_end_b6_encaps[nl.SEG6_LOCAL_SRH] = true
+	var flags_end_bpf [nl.SEG6_LOCAL_MAX]bool
+	flags_end_bpf[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_bpf[nl.SEG6_LOCAL_BPF] = true
 
 	cases := []SEG6LocalEncap{
 		{
@@ -1819,6 +1822,15 @@ func TestSEG6LocalEqual(t *testing.T) {
 			Segments: segs,
 		},
 	}
+
+	// SEG6_LOCAL_ACTION_END_BPF
+	endBpf := SEG6LocalEncap{
+		Flags:  flags_end_bpf,
+		Action: nl.SEG6_LOCAL_ACTION_END_BPF,
+	}
+	_ = endBpf.SetProg(1, "firewall")
+	cases = append(cases, endBpf)
+
 	for i1 := range cases {
 		for i2 := range cases {
 			got := cases[i1].Equal(&cases[i2])
