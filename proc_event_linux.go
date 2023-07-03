@@ -113,7 +113,8 @@ func (e *CommProcEvent) Tgid() uint32 {
 	return e.ProcessTgid
 }
 
-func ProcEventMonitor(ch chan<- ProcEvent, done <-chan struct{}, errorChan chan<- error) error {
+// ProcEventMonitor whats is a mask of events we want to send to the chan ch
+func ProcEventMonitor(ch chan<- ProcEvent, done <-chan struct{}, errorChan chan<- error, whats uint32) error {
 	h, err := NewHandle()
 	if err != nil {
 		return err
@@ -157,7 +158,7 @@ func ProcEventMonitor(ch chan<- ProcEvent, done <-chan struct{}, errorChan chan<
 			}
 
 			for _, m := range msgs {
-				e := parseNetlinkMessage(m)
+				e := parseNetlinkMessage(m, whats)
 				if e != nil {
 					ch <- *e
 				}
@@ -169,13 +170,18 @@ func ProcEventMonitor(ch chan<- ProcEvent, done <-chan struct{}, errorChan chan<
 	return nil
 }
 
-func parseNetlinkMessage(m syscall.NetlinkMessage) *ProcEvent {
+func parseNetlinkMessage(m syscall.NetlinkMessage, whats uint32) *ProcEvent {
 	if m.Header.Type == unix.NLMSG_DONE {
 		buf := bytes.NewBuffer(m.Data)
 		msg := &nl.CnMsg{}
 		hdr := &ProcEventHeader{}
 		binary.Read(buf, nl.NativeEndian(), msg)
 		binary.Read(buf, nl.NativeEndian(), hdr)
+
+		// we didn't want any of these events
+		if (hdr.What & whats) == 0 {
+			return nil
+		}
 
 		pe := &ProcEvent{}
 		pe.setHeader(*hdr)

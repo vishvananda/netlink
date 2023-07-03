@@ -1,13 +1,15 @@
+//go:build linux
 // +build linux
 
 package netlink
 
 import (
-	"github.com/vishvananda/netns"
 	"os"
 	"os/exec"
 	"runtime"
 	"testing"
+
+	"github.com/vishvananda/netns"
 )
 
 func TestSubscribeProcEvent(t *testing.T) {
@@ -31,7 +33,7 @@ func TestSubscribeProcEvent(t *testing.T) {
 
 	errChan := make(chan error)
 
-	if err := ProcEventMonitor(ch, done, errChan); err != nil {
+	if err := ProcEventMonitor(ch, done, errChan, PROC_EVENT_EXIT|PROC_EVENT_FORK|PROC_EVENT_EXEC|PROC_EVENT_COMM); err != nil {
 		t.Fatal(err)
 	}
 
@@ -71,6 +73,56 @@ func TestSubscribeProcEvent(t *testing.T) {
 				if exitEvent.ExitCode != 256 {
 					t.Errorf("Expected error code 256 (-1), but got %+v", exitEvent)
 				}
+				break
+			}
+		}
+	}
+
+	done <- struct{}{}
+}
+
+func TestSubscribeProcEventOnlyExit(t *testing.T) {
+	skipUnlessRoot(t)
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	pid1ns, err := netns.GetFromPid(1)
+	if err != nil {
+		panic(err)
+	}
+
+	err = netns.Set(pid1ns)
+	if err != nil {
+		panic(err)
+	}
+
+	ch := make(chan ProcEvent)
+	done := make(chan struct{})
+	defer close(done)
+
+	errChan := make(chan error)
+
+	if err := ProcEventMonitor(ch, done, errChan, PROC_EVENT_EXIT); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command("false")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd.Wait()
+	for {
+		e := <-ch
+		if e.Msg.Tgid() == uint32(cmd.Process.Pid) {
+			if exitEvent, ok := e.Msg.(*ExitProcEvent); ok {
+				if exitEvent.ExitCode != 256 {
+					t.Errorf("Expected error code 256 (-1), but got %+v", exitEvent)
+				}
+				break
+			}
+			if _, ok := e.Msg.(*ExecProcEvent); ok {
+				t.Errorf("expected no event, we didn't subscribe to ExecProcEvent")
 				break
 			}
 		}
