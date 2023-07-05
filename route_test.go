@@ -2019,3 +2019,62 @@ func TestRouteFWMarkOption(t *testing.T) {
 		t.Fatal(routes)
 	}
 }
+
+func TestRouteGetFIBMatchOption(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	err := LinkAdd(&Dummy{LinkAttrs{Name: "eth0"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("eth0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	addr := &Addr{
+		IPNet: &net.IPNet{
+			IP:   net.IPv4(192, 168, 0, 2),
+			Mask: net.CIDRMask(24, 32),
+		},
+	}
+	if err = AddrAdd(link, addr); err != nil {
+		t.Fatal(err)
+	}
+
+	route := &Route{
+		LinkIndex: link.Attrs().Index,
+		Gw:        net.IPv4(192, 168, 1, 1),
+		Dst: &net.IPNet{
+			IP:   net.IPv4(192, 168, 2, 0),
+			Mask: net.CIDRMask(24, 32),
+		},
+		Flags: int(FLAG_ONLINK),
+	}
+
+	err = RouteAdd(route)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	routes, err := RouteGetWithOptions(net.IPv4(192, 168, 2, 1), &RouteGetOptions{FIBMatch: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(routes) != 1 {
+		t.Fatalf("More than one route matched %v", routes)
+	}
+
+	if len(routes[0].ListFlags()) != 1 {
+		t.Fatalf("More than one route flag returned %v", routes[0].ListFlags())
+	}
+
+	flag := routes[0].ListFlags()[0]
+	if flag != "onlink" {
+		t.Fatalf("Unexpected flag %s returned", flag)
+	}
+}
