@@ -612,6 +612,43 @@ func (h *Handle) LinkSetVfVlanQos(link Link, vf, vlan, qos int) error {
 	return err
 }
 
+// LinkSetVfVlanQosProto sets the vlan, qos and protocol of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf vlan $vlan qos $qos proto $proto`
+func LinkSetVfVlanQosProto(link Link, vf, vlan, qos, proto int) error {
+	return pkgHandle.LinkSetVfVlanQosProto(link, vf, vlan, qos, proto)
+}
+
+// LinkSetVfVlanQosProto sets the vlan, qos and protocol of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf vlan $vlan qos $qos proto $proto`
+func (h *Handle) LinkSetVfVlanQosProto(link Link, vf, vlan, qos, proto int) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(unix.IFLA_VFINFO_LIST, nil)
+	vfInfo := data.AddRtAttr(nl.IFLA_VF_INFO, nil)
+	vfVlanList := vfInfo.AddRtAttr(nl.IFLA_VF_VLAN_LIST, nil)
+
+	vfmsg := nl.VfVlanInfo{
+		VfVlan: nl.VfVlan{
+			Vf:   uint32(vf),
+			Vlan: uint32(vlan),
+			Qos:  uint32(qos),
+		},
+		VlanProto: (uint16(proto)>>8)&0xFF | (uint16(proto)&0xFF)<<8,
+	}
+
+	vfVlanList.AddRtAttr(nl.IFLA_VF_VLAN_INFO, vfmsg.Serialize())
+	req.AddData(data)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetVfTxRate sets the tx rate of a vf for the link.
 // Equivalent to: `ip link set $link vf $vf rate $rate`
 func LinkSetVfTxRate(link Link, vf, rate int) error {
@@ -3331,12 +3368,17 @@ func parseVfInfoList(data []syscall.NetlinkRouteAttr) ([]VfInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-		vfs = append(vfs, parseVfInfo(vfAttrs, i))
+
+		vf, err := parseVfInfo(vfAttrs, i)
+		if err != nil {
+			return nil, err
+		}
+		vfs = append(vfs, vf)
 	}
 	return vfs, nil
 }
 
-func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) VfInfo {
+func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) (VfInfo, error) {
 	vf := VfInfo{ID: id}
 	for _, element := range data {
 		switch element.Attr.Type {
@@ -3347,6 +3389,12 @@ func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) VfInfo {
 			vl := nl.DeserializeVfVlan(element.Value[:])
 			vf.Vlan = int(vl.Vlan)
 			vf.Qos = int(vl.Qos)
+		case nl.IFLA_VF_VLAN_LIST:
+			vfVlanInfoList, err := nl.DeserializeVfVlanList(element.Value[:])
+			if err != nil {
+				return vf, err
+			}
+			vf.VlanProto = int(vfVlanInfoList[0].VlanProto)
 		case nl.IFLA_VF_TX_RATE:
 			txr := nl.DeserializeVfTxRate(element.Value[:])
 			vf.TxRate = int(txr.Rate)
@@ -3380,7 +3428,7 @@ func parseVfInfo(data []syscall.NetlinkRouteAttr, id int) VfInfo {
 			vf.Trust = result.Setting
 		}
 	}
-	return vf
+	return vf, nil
 }
 
 func addXfrmiAttrs(xfrmi *Xfrmi, linkInfo *nl.RtAttr) {
