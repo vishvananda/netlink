@@ -230,11 +230,15 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
-	if _, ok := link.(*Ip6tnl); ok {
-		_, ok := result.(*Ip6tnl)
+	if ip6tnl, ok := link.(*Ip6tnl); ok {
+		other, ok := result.(*Ip6tnl)
 		if !ok {
 			t.Fatal("Result of create is not a ip6tnl")
 		}
+		if ip6tnl.FlowBased != other.FlowBased {
+			t.Fatal("Ip6tnl.FlowBased doesn't match")
+		}
+
 	}
 
 	if _, ok := link.(*Sittun); ok {
@@ -2055,6 +2059,16 @@ func TestLinkAddDelIp6tnl(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "ip6tnltest"},
 		Local:     net.ParseIP("2001:db8::100"),
 		Remote:    net.ParseIP("2001:db8::200"),
+	})
+}
+
+func TestLinkAddDelIp6tnlFlowbased(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Ip6tnl{
+		LinkAttrs: LinkAttrs{Name: "ip6tnltest"},
+		FlowBased: true,
 	})
 }
 
