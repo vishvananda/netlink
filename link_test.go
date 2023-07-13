@@ -223,10 +223,13 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
-	if _, ok := link.(*Iptun); ok {
-		_, ok := result.(*Iptun)
+	if iptun, ok := link.(*Iptun); ok {
+		other, ok := result.(*Iptun)
 		if !ok {
 			t.Fatal("Result of create is not a iptun")
+		}
+		if iptun.FlowBased != other.FlowBased {
+			t.Fatal("Iptun.FlowBased doesn't match")
 		}
 	}
 
@@ -2049,6 +2052,17 @@ func TestLinkAddDelIptun(t *testing.T) {
 		PMtuDisc:  1,
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 1)})
+}
+
+func TestLinkAddDelIptunFlowBased(t *testing.T) {
+	minKernelRequired(t, 4, 9)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Iptun{
+		LinkAttrs: LinkAttrs{Name: "iptunflowfoo"},
+		FlowBased: true,
+	})
 }
 
 func TestLinkAddDelIp6tnl(t *testing.T) {
