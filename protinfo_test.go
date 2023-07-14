@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -83,6 +84,9 @@ func TestProtinfo(t *testing.T) {
 	if pi1.Flood != oldpi1.Flood {
 		t.Fatalf("Flood field was changed for %s but shouldn't", iface1.Name)
 	}
+	if pi1.NeighSuppress != oldpi1.NeighSuppress {
+		t.Fatalf("NeighSuppress field was changed for %s but shouldn't", iface1.Name)
+	}
 
 	if err := LinkSetGuard(iface2, true); err != nil {
 		t.Fatal(err)
@@ -117,6 +121,9 @@ func TestProtinfo(t *testing.T) {
 	}
 	if pi2.Flood != oldpi2.Flood {
 		t.Fatalf("Flood field was changed for %s but shouldn't", iface2.Name)
+	}
+	if pi2.NeighSuppress != oldpi2.NeighSuppress {
+		t.Fatalf("NeighSuppress field was changed for %s but shouldn't", iface2.Name)
 	}
 
 	if err := LinkSetHairpin(iface3, true); err == nil || err.Error() != "operation not supported" {
@@ -160,6 +167,20 @@ func TestProtinfo(t *testing.T) {
 	}
 	if pi4.Flood != oldpi4.Flood {
 		t.Fatalf("Flood field was changed for %s but shouldn't", iface4.Name)
+	}
+
+	// BR_NEIGH_SUPPRESS added on 4.15
+	minKernelRequired(t, 4, 15)
+
+	if err := LinkSetBrNeighSuppress(iface1, true); err != nil {
+		t.Fatal(err)
+	}
+	pi1, err = LinkGetProtinfo(iface1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pi1.NeighSuppress {
+		t.Fatalf("NeighSuppress is not enabled for %s but should", iface1.Name)
 	}
 
 	// Setting kernel requirement for next tests which require BRPORT_ISOLATED

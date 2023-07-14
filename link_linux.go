@@ -2381,6 +2381,14 @@ func (h *Handle) LinkSetBrProxyArpWiFi(link Link, mode bool) error {
 	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_PROXYARP_WIFI)
 }
 
+func LinkSetBrNeighSuppress(link Link, mode bool) error {
+	return pkgHandle.LinkSetBrNeighSuppress(link, mode)
+}
+
+func (h *Handle) LinkSetBrNeighSuppress(link Link, mode bool) error {
+	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_NEIGH_SUPPRESS)
+}
+
 func (h *Handle) setProtinfoAttr(link Link, mode bool, attr int) error {
 	base := link.Attrs()
 	h.ensureIndex(base)
