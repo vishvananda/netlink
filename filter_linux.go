@@ -770,6 +770,15 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 							toAttrs(&mirred.TcGen, action.Attrs())
 							action.(*MirredAction).Ifindex = int(mirred.Ifindex)
 							action.(*MirredAction).MirredAction = MirredAct(mirred.Eaction)
+						case nl.TCA_MIRRED_TM:
+							tcTs := nl.DeserializeTcf(adatum.Value)
+							ts := ActionTimestamp{
+								Installed: tcTs.Install,
+								LastUsed:  tcTs.LastUse,
+								Expires:   tcTs.Expires,
+								FirstUsed: tcTs.FirstUse,
+							}
+							action.(*MirredAction).Timestamp = &ts
 						}
 					case "tunnel_key":
 						switch adatum.Attr.Type {
@@ -848,7 +857,14 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						parsePolice(adatum, action.(*PoliceAction))
 					}
 				}
+			case nl.TCA_ACT_STATS:
+				s, err := parseTcStats2(aattr.Value)
+				if err != nil {
+					return nil, err
+				}
+				action.Attrs().Statistics = (*ActionStatistic)(s)
 			}
+
 		}
 		actions = append(actions, action)
 	}
