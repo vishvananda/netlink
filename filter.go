@@ -418,3 +418,30 @@ func (filter *GenericFilter) Attrs() *FilterAttrs {
 func (filter *GenericFilter) Type() string {
 	return filter.FilterType
 }
+
+type PeditAction struct {
+	ActionAttrs
+	Proto      uint8
+	SrcMacAddr net.HardwareAddr
+	DstMacAddr net.HardwareAddr
+	SrcIP      net.IP
+	DstIP      net.IP
+	SrcPort    uint16
+	DstPort    uint16
+}
+
+func (p *PeditAction) Attrs() *ActionAttrs {
+	return &p.ActionAttrs
+}
+
+func (p *PeditAction) Type() string {
+	return "pedit"
+}
+
+func NewPeditAction() *PeditAction {
+	return &PeditAction{
+		ActionAttrs: ActionAttrs{
+			Action: TC_ACT_PIPE,
+		},
+	}
+}
