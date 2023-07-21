@@ -692,6 +692,29 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			gen := nl.TcGen{}
 			toTcGen(action.Attrs(), &gen)
 			aopts.AddRtAttr(nl.TCA_GACT_PARMS, gen.Serialize())
+		case *PeditAction:
+			table := attr.AddRtAttr(tabIndex, nil)
+			tabIndex++
+			pedit := nl.TcPedit{}
+			if action.SrcMacAddr != nil {
+				pedit.SetEthSrc(action.SrcMacAddr)
+			}
+			if action.DstMacAddr != nil {
+				pedit.SetEthDst(action.DstMacAddr)
+			}
+			if action.SrcIP != nil {
+				pedit.SetSrcIP(action.SrcIP)
+			}
+			if action.DstIP != nil {
+				pedit.SetDstIP(action.DstIP)
+			}
+			if action.SrcPort != 0 {
+				pedit.SetSrcPort(action.SrcPort, action.Proto)
+			}
+			if action.DstPort != 0 {
+				pedit.SetDstPort(action.DstPort, action.Proto)
+			}
+			pedit.Encode(table)
 		}
 	}
 	return nil
@@ -752,6 +775,8 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 					action = &SkbEditAction{}
 				case "police":
 					action = &PoliceAction{}
+				case "pedit":
+					action = &PeditAction{}
 				default:
 					break nextattr
 				}
