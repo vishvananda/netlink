@@ -341,6 +341,10 @@ func compareGeneve(t *testing.T, expected, actual *Geneve) {
 		t.Fatalf("Geneve.Remote is not equal: %s!=%s", actual.Remote, expected.Remote)
 	}
 
+	if actual.FlowBased != expected.FlowBased {
+		t.Fatal("Geneve.FlowBased doesn't match")
+	}
+
 	// TODO: we should implement the rest of the geneve methods
 }
 
@@ -659,6 +663,16 @@ func TestLinkAddDelGeneve(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "foo6", EncapType: "geneve"},
 		ID:        0x1000,
 		Remote:    net.ParseIP("2001:db8:ef33::2")})
+}
+
+func TestLinkAddDelGeneveFlowBased(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	testLinkAddDel(t, &Geneve{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Dport:     1234,
+		FlowBased: true})
 }
 
 func TestGeneveCompareToIP(t *testing.T) {
