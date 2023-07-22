@@ -2778,9 +2778,8 @@ func addGeneveAttrs(geneve *Geneve, linkInfo *nl.RtAttr) {
 	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
 
 	if geneve.FlowBased {
-		// In flow based mode, no other attributes need to be configured
-		linkInfo.AddRtAttr(nl.IFLA_GENEVE_COLLECT_METADATA, boolAttr(geneve.FlowBased))
-		return
+		geneve.ID = 0
+		data.AddRtAttr(nl.IFLA_GENEVE_COLLECT_METADATA, []byte{})
 	}
 
 	if ip := geneve.Remote; ip != nil {
@@ -2822,6 +2821,8 @@ func parseGeneveData(link Link, data []syscall.NetlinkRouteAttr) {
 			geneve.Ttl = uint8(datum.Value[0])
 		case nl.IFLA_GENEVE_TOS:
 			geneve.Tos = uint8(datum.Value[0])
+		case nl.IFLA_GENEVE_COLLECT_METADATA:
+			geneve.FlowBased = true
 		}
 	}
 }
