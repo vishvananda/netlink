@@ -160,6 +160,7 @@ type NetemQdiscAttrs struct {
 	ReorderCorr   float32 // in %
 	CorruptProb   float32 // in %
 	CorruptCorr   float32 // in %
+	Rate64        uint64
 }
 
 func (q NetemQdiscAttrs) String() string {
@@ -184,6 +185,7 @@ type Netem struct {
 	ReorderCorr   uint32
 	CorruptProb   uint32
 	CorruptCorr   uint32
+	Rate64        uint64
 }
 
 func (netem *Netem) String() string {
