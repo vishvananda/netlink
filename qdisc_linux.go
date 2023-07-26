@@ -17,6 +17,7 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 	var lossCorr, delayCorr, duplicateCorr uint32
 	var reorderProb, reorderCorr uint32
 	var corruptProb, corruptCorr uint32
+	var rate64 uint64
 
 	latency := nattrs.Latency
 	loss := Percentage2u32(nattrs.Loss)
@@ -57,6 +58,7 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 
 	corruptProb = Percentage2u32(nattrs.CorruptProb)
 	corruptCorr = Percentage2u32(nattrs.CorruptCorr)
+	rate64 = nattrs.Rate64
 
 	return &Netem{
 		QdiscAttrs:    attrs,
@@ -73,6 +75,7 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 		ReorderCorr:   reorderCorr,
 		CorruptProb:   corruptProb,
 		CorruptCorr:   corruptCorr,
+		Rate64:        rate64,
 	}
 }
 
@@ -233,6 +236,17 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		reorder.Correlation = qdisc.ReorderCorr
 		if reorder.Probability > 0 {
 			options.AddRtAttr(nl.TCA_NETEM_REORDER, reorder.Serialize())
+		}
+		// Rate
+		if qdisc.Rate64 > 0 {
+			rate := nl.TcNetemRate{}
+			if qdisc.Rate64 >= uint64(1<<32) {
+				options.AddRtAttr(nl.TCA_NETEM_RATE64, nl.Uint64Attr(qdisc.Rate64))
+				rate.Rate = ^uint32(0)
+			} else {
+				rate.Rate = uint32(qdisc.Rate64)
+			}
+			options.AddRtAttr(nl.TCA_NETEM_RATE, rate.Serialize())
 		}
 	case *Clsact:
 		options = nil
@@ -601,6 +615,8 @@ func parseNetemData(qdisc Qdisc, value []byte) error {
 	if err != nil {
 		return err
 	}
+	var rate *nl.TcNetemRate
+	var rate64 uint64
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.TCA_NETEM_CORR:
@@ -616,8 +632,19 @@ func parseNetemData(qdisc Qdisc, value []byte) error {
 			opt := nl.DeserializeTcNetemReorder(datum.Value)
 			netem.ReorderProb = opt.Probability
 			netem.ReorderCorr = opt.Correlation
+		case nl.TCA_NETEM_RATE:
+			rate = nl.DeserializeTcNetemRate(datum.Value)
+		case nl.TCA_NETEM_RATE64:
+			rate64 = native.Uint64(datum.Value)
 		}
 	}
+	if rate != nil {
+		netem.Rate64 = uint64(rate.Rate)
+		if rate64 > 0 {
+			netem.Rate64 = rate64
+		}
+	}
+
 	return nil
 }
 
