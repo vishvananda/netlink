@@ -234,6 +234,10 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		if reorder.Probability > 0 {
 			options.AddRtAttr(nl.TCA_NETEM_REORDER, reorder.Serialize())
 		}
+		// Rate
+		if qdisc.Rate64 > 0 {
+			options.AddRtAttr(nl.TCA_NETEM_RATE64, nl.Uint64Attr(qdisc.Rate64))
+		}
 	case *Ingress:
 		// ingress filters must use the proper handle
 		if qdisc.Attrs().Parent != HANDLE_INGRESS {
