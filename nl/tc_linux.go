@@ -87,7 +87,11 @@ const (
 	TCA_STATS_RATE_EST
 	TCA_STATS_QUEUE
 	TCA_STATS_APP
-	TCA_STATS_MAX = TCA_STATS_APP
+	TCA_STATS_RATE_EST64
+	TCA_STATS_PAD
+	TCA_STATS_BASIC_HW
+	TCA_STATS_PKT64
+	TCA_STATS_MAX = TCA_STATS_PKT64
 )
 
 const (
@@ -146,6 +150,18 @@ func DeserializeTcMsg(b []byte) *TcMsg {
 
 func (x *TcMsg) Serialize() []byte {
 	return (*(*[SizeofTcMsg]byte)(unsafe.Pointer(x)))[:]
+}
+
+type Tcf struct {
+	Install  uint64
+	LastUse  uint64
+	Expires  uint64
+	FirstUse uint64
+}
+
+func DeserializeTcf(b []byte) *Tcf {
+	const size = int(unsafe.Sizeof(Tcf{}))
+	return (*Tcf)(unsafe.Pointer(&b[0:size][0]))
 }
 
 // struct tcamsg {
@@ -1071,14 +1087,14 @@ func (x *TcSfqQopt) Serialize() []byte {
 	return (*(*[SizeofTcSfqQopt]byte)(unsafe.Pointer(x)))[:]
 }
 
-// struct tc_sfqred_stats {
-// 	__u32           prob_drop;      /* Early drops, below max threshold */
-// 	__u32           forced_drop;	/* Early drops, after max threshold */
-// 	__u32           prob_mark;      /* Marked packets, below max threshold */
-// 	__u32           forced_mark;    /* Marked packets, after max threshold */
-// 	__u32           prob_mark_head; /* Marked packets, below max threshold */
-// 	__u32           forced_mark_head;/* Marked packets, after max threshold */
-// };
+//	struct tc_sfqred_stats {
+//		__u32           prob_drop;      /* Early drops, below max threshold */
+//		__u32           forced_drop;	/* Early drops, after max threshold */
+//		__u32           prob_mark;      /* Marked packets, below max threshold */
+//		__u32           forced_mark;    /* Marked packets, after max threshold */
+//		__u32           prob_mark_head; /* Marked packets, below max threshold */
+//		__u32           forced_mark_head;/* Marked packets, after max threshold */
+//	};
 type TcSfqRedStats struct {
 	ProbDrop       uint32
 	ForcedDrop     uint32
@@ -1100,22 +1116,26 @@ func (x *TcSfqRedStats) Serialize() []byte {
 	return (*(*[SizeofTcSfqRedStats]byte)(unsafe.Pointer(x)))[:]
 }
 
-// struct tc_sfq_qopt_v1 {
-// 	struct tc_sfq_qopt v0;
-// 	unsigned int	depth;		/* max number of packets per flow */
-// 	unsigned int	headdrop;
+//	struct tc_sfq_qopt_v1 {
+//		struct tc_sfq_qopt v0;
+//		unsigned int	depth;		/* max number of packets per flow */
+//		unsigned int	headdrop;
+//
 // /* SFQRED parameters */
-// 	__u32		limit;		/* HARD maximal flow queue length (bytes) */
-// 	__u32		qth_min;	/* Min average length threshold (bytes) */
-// 	__u32		qth_max;	/* Max average length threshold (bytes) */
-// 	unsigned char   Wlog;		/* log(W)		*/
-// 	unsigned char   Plog;		/* log(P_max/(qth_max-qth_min))	*/
-// 	unsigned char   Scell_log;	/* cell size for idle damping */
-// 	unsigned char	flags;
-// 	__u32		max_P;		/* probability, high resolution */
+//
+//	__u32		limit;		/* HARD maximal flow queue length (bytes) */
+//	__u32		qth_min;	/* Min average length threshold (bytes) */
+//	__u32		qth_max;	/* Max average length threshold (bytes) */
+//	unsigned char   Wlog;		/* log(W)		*/
+//	unsigned char   Plog;		/* log(P_max/(qth_max-qth_min))	*/
+//	unsigned char   Scell_log;	/* cell size for idle damping */
+//	unsigned char	flags;
+//	__u32		max_P;		/* probability, high resolution */
+//
 // /* SFQRED stats */
-// 	struct tc_sfqred_stats stats;
-// };
+//
+//		struct tc_sfqred_stats stats;
+//	};
 type TcSfqQoptV1 struct {
 	TcSfqQopt
 	Depth    uint32
