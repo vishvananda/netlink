@@ -118,16 +118,31 @@ func (a TcPolAct) String() string {
 }
 
 type ActionAttrs struct {
-	Index   int
-	Capab   int
-	Action  TcAct
-	Refcnt  int
-	Bindcnt int
+	Index      int
+	Capab      int
+	Action     TcAct
+	Refcnt     int
+	Bindcnt    int
+	Statistics *ActionStatistic
+	Timestamp  *ActionTimestamp
 }
 
 func (q ActionAttrs) String() string {
 	return fmt.Sprintf("{Index: %d, Capab: %x, Action: %s, Refcnt: %d, Bindcnt: %d}", q.Index, q.Capab, q.Action.String(), q.Refcnt, q.Bindcnt)
 }
+
+type ActionTimestamp struct {
+	Installed uint64
+	LastUsed  uint64
+	Expires   uint64
+	FirstUsed uint64
+}
+
+func (t ActionTimestamp) String() string {
+	return fmt.Sprintf("Installed %d LastUsed %d Expires %d FirstUsed %d", t.Installed, t.LastUsed, t.Expires, t.FirstUsed)
+}
+
+type ActionStatistic ClassStatistics
 
 // Action represents an action in any supported filter.
 type Action interface {

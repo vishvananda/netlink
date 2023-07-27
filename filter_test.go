@@ -7,6 +7,7 @@ import (
 	"net"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
@@ -1815,6 +1816,7 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	time.Sleep(time.Second)
 	filters, err := FilterList(link, MakeHandle(0xffff, 0))
 	if err != nil {
 		t.Fatal(err)
@@ -1881,6 +1883,14 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
 	}
 
+	if mia.Timestamp == nil || mia.Timestamp.Installed == 0 {
+		t.Fatal("Incorrect mirred action timestamp")
+	}
+
+	if mia.Statistics == nil {
+		t.Fatal("Incorrect mirred action stats")
+	}
+
 	ga, ok := flower.Actions[1].(*GenericAction)
 	if !ok {
 		t.Fatal("Unable to find generic action")
@@ -1888,6 +1898,14 @@ func TestFilterFlowerAddDel(t *testing.T) {
 
 	if ga.Attrs().Action != getTcActGotoChain() {
 		t.Fatal("Generic action isn't TC_ACT_GOTO_CHAIN")
+	}
+
+	if ga.Timestamp == nil || ga.Timestamp.Installed == 0 {
+		t.Fatal("Incorrect generic action timestamp")
+	}
+
+	if ga.Statistics == nil {
+		t.Fatal("Incorrect generic action stats")
 	}
 
 	if err := FilterDel(filter); err != nil {
