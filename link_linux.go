@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -12,9 +11,10 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 const (
@@ -959,28 +959,28 @@ func LinkSetXdpFdWithFlags(link Link, fd, flags int) error {
 // LinkSetGSOMaxSegs sets the GSO maximum segment count of the link device.
 // Equivalent to: `ip link set $link gso_max_segs $maxSegs`
 func LinkSetGSOMaxSegs(link Link, maxSegs int) error {
-       return pkgHandle.LinkSetGSOMaxSegs(link, maxSegs)
+	return pkgHandle.LinkSetGSOMaxSegs(link, maxSegs)
 }
 
 // LinkSetGSOMaxSegs sets the GSO maximum segment count of the link device.
 // Equivalent to: `ip link set $link gso_max_segs $maxSegs`
 func (h *Handle) LinkSetGSOMaxSegs(link Link, maxSize int) error {
-       base := link.Attrs()
-       h.ensureIndex(base)
-       req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
 
-       msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
-       msg.Index = int32(base.Index)
-       req.AddData(msg)
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
 
-       b := make([]byte, 4)
-       native.PutUint32(b, uint32(maxSize))
+	b := make([]byte, 4)
+	native.PutUint32(b, uint32(maxSize))
 
-       data := nl.NewRtAttr(unix.IFLA_GSO_MAX_SEGS, b)
-       req.AddData(data)
+	data := nl.NewRtAttr(unix.IFLA_GSO_MAX_SEGS, b)
+	req.AddData(data)
 
-       _, err := req.Execute(unix.NETLINK_ROUTE, 0)
-       return err
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
 }
 
 // LinkSetGSOMaxSize sets the IPv6 GSO maximum size of the link device.
@@ -1347,7 +1347,12 @@ func (h *Handle) linkModify(link Link, flags int) error {
 				return err
 			}
 
-			_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TUNSETIFF), uintptr(unsafe.Pointer(&localReq)))
+			_, _, errno := unix.Syscall(
+				unix.SYS_IOCTL,
+				uintptr(fd),
+				uintptr(unix.TUNSETIFF),
+				uintptr(unsafe.Pointer(&localReq)),
+			)
 			if errno != 0 {
 				// close the new fd
 				unix.Close(fd)
@@ -1356,13 +1361,23 @@ func (h *Handle) linkModify(link Link, flags int) error {
 				return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed [%d], errno %v", i, errno)
 			}
 
-			_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TUNSETOWNER, uintptr(tuntap.Owner))
+			_, _, errno = syscall.Syscall(
+				syscall.SYS_IOCTL,
+				uintptr(fd),
+				syscall.TUNSETOWNER,
+				uintptr(tuntap.Owner),
+			)
 			if errno != 0 {
 				cleanupFds(fds)
 				return fmt.Errorf("Tuntap IOCTL TUNSETOWNER failed [%d], errno %v", i, errno)
 			}
 
-			_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TUNSETGROUP, uintptr(tuntap.Group))
+			_, _, errno = syscall.Syscall(
+				syscall.SYS_IOCTL,
+				uintptr(fd),
+				syscall.TUNSETGROUP,
+				uintptr(tuntap.Group),
+			)
 			if errno != 0 {
 				cleanupFds(fds)
 				return fmt.Errorf("Tuntap IOCTL TUNSETGROUP failed [%d], errno %v", i, errno)
@@ -2181,7 +2196,7 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 
 func readSysPropAsInt64(ifname, prop string) (int64, error) {
 	fname := fmt.Sprintf("/sys/class/net/%s/%s", ifname, prop)
-	contents, err := ioutil.ReadFile(fname)
+	contents, err := os.ReadFile(fname)
 	if err != nil {
 		return 0, err
 	}
@@ -2259,15 +2274,32 @@ type LinkSubscribeOptions struct {
 // LinkSubscribeWithOptions work like LinkSubscribe but enable to
 // provide additional options to modify the behavior. Currently, the
 // namespace can be provided as well as an error callback.
-func LinkSubscribeWithOptions(ch chan<- LinkUpdate, done <-chan struct{}, options LinkSubscribeOptions) error {
+func LinkSubscribeWithOptions(
+	ch chan<- LinkUpdate,
+	done <-chan struct{},
+	options LinkSubscribeOptions,
+) error {
 	if options.Namespace == nil {
 		none := netns.None()
 		options.Namespace = &none
 	}
-	return linkSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback, options.ListExisting)
+	return linkSubscribeAt(
+		*options.Namespace,
+		netns.None(),
+		ch,
+		done,
+		options.ErrorCallback,
+		options.ListExisting,
+	)
 }
 
-func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}, cberr func(error), listExisting bool) error {
+func linkSubscribeAt(
+	newNs, curNs netns.NsHandle,
+	ch chan<- LinkUpdate,
+	done <-chan struct{},
+	cberr func(error),
+	listExisting bool,
+) error {
 	s, err := nl.SubscribeAt(newNs, curNs, unix.NETLINK_ROUTE, unix.RTNLGRP_LINK)
 	if err != nil {
 		return err
@@ -2651,8 +2683,14 @@ func addBondSlaveAttrs(bondSlave *BondSlave, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_BOND_SLAVE_LINK_FAILURE_COUNT, nl.Uint32Attr(bondSlave.LinkFailureCount))
 	data.AddRtAttr(nl.IFLA_BOND_SLAVE_QUEUE_ID, nl.Uint16Attr(bondSlave.QueueId))
 	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_AGGREGATOR_ID, nl.Uint16Attr(bondSlave.AggregatorId))
-	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE, nl.Uint8Attr(bondSlave.AdActorOperPortState))
-	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE, nl.Uint16Attr(bondSlave.AdPartnerOperPortState))
+	data.AddRtAttr(
+		nl.IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE,
+		nl.Uint8Attr(bondSlave.AdActorOperPortState),
+	)
+	data.AddRtAttr(
+		nl.IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE,
+		nl.Uint16Attr(bondSlave.AdPartnerOperPortState),
+	)
 
 	if mac := bondSlave.PermHardwareAddr; mac != nil {
 		data.AddRtAttr(nl.IFLA_BOND_SLAVE_PERM_HWADDR, []byte(mac))
@@ -2744,7 +2782,9 @@ func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_MACVLAN_MACADDR_DATA:
 			macs, err := nl.ParseRouteAttr(datum.Value[:])
 			if err != nil {
-				panic(fmt.Sprintf("failed to ParseRouteAttr for IFLA_MACVLAN_MACADDR_DATA: %v", err))
+				panic(
+					fmt.Sprintf("failed to ParseRouteAttr for IFLA_MACVLAN_MACADDR_DATA: %v", err),
+				)
 			}
 			for _, macDatum := range macs {
 				macv.MACAddrs = append(macv.MACAddrs, net.HardwareAddr(macDatum.Value[0:6]))
@@ -3453,9 +3493,19 @@ func LinkSetBondSlave(link Link, master *Bond) error {
 
 	ifreq := newIocltSlaveReq(link.Attrs().Name, master.Attrs().Name)
 
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), unix.SIOCBONDENSLAVE, uintptr(unsafe.Pointer(ifreq)))
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL,
+		uintptr(fd),
+		unix.SIOCBONDENSLAVE,
+		uintptr(unsafe.Pointer(ifreq)),
+	)
 	if errno != 0 {
-		return fmt.Errorf("Failed to enslave %q to %q, errno=%v", link.Attrs().Name, master.Attrs().Name, errno)
+		return fmt.Errorf(
+			"Failed to enslave %q to %q, errno=%v",
+			link.Attrs().Name,
+			master.Attrs().Name,
+			errno,
+		)
 	}
 	return nil
 }
@@ -3515,9 +3565,18 @@ func VethPeerIndex(link *Veth) (int, error) {
 	defer syscall.Close(fd)
 
 	ifreq, sSet := newIocltStringSetReq(link.Name)
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), SIOCETHTOOL, uintptr(unsafe.Pointer(ifreq)))
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL,
+		uintptr(fd),
+		SIOCETHTOOL,
+		uintptr(unsafe.Pointer(ifreq)),
+	)
 	if errno != 0 {
-		return -1, fmt.Errorf("SIOCETHTOOL request for %q failed, errno=%v", link.Attrs().Name, errno)
+		return -1, fmt.Errorf(
+			"SIOCETHTOOL request for %q failed, errno=%v",
+			link.Attrs().Name,
+			errno,
+		)
 	}
 
 	stats := ethtoolStats{
@@ -3531,9 +3590,18 @@ func VethPeerIndex(link *Veth) (int, error) {
 	}
 
 	ifreq.Data = uintptr(unsafe.Pointer(&buffer[0]))
-	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), SIOCETHTOOL, uintptr(unsafe.Pointer(ifreq)))
+	_, _, errno = syscall.Syscall(
+		syscall.SYS_IOCTL,
+		uintptr(fd),
+		SIOCETHTOOL,
+		uintptr(unsafe.Pointer(ifreq)),
+	)
 	if errno != 0 {
-		return -1, fmt.Errorf("SIOCETHTOOL request for %q failed, errno=%v", link.Attrs().Name, errno)
+		return -1, fmt.Errorf(
+			"SIOCETHTOOL request for %q failed, errno=%v",
+			link.Attrs().Name,
+			errno,
+		)
 	}
 
 	vstats, err := vethStatsDeserialize(buffer)

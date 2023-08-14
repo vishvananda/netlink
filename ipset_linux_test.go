@@ -2,16 +2,17 @@ package netlink
 
 import (
 	"bytes"
-	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 func TestParseIpsetProtocolResult(t *testing.T) {
-	msgBytes, err := ioutil.ReadFile("testdata/ipset_protocol_result")
+	msgBytes, err := os.ReadFile("testdata/ipset_protocol_result")
 	if err != nil {
 		t.Fatalf("reading test fixture failed: %v", err)
 	}
@@ -23,7 +24,7 @@ func TestParseIpsetProtocolResult(t *testing.T) {
 }
 
 func TestParseIpsetListResult(t *testing.T) {
-	msgBytes, err := ioutil.ReadFile("testdata/ipset_list_result")
+	msgBytes, err := os.ReadFile("testdata/ipset_list_result")
 	if err != nil {
 		t.Fatalf("reading test fixture failed: %v", err)
 	}
@@ -76,14 +77,22 @@ func TestParseIpsetListResult(t *testing.T) {
 	}
 	expectedMAC := net.HardwareAddr{0xde, 0xad, 0x0, 0x0, 0xbe, 0xef}
 	if !bytes.Equal(ent.MAC, expectedMAC) {
-		t.Errorf("expected MAC for first entry to be %s, got %s", expectedMAC.String(), ent.MAC.String())
+		t.Errorf(
+			"expected MAC for first entry to be %s, got %s",
+			expectedMAC.String(),
+			ent.MAC.String(),
+		)
 	}
 
 	// second entry
 	ent = msg.Entries[1]
 	expectedMAC = net.HardwareAddr{0x1, 0x2, 0x3, 0x0, 0x1, 0x2}
 	if !bytes.Equal(ent.MAC, expectedMAC) {
-		t.Errorf("expected MAC for second entry to be %s, got %s", expectedMAC.String(), ent.MAC.String())
+		t.Errorf(
+			"expected MAC for second entry to be %s, got %s",
+			expectedMAC.String(),
+			ent.MAC.String(),
+		)
 	}
 }
 
@@ -496,58 +505,98 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 
 			if tC.entry.IP != nil {
 				if !tC.entry.IP.Equal(result.Entries[0].IP) {
-					t.Fatalf("expected entry to be '%v', got '%v'", tC.entry.IP, result.Entries[0].IP)
+					t.Fatalf(
+						"expected entry to be '%v', got '%v'",
+						tC.entry.IP,
+						result.Entries[0].IP,
+					)
 				}
 			}
 
 			if tC.entry.CIDR > 0 {
 				if result.Entries[0].CIDR != tC.entry.CIDR {
-					t.Fatalf("expected cidr to be '%d', got '%d'", tC.entry.CIDR, result.Entries[0].CIDR)
+					t.Fatalf(
+						"expected cidr to be '%d', got '%d'",
+						tC.entry.CIDR,
+						result.Entries[0].CIDR,
+					)
 				}
 			}
 
 			if tC.entry.IP2 != nil {
 				if !tC.entry.IP2.Equal(result.Entries[0].IP2) {
-					t.Fatalf("expected entry.ip2 to be '%v', got '%v'", tC.entry.IP2, result.Entries[0].IP2)
+					t.Fatalf(
+						"expected entry.ip2 to be '%v', got '%v'",
+						tC.entry.IP2,
+						result.Entries[0].IP2,
+					)
 				}
 			}
 
 			if tC.entry.CIDR2 > 0 {
 				if result.Entries[0].CIDR2 != tC.entry.CIDR2 {
-					t.Fatalf("expected cidr2 to be '%d', got '%d'", tC.entry.CIDR2, result.Entries[0].CIDR2)
+					t.Fatalf(
+						"expected cidr2 to be '%d', got '%d'",
+						tC.entry.CIDR2,
+						result.Entries[0].CIDR2,
+					)
 				}
 			}
 
 			if tC.entry.Port != nil {
 				if *result.Entries[0].Protocol != *tC.entry.Protocol {
-					t.Fatalf("expected protocol to be '%d', got '%d'", *tC.entry.Protocol, *result.Entries[0].Protocol)
+					t.Fatalf(
+						"expected protocol to be '%d', got '%d'",
+						*tC.entry.Protocol,
+						*result.Entries[0].Protocol,
+					)
 				}
 				if *result.Entries[0].Port != *tC.entry.Port {
-					t.Fatalf("expected port to be '%d', got '%d'", *tC.entry.Port, *result.Entries[0].Port)
+					t.Fatalf(
+						"expected port to be '%d', got '%d'",
+						*tC.entry.Port,
+						*result.Entries[0].Port,
+					)
 				}
 			}
 
 			if tC.entry.MAC != nil {
 				if result.Entries[0].MAC.String() != tC.entry.MAC.String() {
-					t.Fatalf("expected mac to be '%v', got '%v'", tC.entry.MAC, result.Entries[0].MAC)
+					t.Fatalf(
+						"expected mac to be '%v', got '%v'",
+						tC.entry.MAC,
+						result.Entries[0].MAC,
+					)
 				}
 			}
 
 			if tC.entry.IFace != "" {
 				if result.Entries[0].IFace != tC.entry.IFace {
-					t.Fatalf("expected iface to be '%v', got '%v'", tC.entry.IFace, result.Entries[0].IFace)
+					t.Fatalf(
+						"expected iface to be '%v', got '%v'",
+						tC.entry.IFace,
+						result.Entries[0].IFace,
+					)
 				}
 			}
 
 			if tC.entry.Mark != nil {
 				if *result.Entries[0].Mark != *tC.entry.Mark {
-					t.Fatalf("expected mark to be '%v', got '%v'", *tC.entry.Mark, *result.Entries[0].Mark)
+					t.Fatalf(
+						"expected mark to be '%v', got '%v'",
+						*tC.entry.Mark,
+						*result.Entries[0].Mark,
+					)
 				}
 			}
 
 			if result.Entries[0].Comment != tC.entry.Comment {
 				// This is only supported in the kernel module from revision 2 or 4, so comments may be ignored.
-				t.Logf("expected comment to be '%s', got '%s'", tC.entry.Comment, result.Entries[0].Comment)
+				t.Logf(
+					"expected comment to be '%s', got '%s'",
+					tC.entry.Comment,
+					result.Entries[0].Comment,
+				)
 			}
 
 			err = IpsetDel(tC.setname, tC.entry)
@@ -630,7 +679,13 @@ func TestIpsetBitmapCreateListWithTestCases(t *testing.T) {
 
 			if tC.typename == "bitmap:port" {
 				if result.PortFrom != tC.options.PortFrom || result.PortTo != tC.options.PortTo {
-					t.Fatalf("expected port range %d-%d, got %d-%d", tC.options.PortFrom, tC.options.PortTo, result.PortFrom, result.PortTo)
+					t.Fatalf(
+						"expected port range %d-%d, got %d-%d",
+						tC.options.PortFrom,
+						tC.options.PortTo,
+						result.PortFrom,
+						result.PortTo,
+					)
 				}
 			} else if tC.typename == "bitmap:ip" {
 				if result.IPFrom == nil || result.IPTo == nil || result.IPFrom.Equal(tC.options.IPFrom) || result.IPTo.Equal(tC.options.IPTo) {

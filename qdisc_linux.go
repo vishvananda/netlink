@@ -2,13 +2,14 @@ package netlink
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"syscall"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 // NOTE function is here because it uses other linux functions
@@ -645,7 +646,7 @@ var (
 )
 
 func initClock() {
-	data, err := ioutil.ReadFile("/proc/net/psched")
+	data, err := os.ReadFile("/proc/net/psched")
 	if err != nil {
 		return
 	}

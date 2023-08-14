@@ -2,7 +2,7 @@ package netlink
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -19,7 +19,7 @@ func TestBridgeVlan(t *testing.T) {
 	if err := LinkAdd(bridge); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(fmt.Sprintf("/sys/devices/virtual/net/%s/bridge/vlan_filtering", bridgeName), []byte("1"), 0644); err != nil {
+	if err := os.WriteFile(fmt.Sprintf("/sys/devices/virtual/net/%s/bridge/vlan_filtering", bridgeName), []byte("1"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if vlanMap, err := BridgeVlanList(); err != nil {
