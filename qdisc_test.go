@@ -87,6 +87,7 @@ func TestHtbAddDel(t *testing.T) {
 
 	qdisc := NewHtb(attrs)
 	qdisc.Rate2Quantum = 5
+	qdisc.DirectQlen = 10
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
 	}
@@ -110,6 +111,9 @@ func TestHtbAddDel(t *testing.T) {
 	}
 	if htb.Debug != qdisc.Debug {
 		t.Fatal("Debug doesn't match")
+	}
+	if htb.DirectQlen != qdisc.DirectQlen {
+		t.Fatalf("DirectQlen doesn't match. Expected %d, got %d", qdisc.DirectQlen, htb.DirectQlen)
 	}
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
