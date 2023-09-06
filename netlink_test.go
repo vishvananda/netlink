@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -7,7 +8,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -155,7 +155,7 @@ func setUpSEG6NetlinkTest(t *testing.T) tearDownNetlinkTest {
 }
 
 func setUpNetlinkTestWithKModule(t *testing.T, name string) tearDownNetlinkTest {
-	file, err := ioutil.ReadFile("/proc/modules")
+	file, err := os.ReadFile("/proc/modules")
 	if err != nil {
 		t.Fatal("Failed to open /proc/modules", err)
 	}

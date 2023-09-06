@@ -1,9 +1,10 @@
+//go:build linux
 // +build linux
 
 package netlink
 
 import (
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -12,7 +13,7 @@ import (
 
 func setupRdmaKModule(t *testing.T, name string) {
 	skipUnlessRoot(t)
-	file, err := ioutil.ReadFile("/proc/modules")
+	file, err := os.ReadFile("/proc/modules")
 	if err != nil {
 		t.Fatal("Failed to open /proc/modules", err)
 	}
