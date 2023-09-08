@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"syscall"
 
@@ -370,6 +371,18 @@ func (h *Handle) filterModify(filter Filter, proto, flags int) error {
 		}
 		if filter.Fd >= 0 {
 			options.AddRtAttr(nl.TCA_BPF_FD, nl.Uint32Attr((uint32(filter.Fd))))
+		}
+		if len(filter.Ops) > 0 {
+			if filter.Fd >= 0 {
+				return fmt.Errorf("only Ops or Fd can be specified on a BpfFilter")
+			}
+
+			opsLen, ops, err := serializeSockFilter(filter.Ops)
+			if err != nil {
+				return err
+			}
+			options.AddRtAttr(nl.TCA_BPF_OPS_LEN, nl.Uint16Attr(opsLen))
+			options.AddRtAttr(nl.TCA_BPF_OPS, ops)
 		}
 		if filter.Name != "" {
 			options.AddRtAttr(nl.TCA_BPF_NAME, nl.ZeroTerminated(filter.Name))
@@ -934,7 +947,10 @@ func parseFwData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
 
 func parseBpfData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
 	bpf := filter.(*BpfFilter)
+	bpf.Fd = -1
 	detailed := true
+	var opsLen uint16
+	var ops []byte
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.TCA_BPF_FD:
@@ -952,6 +968,17 @@ func parseBpfData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 			bpf.Id = int(native.Uint32(datum.Value[0:4]))
 		case nl.TCA_BPF_TAG:
 			bpf.Tag = hex.EncodeToString(datum.Value)
+		case nl.TCA_BPF_OPS_LEN:
+			opsLen = native.Uint16(datum.Value[0:2])
+		case nl.TCA_BPF_OPS:
+			ops = datum.Value
+		}
+	}
+	if opsLen > 0 {
+		var err error
+		bpf.Ops, err = deserializeSockFilter(opsLen, ops)
+		if err != nil {
+			return detailed, err
 		}
 	}
 	return detailed, nil
@@ -1038,4 +1065,43 @@ func SerializeRtab(rtab [256]uint32) []byte {
 	var w bytes.Buffer
 	_ = binary.Write(&w, native, rtab)
 	return w.Bytes()
+}
+
+func deserializeSockFilter(opsLen uint16, ops []byte) ([]SockFilter, error) {
+	if excp := int(opsLen) * 8; len(ops) != excp {
+		return nil, fmt.Errorf("unexpected ops length %d, expected %d", len(ops), excp)
+	}
+
+	ins := make([]SockFilter, opsLen)
+	for i := 0; i < len(ins); i++ {
+		ins[i] = SockFilter{
+			Code: native.Uint16(ops[0:]),
+			Jt:   ops[2],
+			Jf:   ops[3],
+			K:    native.Uint32(ops[4:]),
+		}
+
+		ops = ops[8:]
+	}
+
+	return ins, nil
+}
+
+func serializeSockFilter(rawIns []SockFilter) (uint16, []byte, error) {
+	opsLen := len(rawIns)
+	if opsLen > math.MaxUint16 {
+		return 0, nil, fmt.Errorf("too many bpf instructions, max %d", math.MaxUint16)
+	}
+
+	ops := make([]byte, 8*opsLen)
+	b := ops
+	for _, ins := range rawIns {
+		native.PutUint16(b[0:], ins.Code)
+		b[2] = ins.Jt
+		b[3] = ins.Jf
+		native.PutUint32(b[4:], ins.K)
+
+		b = b[8:]
+	}
+	return uint16(opsLen), ops, nil
 }
