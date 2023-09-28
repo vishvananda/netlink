@@ -173,9 +173,17 @@ func SocketGet(local, remote net.Addr) (*Socket, error) {
 }
 
 // SocketDiagTCPInfo requests INET_DIAG_INFO for TCP protocol for specified family type and return with extension TCP info.
-func SocketDiagTCPInfo(family uint8) ([]*InetDiagTCPInfoResp, error) {
+func SocketDiagTCPInfo(family uint8, states ...uint8) ([]*InetDiagTCPInfoResp, error) {
+	var state = uint32(1<<TCP_MAX_STATES - 1) // default all state
+	if len(states) > 0 {
+		state = 0
+		for _, s := range states {
+			state |= 1 << s
+		}
+	}
+
 	var result []*InetDiagTCPInfoResp
-	err := socketDiagTCPExecutor(family, func(m syscall.NetlinkMessage) error {
+	err := socketDiagTCPExecutor(family, state, func(m syscall.NetlinkMessage) error {
 		sockInfo := &Socket{}
 		if err := sockInfo.deserialize(m.Data); err != nil {
 			return err
@@ -200,9 +208,17 @@ func SocketDiagTCPInfo(family uint8) ([]*InetDiagTCPInfoResp, error) {
 }
 
 // SocketDiagTCP requests INET_DIAG_INFO for TCP protocol for specified family type and return related socket.
-func SocketDiagTCP(family uint8) ([]*Socket, error) {
+func SocketDiagTCP(family uint8, states ...uint8) ([]*Socket, error) {
+	var state = uint32(1<<TCP_MAX_STATES - 1) // default all state
+	if len(states) > 0 {
+		state = 0
+		for _, s := range states {
+			state |= 1 << s
+		}
+	}
+
 	var result []*Socket
-	err := socketDiagTCPExecutor(family, func(m syscall.NetlinkMessage) error {
+	err := socketDiagTCPExecutor(family, state, func(m syscall.NetlinkMessage) error {
 		sockInfo := &Socket{}
 		if err := sockInfo.deserialize(m.Data); err != nil {
 			return err
@@ -217,7 +233,7 @@ func SocketDiagTCP(family uint8) ([]*Socket, error) {
 }
 
 // socketDiagTCPExecutor requests INET_DIAG_INFO for TCP protocol for specified family type.
-func socketDiagTCPExecutor(family uint8, receiver func(syscall.NetlinkMessage) error) error {
+func socketDiagTCPExecutor(family uint8, state uint32, receiver func(syscall.NetlinkMessage) error) error {
 	s, err := nl.Subscribe(unix.NETLINK_INET_DIAG)
 	if err != nil {
 		return err
@@ -229,7 +245,7 @@ func socketDiagTCPExecutor(family uint8, receiver func(syscall.NetlinkMessage) e
 		Family:   family,
 		Protocol: unix.IPPROTO_TCP,
 		Ext:      (1 << (INET_DIAG_VEGASINFO - 1)) | (1 << (INET_DIAG_INFO - 1)),
-		States:   uint32(0xfff), // All TCP states
+		States:   state, // All TCP states
 	})
 	s.Send(req)
 
