@@ -24,6 +24,8 @@ import (
 type tearDownNetlinkTest func()
 
 func skipUnlessRoot(t *testing.T) {
+	t.Helper()
+
 	if os.Getuid() != 0 {
 		t.Skip("Test requires root privileges.")
 	}
@@ -187,6 +189,8 @@ func remountSysfs() error {
 }
 
 func minKernelRequired(t *testing.T, kernel, major int) {
+	t.Helper()
+
 	k, m, err := KernelVersion()
 	if err != nil {
 		t.Fatal(err)
