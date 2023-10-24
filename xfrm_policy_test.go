@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -195,6 +196,7 @@ func TestXfrmPolicyWithOptional(t *testing.T) {
 	defer setUpNetlinkTest(t)()
 
 	pol := getPolicy()
+	pol.Dir = XFRM_DIR_IN
 	pol.Tmpls[0].Optional = 1
 
 	if err := XfrmPolicyAdd(pol); err != nil {
