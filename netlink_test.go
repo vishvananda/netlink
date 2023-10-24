@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
@@ -213,4 +215,9 @@ func KernelVersion() (kernel, major int, err error) {
 		err = fmt.Errorf("can't parse kernel version in %q", string(ba))
 	}
 	return
+}
+
+func TestMain(m *testing.M) {
+	nl.EnableErrorMessageReporting = true
+	os.Exit(m.Run())
 }
