@@ -759,7 +759,7 @@ func TestRouteFilterAllTables(t *testing.T) {
 			Priority:  13,
 			Table:     table,
 			Type:      unix.RTN_UNICAST,
-			Tos:       14,
+			Tos:       12,
 			Hoplimit:  100,
 			Realm:     328,
 		}
@@ -773,7 +773,7 @@ func TestRouteFilterAllTables(t *testing.T) {
 		Scope:    unix.RT_SCOPE_LINK,
 		Table:    unix.RT_TABLE_UNSPEC,
 		Type:     unix.RTN_UNICAST,
-		Tos:      14,
+		Tos:      12,
 		Hoplimit: 100,
 		Realm:    328,
 	}, RT_FILTER_DST|RT_FILTER_SRC|RT_FILTER_SCOPE|RT_FILTER_TABLE|RT_FILTER_TYPE|RT_FILTER_TOS|RT_FILTER_HOPLIMIT|RT_FILTER_REALM)
@@ -797,7 +797,7 @@ func TestRouteFilterAllTables(t *testing.T) {
 		if route.Type != unix.RTN_UNICAST {
 			t.Fatal("Invalid Type. Route not added properly")
 		}
-		if route.Tos != 14 {
+		if route.Tos != 12 {
 			t.Fatal("Invalid Tos. Route not added properly")
 		}
 		if route.Hoplimit != 100 {
@@ -847,7 +847,7 @@ func TestRouteExtraFields(t *testing.T) {
 		Priority:  13,
 		Table:     unix.RT_TABLE_MAIN,
 		Type:      unix.RTN_UNICAST,
-		Tos:       14,
+		Tos:       12,
 		Hoplimit:  100,
 		Realm:     239,
 	}
@@ -860,7 +860,7 @@ func TestRouteExtraFields(t *testing.T) {
 		Scope:    unix.RT_SCOPE_LINK,
 		Table:    unix.RT_TABLE_MAIN,
 		Type:     unix.RTN_UNICAST,
-		Tos:      14,
+		Tos:      12,
 		Hoplimit: 100,
 		Realm:    239,
 	}, RT_FILTER_DST|RT_FILTER_SRC|RT_FILTER_SCOPE|RT_FILTER_TABLE|RT_FILTER_TYPE|RT_FILTER_TOS|RT_FILTER_HOPLIMIT|RT_FILTER_REALM)
@@ -883,7 +883,7 @@ func TestRouteExtraFields(t *testing.T) {
 	if routes[0].Type != unix.RTN_UNICAST {
 		t.Fatal("Invalid Type. Route not added properly")
 	}
-	if routes[0].Tos != 14 {
+	if routes[0].Tos != 12 {
 		t.Fatal("Invalid Tos. Route not added properly")
 	}
 	if routes[0].Hoplimit != 100 {
@@ -1248,7 +1248,7 @@ func TestRouteEqual(t *testing.T) {
 			Priority: 13,
 			Table:    unix.RT_TABLE_MAIN,
 			Type:     unix.RTN_UNICAST,
-			Tos:      14,
+			Tos:      12,
 		},
 		{
 			LinkIndex: 3,
