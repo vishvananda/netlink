@@ -581,8 +581,7 @@ done:
 
 						switch attr.Type {
 						case NLMSGERR_ATTR_MSG:
-							err = fmt.Errorf("%w: %s", err, string(attrData))
-
+							err = fmt.Errorf("%w: %s", err, unix.ByteSliceToString(attrData))
 						default:
 							// TODO: handle other NLMSGERR_ATTR types
 						}
