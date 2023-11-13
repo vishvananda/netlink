@@ -130,3 +130,25 @@ func TestCnMsgOpDeserializeSerialize(t *testing.T) {
 	msg := DeserializeCnMsgOp(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
+
+func TestParseRouteAttrAsMap(t *testing.T) {
+	attr1 := NewRtAttr(0x1, ZeroTerminated("foo"))
+	attr2 := NewRtAttr(0x2, ZeroTerminated("bar"))
+	raw := make([]byte, 0)
+	raw = append(raw, attr1.Serialize()...)
+	raw = append(raw, attr2.Serialize()...)
+	attrs, err := ParseRouteAttrAsMap(raw)
+	if err != nil {
+		t.Errorf("failed to parse route attributes %s", err)
+	}
+
+	attr, ok := attrs[0x1]
+	if !ok || BytesToString(attr.Value) != "foo" {
+		t.Error("missing/incorrect \"foo\" attribute")
+	}
+
+	attr, ok = attrs[0x2]
+	if !ok || BytesToString(attr.Value) != "bar" {
+		t.Error("missing/incorrect \"bar\" attribute")
+	}
+}

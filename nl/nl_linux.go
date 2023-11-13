@@ -910,6 +910,22 @@ func ParseRouteAttr(b []byte) ([]syscall.NetlinkRouteAttr, error) {
 	return attrs, nil
 }
 
+// ParseRouteAttrAsMap parses provided buffer that contains raw RtAttrs and returns a map of parsed
+// atttributes indexed by attribute type or error if occured.
+func ParseRouteAttrAsMap(b []byte) (map[uint16]syscall.NetlinkRouteAttr, error) {
+	attrMap := make(map[uint16]syscall.NetlinkRouteAttr)
+
+	attrs, err := ParseRouteAttr(b)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, attr := range attrs {
+		attrMap[attr.Attr.Type] = attr
+	}
+	return attrMap, nil
+}
+
 func netlinkRouteAttrAndValue(b []byte) (*unix.RtAttr, []byte, int, error) {
 	a := (*unix.RtAttr)(unsafe.Pointer(&b[0]))
 	if int(a.Len) < unix.SizeofRtAttr || int(a.Len) > len(b) {
