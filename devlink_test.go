@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -261,4 +262,27 @@ func areInfoStructsEqual(first *DevlinkDeviceInfo, second *DevlinkDeviceInfo) bo
 		return false
 	}
 	return true
+}
+
+func TestDevlinkGetDeviceResources(t *testing.T) {
+	minKernelRequired(t, 5, 11)
+	tearDown := setUpNetlinkTestWithKModule(t, "devlink")
+	defer tearDown()
+
+	if bus == "" || device == "" {
+		//TODO: setup netdevsim device instead of getting device from flags
+		t.Log("devlink bus and device are empty, skipping test")
+		t.SkipNow()
+	}
+
+	res, err := DevlinkGetDeviceResources(bus, device)
+	if err != nil {
+		t.Fatalf("failed to get device(%s/%s) resources. %s", bus, device, err)
+	}
+
+	if res.Bus != bus || res.Device != device {
+		t.Fatalf("missmatching bus/device")
+	}
+
+	t.Logf("Resources: %+v", res)
 }
