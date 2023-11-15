@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -71,6 +72,21 @@ func TestSocketDiagTCPInfo(t *testing.T) {
 			gotFamily := i.InetDiagMsg.Family
 			if gotFamily != wantFamily {
 				t.Fatalf("Socket family = %d, want %d", gotFamily, wantFamily)
+			}
+		}
+	}
+}
+
+func TestSocketDiagUDPnfo(t *testing.T) {
+	for _, want := range []uint8{syscall.AF_INET, syscall.AF_INET6} {
+		result, err := SocketDiagUDPInfo(want)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, r := range result {
+			if got := r.InetDiagMsg.Family; got != want {
+				t.Fatalf("protocol family = %v, want %v", got, want)
 			}
 		}
 	}
