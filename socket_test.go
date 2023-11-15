@@ -4,6 +4,7 @@
 package netlink
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"os/user"
@@ -88,6 +89,21 @@ func TestSocketDiagUDPnfo(t *testing.T) {
 			if got := r.InetDiagMsg.Family; got != want {
 				t.Fatalf("protocol family = %v, want %v", got, want)
 			}
+		}
+	}
+}
+
+func TestUnixSocketDiagInfo(t *testing.T) {
+	want := syscall.AF_UNIX
+	result, err := UnixSocketDiagInfo()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, r := range result {
+		fmt.Println(r.DiagMsg)
+		if got := r.DiagMsg.Family; got != uint8(want) {
+			t.Fatalf("%d: protocol family = %v, want %v", i, got, want)
 		}
 	}
 }
