@@ -67,6 +67,44 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	if resultPrimary, ok := result.(*Netkit); ok {
+		if inputPrimary, ok := link.(*Netkit); ok {
+			if resultPrimary.Policy != inputPrimary.Policy {
+				t.Fatalf("Policy is %d, should be %d", int(resultPrimary.Policy), int(inputPrimary.Policy))
+			}
+			if resultPrimary.PeerPolicy != inputPrimary.PeerPolicy {
+				t.Fatalf("Peer Policy is %d, should be %d", int(resultPrimary.PeerPolicy), int(inputPrimary.PeerPolicy))
+			}
+			if resultPrimary.Mode != inputPrimary.Mode {
+				t.Fatalf("Mode is %d, should be %d", int(resultPrimary.Mode), int(inputPrimary.Mode))
+			}
+
+			if inputPrimary.peerLinkAttrs.Name != "" {
+				var resultPeer *Netkit
+				pLink, err := LinkByName(inputPrimary.peerLinkAttrs.Name)
+				if err != nil {
+					t.Fatalf("Failed to get Peer netkit %s", inputPrimary.peerLinkAttrs.Name)
+				}
+				if resultPeer, ok = pLink.(*Netkit); !ok {
+					t.Fatalf("Peer %s is incorrect type", inputPrimary.peerLinkAttrs.Name)
+				}
+				if resultPrimary.PeerPolicy != resultPeer.Policy {
+					t.Fatalf("Peer Policy from primary is %d, should be %d", int(resultPrimary.PeerPolicy), int(resultPeer.Policy))
+				}
+				if resultPeer.PeerPolicy != resultPrimary.Policy {
+					t.Fatalf("PeerPolicy from peer is %d, should be %d", int(resultPeer.PeerPolicy), int(resultPrimary.Policy))
+				}
+				if resultPrimary.Mode != resultPeer.Mode {
+					t.Fatalf("Peer Mode from primary is %d, should be %d", int(resultPrimary.Mode), int(resultPeer.Mode))
+				}
+				if resultPrimary.IsPrimary() == resultPeer.IsPrimary() {
+					t.Fatalf("Both primary and peer device has the same value in IsPrimary() %t", resultPrimary.IsPrimary())
+				}
+			}
+		}
+
+	}
+
 	if veth, ok := result.(*Veth); ok {
 		if rBase.TxQLen != base.TxQLen {
 			t.Fatalf("qlen is %d, should be %d", rBase.TxQLen, base.TxQLen)
@@ -108,15 +146,19 @@ func testLinkAddDel(t *testing.T, link Link) {
 				}
 			}
 		}
-	} else {
-		// recent kernels set the parent index for veths in the response
-		if rBase.ParentIndex == 0 && base.ParentIndex != 0 {
-			t.Fatalf("Created link doesn't have parent %d but it should", base.ParentIndex)
-		} else if rBase.ParentIndex != 0 && base.ParentIndex == 0 {
-			t.Fatalf("Created link has parent %d but it shouldn't", rBase.ParentIndex)
-		} else if rBase.ParentIndex != 0 && base.ParentIndex != 0 {
-			if rBase.ParentIndex != base.ParentIndex {
-				t.Fatalf("Link.ParentIndex doesn't match %d != %d", rBase.ParentIndex, base.ParentIndex)
+	}
+
+	if _, ok := result.(*Veth); !ok {
+		if _, ok := result.(*Netkit); !ok {
+			// recent kernels set the parent index for veths/netkit in the response
+			if rBase.ParentIndex == 0 && base.ParentIndex != 0 {
+				t.Fatalf("Created link doesn't have parent %d but it should", base.ParentIndex)
+			} else if rBase.ParentIndex != 0 && base.ParentIndex == 0 {
+				t.Fatalf("Created link has parent %d but it shouldn't", rBase.ParentIndex)
+			} else if rBase.ParentIndex != 0 && base.ParentIndex != 0 {
+				if rBase.ParentIndex != base.ParentIndex {
+					t.Fatalf("Link.ParentIndex doesn't match %d != %d", rBase.ParentIndex, base.ParentIndex)
+				}
 			}
 		}
 	}
@@ -866,6 +908,99 @@ func TestLinkAddDelMacvtap(t *testing.T) {
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestNetkitPeerNs(t *testing.T) {
+	minKernelRequired(t, 6, 7)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	basens, err := netns.Get()
+	if err != nil {
+		t.Fatal("Failed to get basens")
+	}
+	defer basens.Close()
+
+	nsOne, err := netns.New()
+	if err != nil {
+		t.Fatal("Failed to create nsOne")
+	}
+	defer nsOne.Close()
+
+	nsTwo, err := netns.New()
+	if err != nil {
+		t.Fatal("Failed to create nsTwo")
+	}
+	defer nsTwo.Close()
+
+	netkit := &Netkit{
+		LinkAttrs: LinkAttrs{
+			Name:      "foo",
+			Namespace: NsFd(basens),
+		},
+		Mode:       NETKIT_MODE_L2,
+		Policy:     NETKIT_POLICY_FORWARD,
+		PeerPolicy: NETKIT_POLICY_BLACKHOLE,
+	}
+	peerAttr := &LinkAttrs{
+		Name:      "bar",
+		Namespace: NsFd(nsOne),
+	}
+	netkit.SetPeerAttrs(peerAttr)
+
+	if err := LinkAdd(netkit); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = LinkByName("bar")
+	if err == nil {
+		t.Fatal("netkit link bar is in nsTwo")
+	}
+
+	_, err = LinkByName("foo")
+	if err == nil {
+		t.Fatal("netkit link foo is in nsTwo")
+	}
+
+	err = netns.Set(basens)
+	if err != nil {
+		t.Fatal("Failed to set basens")
+	}
+
+	_, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal("netkit link foo is not in basens")
+	}
+
+	err = netns.Set(nsOne)
+	if err != nil {
+		t.Fatal("Failed to set nsOne")
+	}
+
+	_, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal("netkit link bar is not in nsOne")
+	}
+}
+
+func TestLinkAddDelNetkit(t *testing.T) {
+	minKernelRequired(t, 6, 7)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	netkit := &Netkit{
+		LinkAttrs: LinkAttrs{
+			Name: "foo",
+		},
+		Mode:       NETKIT_MODE_L2,
+		Policy:     NETKIT_POLICY_FORWARD,
+		PeerPolicy: NETKIT_POLICY_BLACKHOLE,
+	}
+	peerAttr := &LinkAttrs{
+		Name: "bar",
+	}
+	netkit.SetPeerAttrs(peerAttr)
+	testLinkAddDel(t, netkit)
 }
 
 func TestLinkAddDelVeth(t *testing.T) {
