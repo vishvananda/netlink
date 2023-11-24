@@ -253,8 +253,8 @@ func TestConntrackTableDelete(t *testing.T) {
 		t.Skipf("Fails in CI: Flow creation fails")
 	}
 	skipUnlessRoot(t)
-	setUpNetlinkTestWithKModule(t, "nf_conntrack")
-	setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink")
+
+	requiredModules := []string{"nf_conntrack", "nf_conntrack_netlink"}
 	k, m, err := KernelVersion()
 	if err != nil {
 		t.Fatal(err)
@@ -262,8 +262,10 @@ func TestConntrackTableDelete(t *testing.T) {
 	// conntrack l3proto was unified since 4.19
 	// https://github.com/torvalds/linux/commit/a0ae2562c6c4b2721d9fddba63b7286c13517d9f
 	if k < 4 || k == 4 && m < 19 {
-		setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv4")
+		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
 	}
+
+	setUpNetlinkTestWithKModule(t, requiredModules...)
 
 	// Creates a new namespace and bring up the loopback interface
 	origns, ns, h := nsCreateAndEnter(t)
@@ -348,32 +350,32 @@ func TestConntrackTableDelete(t *testing.T) {
 func TestConntrackFilter(t *testing.T) {
 	var flowList []ConntrackFlow
 	flowList = append(flowList, ConntrackFlow{
-		FamilyType: unix.AF_INET,
-		Forward: ipTuple{
-			SrcIP:    net.ParseIP("10.0.0.1"),
-			DstIP:    net.ParseIP("20.0.0.1"),
-			SrcPort:  1000,
-			DstPort:  2000,
-			Protocol: 17,
+			FamilyType: unix.AF_INET,
+			Forward: IPTuple{
+				SrcIP:    net.ParseIP("10.0.0.1"),
+				DstIP:    net.ParseIP("20.0.0.1"),
+				SrcPort:  1000,
+				DstPort:  2000,
+				Protocol: 17,
+			},
+			Reverse: IPTuple{
+				SrcIP:    net.ParseIP("20.0.0.1"),
+				DstIP:    net.ParseIP("192.168.1.1"),
+				SrcPort:  2000,
+				DstPort:  1000,
+				Protocol: 17,
+			},
 		},
-		Reverse: ipTuple{
-			SrcIP:    net.ParseIP("20.0.0.1"),
-			DstIP:    net.ParseIP("192.168.1.1"),
-			SrcPort:  2000,
-			DstPort:  1000,
-			Protocol: 17,
-		},
-	},
 		ConntrackFlow{
 			FamilyType: unix.AF_INET,
-			Forward: ipTuple{
+			Forward: IPTuple{
 				SrcIP:    net.ParseIP("10.0.0.2"),
 				DstIP:    net.ParseIP("20.0.0.2"),
 				SrcPort:  5000,
 				DstPort:  6000,
 				Protocol: 6,
 			},
-			Reverse: ipTuple{
+			Reverse: IPTuple{
 				SrcIP:    net.ParseIP("20.0.0.2"),
 				DstIP:    net.ParseIP("192.168.1.1"),
 				SrcPort:  6000,
@@ -385,14 +387,14 @@ func TestConntrackFilter(t *testing.T) {
 		},
 		ConntrackFlow{
 			FamilyType: unix.AF_INET6,
-			Forward: ipTuple{
+			Forward: IPTuple{
 				SrcIP:    net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"),
 				DstIP:    net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"),
 				SrcPort:  1000,
 				DstPort:  2000,
 				Protocol: 132,
 			},
-			Reverse: ipTuple{
+			Reverse: IPTuple{
 				SrcIP:    net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"),
 				DstIP:    net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"),
 				SrcPort:  2000,
@@ -978,4 +980,614 @@ func TestParseRawData(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestConntrackUpdateV4 first tries to update a non-existant IPv4 conntrack and asserts that an error occurs.
+// It then creates a conntrack entry using and adjacent API method (ConntrackCreate), and attempts to update the value of the created conntrack.
+func TestConntrackUpdateV4(t *testing.T) {
+	// Print timestamps in UTC
+	os.Setenv("TZ", "")
+
+	requiredModules := []string{"nf_conntrack", "nf_conntrack_netlink"}
+	k, m, err := KernelVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Conntrack l3proto was unified since 4.19
+	// https://github.com/torvalds/linux/commit/a0ae2562c6c4b2721d9fddba63b7286c13517d9f
+	if k < 4 || k == 4 && m < 19 {
+		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
+	}
+	// Implicitly skips test if not root:
+	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
+	defer teardown()
+
+	ns, err := netns.GetFromName(nsStr)
+	if err != nil {
+		t.Fatalf("couldn't get handle to generated namespace: %s", err)
+	}
+
+	h, err := NewHandleAt(ns, nl.FAMILY_V4)
+	if err != nil {
+		t.Fatalf("failed to create netlink handle: %s", err)
+	}
+
+	flow := ConntrackFlow{
+		FamilyType: FAMILY_V4,
+		Forward: IPTuple{
+			SrcIP: net.IP{234,234,234,234},
+			DstIP: net.IP{123,123,123,123},
+			SrcPort: 48385,
+			DstPort: 53,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		Reverse: IPTuple{
+			SrcIP: net.IP{123,123,123,123},
+			DstIP: net.IP{234,234,234,234},
+			SrcPort: 53,
+			DstPort: 48385,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		// No point checking equivalence of timeout, but value must
+		// be reasonable to allow for a potentially slow subsequent read.
+		TimeOut:   100,
+		Mark: 12,
+		ProtoInfo: &ProtoInfoTCP{
+			State: nl.TCP_CONNTRACK_SYN_SENT2,
+		},
+	}
+
+	err = h.ConntrackUpdate(ConntrackTable, nl.FAMILY_V4, &flow)
+	if err == nil {
+		t.Fatalf("expected an error to occur when trying to update a non-existant conntrack: %+v", flow)
+	}
+
+	err = h.ConntrackCreate(ConntrackTable, nl.FAMILY_V4, &flow)
+	if err != nil {
+		t.Fatalf("failed to insert conntrack: %s", err)
+	}
+
+	flows, err := h.ConntrackTableList(ConntrackTable, nl.FAMILY_V4)
+	if err != nil {
+		t.Fatalf("failed to list conntracks following successful insert: %s", err)
+	}
+
+	filter := ConntrackFilter{
+		ipNetFilter: map[ConntrackFilterType]*net.IPNet{
+			ConntrackOrigSrcIP: NewIPNet(flow.Forward.SrcIP),
+			ConntrackOrigDstIP: NewIPNet(flow.Forward.DstIP),
+			ConntrackReplySrcIP: NewIPNet(flow.Reverse.SrcIP),
+			ConntrackReplyDstIP: NewIPNet(flow.Reverse.DstIP),
+		},
+		portFilter: map[ConntrackFilterType]uint16{
+			ConntrackOrigSrcPort: flow.Forward.SrcPort,
+			ConntrackOrigDstPort: flow.Forward.DstPort,
+		},
+		protoFilter:unix.IPPROTO_TCP,
+	}
+
+	var match *ConntrackFlow
+	for _, f := range flows {
+		if filter.MatchConntrackFlow(f) {
+			match = f
+			break
+		}
+	}
+
+	if match == nil {
+		t.Fatalf("Didn't find any matching conntrack entries for original flow: %+v\n Filter used: %+v", flow, filter)
+	} else {
+		t.Logf("Found entry in conntrack table matching original flow: %+v labels=%+v", match, match.Labels)
+	}
+	checkFlowsEqual(t, &flow, match)
+	checkProtoInfosEqual(t, flow.ProtoInfo, match.ProtoInfo)
+
+	// Change the conntrack and update the kernel entry.
+	flow.Mark = 10
+	flow.ProtoInfo = &ProtoInfoTCP{
+		State: nl.TCP_CONNTRACK_ESTABLISHED,
+	}
+	err = h.ConntrackUpdate(ConntrackTable, nl.FAMILY_V4, &flow)
+	if err != nil {
+		t.Fatalf("failed to update conntrack with new mark: %s", err)
+	}
+
+	// Look for updated conntrack.
+	flows, err = h.ConntrackTableList(ConntrackTable, nl.FAMILY_V4)
+	if err != nil {
+		t.Fatalf("failed to list conntracks following successful update: %s", err)
+	}
+
+	var updatedMatch *ConntrackFlow
+	for _, f := range flows {
+		if filter.MatchConntrackFlow(f) {
+			updatedMatch = f
+			break
+		}
+	}
+	if updatedMatch == nil {
+		t.Fatalf("Didn't find any matching conntrack entries for updated flow: %+v\n Filter used: %+v", flow, filter)
+	} else {
+		t.Logf("Found entry in conntrack table matching updated flow: %+v labels=%+v", updatedMatch, updatedMatch.Labels)
+	}
+
+	checkFlowsEqual(t, &flow, updatedMatch)
+	checkProtoInfosEqual(t, flow.ProtoInfo, updatedMatch.ProtoInfo)
+}
+
+// TestConntrackUpdateV6 first tries to update a non-existant IPv6 conntrack and asserts that an error occurs.
+// It then creates a conntrack entry using and adjacent API method (ConntrackCreate), and attempts to update the value of the created conntrack.
+func TestConntrackUpdateV6(t *testing.T) {
+	// Print timestamps in UTC
+	os.Setenv("TZ", "")
+
+	requiredModules := []string{"nf_conntrack", "nf_conntrack_netlink"}
+	k, m, err := KernelVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Conntrack l3proto was unified since 4.19
+	// https://github.com/torvalds/linux/commit/a0ae2562c6c4b2721d9fddba63b7286c13517d9f
+	if k < 4 || k == 4 && m < 19 {
+		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
+	}
+	// Implicitly skips test if not root:
+	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
+	defer teardown()
+
+	ns, err := netns.GetFromName(nsStr)
+	if err != nil {
+		t.Fatalf("couldn't get handle to generated namespace: %s", err)
+	}
+
+	h, err := NewHandleAt(ns, nl.FAMILY_V6)
+	if err != nil {
+		t.Fatalf("failed to create netlink handle: %s", err)
+	}
+
+	flow := ConntrackFlow{
+		FamilyType: FAMILY_V6,
+		Forward: IPTuple{
+			SrcIP: net.ParseIP("2001:db8::68"),
+			DstIP: net.ParseIP("2001:db9::32"),
+			SrcPort: 48385,
+			DstPort: 53,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		Reverse: IPTuple{
+			SrcIP: net.ParseIP("2001:db9::32"),
+			DstIP: net.ParseIP("2001:db8::68"),
+			SrcPort: 53,
+			DstPort: 48385,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		// No point checking equivalence of timeout, but value must
+		// be reasonable to allow for a potentially slow subsequent read.
+		TimeOut:   100,
+		Mark: 12,
+		ProtoInfo: &ProtoInfoTCP{
+			State: nl.TCP_CONNTRACK_SYN_SENT2,
+		},
+	}
+
+	err = h.ConntrackUpdate(ConntrackTable, nl.FAMILY_V6, &flow)
+	if err == nil {
+		t.Fatalf("expected an error to occur when trying to update a non-existant conntrack: %+v", flow)
+	}
+
+	err = h.ConntrackCreate(ConntrackTable, nl.FAMILY_V6, &flow)
+	if err != nil {
+		t.Fatalf("failed to insert conntrack: %s", err)
+	}
+
+	flows, err := h.ConntrackTableList(ConntrackTable, nl.FAMILY_V6)
+	if err != nil {
+		t.Fatalf("failed to list conntracks following successful insert: %s", err)
+	}
+
+	filter := ConntrackFilter{
+		ipNetFilter: map[ConntrackFilterType]*net.IPNet{
+			ConntrackOrigSrcIP: NewIPNet(flow.Forward.SrcIP),
+			ConntrackOrigDstIP: NewIPNet(flow.Forward.DstIP),
+			ConntrackReplySrcIP: NewIPNet(flow.Reverse.SrcIP),
+			ConntrackReplyDstIP: NewIPNet(flow.Reverse.DstIP),
+		},
+		portFilter: map[ConntrackFilterType]uint16{
+			ConntrackOrigSrcPort: flow.Forward.SrcPort,
+			ConntrackOrigDstPort: flow.Forward.DstPort,
+		},
+		protoFilter:unix.IPPROTO_TCP,
+	}
+
+	var match *ConntrackFlow
+	for _, f := range flows {
+		if filter.MatchConntrackFlow(f) {
+			match = f
+			break
+		}
+	}
+
+	if match == nil {
+		t.Fatalf("didn't find any matching conntrack entries for original flow: %+v\n Filter used: %+v", flow, filter)
+	} else {
+		t.Logf("found entry in conntrack table matching original flow: %+v labels=%+v", match, match.Labels)
+	}
+	checkFlowsEqual(t, &flow, match)
+	checkProtoInfosEqual(t, flow.ProtoInfo, match.ProtoInfo)
+
+	// Change the conntrack and update the kernel entry.
+	flow.Mark = 10
+	flow.ProtoInfo = &ProtoInfoTCP{
+		State: nl.TCP_CONNTRACK_ESTABLISHED,
+	}
+	err = h.ConntrackUpdate(ConntrackTable, nl.FAMILY_V6, &flow)
+	if err != nil {
+		t.Fatalf("failed to update conntrack with new mark: %s", err)
+	}
+
+	// Look for updated conntrack.
+	flows, err = h.ConntrackTableList(ConntrackTable, nl.FAMILY_V6)
+	if err != nil {
+		t.Fatalf("failed to list conntracks following successful update: %s", err)
+	}
+
+	var updatedMatch *ConntrackFlow
+	for _, f := range flows {
+		if filter.MatchConntrackFlow(f) {
+			updatedMatch = f
+			break
+		}
+	}
+	if updatedMatch == nil {
+		t.Fatalf("didn't find any matching conntrack entries for updated flow: %+v\n Filter used: %+v", flow, filter)
+	} else {
+		t.Logf("found entry in conntrack table matching updated flow: %+v labels=%+v", updatedMatch, updatedMatch.Labels)
+	}
+
+	checkFlowsEqual(t, &flow, updatedMatch)
+	checkProtoInfosEqual(t, flow.ProtoInfo, updatedMatch.ProtoInfo)
+}
+
+func TestConntrackCreateV4(t *testing.T) {
+	// Print timestamps in UTC
+	os.Setenv("TZ", "")
+
+	requiredModules := []string{"nf_conntrack", "nf_conntrack_netlink"}
+	k, m, err := KernelVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Conntrack l3proto was unified since 4.19
+	// https://github.com/torvalds/linux/commit/a0ae2562c6c4b2721d9fddba63b7286c13517d9f
+	if k < 4 || k == 4 && m < 19 {
+		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
+	}
+	// Implicitly skips test if not root:
+	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
+	defer teardown()
+
+	ns, err := netns.GetFromName(nsStr)
+	if err != nil {
+		t.Fatalf("couldn't get handle to generated namespace: %s", err)
+	}
+
+	h, err := NewHandleAt(ns, nl.FAMILY_V4)
+	if err != nil {
+		t.Fatalf("failed to create netlink handle: %s", err)
+	}
+
+	flow := ConntrackFlow{
+		FamilyType: FAMILY_V4,
+		Forward: IPTuple{
+			SrcIP: net.IP{234,234,234,234},
+			DstIP: net.IP{123,123,123,123},
+			SrcPort: 48385,
+			DstPort: 53,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		Reverse: IPTuple{
+			SrcIP: net.IP{123,123,123,123},
+			DstIP: net.IP{234,234,234,234},
+			SrcPort: 53,
+			DstPort: 48385,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		// No point checking equivalence of timeout, but value must
+		// be reasonable to allow for a potentially slow subsequent read.
+		TimeOut:   100,
+		Mark: 12,
+		ProtoInfo: &ProtoInfoTCP{
+			State: nl.TCP_CONNTRACK_ESTABLISHED,
+		},
+	}
+
+	err = h.ConntrackCreate(ConntrackTable, nl.FAMILY_V4, &flow)
+	if err != nil {
+		t.Fatalf("failed to insert conntrack: %s", err)
+	}
+
+	flows, err := h.ConntrackTableList(ConntrackTable, nl.FAMILY_V4)
+	if err != nil {
+		t.Fatalf("failed to list conntracks following successful insert: %s", err)
+	}
+
+	filter := ConntrackFilter{
+		ipNetFilter: map[ConntrackFilterType]*net.IPNet{
+			ConntrackOrigSrcIP: NewIPNet(flow.Forward.SrcIP),
+			ConntrackOrigDstIP: NewIPNet(flow.Forward.DstIP),
+			ConntrackReplySrcIP: NewIPNet(flow.Reverse.SrcIP),
+			ConntrackReplyDstIP: NewIPNet(flow.Reverse.DstIP),
+		},
+		portFilter: map[ConntrackFilterType]uint16{
+			ConntrackOrigSrcPort: flow.Forward.SrcPort,
+			ConntrackOrigDstPort: flow.Forward.DstPort,
+		},
+		protoFilter:unix.IPPROTO_TCP,
+	}
+
+	var match *ConntrackFlow
+	for _, f := range flows {
+		if filter.MatchConntrackFlow(f) {
+			match = f
+			break
+		}
+	}
+
+	if match == nil {
+		t.Fatalf("didn't find any matching conntrack entries for original flow: %+v\n Filter used: %+v", flow, filter)
+	} else {
+		t.Logf("Found entry in conntrack table matching original flow: %+v labels=%+v", match, match.Labels)
+	}
+
+	checkFlowsEqual(t, &flow, match)
+	checkProtoInfosEqual(t, flow.ProtoInfo, match.ProtoInfo)
+}
+
+func TestConntrackCreateV6(t *testing.T) {
+	// Print timestamps in UTC
+	os.Setenv("TZ", "")
+
+	requiredModules := []string{"nf_conntrack", "nf_conntrack_netlink"}
+	k, m, err := KernelVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Conntrack l3proto was unified since 4.19
+	// https://github.com/torvalds/linux/commit/a0ae2562c6c4b2721d9fddba63b7286c13517d9f
+	if k < 4 || k == 4 && m < 19 {
+		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
+	}
+	// Implicitly skips test if not root:
+	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
+	defer teardown()
+
+	ns, err := netns.GetFromName(nsStr)
+	if err != nil {
+		t.Fatalf("couldn't get handle to generated namespace: %s", err)
+	}
+
+	h, err := NewHandleAt(ns, nl.FAMILY_V6)
+	if err != nil {
+		t.Fatalf("failed to create netlink handle: %s", err)
+	}
+
+	flow := ConntrackFlow{
+		FamilyType: FAMILY_V6,
+		Forward: IPTuple{
+			SrcIP: net.ParseIP("2001:db8::68"),
+			DstIP: net.ParseIP("2001:db9::32"),
+			SrcPort: 48385,
+			DstPort: 53,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		Reverse: IPTuple{
+			SrcIP: net.ParseIP("2001:db9::32"),
+			DstIP: net.ParseIP("2001:db8::68"),
+			SrcPort: 53,
+			DstPort: 48385,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		// No point checking equivalence of timeout, but value must
+		// be reasonable to allow for a potentially slow subsequent read.
+		TimeOut:    100,
+		Mark: 12,
+		ProtoInfo: &ProtoInfoTCP{
+			State: nl.TCP_CONNTRACK_ESTABLISHED,
+		},
+	}
+
+	err = h.ConntrackCreate(ConntrackTable, nl.FAMILY_V6, &flow)
+	if err != nil {
+		t.Fatalf("failed to insert conntrack: %s", err)
+	}
+
+	flows, err := h.ConntrackTableList(ConntrackTable, nl.FAMILY_V6)
+	if err != nil {
+		t.Fatalf("failed to list conntracks following successful insert: %s", err)
+	}
+
+	filter := ConntrackFilter{
+		ipNetFilter: map[ConntrackFilterType]*net.IPNet{
+			ConntrackOrigSrcIP: NewIPNet(flow.Forward.SrcIP),
+			ConntrackOrigDstIP: NewIPNet(flow.Forward.DstIP),
+			ConntrackReplySrcIP: NewIPNet(flow.Reverse.SrcIP),
+			ConntrackReplyDstIP: NewIPNet(flow.Reverse.DstIP),
+		},
+		portFilter: map[ConntrackFilterType]uint16{
+			ConntrackOrigSrcPort: flow.Forward.SrcPort,
+			ConntrackOrigDstPort: flow.Forward.DstPort,
+		},
+		protoFilter:unix.IPPROTO_TCP,
+	}
+
+	var match *ConntrackFlow
+	for _, f := range flows {
+		if filter.MatchConntrackFlow(f) {
+			match = f
+			break
+		}
+	}
+
+	if match == nil {
+		t.Fatalf("Didn't find any matching conntrack entries for original flow: %+v\n Filter used: %+v", flow, filter)
+	} else {
+		t.Logf("Found entry in conntrack table matching original flow: %+v labels=%+v", match, match.Labels)
+	}
+
+	// Other fields are implicitly correct due to the filter/match logic.
+	if match.Mark != flow.Mark {
+		t.Logf("Matched kernel entry did not have correct mark. Kernel: %d, Expected: %d", flow.Mark, match.Mark)
+		t.Fail()
+	}
+	checkProtoInfosEqual(t, flow.ProtoInfo, match.ProtoInfo)
+}
+
+// TestConntrackFlowToNlData generates a serialized representation of a
+// ConntrackFlow and runs the resulting bytes back through `parseRawData` to validate.
+func TestConntrackFlowToNlData(t *testing.T) {
+	flowV4 := ConntrackFlow{
+		FamilyType: FAMILY_V4,
+		Forward: IPTuple{
+			SrcIP: net.IP{234,234,234,234},
+			DstIP: net.IP{123,123,123,123},
+			SrcPort: 48385,
+			DstPort: 53,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		Reverse: IPTuple{
+			SrcIP: net.IP{123,123,123,123},
+			DstIP: net.IP{234,234,234,234},
+			SrcPort: 53,
+			DstPort: 48385,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		Mark: 5,
+		TimeOut:    10,
+		ProtoInfo: &ProtoInfoTCP{
+			State: nl.TCP_CONNTRACK_ESTABLISHED,
+		},
+	}
+	flowV6 := ConntrackFlow	{
+		FamilyType: FAMILY_V6,
+		Forward: IPTuple{
+				SrcIP: net.ParseIP("2001:db8::68"),
+				DstIP: net.ParseIP("2001:db9::32"),
+				SrcPort: 48385,
+				DstPort: 53,
+				Protocol: unix.IPPROTO_TCP,
+		},
+		Reverse: IPTuple{
+			SrcIP: net.ParseIP("2001:db9::32"),
+			DstIP: net.ParseIP("2001:db8::68"),
+			SrcPort: 53,
+			DstPort: 48385,
+			Protocol: unix.IPPROTO_TCP,
+		},
+		Mark: 5,
+		TimeOut:    10,
+		ProtoInfo: &ProtoInfoTCP{
+			State: nl.TCP_CONNTRACK_ESTABLISHED,
+		},
+	}
+
+	var bytesV4, bytesV6 []byte
+
+	attrsV4, err := flowV4.toNlData()
+	if err != nil {
+		t.Fatalf("Error converting ConntrackFlow to netlink messages: %s", err)
+	}
+	// Mock nfgenmsg header
+	bytesV4 = append(bytesV4, flowV4.FamilyType,0,0,0)
+	for _, a := range attrsV4 {
+		bytesV4 = append(bytesV4, a.Serialize()...)
+	}
+
+	attrsV6, err := flowV6.toNlData()
+	if err != nil {
+		t.Fatalf("Error converting ConntrackFlow to netlink messages: %s", err)
+	}
+	// Mock nfgenmsg header
+	bytesV6 = append(bytesV6, flowV6.FamilyType,0,0,0)
+	for _, a := range attrsV6 {
+		bytesV6 = append(bytesV6, a.Serialize()...)
+	}
+
+	parsedFlowV4 := parseRawData(bytesV4)
+	checkFlowsEqual(t, &flowV4, parsedFlowV4)
+	checkProtoInfosEqual(t, flowV4.ProtoInfo, parsedFlowV4.ProtoInfo)
+
+	parsedFlowV6 := parseRawData(bytesV6)
+	checkFlowsEqual(t, &flowV6, parsedFlowV6)
+	checkProtoInfosEqual(t, flowV6.ProtoInfo, parsedFlowV6.ProtoInfo)
+}
+
+func checkFlowsEqual(t *testing.T, f1, f2 *ConntrackFlow) {
+	// No point checking timeout as it will differ between reads.
+	// Timestart and timestop may also differ.
+	if f1.FamilyType != f2.FamilyType {
+		t.Logf("Conntrack flow FamilyTypes differ. Tuple1: %d, Tuple2: %d.\n", f1.FamilyType, f2.FamilyType)
+		t.Fail()
+	}
+	if f1.Mark != f2.Mark {
+		t.Logf("Conntrack flow Marks differ. Tuple1: %d, Tuple2: %d.\n", f1.Mark, f2.Mark)
+		t.Fail()
+	}
+	if !tuplesEqual(f1.Forward, f2.Forward) {
+		t.Logf("Forward tuples mismatch. Tuple1 forward flow: %+v, Tuple2 forward flow: %+v.\n", f1.Forward, f2.Forward)
+		t.Fail()
+	}
+	if !tuplesEqual(f1.Reverse, f2.Reverse) {
+		t.Logf("Reverse tuples mismatch. Tuple1 reverse flow: %+v, Tuple2 reverse flow: %+v.\n", f1.Reverse, f2.Reverse)
+		t.Fail()
+	}
+}
+
+func checkProtoInfosEqual(t *testing.T, p1, p2 ProtoInfo) {
+	t.Logf("Checking protoinfo fields equal:\n\t p1: %+v\n\t p2: %+v", p1, p2)
+	if !protoInfosEqual(p1, p2) {
+		t.Logf("Protoinfo structs differ: P1: %+v, P2: %+v", p1, p2)
+		t.Fail()
+	}
+}
+
+func protoInfosEqual(p1, p2 ProtoInfo) bool {
+	if p1 == nil {
+		return p2 == nil
+	} else if p2 != nil {
+		return p1.Protocol() == p2.Protocol()
+	}
+
+	return false
+}
+
+func tuplesEqual(t1, t2 IPTuple) bool {
+	if t1.Bytes != t2.Bytes {
+		return false
+	}
+
+	if !t1.DstIP.Equal(t2.DstIP) {
+		return false
+	}
+
+	if !t1.SrcIP.Equal(t2.SrcIP) {
+		return false
+	}
+
+	if t1.DstPort != t2.DstPort {
+		return false
+	}
+
+	if t1.SrcPort != t2.SrcPort {
+		return false
+	}
+
+	if t1.Packets != t2.Packets {
+		return false
+	}
+
+	if t1.Protocol != t2.Protocol {
+		return false
+	}
+
+	return true
 }
