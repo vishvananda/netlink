@@ -909,6 +909,12 @@ func Uint16Attr(v uint16) []byte {
 	return bytes
 }
 
+func BEUint16Attr(v uint16) []byte {
+	bytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(bytes, v)
+	return bytes
+}
+
 func Uint32Attr(v uint32) []byte {
 	native := NativeEndian()
 	bytes := make([]byte, 4)
@@ -916,10 +922,22 @@ func Uint32Attr(v uint32) []byte {
 	return bytes
 }
 
+func BEUint32Attr(v uint32) []byte {
+	bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(bytes, v)
+	return bytes
+}
+
 func Uint64Attr(v uint64) []byte {
 	native := NativeEndian()
 	bytes := make([]byte, 8)
 	native.PutUint64(bytes, v)
+	return bytes
+}
+
+func BEUint64Attr(v uint64) []byte {
+	bytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(bytes, v)
 	return bytes
 }
 
