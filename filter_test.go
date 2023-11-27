@@ -1156,6 +1156,87 @@ func TestFilterClsActBpfAddDel(t *testing.T) {
 	}
 }
 
+func TestFilterClsActCBpfAddDel(t *testing.T) {
+	// This feature was added in kernel 4.5
+	minKernelRequired(t, 4, 5)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	qdisc, link := setupLinkForTestWithQdisc(t, "foo")
+	filterattrs := FilterAttrs{
+		LinkIndex: link.Attrs().Index,
+		Parent:    HANDLE_MIN_EGRESS,
+		Handle:    MakeHandle(0, 1),
+		Protocol:  unix.ETH_P_ALL,
+		Priority:  1,
+	}
+
+	filter := &BpfFilter{
+		FilterAttrs:  filterattrs,
+		Fd:           -1,
+		Name:         "simple",
+		DirectAction: true,
+		Ops: []SockFilter{
+			SockFilter{
+				Code: 0x0006,
+				Jt:   0x00,
+				Jf:   0x00,
+				K:    0x00000002,
+			},
+		},
+	}
+
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+
+	filters, err := FilterList(link, HANDLE_MIN_EGRESS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	bpf, ok := filters[0].(*BpfFilter)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+	if len(filter.Ops) != 1 ||
+		bpf.Ops[0].Code != filter.Ops[0].Code ||
+		bpf.Ops[0].Jt != filter.Ops[0].Jt ||
+		bpf.Ops[0].Jf != filter.Ops[0].Jf ||
+		bpf.Ops[0].K != filter.Ops[0].K {
+
+		t.Fatal("Filter Ops does not match")
+	}
+	if bpf.DirectAction != filter.DirectAction {
+		t.Fatal("Filter DirectAction does not match")
+	}
+
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, HANDLE_MIN_EGRESS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(qdiscs) != 0 {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
+
 func TestFilterMatchAllAddDel(t *testing.T) {
 	// This classifier was added in kernel 4.7
 	minKernelRequired(t, 4, 7)
