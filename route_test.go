@@ -543,13 +543,14 @@ func TestRouteAddIncomplete(t *testing.T) {
 	}
 }
 
-// expectNeighUpdate returns whether the expected updated is received within one minute.
-func expectRouteUpdate(ch <-chan RouteUpdate, t uint16, dst net.IP) bool {
+// expectRouteUpdate returns whether the expected updated is received within one minute.
+func expectRouteUpdate(ch <-chan RouteUpdate, t, f uint16, dst net.IP) bool {
 	for {
 		timeout := time.After(time.Minute)
 		select {
 		case update := <-ch:
 			if update.Type == t &&
+				update.NlFlags == f &&
 				update.Route.Dst != nil &&
 				update.Route.Dst.IP.Equal(dst) {
 				return true
@@ -594,13 +595,13 @@ func TestRouteSubscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.IP) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.IP) {
 		t.Fatal("Del update not received as expected")
 	}
 }
@@ -649,7 +650,7 @@ func TestRouteSubscribeWithOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.IP) {
 		t.Fatal("Add update not received as expected")
 	}
 }
@@ -701,13 +702,13 @@ func TestRouteSubscribeAt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.IP) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := nh.RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.IP) {
 		t.Fatal("Del update not received as expected")
 	}
 }
@@ -762,7 +763,7 @@ func TestRouteSubscribeListExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, dst10.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, 0, dst10.IP) {
 		t.Fatal("Existing add update not received as expected")
 	}
 
@@ -777,19 +778,19 @@ func TestRouteSubscribeListExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.IP) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := nh.RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.IP) {
 		t.Fatal("Del update not received as expected")
 	}
 	if err := nh.RouteDel(&route10); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, dst10.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst10.IP) {
 		t.Fatal("Del update not received as expected")
 	}
 }
