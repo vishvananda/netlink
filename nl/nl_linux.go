@@ -565,6 +565,11 @@ done:
 			}
 
 			if m.Header.Type == unix.NLMSG_DONE || m.Header.Type == unix.NLMSG_ERROR {
+				// NLMSG_DONE might have no payload, if so assume no error.
+				if m.Header.Type == unix.NLMSG_DONE && len(m.Data) == 0 {
+					break done
+				}
+
 				native := NativeEndian()
 				errno := int32(native.Uint32(m.Data[0:4]))
 				if errno == 0 {
