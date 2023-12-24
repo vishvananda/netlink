@@ -272,6 +272,7 @@ type Bridge struct {
 	HelloTime         *uint32
 	VlanFiltering     *bool
 	VlanDefaultPVID   *uint16
+	GroupFwdMask      *uint16
 }
 
 func (bridge *Bridge) Attrs() *LinkAttrs {

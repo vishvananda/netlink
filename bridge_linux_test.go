@@ -75,3 +75,38 @@ func TestBridgeVlan(t *testing.T) {
 		}
 	}
 }
+
+func TestBridgeGroupFwdMask(t *testing.T) {
+	minKernelRequired(t, 4, 15) //minimal release for per-port group_fwd_mask
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := remountSysfs(); err != nil {
+		t.Fatal(err)
+	}
+	bridgeName := "foo"
+	var mask uint16 = 0xfff0
+	bridge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeName}, GroupFwdMask: &mask}
+	if err := LinkAdd(bridge); err != nil {
+		t.Fatal(err)
+	}
+	brlink, err := LinkByName(bridgeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *(brlink.(*Bridge).GroupFwdMask) != mask {
+		t.Fatalf("created bridge has group_fwd_mask value %x, different from expected %x",
+			*(brlink.(*Bridge).GroupFwdMask), mask)
+	}
+	dummyName := "dm1"
+	dummy := &Dummy{LinkAttrs: LinkAttrs{Name: dummyName, MasterIndex: brlink.Attrs().Index}}
+	if err := LinkAdd(dummy); err != nil {
+		t.Fatal(err)
+	}
+	dmLink, err := LinkByName(dummyName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = LinkSetBRSlaveGroupFwdMask(dmLink, mask); err != nil {
+		t.Fatal(err)
+	}
+}
