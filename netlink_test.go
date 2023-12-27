@@ -31,6 +31,28 @@ func skipUnlessRoot(t *testing.T) {
 	}
 }
 
+func skipUnlessKModuleLoaded(t *testing.T, module ...string) {
+	t.Helper()
+	file, err := ioutil.ReadFile("/proc/modules")
+	if err != nil {
+		t.Fatal("Failed to open /proc/modules", err)
+	}
+	for _, mod := range module {
+		found := false
+		for _, line := range strings.Split(string(file), "\n") {
+			n := strings.Split(line, " ")[0]
+			if n == mod {
+				found = true
+				break
+			}
+
+		}
+		if !found {
+			t.Skipf("Test requires kmodule %q.", mod)
+		}
+	}
+}
+
 func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
 	skipUnlessRoot(t)
 
@@ -159,22 +181,7 @@ func setUpSEG6NetlinkTest(t *testing.T) tearDownNetlinkTest {
 }
 
 func setUpNetlinkTestWithKModule(t *testing.T, name string) tearDownNetlinkTest {
-	file, err := ioutil.ReadFile("/proc/modules")
-	if err != nil {
-		t.Fatal("Failed to open /proc/modules", err)
-	}
-	found := false
-	for _, line := range strings.Split(string(file), "\n") {
-		n := strings.Split(line, " ")[0]
-		if n == name {
-			found = true
-			break
-		}
-
-	}
-	if !found {
-		t.Skipf("Test requires kmodule %q.", name)
-	}
+	skipUnlessKModuleLoaded(t, name)
 	return setUpNetlinkTest(t)
 }
 
