@@ -2,6 +2,7 @@ package netlink
 
 import (
 	"fmt"
+	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
@@ -56,6 +57,9 @@ func XfrmMonitor(ch chan<- XfrmMsg, done <-chan struct{}, errorChan chan<- error
 		for {
 			msgs, from, err := s.Receive()
 			if err != nil {
+				if err == syscall.EAGAIN {
+					continue
+				}
 				errorChan <- err
 				return
 			}

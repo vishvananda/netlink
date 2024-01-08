@@ -433,6 +433,9 @@ loop:
 	for {
 		msgs, from, err := s.Receive()
 		if err != nil {
+			if err == syscall.EAGAIN {
+				continue
+			}
 			return err
 		}
 		if from.Pid != nl.PidKernel {

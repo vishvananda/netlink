@@ -416,6 +416,9 @@ func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <
 		for {
 			msgs, from, err := s.Receive()
 			if err != nil {
+				if err == syscall.EAGAIN {
+					continue
+				}
 				if cberr != nil {
 					cberr(err)
 				}
