@@ -614,6 +614,12 @@ func TestIngressAddDel(t *testing.T) {
 	if *qdiscs[0].Attrs().IngressBlock != *ingressBlock {
 		t.Fatal("IngressBlock does not match")
 	}
+	if qdiscs[0].Attrs().Statistics == nil {
+		t.Fatal("Statistics is nil")
+	}
+	if qdiscs[0].Attrs().Statistics.Basic.Bytes != 0 || qdiscs[0].Attrs().Statistics.Basic.Packets != 0 {
+		t.Fatal("Statistics is not zero")
+	}
 	if err = QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
