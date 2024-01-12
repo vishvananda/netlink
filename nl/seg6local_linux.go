@@ -1,7 +1,5 @@
 package nl
 
-import ()
-
 // seg6local parameters
 const (
 	SEG6_LOCAL_UNSPEC = iota
@@ -12,6 +10,8 @@ const (
 	SEG6_LOCAL_NH6
 	SEG6_LOCAL_IIF
 	SEG6_LOCAL_OIF
+	SEG6_LOCAL_BPF
+	SEG6_LOCAL_VRFTABLE
 	__SEG6_LOCAL_MAX
 )
 const (
