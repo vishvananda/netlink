@@ -270,6 +270,7 @@ type SEG6LocalEncap struct {
 	Action   int
 	Segments []net.IP // from SRH in seg6_local_lwt
 	Table    int      // table id for End.T and End.DT6
+	VrfTable int      // vrftable id for END.DT4 and END.DT6
 	InAddr   net.IP
 	In6Addr  net.IP
 	Iif      int
@@ -305,6 +306,9 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 		case nl.SEG6_LOCAL_TABLE:
 			e.Table = int(native.Uint32(attr.Value[0:4]))
 			e.Flags[nl.SEG6_LOCAL_TABLE] = true
+		case nl.SEG6_LOCAL_VRFTABLE:
+			e.VrfTable = int(native.Uint32(attr.Value[0:4]))
+			e.Flags[nl.SEG6_LOCAL_VRFTABLE] = true
 		case nl.SEG6_LOCAL_NH4:
 			e.InAddr = net.IP(attr.Value[0:4])
 			e.Flags[nl.SEG6_LOCAL_NH4] = true
@@ -361,6 +365,15 @@ func (e *SEG6LocalEncap) Encode() ([]byte, error) {
 		native.PutUint32(attr[4:], uint32(e.Table))
 		res = append(res, attr...)
 	}
+
+	if e.Flags[nl.SEG6_LOCAL_VRFTABLE] {
+		attr := make([]byte, 8)
+		native.PutUint16(attr, 8)
+		native.PutUint16(attr[2:], nl.SEG6_LOCAL_VRFTABLE)
+		native.PutUint32(attr[4:], uint32(e.VrfTable))
+		res = append(res, attr...)
+	}
+
 	if e.Flags[nl.SEG6_LOCAL_NH4] {
 		attr := make([]byte, 4)
 		native.PutUint16(attr, 8)
@@ -413,6 +426,11 @@ func (e *SEG6LocalEncap) String() string {
 	if e.Flags[nl.SEG6_LOCAL_TABLE] {
 		strs = append(strs, fmt.Sprintf("table %d", e.Table))
 	}
+
+	if e.Flags[nl.SEG6_LOCAL_VRFTABLE] {
+		strs = append(strs, fmt.Sprintf("vrftable %d", e.VrfTable))
+	}
+
 	if e.Flags[nl.SEG6_LOCAL_NH4] {
 		strs = append(strs, fmt.Sprintf("nh4 %s", e.InAddr))
 	}
@@ -477,7 +495,7 @@ func (e *SEG6LocalEncap) Equal(x Encap) bool {
 	if !e.InAddr.Equal(o.InAddr) || !e.In6Addr.Equal(o.In6Addr) {
 		return false
 	}
-	if e.Action != o.Action || e.Table != o.Table || e.Iif != o.Iif || e.Oif != o.Oif || e.bpf != o.bpf {
+	if e.Action != o.Action || e.Table != o.Table || e.Iif != o.Iif || e.Oif != o.Oif || e.bpf != o.bpf || e.VrfTable != o.VrfTable {
 		return false
 	}
 	return true
