@@ -247,6 +247,107 @@ func (dlrs *DevlinkResources) parseAttributes(attrs map[uint16]syscall.NetlinkRo
 	return nil
 }
 
+// DevlinkParam represents parameter of the device
+type DevlinkParam struct {
+	Name      string
+	IsGeneric bool
+	Type      uint8 // possible values are in nl.DEVLINK_PARAM_TYPE_* constants
+	Values    []DevlinkParamValue
+}
+
+// DevlinkParamValue contains values of the parameter
+// Data field contains specific type which can be casted by unsing info from the DevlinkParam.Type field
+type DevlinkParamValue struct {
+	rawData []byte
+	Data    interface{}
+	CMODE   uint8 // possible values are in nl.DEVLINK_PARAM_CMODE_* constants
+}
+
+// parseAttributes parses provided Netlink Attributes and populates DevlinkParam, returns error if occured
+func (dlp *DevlinkParam) parseAttributes(attrs []syscall.NetlinkRouteAttr) error {
+	var valuesList [][]syscall.NetlinkRouteAttr
+	for _, attr := range attrs {
+		switch attr.Attr.Type {
+		case nl.DEVLINK_ATTR_PARAM:
+			nattrs, err := nl.ParseRouteAttr(attr.Value)
+			if err != nil {
+				return err
+			}
+			for _, nattr := range nattrs {
+				switch nattr.Attr.Type {
+				case nl.DEVLINK_ATTR_PARAM_NAME:
+					dlp.Name = nl.BytesToString(nattr.Value)
+				case nl.DEVLINK_ATTR_PARAM_GENERIC:
+					dlp.IsGeneric = true
+				case nl.DEVLINK_ATTR_PARAM_TYPE:
+					if len(nattr.Value) == 1 {
+						dlp.Type = nattr.Value[0]
+					}
+				case nl.DEVLINK_ATTR_PARAM_VALUES_LIST:
+					nnattrs, err := nl.ParseRouteAttr(nattr.Value)
+					if err != nil {
+						return err
+					}
+					valuesList = append(valuesList, nnattrs)
+				}
+			}
+		}
+	}
+	for _, valAttr := range valuesList {
+		v := DevlinkParamValue{}
+		if err := v.parseAttributes(valAttr, dlp.Type); err != nil {
+			return err
+		}
+		dlp.Values = append(dlp.Values, v)
+	}
+	return nil
+}
+
+func (dlpv *DevlinkParamValue) parseAttributes(attrs []syscall.NetlinkRouteAttr, paramType uint8) error {
+	for _, attr := range attrs {
+		nattrs, err := nl.ParseRouteAttr(attr.Value)
+		if err != nil {
+			return err
+		}
+		var rawData []byte
+		for _, nattr := range nattrs {
+			switch nattr.Attr.Type {
+			case nl.DEVLINK_ATTR_PARAM_VALUE_DATA:
+				rawData = nattr.Value
+			case nl.DEVLINK_ATTR_PARAM_VALUE_CMODE:
+				if len(nattr.Value) == 1 {
+					dlpv.CMODE = nattr.Value[0]
+				}
+			}
+		}
+		switch paramType {
+		case nl.DEVLINK_PARAM_TYPE_U8:
+			dlpv.Data = uint8(0)
+			if rawData != nil && len(rawData) == 1 {
+				dlpv.Data = uint8(rawData[0])
+			}
+		case nl.DEVLINK_PARAM_TYPE_U16:
+			dlpv.Data = uint16(0)
+			if rawData != nil {
+				dlpv.Data = native.Uint16(rawData)
+			}
+		case nl.DEVLINK_PARAM_TYPE_U32:
+			dlpv.Data = uint32(0)
+			if rawData != nil {
+				dlpv.Data = native.Uint32(rawData)
+			}
+		case nl.DEVLINK_PARAM_TYPE_STRING:
+			dlpv.Data = ""
+			if rawData != nil {
+				dlpv.Data = nl.BytesToString(rawData)
+			}
+		case nl.DEVLINK_PARAM_TYPE_BOOL:
+			dlpv.Data = rawData != nil
+		}
+	}
+	return nil
+}
+
 func parseDevLinkDeviceList(msgs [][]byte) ([]*DevlinkDevice, error) {
 	devices := make([]*DevlinkDevice, 0, len(msgs))
 	for _, m := range msgs {
@@ -633,6 +734,144 @@ func (h *Handle) DevlinkGetDeviceResources(bus string, device string) (*DevlinkR
 	}
 
 	return &resources, nil
+}
+
+// DevlinkGetDeviceParams returns parameters for devlink device
+// Equivalent to: `devlink dev param show <bus>/<device>`
+func (h *Handle) DevlinkGetDeviceParams(bus string, device string) ([]*DevlinkParam, error) {
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PARAM_GET, bus, device)
+	if err != nil {
+		return nil, err
+	}
+	req.Flags |= unix.NLM_F_DUMP
+	respmsg, err := req.Execute(unix.NETLINK_GENERIC, 0)
+	if err != nil {
+		return nil, err
+	}
+	var params []*DevlinkParam
+	for _, m := range respmsg {
+		attrs, err := nl.ParseRouteAttr(m[nl.SizeofGenlmsg:])
+		if err != nil {
+			return nil, err
+		}
+		p := &DevlinkParam{}
+		if err := p.parseAttributes(attrs); err != nil {
+			return nil, err
+		}
+		params = append(params, p)
+	}
+
+	return params, nil
+}
+
+// DevlinkGetDeviceParams returns parameters for devlink device
+// Equivalent to: `devlink dev param show <bus>/<device>`
+func DevlinkGetDeviceParams(bus string, device string) ([]*DevlinkParam, error) {
+	return pkgHandle.DevlinkGetDeviceParams(bus, device)
+}
+
+// DevlinkGetDeviceParamByName returns specific parameter for devlink device
+// Equivalent to: `devlink dev param show <bus>/<device> name <param>`
+func (h *Handle) DevlinkGetDeviceParamByName(bus string, device string, param string) (*DevlinkParam, error) {
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PARAM_GET, bus, device)
+	if err != nil {
+		return nil, err
+	}
+	req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PARAM_NAME, nl.ZeroTerminated(param)))
+	respmsg, err := req.Execute(unix.NETLINK_GENERIC, 0)
+	if err != nil {
+		return nil, err
+	}
+	if len(respmsg) == 0 {
+		return nil, fmt.Errorf("unexpected response")
+	}
+	attrs, err := nl.ParseRouteAttr(respmsg[0][nl.SizeofGenlmsg:])
+	if err != nil {
+		return nil, err
+	}
+	p := &DevlinkParam{}
+	if err := p.parseAttributes(attrs); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// DevlinkGetDeviceParamByName returns specific parameter for devlink device
+// Equivalent to: `devlink dev param show <bus>/<device> name <param>`
+func DevlinkGetDeviceParamByName(bus string, device string, param string) (*DevlinkParam, error) {
+	return pkgHandle.DevlinkGetDeviceParamByName(bus, device, param)
+}
+
+// DevlinkSetDeviceParam set specific parameter for devlink device
+// Equivalent to: `devlink dev param set <bus>/<device> name <param> cmode <cmode> value <value>`
+// cmode argument should contain valid cmode value as uint8, modes are define in nl.DEVLINK_PARAM_CMODE_* constants
+// value argument should have one of the following types: uint8, uint16, uint32, string, bool
+func (h *Handle) DevlinkSetDeviceParam(bus string, device string, param string, cmode uint8, value interface{}) error {
+	// retrive the param type
+	p, err := h.DevlinkGetDeviceParamByName(bus, device, param)
+	if err != nil {
+		return fmt.Errorf("failed to get device param: %v", err)
+	}
+	paramType := p.Type
+
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PARAM_SET, bus, device)
+	if err != nil {
+		return err
+	}
+	req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PARAM_TYPE, nl.Uint8Attr(paramType)))
+	req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PARAM_NAME, nl.ZeroTerminated(param)))
+	req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PARAM_VALUE_CMODE, nl.Uint8Attr(cmode)))
+
+	var valueAsBytes []byte
+	switch paramType {
+	case nl.DEVLINK_PARAM_TYPE_U8:
+		v, ok := value.(uint8)
+		if !ok {
+			return fmt.Errorf("unepected value type required: uint8, actual: %T", value)
+		}
+		valueAsBytes = nl.Uint8Attr(v)
+	case nl.DEVLINK_PARAM_TYPE_U16:
+		v, ok := value.(uint16)
+		if !ok {
+			return fmt.Errorf("unepected value type required: uint16, actual: %T", value)
+		}
+		valueAsBytes = nl.Uint16Attr(v)
+	case nl.DEVLINK_PARAM_TYPE_U32:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unepected value type required: uint32, actual: %T", value)
+		}
+		valueAsBytes = nl.Uint32Attr(v)
+	case nl.DEVLINK_PARAM_TYPE_STRING:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unepected value type required: string, actual: %T", value)
+		}
+		valueAsBytes = nl.ZeroTerminated(v)
+	case nl.DEVLINK_PARAM_TYPE_BOOL:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unepected value type required: bool, actual: %T", value)
+		}
+		if v {
+			valueAsBytes = []byte{}
+		}
+	default:
+		return fmt.Errorf("unsupported parameter type: %d", paramType)
+	}
+	if valueAsBytes != nil {
+		req.AddData(nl.NewRtAttr(nl.DEVLINK_ATTR_PARAM_VALUE_DATA, valueAsBytes))
+	}
+	_, err = req.Execute(unix.NETLINK_GENERIC, 0)
+	return err
+}
+
+// DevlinkSetDeviceParam set specific parameter for devlink device
+// Equivalent to: `devlink dev param set <bus>/<device> name <param> cmode <cmode> value <value>`
+// cmode argument should contain valid cmode value as uint8, modes are define in nl.DEVLINK_PARAM_CMODE_* constants
+// value argument should have one of the following types: uint8, uint16, uint32, string, bool
+func DevlinkSetDeviceParam(bus string, device string, param string, cmode uint8, value interface{}) error {
+	return pkgHandle.DevlinkSetDeviceParam(bus, device, param, cmode, value)
 }
 
 // DevLinkGetPortByIndex provides a pointer to devlink portand nil error,

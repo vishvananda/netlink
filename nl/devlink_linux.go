@@ -17,6 +17,8 @@ const (
 	DEVLINK_CMD_ESWITCH_GET   = 29
 	DEVLINK_CMD_ESWITCH_SET   = 30
 	DEVLINK_CMD_RESOURCE_DUMP = 36
+	DEVLINK_CMD_PARAM_GET     = 38
+	DEVLINK_CMD_PARAM_SET     = 39
 	DEVLINK_CMD_INFO_GET      = 51
 )
 
@@ -112,4 +114,29 @@ const (
 
 const (
 	DEVLINK_RESOURCE_UNIT_ENTRY uint8 = 0
+)
+
+const (
+	DEVLINK_ATTR_PARAM             = iota + 80 /* nested */
+	DEVLINK_ATTR_PARAM_NAME                    /* string */
+	DEVLINK_ATTR_PARAM_GENERIC                 /* flag */
+	DEVLINK_ATTR_PARAM_TYPE                    /* u8 */
+	DEVLINK_ATTR_PARAM_VALUES_LIST             /* nested */
+	DEVLINK_ATTR_PARAM_VALUE                   /* nested */
+	DEVLINK_ATTR_PARAM_VALUE_DATA              /* dynamic */
+	DEVLINK_ATTR_PARAM_VALUE_CMODE             /* u8 */
+)
+
+const (
+	DEVLINK_PARAM_TYPE_U8     = 1
+	DEVLINK_PARAM_TYPE_U16    = 2
+	DEVLINK_PARAM_TYPE_U32    = 3
+	DEVLINK_PARAM_TYPE_STRING = 5
+	DEVLINK_PARAM_TYPE_BOOL   = 6
+)
+
+const (
+	DEVLINK_PARAM_CMODE_RUNTIME = iota
+	DEVLINK_PARAM_CMODE_DRIVERINIT
+	DEVLINK_PARAM_CMODE_PERMANENT
 )
