@@ -5,8 +5,13 @@ package netlink
 
 import (
 	"flag"
+	"math/rand"
 	"net"
+	"os"
+	"strconv"
 	"testing"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 func TestDevLinkGetDeviceList(t *testing.T) {
@@ -285,4 +290,115 @@ func TestDevlinkGetDeviceResources(t *testing.T) {
 	}
 
 	t.Logf("Resources: %+v", res)
+}
+
+// devlink device parameters can be tested with netdevsim
+// function will create netdevsim/netdevsim<random_id> virtual device that can be used for testing
+// netdevsim module should be loaded to run devlink param tests
+func setupDevlinkDeviceParamTest(t *testing.T) (string, string, func()) {
+	t.Helper()
+	skipUnlessRoot(t)
+	skipUnlessKModuleLoaded(t, "netdevsim")
+	testDevID := strconv.Itoa(1000 + rand.Intn(1000))
+	err := os.WriteFile("/sys/bus/netdevsim/new_device", []byte(testDevID), 0755)
+	if err != nil {
+		t.Fatalf("can't create netdevsim test device %s: %v", testDevID, err)
+	}
+
+	return "netdevsim", "netdevsim" + testDevID, func() {
+		_ = os.WriteFile("/sys/bus/netdevsim/del_device", []byte(testDevID), 0755)
+	}
+}
+
+func TestDevlinkGetDeviceParams(t *testing.T) {
+	busName, deviceName, cleanupFunc := setupDevlinkDeviceParamTest(t)
+	defer cleanupFunc()
+	params, err := DevlinkGetDeviceParams(busName, deviceName)
+	if err != nil {
+		t.Fatalf("failed to get device(%s/%s) parameters. %s", busName, deviceName, err)
+	}
+	if len(params) == 0 {
+		t.Fatal("parameters list is empty")
+	}
+	for _, p := range params {
+		validateDeviceParams(t, p)
+	}
+}
+
+func TestDevlinkGetDeviceParamByName(t *testing.T) {
+	busName, deviceName, cleanupFunc := setupDevlinkDeviceParamTest(t)
+	defer cleanupFunc()
+	param, err := DevlinkGetDeviceParamByName(busName, deviceName, "max_macs")
+	if err != nil {
+		t.Fatalf("failed to get device(%s/%s) parameter max_macs. %s", busName, deviceName, err)
+	}
+	validateDeviceParams(t, param)
+}
+
+func TestDevlinkSetDeviceParam(t *testing.T) {
+	busName, deviceName, cleanupFunc := setupDevlinkDeviceParamTest(t)
+	defer cleanupFunc()
+	err := DevlinkSetDeviceParam(busName, deviceName, "max_macs", nl.DEVLINK_PARAM_CMODE_DRIVERINIT, uint32(8))
+	if err != nil {
+		t.Fatalf("failed to set max_macs for device(%s/%s): %s", busName, deviceName, err)
+	}
+	param, err := DevlinkGetDeviceParamByName(busName, deviceName, "max_macs")
+	if err != nil {
+		t.Fatalf("failed to get device(%s/%s) parameter max_macs. %s", busName, deviceName, err)
+	}
+	validateDeviceParams(t, param)
+	v, ok := param.Values[0].Data.(uint32)
+	if !ok {
+		t.Fatalf("unexpected value")
+	}
+	if v != uint32(8) {
+		t.Fatalf("value not set")
+	}
+}
+
+func validateDeviceParams(t *testing.T, p *DevlinkParam) {
+	if p.Name == "" {
+		t.Fatal("Name field not set")
+	}
+	if p.Name == "max_macs" && !p.IsGeneric {
+		t.Fatal("IsGeneric should be true for generic parameter")
+	}
+	// test1 is a driver-specific parameter in netdevsim device, check should
+	// also path on HW devices
+	if p.Name == "test1" && p.IsGeneric {
+		t.Fatal("IsGeneric should be false for driver-specific parameter")
+	}
+	switch p.Type {
+	case nl.DEVLINK_PARAM_TYPE_U8,
+		nl.DEVLINK_PARAM_TYPE_U16,
+		nl.DEVLINK_PARAM_TYPE_U32,
+		nl.DEVLINK_PARAM_TYPE_STRING,
+		nl.DEVLINK_PARAM_TYPE_BOOL:
+	default:
+		t.Fatal("Type has unexpected value")
+	}
+	if len(p.Values) == 0 {
+		t.Fatal("Values are not set")
+	}
+	for _, v := range p.Values {
+		switch v.CMODE {
+		case nl.DEVLINK_PARAM_CMODE_RUNTIME,
+			nl.DEVLINK_PARAM_CMODE_DRIVERINIT,
+			nl.DEVLINK_PARAM_CMODE_PERMANENT:
+		default:
+			t.Fatal("CMODE has unexpected value")
+		}
+		if p.Name == "max_macs" {
+			_, ok := v.Data.(uint32)
+			if !ok {
+				t.Fatalf("value max_macs has wrong type: %T, expected: uint32", v.Data)
+			}
+		}
+		if p.Name == "test1" {
+			_, ok := v.Data.(bool)
+			if !ok {
+				t.Fatalf("value test1 has wrong type: %T, expected: bool", v.Data)
+			}
+		}
+	}
 }
