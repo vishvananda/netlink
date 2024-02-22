@@ -1476,7 +1476,7 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 
 	if options != nil {
 		if options.VrfName != "" {
-			link, err := LinkByName(options.VrfName)
+			link, err := h.LinkByName(options.VrfName)
 			if err != nil {
 				return nil, err
 			}
@@ -1488,7 +1488,7 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 
 		iifIndex := 0
 		if len(options.Iif) > 0 {
-			link, err := LinkByName(options.Iif)
+			link, err := h.LinkByName(options.Iif)
 			if err != nil {
 				return nil, err
 			}
@@ -1506,7 +1506,7 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 		}
 
 		if len(options.Oif) > 0 {
-			link, err := LinkByName(options.Oif)
+			link, err := h.LinkByName(options.Oif)
 			if err != nil {
 				return nil, err
 			}
