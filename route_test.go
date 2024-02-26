@@ -331,6 +331,72 @@ func TestRoute6AddDel(t *testing.T) {
 	}
 }
 
+func TestRouteChange(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// get loopback interface
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bring the interface up
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	// add a gateway route
+	dst := &net.IPNet{
+		IP:   net.IPv4(192, 168, 0, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+
+	ip := net.IPv4(127, 1, 1, 1)
+	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
+
+	if err := RouteChange(&route); err == nil {
+		t.Fatal("Route added while it should fail")
+	}
+
+	if err := RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+	routes, err := RouteList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatal("Route not added properly")
+	}
+
+	ip = net.IPv4(127, 1, 1, 2)
+	route = Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
+	if err := RouteChange(&route); err != nil {
+		t.Fatal(err)
+	}
+
+	routes, err = RouteList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(routes) != 1 || !routes[0].Src.Equal(ip) {
+		t.Fatal("Route not changed properly")
+	}
+
+	if err := RouteDel(&route); err != nil {
+		t.Fatal(err)
+	}
+	routes, err = RouteList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 0 {
+		t.Fatal("Route not removed properly")
+	}
+}
+
 func TestRouteReplace(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
@@ -390,7 +456,6 @@ func TestRouteReplace(t *testing.T) {
 	if len(routes) != 0 {
 		t.Fatal("Route not removed properly")
 	}
-
 }
 
 func TestRouteAppend(t *testing.T) {
