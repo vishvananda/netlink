@@ -790,6 +790,21 @@ func (h *Handle) RouteAddEcmp(route *Route) error {
 	return err
 }
 
+// RouteChange will change an existing route in the system.
+// Equivalent to: `ip route change $route`
+func RouteChange(route *Route) error {
+	return pkgHandle.RouteChange(route)
+}
+
+// RouteChange will change an existing route in the system.
+// Equivalent to: `ip route change $route`
+func (h *Handle) RouteChange(route *Route) error {
+	flags := unix.NLM_F_REPLACE | unix.NLM_F_ACK
+	req := h.newNetlinkRequest(unix.RTM_NEWROUTE, flags)
+	_, err := h.routeHandle(route, req, nl.NewRtMsg())
+	return err
+}
+
 // RouteReplace will add a route to the system.
 // Equivalent to: `ip route replace $route`
 func RouteReplace(route *Route) error {
