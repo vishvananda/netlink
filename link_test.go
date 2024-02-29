@@ -10,6 +10,8 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"sort"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -1899,14 +1901,15 @@ func TestLinkAltName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = LinkAddAltName(link, "altname")
-	if err != nil {
-		t.Fatalf("Could not add altname: %v", err)
-	}
+	altNames := []string{"altname", "altname2", "some_longer_altname"}
+	sort.Strings(altNames)
+	altNamesStr := strings.Join(altNames, ",")
 
-	err = LinkAddAltName(link, "altname2")
-	if err != nil {
-		t.Fatalf("Could not add altname: %v", err)
+	for _, altname := range altNames {
+		err = LinkAddAltName(link, altname)
+		if err != nil {
+			t.Fatalf("Could not add %s: %v", altname, err)
+		}
 	}
 
 	link, err = LinkByName("bar")
@@ -1914,49 +1917,40 @@ func TestLinkAltName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	altNameExist := false
-	altName2Exist := false
-	for _, altName := range link.Attrs().AltNames {
-		if altName == "altname" {
-			altNameExist = true
-		} else if altName == "altname2" {
-			altName2Exist = true
-		}
+	sort.Strings(link.Attrs().AltNames)
+	linkAltNamesStr := strings.Join(link.Attrs().AltNames, ",")
 
-	}
-	if !altNameExist {
-		t.Fatal("Could not find altname")
+	if altNamesStr != linkAltNamesStr {
+		t.Fatalf("Expected %s AltNames, got %s", altNamesStr, linkAltNamesStr)
 	}
 
-	if !altName2Exist {
-		t.Fatal("Could not find altname2")
-	}
-
-	link, err = LinkByName("altname")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = LinkDelAltName(link, "altname")
-	if err != nil {
-		t.Fatalf("Could not delete altname: %v", err)
-	}
-
-	link, err = LinkByName("bar")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	altNameExist = false
-	for _, altName := range link.Attrs().AltNames {
-		if altName == "altname" {
-			altNameExist = true
-			break
+	for _, altname := range altNames {
+		link, err = LinkByName(altname)
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
-	if altNameExist {
-		t.Fatal("altname still exist")
+
+	for idx, altName := range altNames {
+		err = LinkDelAltName(link, altName)
+		if err != nil {
+			t.Fatalf("Could not delete %s: %v", altName, err)
+		}
+
+		link, err = LinkByName("bar")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		sort.Strings(link.Attrs().AltNames)
+		linkAltNamesStr := strings.Join(link.Attrs().AltNames, ",")
+		altNamesStr := strings.Join(altNames[idx+1:], ",")
+
+		if linkAltNamesStr != altNamesStr {
+			t.Fatalf("Expected %s AltNames, got %s", altNamesStr, linkAltNamesStr)
+		}
 	}
+
 }
 
 func TestLinkSetARP(t *testing.T) {
