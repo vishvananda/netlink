@@ -273,6 +273,16 @@ type SEG6LocalEncap struct {
 	In6Addr  net.IP
 	Iif      int
 	Oif      int
+	bpf      bpfObj
+}
+
+func (e *SEG6LocalEncap) SetProg(progFd int, progName string) error {
+	if progFd <= 0 {
+		return fmt.Errorf("seg6local bpf SetProg: invalid fd")
+	}
+	e.bpf.progFd = progFd
+	e.bpf.progName = progName
+	return nil
 }
 
 func (e *SEG6LocalEncap) Type() int {
@@ -306,6 +316,22 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 		case nl.SEG6_LOCAL_OIF:
 			e.Oif = int(native.Uint32(attr.Value[0:4]))
 			e.Flags[nl.SEG6_LOCAL_OIF] = true
+		case nl.SEG6_LOCAL_BPF:
+			var bpfAttrs []syscall.NetlinkRouteAttr
+			bpfAttrs, err = nl.ParseRouteAttr(attr.Value)
+			bpfobj := bpfObj{}
+			for _, bpfAttr := range bpfAttrs {
+				switch bpfAttr.Attr.Type {
+				case nl.LWT_BPF_PROG_FD:
+					bpfobj.progFd = int(native.Uint32(bpfAttr.Value))
+				case nl.LWT_BPF_PROG_NAME:
+					bpfobj.progName = string(bpfAttr.Value)
+				default:
+					err = fmt.Errorf("seg6local bpf decode: unknown attribute: Type %d", bpfAttr.Attr)
+				}
+			}
+			e.bpf = bpfobj
+			e.Flags[nl.SEG6_LOCAL_BPF] = true
 		}
 	}
 	return err
@@ -367,6 +393,16 @@ func (e *SEG6LocalEncap) Encode() ([]byte, error) {
 		native.PutUint32(attr[4:], uint32(e.Oif))
 		res = append(res, attr...)
 	}
+	if e.Flags[nl.SEG6_LOCAL_BPF] {
+		attr := nl.NewRtAttr(nl.SEG6_LOCAL_BPF, []byte{})
+		if e.bpf.progFd != 0 {
+			attr.AddRtAttr(nl.LWT_BPF_PROG_FD, nl.Uint32Attr(uint32(e.bpf.progFd)))
+		}
+		if e.bpf.progName != "" {
+			attr.AddRtAttr(nl.LWT_BPF_PROG_NAME, nl.ZeroTerminated(e.bpf.progName))
+		}
+		res = append(res, attr.Serialize()...)
+	}
 	return res, err
 }
 func (e *SEG6LocalEncap) String() string {
@@ -406,6 +442,9 @@ func (e *SEG6LocalEncap) String() string {
 		}
 		strs = append(strs, fmt.Sprintf("segs %d [ %s ]", len(e.Segments), strings.Join(segs, " ")))
 	}
+	if e.Flags[nl.SEG6_LOCAL_BPF] {
+		strs = append(strs, fmt.Sprintf("bpf %s[%d]", e.bpf.progName, e.bpf.progFd))
+	}
 	return strings.Join(strs, " ")
 }
 func (e *SEG6LocalEncap) Equal(x Encap) bool {
@@ -437,7 +476,7 @@ func (e *SEG6LocalEncap) Equal(x Encap) bool {
 	if !e.InAddr.Equal(o.InAddr) || !e.In6Addr.Equal(o.In6Addr) {
 		return false
 	}
-	if e.Action != o.Action || e.Table != o.Table || e.Iif != o.Iif || e.Oif != o.Oif {
+	if e.Action != o.Action || e.Table != o.Table || e.Iif != o.Iif || e.Oif != o.Oif || e.bpf != o.bpf {
 		return false
 	}
 	return true
