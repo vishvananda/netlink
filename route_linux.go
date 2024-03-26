@@ -1148,6 +1148,10 @@ func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64)
 	var res []Route
 	for _, m := range msgs {
 		msg := nl.DeserializeRtMsg(m)
+		if msg.Family != uint8(family) {
+			// Ignore routes not matching requested family
+			continue
+		}
 		if msg.Flags&unix.RTM_F_CLONED != 0 {
 			// Ignore cloned routes
 			continue
