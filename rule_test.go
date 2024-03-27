@@ -223,6 +223,47 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 			},
 		},
 		{
+			name:       "returns one rule filtered by Priority(0) and Table",
+			ruleFilter: &Rule{Priority: 0, Table: 1},
+			filterMask: RT_FILTER_PRIORITY | RT_FILTER_TABLE,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Priority = 0
+				r.Family = family
+				r.Table = 1
+				RuleAdd(r)
+				return r
+			},
+			postRun: func(r *Rule) {
+				RuleDel(r)
+			},
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
+			name:       "returns one rule filtered by Priority preceding main-table rule",
+			ruleFilter: &Rule{Priority: 32765},
+			filterMask: RT_FILTER_PRIORITY,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Family = family
+				r.Table = 1
+				RuleAdd(r)
+				
+				r.Priority = 32765 // Set priority for assertion
+				return r
+			},
+			postRun: func(r *Rule) {
+				RuleDel(r)
+			},
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
 			name:       "returns rules with specific priority",
 			ruleFilter: &Rule{Priority: 5},
 			filterMask: RT_FILTER_PRIORITY,
