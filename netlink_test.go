@@ -23,7 +23,7 @@ import (
 
 type tearDownNetlinkTest func()
 
-func skipUnlessRoot(t *testing.T) {
+func skipUnlessRoot(t testing.TB) {
 	t.Helper()
 
 	if os.Getuid() != 0 {
@@ -53,7 +53,7 @@ func skipUnlessKModuleLoaded(t *testing.T, module ...string) {
 	}
 }
 
-func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
+func setUpNetlinkTest(t testing.TB) tearDownNetlinkTest {
 	skipUnlessRoot(t)
 
 	// new temporary namespace so we don't pollute the host
