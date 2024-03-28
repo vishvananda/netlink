@@ -279,6 +279,11 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 			}
 		}
 
+		// Fallback to priority zero when priority is not set by attribute.
+		if rule.Priority == -1 {
+			rule.Priority = 0
+		}
+
 		if filter != nil {
 			switch {
 			case filterMask&RT_FILTER_SRC != 0 &&
