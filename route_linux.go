@@ -1148,7 +1148,7 @@ func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64)
 	var res []Route
 	for _, m := range msgs {
 		msg := nl.DeserializeRtMsg(m)
-		if msg.Family != uint8(family) {
+		if family != FAMILY_ALL && msg.Family != uint8(family) {
 			// Ignore routes not matching requested family
 			continue
 		}
