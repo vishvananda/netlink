@@ -381,6 +381,7 @@ func TestConntrackFilter(t *testing.T) {
 				Protocol: 6,
 			},
 			Labels: []byte{0, 0, 0, 0, 3, 4, 61, 141, 207, 170, 2, 0, 0, 0, 0, 0},
+			Zone:   200,
 		},
 		ConntrackFlow{
 			FamilyType: unix.AF_INET6,
@@ -398,6 +399,7 @@ func TestConntrackFilter(t *testing.T) {
 				DstPort:  1000,
 				Protocol: 132,
 			},
+			Zone: 200,
 		})
 
 	// Empty filter
@@ -755,6 +757,16 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
 
+	filterV4 = &ConntrackFilter{}
+	err = filterV4.AddZone(200)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	filterV6 = &ConntrackFilter{}
+	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	if v4Match != 2 || v6Match != 0 {
+		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
+	}
 }
 
 func TestParseRawData(t *testing.T) {
@@ -943,13 +955,16 @@ func TestParseRawData(t *testing.T) {
 				/* >>>> CTA_COUNTERS_BYTES */
 				12, 0, 2, 0,
 				0, 0, 0, 0, 0, 0, 7, 66,
+				/* >> CTA_ZONE */
+				8, 0, 18, 0,
+				0, 100, 0, 0,
 				/* >> nested CTA_TIMESTAMP */
 				16, 0, 20, 128,
 				/* >>>> CTA_TIMESTAMP_START */
 				12, 0, 1, 0,
 				22, 134, 80, 175, 134, 10, 182, 221},
 			expConntrackFlow: "tcp\t6 src=192.168.0.10 dst=192.168.77.73 sport=42625 dport=3333 packets=11 bytes=1914\t" +
-				"src=192.168.77.73 dst=192.168.0.10 sport=3333 dport=42625 packets=10 bytes=1858 mark=0x5 " +
+				"src=192.168.77.73 dst=192.168.0.10 sport=3333 dport=42625 packets=10 bytes=1858 mark=0x5 zone=100 " +
 				"start=2021-06-07 13:43:50.511990493 +0000 UTC stop=1970-01-01 00:00:00 +0000 UTC timeout=152(sec)",
 		},
 	}
