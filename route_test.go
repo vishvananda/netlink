@@ -949,6 +949,151 @@ func TestRouteFilterByFamily(t *testing.T) {
 	}
 }
 
+func TestRouteFilterIterCanStop(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// get loopback interface
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// bring the interface up
+	if err = LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	// add a gateway route
+	dst := &net.IPNet{
+		IP:   net.IPv4(1, 1, 1, 1),
+		Mask: net.CIDRMask(32, 32),
+	}
+
+	for i := 0; i < 3; i++ {
+		route := Route{
+			LinkIndex: link.Attrs().Index,
+			Dst:       dst,
+			Scope:     unix.RT_SCOPE_LINK,
+			Priority:  1 + i,
+			Table:     1000,
+			Type:      unix.RTN_UNICAST,
+		}
+		if err := RouteAdd(&route); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var routes []Route
+	err = RouteListFilteredIter(FAMILY_V4, &Route{
+		Dst:   dst,
+		Scope: unix.RT_SCOPE_LINK,
+		Table: 1000,
+		Type:  unix.RTN_UNICAST,
+	}, RT_FILTER_TABLE, func(route Route) (cont bool) {
+		routes = append(routes, route)
+		return len(routes) < 2
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 2 {
+		t.Fatal("Unexpected number of iterations")
+	}
+	for _, route := range routes {
+		if route.Scope != unix.RT_SCOPE_LINK {
+			t.Fatal("Invalid Scope. Route not added properly")
+		}
+		if route.Priority < 1 || route.Priority > 3 {
+			t.Fatal("Priority outside expected range. Route not added properly")
+		}
+		if route.Table != 1000 {
+			t.Fatalf("Invalid Table %d. Route not added properly", route.Table)
+		}
+		if route.Type != unix.RTN_UNICAST {
+			t.Fatal("Invalid Type. Route not added properly")
+		}
+	}
+}
+
+func BenchmarkRouteListFilteredNew(b *testing.B) {
+	tearDown := setUpNetlinkTest(b)
+	defer tearDown()
+
+	link, err := setUpRoutesBench(b)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	var routes []Route
+	for i := 0; i < b.N; i++ {
+		routes, err = pkgHandle.RouteListFiltered(FAMILY_V4, &Route{
+			LinkIndex: link.Attrs().Index,
+		}, RT_FILTER_OIF)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(routes) != 65535 {
+			b.Fatal("Incorrect number of routes.", len(routes))
+		}
+	}
+	runtime.KeepAlive(routes)
+}
+
+func BenchmarkRouteListIter(b *testing.B) {
+	tearDown := setUpNetlinkTest(b)
+	defer tearDown()
+
+	link, err := setUpRoutesBench(b)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var routes int
+		err = RouteListFilteredIter(FAMILY_V4, &Route{
+			LinkIndex: link.Attrs().Index,
+		}, RT_FILTER_OIF, func(route Route) (cont bool) {
+			routes++
+			return true
+		})
+		if err != nil {
+			b.Fatal(err)
+		}
+		if routes != 65535 {
+			b.Fatal("Incorrect number of routes.", routes)
+		}
+	}
+}
+
+func setUpRoutesBench(b *testing.B) (Link, error) {
+	// get loopback interface
+	link, err := LinkByName("lo")
+	if err != nil {
+		b.Fatal(err)
+	}
+	// bring the interface up
+	if err = LinkSetUp(link); err != nil {
+		b.Fatal(err)
+	}
+
+	// add a gateway route
+	for i := 0; i < 65535; i++ {
+		dst := &net.IPNet{
+			IP:   net.IPv4(1, 1, byte(i>>8), byte(i&0xff)),
+			Mask: net.CIDRMask(32, 32),
+		}
+		route := Route{
+			LinkIndex: link.Attrs().Index,
+			Dst:       dst,
+			Scope:     unix.RT_SCOPE_LINK,
+			Priority:  10,
+			Type:      unix.RTN_UNICAST,
+		}
+		if err := RouteAdd(&route); err != nil {
+			b.Fatal(err)
+		}
+	}
+	return link, err
+}
+
 func tableIDIn(ids []int, id int) bool {
 	for _, v := range ids {
 		if v == id {

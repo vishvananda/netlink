@@ -400,7 +400,7 @@ func (e *SEG6LocalEncap) String() string {
 	}
 	if e.Flags[nl.SEG6_LOCAL_SRH] {
 		segs := make([]string, 0, len(e.Segments))
-		//append segment backwards (from n to 0) since seg#0 is the last segment.
+		// append segment backwards (from n to 0) since seg#0 is the last segment.
 		for i := len(e.Segments); i > 0; i-- {
 			segs = append(segs, e.Segments[i-1].String())
 		}
@@ -835,8 +835,22 @@ func (h *Handle) RouteDel(route *Route) error {
 }
 
 func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) ([][]byte, error) {
+	if err := h.prepareRouteReq(route, req, msg); err != nil {
+		return nil, err
+	}
+	return req.Execute(unix.NETLINK_ROUTE, 0)
+}
+
+func (h *Handle) routeHandleIter(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg, f func(msg []byte) bool) error {
+	if err := h.prepareRouteReq(route, req, msg); err != nil {
+		return err
+	}
+	return req.ExecuteIter(unix.NETLINK_ROUTE, 0, f)
+}
+
+func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 	if req.NlMsghdr.Type != unix.RTM_GETROUTE && (route.Dst == nil || route.Dst.IP == nil) && route.Src == nil && route.Gw == nil && route.MPLSDst == nil {
-		return nil, fmt.Errorf("Either Dst.IP, Src.IP or Gw must be set")
+		return fmt.Errorf("either Dst.IP, Src.IP or Gw must be set")
 	}
 
 	family := -1
@@ -863,11 +877,11 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 
 	if route.NewDst != nil {
 		if family != -1 && family != route.NewDst.Family() {
-			return nil, fmt.Errorf("new destination and destination are not the same address family")
+			return fmt.Errorf("new destination and destination are not the same address family")
 		}
 		buf, err := route.NewDst.Encode()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_NEWDST, buf))
 	}
@@ -878,7 +892,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_ENCAP_TYPE, buf))
 		buf, err := route.Encap.Encode()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		switch route.Encap.Type() {
 		case nl.LWTUNNEL_ENCAP_BPF:
@@ -892,7 +906,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 	if route.Src != nil {
 		srcFamily := nl.GetIPFamily(route.Src)
 		if family != -1 && family != srcFamily {
-			return nil, fmt.Errorf("source and destination ip are not the same IP family")
+			return fmt.Errorf("source and destination ip are not the same IP family")
 		}
 		family = srcFamily
 		var srcData []byte
@@ -908,7 +922,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 	if route.Gw != nil {
 		gwFamily := nl.GetIPFamily(route.Gw)
 		if family != -1 && family != gwFamily {
-			return nil, fmt.Errorf("gateway, source, and destination ip are not the same IP family")
+			return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
 		}
 		family = gwFamily
 		var gwData []byte
@@ -923,7 +937,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 	if route.Via != nil {
 		buf, err := route.Via.Encode()
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode RTA_VIA: %v", err)
+			return fmt.Errorf("failed to encode RTA_VIA: %v", err)
 		}
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_VIA, buf))
 	}
@@ -942,7 +956,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 			if nh.Gw != nil {
 				gwFamily := nl.GetIPFamily(nh.Gw)
 				if family != -1 && family != gwFamily {
-					return nil, fmt.Errorf("gateway, source, and destination ip are not the same IP family")
+					return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
 				}
 				if gwFamily == FAMILY_V4 {
 					children = append(children, nl.NewRtAttr(unix.RTA_GATEWAY, []byte(nh.Gw.To4())))
@@ -952,11 +966,11 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 			}
 			if nh.NewDst != nil {
 				if family != -1 && family != nh.NewDst.Family() {
-					return nil, fmt.Errorf("new destination and destination are not the same address family")
+					return fmt.Errorf("new destination and destination are not the same address family")
 				}
 				buf, err := nh.NewDst.Encode()
 				if err != nil {
-					return nil, err
+					return err
 				}
 				children = append(children, nl.NewRtAttr(unix.RTA_NEWDST, buf))
 			}
@@ -966,14 +980,14 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 				children = append(children, nl.NewRtAttr(unix.RTA_ENCAP_TYPE, buf))
 				buf, err := nh.Encap.Encode()
 				if err != nil {
-					return nil, err
+					return err
 				}
 				children = append(children, nl.NewRtAttr(unix.RTA_ENCAP, buf))
 			}
 			if nh.Via != nil {
 				buf, err := nh.Via.Encode()
 				if err != nil {
-					return nil, err
+					return err
 				}
 				children = append(children, nl.NewRtAttr(unix.RTA_VIA, buf))
 			}
@@ -1104,8 +1118,7 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 		native.PutUint32(b, uint32(route.LinkIndex))
 		req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
 	}
-
-	return req.Execute(unix.NETLINK_ROUTE, 0)
+	return nil
 }
 
 // RouteList gets a list of routes in the system.
@@ -1137,73 +1150,94 @@ func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, e
 // RouteListFiltered gets a list of routes in the system filtered with specified rules.
 // All rules must be defined in RouteFilter struct
 func (h *Handle) RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
-	req := h.newNetlinkRequest(unix.RTM_GETROUTE, unix.NLM_F_DUMP)
-	rtmsg := &nl.RtMsg{}
-	rtmsg.Family = uint8(family)
-	msgs, err := h.routeHandle(filter, req, rtmsg)
+	var res []Route
+	err := h.RouteListFilteredIter(family, filter, filterMask, func(route Route) (cont bool) {
+		res = append(res, route)
+		return true
+	})
 	if err != nil {
 		return nil, err
 	}
+	return res, nil
+}
 
-	var res []Route
-	for _, m := range msgs {
+// RouteListFilteredIter passes each route that matches the filter to the given iterator func.  Iteration continues
+// until all routes are loaded or the func returns false.
+func RouteListFilteredIter(family int, filter *Route, filterMask uint64, f func(Route) (cont bool)) error {
+	return pkgHandle.RouteListFilteredIter(family, filter, filterMask, f)
+}
+
+func (h *Handle) RouteListFilteredIter(family int, filter *Route, filterMask uint64, f func(Route) (cont bool)) error {
+	req := h.newNetlinkRequest(unix.RTM_GETROUTE, unix.NLM_F_DUMP)
+	rtmsg := &nl.RtMsg{}
+	rtmsg.Family = uint8(family)
+
+	var parseErr error
+	err := h.routeHandleIter(filter, req, rtmsg, func(m []byte) bool {
 		msg := nl.DeserializeRtMsg(m)
 		if family != FAMILY_ALL && msg.Family != uint8(family) {
 			// Ignore routes not matching requested family
-			continue
+			return true
 		}
 		if msg.Flags&unix.RTM_F_CLONED != 0 {
 			// Ignore cloned routes
-			continue
+			return true
 		}
 		if msg.Table != unix.RT_TABLE_MAIN {
 			if filter == nil || filterMask&RT_FILTER_TABLE == 0 {
 				// Ignore non-main tables
-				continue
+				return true
 			}
 		}
 		route, err := deserializeRoute(m)
 		if err != nil {
-			return nil, err
+			parseErr = err
+			return false
 		}
 		if filter != nil {
 			switch {
 			case filterMask&RT_FILTER_TABLE != 0 && filter.Table != unix.RT_TABLE_UNSPEC && route.Table != filter.Table:
-				continue
+				return true
 			case filterMask&RT_FILTER_PROTOCOL != 0 && route.Protocol != filter.Protocol:
-				continue
+				return true
 			case filterMask&RT_FILTER_SCOPE != 0 && route.Scope != filter.Scope:
-				continue
+				return true
 			case filterMask&RT_FILTER_TYPE != 0 && route.Type != filter.Type:
-				continue
+				return true
 			case filterMask&RT_FILTER_TOS != 0 && route.Tos != filter.Tos:
-				continue
+				return true
 			case filterMask&RT_FILTER_REALM != 0 && route.Realm != filter.Realm:
-				continue
+				return true
 			case filterMask&RT_FILTER_OIF != 0 && route.LinkIndex != filter.LinkIndex:
-				continue
+				return true
 			case filterMask&RT_FILTER_IIF != 0 && route.ILinkIndex != filter.ILinkIndex:
-				continue
+				return true
 			case filterMask&RT_FILTER_GW != 0 && !route.Gw.Equal(filter.Gw):
-				continue
+				return true
 			case filterMask&RT_FILTER_SRC != 0 && !route.Src.Equal(filter.Src):
-				continue
+				return true
 			case filterMask&RT_FILTER_DST != 0:
 				if filter.MPLSDst == nil || route.MPLSDst == nil || (*filter.MPLSDst) != (*route.MPLSDst) {
 					if filter.Dst == nil {
 						filter.Dst = genZeroIPNet(family)
 					}
 					if !ipNetEqual(route.Dst, filter.Dst) {
-						continue
+						return true
 					}
 				}
 			case filterMask&RT_FILTER_HOPLIMIT != 0 && route.Hoplimit != filter.Hoplimit:
-				continue
+				return true
 			}
 		}
-		res = append(res, route)
+		return f(route)
+	})
+	if err != nil {
+		return err
 	}
-	return res, nil
+	if parseErr != nil {
+		return parseErr
+	}
+	return nil
 }
 
 // deserializeRoute decodes a binary netlink message into a Route struct
@@ -1723,7 +1757,7 @@ func (p RouteProtocol) String() string {
 		return "gated"
 	case unix.RTPROT_ISIS:
 		return "isis"
-	//case unix.RTPROT_KEEPALIVED:
+	// case unix.RTPROT_KEEPALIVED:
 	//	return "keepalived"
 	case unix.RTPROT_KERNEL:
 		return "kernel"
