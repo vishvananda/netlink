@@ -123,7 +123,7 @@ type Htb struct {
 	Defcls       uint32
 	Debug        uint32
 	DirectPkts   uint32
-	DirectQlen   uint32
+	DirectQlen   *uint32
 }
 
 func NewHtb(attrs QdiscAttrs) *Htb {
@@ -134,7 +134,7 @@ func NewHtb(attrs QdiscAttrs) *Htb {
 		Rate2Quantum: 10,
 		Debug:        0,
 		DirectPkts:   0,
-		DirectQlen:   0xFFFFFFFF,
+		DirectQlen:   nil,
 	}
 }
 

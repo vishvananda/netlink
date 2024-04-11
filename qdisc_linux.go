@@ -200,8 +200,8 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		opt.Debug = qdisc.Debug
 		opt.DirectPkts = qdisc.DirectPkts
 		options.AddRtAttr(nl.TCA_HTB_INIT, opt.Serialize())
-		if qdisc.DirectQlen != 0xFFFFFFFF {
-			options.AddRtAttr(nl.TCA_HTB_DIRECT_QLEN, nl.Uint32Attr(qdisc.DirectQlen))
+		if qdisc.DirectQlen != nil {
+			options.AddRtAttr(nl.TCA_HTB_DIRECT_QLEN, nl.Uint32Attr(*qdisc.DirectQlen))
 		}
 	case *Hfsc:
 		opt := nl.TcHfscOpt{}
@@ -527,7 +527,8 @@ func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 			htb.Debug = opt.Debug
 			htb.DirectPkts = opt.DirectPkts
 		case nl.TCA_HTB_DIRECT_QLEN:
-			htb.DirectQlen = native.Uint32(datum.Value)
+			directQlen := native.Uint32(datum.Value)
+			htb.DirectQlen = &directQlen
 		}
 	}
 	return nil
