@@ -804,8 +804,9 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 	if nr < unix.NLMSG_HDRLEN {
 		return nil, nil, fmt.Errorf("Got short response from netlink")
 	}
-	rb2 := make([]byte, nr)
-	copy(rb2, rb[:nr])
+	msgLen := nlmAlignOf(nr)
+	rb2 := make([]byte, msgLen)
+	copy(rb2, rb[:msgLen])
 	nl, err := syscall.ParseNetlinkMessage(rb2)
 	if err != nil {
 		return nil, nil, err
