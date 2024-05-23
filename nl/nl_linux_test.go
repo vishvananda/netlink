@@ -75,7 +75,7 @@ func TestIfSocketCloses(t *testing.T) {
 		for {
 			_, _, err := sk.Receive()
 			// Receive returned because of a timeout and the FD == -1 means that the socket got closed
-			if err == unix.EAGAIN && nlSock.GetFd() == -1 {
+			if nlSock.GetFd() == -1 {
 				endCh <- err
 				return
 			}
