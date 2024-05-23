@@ -727,16 +727,6 @@ func Subscribe(protocol int, groups ...uint) (*NetlinkSocket, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// Sometimes (socket_linux.go:SocketGet), Subscribe is used to create a socket
-	// that subscirbed to no groups. So we don't need to set nonblock there.
-	if len(groups) > 0 {
-		if err := unix.SetNonblock(fd, true); err != nil {
-			unix.Close(fd)
-			return nil, err
-		}
-	}
-
 	s := &NetlinkSocket{
 		fd: int32(fd),
 	}

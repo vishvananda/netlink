@@ -148,9 +148,6 @@ func ProcEventMonitor(ch chan<- ProcEvent, done <-chan struct{}, errorChan chan<
 		for {
 			msgs, from, err := s.Receive()
 			if err != nil {
-				if err == syscall.EAGAIN {
-					continue
-				}
 				errorChan <- err
 				return
 			}
