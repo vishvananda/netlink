@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -42,7 +43,7 @@ func TestFouDeserializeMsg(t *testing.T) {
 	}
 
 	// deserialize truncated attribute header
-	msg = []byte{3, 1, 0, 0, 5, 0, 2, 0, 2, 0, 0}
+	msg = []byte{3, 1, 0, 0, 5, 0, 2, 0, 2, 0}
 	if _, err := deserializeFouMsg(msg); err == nil {
 		t.Error("expected attribute body truncated error")
 	} else if err != ErrAttrBodyTruncated {
