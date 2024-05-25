@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -688,6 +689,9 @@ var (
 	tickInUsec  float64
 	clockFactor float64
 	hz          float64
+
+	// Without this, the go race detector may report races.
+	initClockMutex sync.Mutex
 )
 
 func initClock() {
@@ -722,6 +726,8 @@ func initClock() {
 }
 
 func TickInUsec() float64 {
+	initClockMutex.Lock()
+	defer initClockMutex.Unlock()
 	if tickInUsec == 0.0 {
 		initClock()
 	}
@@ -729,6 +735,8 @@ func TickInUsec() float64 {
 }
 
 func ClockFactor() float64 {
+	initClockMutex.Lock()
+	defer initClockMutex.Unlock()
 	if clockFactor == 0.0 {
 		initClock()
 	}
@@ -736,6 +744,8 @@ func ClockFactor() float64 {
 }
 
 func Hz() float64 {
+	initClockMutex.Lock()
+	defer initClockMutex.Unlock()
 	if hz == 0.0 {
 		initClock()
 	}
