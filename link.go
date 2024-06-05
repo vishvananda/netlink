@@ -318,6 +318,9 @@ type Macvlan struct {
 
 	// MACAddrs is only populated for Macvlan SOURCE links
 	MACAddrs []net.HardwareAddr
+
+	BCQueueLen     uint32
+	UsedBCQueueLen uint32
 }
 
 func (macvlan *Macvlan) Attrs() *LinkAttrs {
