@@ -515,6 +515,10 @@ func TestFqHorizon(t *testing.T) {
 		t.Fatal("HorizonDropPolicy does not match")
 	}
 
+	if fq.Stats.GcFlows != 0 || fq.Stats.ThrottledFlows != 0 || fq.Stats.HorizonDrops != 0 {
+		t.Fatal("Stats is not zero")
+	}
+
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
