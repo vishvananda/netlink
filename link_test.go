@@ -201,6 +201,16 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if macv.Mode != other.Mode {
 			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, macv.Mode)
 		}
+		if other.BCQueueLen > 0 || other.UsedBCQueueLen > 0 {
+			if other.UsedBCQueueLen < other.BCQueueLen {
+				t.Fatalf("UsedBCQueueLen (%d) is smaller than BCQueueLen (%d)", other.UsedBCQueueLen, other.BCQueueLen)
+			}
+		}
+		if macv.BCQueueLen > 0 {
+			if macv.BCQueueLen != other.BCQueueLen {
+				t.Fatalf("BCQueueLen not set correctly: %d, expected: %d", other.BCQueueLen, macv.BCQueueLen)
+			}
+		}
 	}
 
 	if macv, ok := link.(*Macvtap); ok {
@@ -210,6 +220,16 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 		if macv.Mode != other.Mode {
 			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, macv.Mode)
+		}
+		if other.BCQueueLen > 0 || other.UsedBCQueueLen > 0 {
+			if other.UsedBCQueueLen < other.BCQueueLen {
+				t.Fatalf("UsedBCQueueLen (%d) is smaller than BCQueueLen (%d)", other.UsedBCQueueLen, other.BCQueueLen)
+			}
+		}
+		if macv.BCQueueLen > 0 {
+			if macv.BCQueueLen != other.BCQueueLen {
+				t.Fatalf("BCQueueLen not set correctly: %d, expected: %d", other.BCQueueLen, macv.BCQueueLen)
+			}
 		}
 	}
 
@@ -908,6 +928,36 @@ func TestLinkAddDelMacvtap(t *testing.T) {
 		Macvlan: Macvlan{
 			LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
 			Mode:      MACVLAN_MODE_VEPA,
+		},
+	})
+
+	if err := LinkDel(parent); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLinkMacvBCQueueLen(t *testing.T) {
+	minKernelRequired(t, 5, 11)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	testLinkAddDel(t, &Macvlan{
+		LinkAttrs:  LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+		Mode:       MACVLAN_MODE_PRIVATE,
+		BCQueueLen: 10000,
+	})
+
+	testLinkAddDel(t, &Macvtap{
+		Macvlan: Macvlan{
+			LinkAttrs:  LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+			Mode:       MACVLAN_MODE_PRIVATE,
+			BCQueueLen: 10000,
 		},
 	})
 

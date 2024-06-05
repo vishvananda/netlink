@@ -1733,15 +1733,9 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		data.AddRtAttr(nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(link.Mode)))
 		data.AddRtAttr(nl.IFLA_IPVLAN_FLAG, nl.Uint16Attr(uint16(link.Flag)))
 	case *Macvlan:
-		if link.Mode != MACVLAN_MODE_DEFAULT {
-			data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
-			data.AddRtAttr(nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[link.Mode]))
-		}
+		addMacvlanAttrs(link, linkInfo)
 	case *Macvtap:
-		if link.Mode != MACVLAN_MODE_DEFAULT {
-			data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
-			data.AddRtAttr(nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[link.Mode]))
-		}
+		addMacvtapAttrs(link, linkInfo)
 	case *Geneve:
 		addGeneveAttrs(link, linkInfo)
 	case *Gretap:
@@ -2953,9 +2947,28 @@ func parseIPVtapData(link Link, data []syscall.NetlinkRouteAttr) {
 	}
 }
 
+func addMacvtapAttrs(macvtap *Macvtap, linkInfo *nl.RtAttr) {
+	addMacvlanAttrs(&macvtap.Macvlan, linkInfo)
+}
+
 func parseMacvtapData(link Link, data []syscall.NetlinkRouteAttr) {
 	macv := link.(*Macvtap)
 	parseMacvlanData(&macv.Macvlan, data)
+}
+
+func addMacvlanAttrs(macvlan *Macvlan, linkInfo *nl.RtAttr) {
+	var data *nl.RtAttr
+
+	if macvlan.Mode != MACVLAN_MODE_DEFAULT || macvlan.BCQueueLen > 0 {
+		data = linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+	}
+
+	if macvlan.Mode != MACVLAN_MODE_DEFAULT {
+		data.AddRtAttr(nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[macvlan.Mode]))
+	}
+	if macvlan.BCQueueLen > 0 {
+		data.AddRtAttr(nl.IFLA_MACVLAN_BC_QUEUE_LEN, nl.Uint32Attr(macvlan.BCQueueLen))
+	}
 }
 
 func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {
@@ -2985,6 +2998,10 @@ func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {
 			for _, macDatum := range macs {
 				macv.MACAddrs = append(macv.MACAddrs, net.HardwareAddr(macDatum.Value[0:6]))
 			}
+		case nl.IFLA_MACVLAN_BC_QUEUE_LEN:
+			macv.BCQueueLen = native.Uint32(datum.Value[0:4])
+		case nl.IFLA_MACVLAN_BC_QUEUE_LEN_USED:
+			macv.UsedBCQueueLen = native.Uint32(datum.Value[0:4])
 		}
 	}
 }
