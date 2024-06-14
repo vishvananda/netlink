@@ -102,12 +102,12 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 		native.PutUint32(b, uint32(rule.Priority))
 		req.AddData(nl.NewRtAttr(nl.FRA_PRIORITY, b))
 	}
-	if rule.Mark >= 0 {
+	if rule.Mark > 0 {
 		b := make([]byte, 4)
 		native.PutUint32(b, uint32(rule.Mark))
 		req.AddData(nl.NewRtAttr(nl.FRA_FWMARK, b))
 	}
-	if rule.Mask >= 0 {
+	if rule.Mask >= 0 && rule.Mask < 0xFFFFFFFF || (rule.Mask >= 0xFFFFFFFF && rule.Mark > 0) {
 		b := make([]byte, 4)
 		native.PutUint32(b, uint32(rule.Mask))
 		req.AddData(nl.NewRtAttr(nl.FRA_FWMASK, b))
@@ -242,9 +242,9 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attrs[j].Value)),
 				}
 			case nl.FRA_FWMARK:
-				rule.Mark = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.Mark = uint(native.Uint32(attrs[j].Value[0:4]))
 			case nl.FRA_FWMASK:
-				rule.Mask = int(native.Uint32(attrs[j].Value[0:4]))
+				rule.Mask = uint(native.Uint32(attrs[j].Value[0:4]))
 			case nl.FRA_TUN_ID:
 				rule.TunID = uint(native.Uint64(attrs[j].Value[0:8]))
 			case nl.FRA_IIFNAME:
