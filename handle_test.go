@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -25,7 +26,7 @@ func TestHandleCreateClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range nl.SupportedNlFamilies {
-		sh, ok := h.sockets[f]
+		sh, ok := h.Sockets[f]
 		if !ok {
 			t.Fatalf("Handle socket(s) for family %d was not created", f)
 		}
@@ -35,7 +36,7 @@ func TestHandleCreateClose(t *testing.T) {
 	}
 
 	h.Close()
-	if h.sockets != nil {
+	if h.Sockets != nil {
 		t.Fatalf("Handle socket(s) were not closed")
 	}
 }
@@ -121,13 +122,13 @@ func TestHandleTimeout(t *testing.T) {
 	}
 	defer h.Close()
 
-	for _, sh := range h.sockets {
+	for _, sh := range h.Sockets {
 		verifySockTimeVal(t, sh.Socket.GetFd(), unix.Timeval{Sec: 0, Usec: 0})
 	}
 
 	h.SetSocketTimeout(2*time.Second + 8*time.Millisecond)
 
-	for _, sh := range h.sockets {
+	for _, sh := range h.Sockets {
 		verifySockTimeVal(t, sh.Socket.GetFd(), unix.Timeval{Sec: 2, Usec: 8000})
 	}
 }
@@ -145,9 +146,9 @@ func TestHandleReceiveBuffer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(sizes) != len(h.sockets) {
+	if len(sizes) != len(h.Sockets) {
 		t.Fatalf("Unexpected number of socket buffer sizes: %d (expected %d)",
-			len(sizes), len(h.sockets))
+			len(sizes), len(h.Sockets))
 	}
 	for _, s := range sizes {
 		if s < 65536 || s > 2*65536 {

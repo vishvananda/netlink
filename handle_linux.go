@@ -17,7 +17,7 @@ var pkgHandle = &Handle{}
 // same netlink family share the same netlink socket,
 // which gets released when the handle is Close'd.
 type Handle struct {
-	sockets      map[int]*nl.SocketHandle
+	Sockets      map[int]*nl.SocketHandle
 	lookupByDump bool
 }
 
@@ -39,7 +39,7 @@ func GetSocketTimeout() time.Duration {
 
 // SupportsNetlinkFamily reports whether the passed netlink family is supported by this Handle
 func (h *Handle) SupportsNetlinkFamily(nlFamily int) bool {
-	_, ok := h.sockets[nlFamily]
+	_, ok := h.Sockets[nlFamily]
 	return ok
 }
 
@@ -60,7 +60,7 @@ func (h *Handle) SetSocketTimeout(to time.Duration) error {
 		return fmt.Errorf("invalid timeout, minimul value is %s", time.Microsecond)
 	}
 	tv := unix.NsecToTimeval(to.Nanoseconds())
-	for _, sh := range h.sockets {
+	for _, sh := range h.Sockets {
 		if err := sh.Socket.SetSendTimeout(&tv); err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func (h *Handle) SetSocketReceiveBufferSize(size int, force bool) error {
 	if force {
 		opt = unix.SO_RCVBUFFORCE
 	}
-	for _, sh := range h.sockets {
+	for _, sh := range h.Sockets {
 		fd := sh.Socket.GetFd()
 		err := unix.SetsockoptInt(fd, unix.SOL_SOCKET, opt, size)
 		if err != nil {
@@ -93,9 +93,9 @@ func (h *Handle) SetSocketReceiveBufferSize(size int, force bool) error {
 // socket in the netlink handle. The retrieved value should be the
 // double to the one set for SetSocketReceiveBufferSize.
 func (h *Handle) GetSocketReceiveBufferSize() ([]int, error) {
-	results := make([]int, len(h.sockets))
+	results := make([]int, len(h.Sockets))
 	i := 0
-	for _, sh := range h.sockets {
+	for _, sh := range h.Sockets {
 		fd := sh.Socket.GetFd()
 		size, err := unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_RCVBUF)
 		if err != nil {
@@ -109,7 +109,7 @@ func (h *Handle) GetSocketReceiveBufferSize() ([]int, error) {
 
 // SetStrictCheck sets the strict check socket option for each socket in the netlink handle. Returns early if any set operation fails
 func (h *Handle) SetStrictCheck(state bool) error {
-	for _, sh := range h.sockets {
+	for _, sh := range h.Sockets {
 		var stateInt int = 0
 		if state {
 			stateInt = 1
@@ -136,7 +136,7 @@ func NewHandleAtFrom(newNs, curNs netns.NsHandle) (*Handle, error) {
 }
 
 func newHandle(newNs, curNs netns.NsHandle, nlFamilies ...int) (*Handle, error) {
-	h := &Handle{sockets: map[int]*nl.SocketHandle{}}
+	h := &Handle{Sockets: map[int]*nl.SocketHandle{}}
 	fams := nl.SupportedNlFamilies
 	if len(nlFamilies) != 0 {
 		fams = nlFamilies
@@ -146,17 +146,17 @@ func newHandle(newNs, curNs netns.NsHandle, nlFamilies ...int) (*Handle, error) 
 		if err != nil {
 			return nil, err
 		}
-		h.sockets[f] = &nl.SocketHandle{Socket: s}
+		h.Sockets[f] = &nl.SocketHandle{Socket: s}
 	}
 	return h, nil
 }
 
 // Close releases the resources allocated to this handle
 func (h *Handle) Close() {
-	for _, sh := range h.sockets {
+	for _, sh := range h.Sockets {
 		sh.Close()
 	}
-	h.sockets = nil
+	h.Sockets = nil
 }
 
 // Delete releases the resources allocated to this handle
@@ -169,7 +169,7 @@ func (h *Handle) Delete() {
 
 func (h *Handle) newNetlinkRequest(proto, flags int) *nl.NetlinkRequest {
 	// Do this so that package API still use nl package variable nextSeqNr
-	if h.sockets == nil {
+	if h.Sockets == nil {
 		return nl.NewNetlinkRequest(proto, flags)
 	}
 	return &nl.NetlinkRequest{
@@ -178,6 +178,6 @@ func (h *Handle) newNetlinkRequest(proto, flags int) *nl.NetlinkRequest {
 			Type:  uint16(proto),
 			Flags: unix.NLM_F_REQUEST | uint16(flags),
 		},
-		Sockets: h.sockets,
+		Sockets: h.Sockets,
 	}
 }
