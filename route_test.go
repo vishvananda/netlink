@@ -2329,7 +2329,7 @@ func TestRouteFWMarkOption(t *testing.T) {
 	}
 
 	// add a rule that fwmark match should result in route lookup of test table
-	fwmark := 1000
+	fwmark := uint(1000)
 
 	rule := NewRule()
 	rule.Mark = fwmark

@@ -1448,7 +1448,7 @@ type RouteGetOptions struct {
 	VrfName  string
 	SrcAddr  net.IP
 	UID      *uint32
-	Mark     int
+	Mark     uint
 	FIBMatch bool
 }
 

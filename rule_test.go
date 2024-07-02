@@ -252,7 +252,7 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 				r.Family = family
 				r.Table = 1
 				RuleAdd(r)
-				
+
 				r.Priority = 32765 // Set priority for assertion
 				return r
 			},
