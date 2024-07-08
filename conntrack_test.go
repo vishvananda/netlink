@@ -311,7 +311,7 @@ func TestConntrackTableDelete(t *testing.T) {
 
 	// Flush entries of groupB
 	var deleted uint
-	if deleted, err = h.ConntrackDeleteFilter(ConntrackTable, unix.AF_INET, filter); err != nil {
+	if deleted, err = h.ConntrackDeleteFilters(ConntrackTable, unix.AF_INET, filter); err != nil {
 		t.Fatalf("Error during the erase: %s", err)
 	}
 	if deleted != 5 {

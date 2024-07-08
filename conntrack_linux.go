@@ -70,7 +70,13 @@ func ConntrackUpdate(table ConntrackTableType, family InetFamily, flow *Conntrac
 // ConntrackDeleteFilter deletes entries on the specified table on the base of the filter
 // conntrack -D [table] parameters         Delete conntrack or expectation
 func ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
-	return pkgHandle.ConntrackDeleteFilter(table, family, filter)
+	return pkgHandle.ConntrackDeleteFilters(table, family, filter)
+}
+
+// ConntrackDeleteFilters deletes entries on the specified table matching any of the specified filters
+// conntrack -D [table] parameters         Delete conntrack or expectation
+func ConntrackDeleteFilters(table ConntrackTableType, family InetFamily, filters ...CustomConntrackFilter) (uint, error) {
+	return pkgHandle.ConntrackDeleteFilters(table, family, filters...)
 }
 
 // ConntrackTableList returns the flow list of a table of a specific family using the netlink handle passed
@@ -133,9 +139,9 @@ func (h *Handle) ConntrackUpdate(table ConntrackTableType, family InetFamily, fl
 	return err
 }
 
-// ConntrackDeleteFilter deletes entries on the specified table on the base of the filter using the netlink handle passed
+// ConntrackDeleteFilters deletes entries on the specified table matching any of the specified filters using the netlink handle passed
 // conntrack -D [table] parameters         Delete conntrack or expectation
-func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
+func (h *Handle) ConntrackDeleteFilters(table ConntrackTableType, family InetFamily, filters ...CustomConntrackFilter) (uint, error) {
 	res, err := h.dumpConntrackTable(table, family)
 	if err != nil {
 		return 0, err
@@ -144,12 +150,16 @@ func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFami
 	var matched uint
 	for _, dataRaw := range res {
 		flow := parseRawData(dataRaw)
-		if match := filter.MatchConntrackFlow(flow); match {
-			req2 := h.newConntrackRequest(table, family, nl.IPCTNL_MSG_CT_DELETE, unix.NLM_F_ACK)
-			// skip the first 4 byte that are the netfilter header, the newConntrackRequest is adding it already
-			req2.AddRawData(dataRaw[4:])
-			req2.Execute(unix.NETLINK_NETFILTER, 0)
-			matched++
+		for _, filter := range filters {
+			if match := filter.MatchConntrackFlow(flow); match {
+				req2 := h.newConntrackRequest(table, family, nl.IPCTNL_MSG_CT_DELETE, unix.NLM_F_ACK)
+				// skip the first 4 byte that are the netfilter header, the newConntrackRequest is adding it already
+				req2.AddRawData(dataRaw[4:])
+				req2.Execute(unix.NETLINK_NETFILTER, 0)
+				matched++
+				// flow is already deleted, no need to match on other filters and continue to the next flow.
+				break
+			}
 		}
 	}
 
