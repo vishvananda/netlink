@@ -844,6 +844,14 @@ func (s *NetlinkSocket) SetReceiveTimeout(timeout *unix.Timeval) error {
 	return unix.SetsockoptTimeval(int(s.fd), unix.SOL_SOCKET, unix.SO_RCVTIMEO, timeout)
 }
 
+func (s *NetlinkSocket) GetReceiveBufferSize() (int, error) {
+	opt := unix.SO_RCVBUF
+	if force {
+		opt = unix.SO_RCVBUFFORCE
+	}
+	return unix.GetsockoptInt(int(s.fd), unix.SOL_SOCKET, opt)
+}
+
 // SetReceiveBufferSize allows to set a receive buffer size on the socket
 func (s *NetlinkSocket) SetReceiveBufferSize(size int, force bool) error {
 	opt := unix.SO_RCVBUF
