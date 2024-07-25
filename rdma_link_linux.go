@@ -13,10 +13,12 @@ import (
 // LinkAttrs represents data shared by most link types
 type RdmaLinkAttrs struct {
 	Index           uint32
+	PortIndex       uint32
 	Name            string
 	FirmwareVersion string
 	NodeGuid        string
 	SysImageGuid    string
+	Netdev          string
 }
 
 // Link represents a rdma device from netlink.
@@ -54,6 +56,11 @@ func executeOneGetRdmaLink(data []byte) (*RdmaLink, error) {
 			r := bytes.NewReader(value)
 			binary.Read(r, nl.NativeEndian(), &Index)
 			link.Attrs.Index = Index
+		case nl.RDMA_NLDEV_ATTR_PORT_INDEX:
+			var Index uint32
+			r := bytes.NewReader(value)
+			binary.Read(r, nl.NativeEndian(), &Index)
+			link.Attrs.PortIndex = Index
 		case nl.RDMA_NLDEV_ATTR_DEV_NAME:
 			link.Attrs.Name = string(value[0 : len-1])
 		case nl.RDMA_NLDEV_ATTR_FW_VERSION:
@@ -106,10 +113,64 @@ func (h *Handle) RdmaLinkList() ([]*RdmaLink, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		if err := h.getNetdev(link); err != nil {
+			return nil, err
+		}
+
 		res = append(res, link)
 	}
 
 	return res, nil
+}
+
+func (h *Handle) getNetdev(link *RdmaLink) error {
+	proto := getProtoField(nl.RDMA_NL_NLDEV, nl.RDMA_NLDEV_CMD_PORT_GET)
+	req := h.newNetlinkRequest(proto, unix.NLM_F_ACK)
+
+	b := make([]byte, 4)
+	native.PutUint32(b, uint32(link.Attrs.Index))
+	data := nl.NewRtAttr(nl.RDMA_NLDEV_ATTR_DEV_INDEX, b)
+	req.AddData(data)
+
+	b = make([]byte, 4)
+	native.PutUint32(b, uint32(link.Attrs.PortIndex))
+	data = nl.NewRtAttr(nl.RDMA_NLDEV_ATTR_PORT_INDEX, b)
+	req.AddData(data)
+
+	msgs, err := req.Execute(unix.NETLINK_RDMA, 0)
+	if err != nil {
+		return err
+	}
+
+	if len(msgs) == 1 {
+		netdev, err := executeOneGetRdmaNetdev(msgs[0])
+		if err != nil {
+			return err
+		}
+		link.Attrs.Netdev = netdev
+
+		return nil
+	}
+
+	return fmt.Errorf("link %v not found or unexpected number of msgs", link.Attrs.Name)
+}
+
+func executeOneGetRdmaNetdev(data []byte) (string, error) {
+	reader := bytes.NewReader(data)
+	for reader.Len() >= 4 {
+		_, attrType, len, value := parseNfAttrTLV(reader)
+
+		switch attrType {
+		case nl.RDMA_NLDEV_ATTR_NDEV_NAME:
+			return string(value[0 : len-1]), nil
+		}
+		if (len % 4) != 0 {
+			// Skip pad bytes
+			reader.Seek(int64(4-(len%4)), seekCurrent)
+		}
+	}
+	return "", fmt.Errorf("Invalid rdma netdev device")
 }
 
 // RdmaLinkByName finds a link by name and returns a pointer to the object if
