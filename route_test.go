@@ -2449,27 +2449,41 @@ func TestRouteFWMarkOption(t *testing.T) {
 	}
 
 	// a table different than unix.RT_TABLE_MAIN
-	testtable := 1000
+	testTable0 := 254
+	testTable1 := 1000
+	testTable2 := 1001
 
-	gw1 := net.IPv4(192, 168, 1, 254)
-	gw2 := net.IPv4(192, 168, 2, 254)
+	gw0 := net.IPv4(192, 168, 1, 254)
+	gw1 := net.IPv4(192, 168, 2, 254)
+	gw2 := net.IPv4(192, 168, 3, 254)
 
-	// add default route via gw1 (in main route table by default)
+	// add default route via gw0 (in main route table by default)
 	defaultRouteMain := Route{
-		Dst: nil,
-		Gw:  gw1,
+		Dst:   nil,
+		Gw:    gw0,
+		Table: testTable0,
 	}
 	if err := RouteAdd(&defaultRouteMain); err != nil {
 		t.Fatal(err)
 	}
 
+	// add default route via gw1 in test route table
+	defaultRouteTest1 := Route{
+		Dst:   nil,
+		Gw:    gw1,
+		Table: testTable1,
+	}
+	if err := RouteAdd(&defaultRouteTest1); err != nil {
+		t.Fatal(err)
+	}
+
 	// add default route via gw2 in test route table
-	defaultRouteTest := Route{
+	defaultRouteTest2 := Route{
 		Dst:   nil,
 		Gw:    gw2,
-		Table: testtable,
+		Table: testTable2,
 	}
-	if err := RouteAdd(&defaultRouteTest); err != nil {
+	if err := RouteAdd(&defaultRouteTest2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2481,19 +2495,46 @@ func TestRouteFWMarkOption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 2 || routes[0].Table == routes[1].Table {
+	if len(routes) != 3 || routes[0].Table == routes[1].Table || routes[1].Table == routes[2].Table ||
+		routes[0].Table == routes[2].Table {
 		t.Fatal("Routes not added properly")
 	}
 
 	// add a rule that fwmark match should result in route lookup of test table
-	fwmark := 1000
+	fwmark1 := uint32(0xAFFFFFFF)
+	fwmark2 := uint32(0xBFFFFFFF)
 
 	rule := NewRule()
-	rule.Mark = fwmark
-	rule.Mask = 0xFFFFFFFF
-	rule.Table = testtable
+	rule.Mark = fwmark1
+	rule.Mask = &[]uint32{0xFFFFFFFF}[0]
+
+	rule.Table = testTable1
 	if err := RuleAdd(rule); err != nil {
 		t.Fatal(err)
+	}
+
+	rule = NewRule()
+	rule.Mark = fwmark2
+	rule.Mask = &[]uint32{0xFFFFFFFF}[0]
+	rule.Table = testTable2
+	if err := RuleAdd(rule); err != nil {
+		t.Fatal(err)
+	}
+
+	rules, err := RuleListFiltered(FAMILY_V4, &Rule{Mark: fwmark1}, RT_FILTER_MARK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rules) != 1 || rules[0].Table != testTable1 || rules[0].Mark != fwmark1 {
+		t.Fatal("Rules not added properly")
+	}
+
+	rules, err = RuleListFiltered(FAMILY_V4, &Rule{Mark: fwmark2}, RT_FILTER_MARK)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rules) != 1 || rules[0].Table != testTable2 || rules[0].Mark != fwmark2 {
+		t.Fatal("Rules not added properly")
 	}
 
 	dstIP := net.IPv4(10, 1, 1, 1)
@@ -2503,12 +2544,21 @@ func TestRouteFWMarkOption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(routes) != 1 || !routes[0].Gw.Equal(gw0) {
+		t.Fatal(routes)
+	}
+
+	// check getting route with FWMark option
+	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{Mark: fwmark1})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(routes) != 1 || !routes[0].Gw.Equal(gw1) {
 		t.Fatal(routes)
 	}
 
 	// check getting route with FWMark option
-	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{Mark: fwmark})
+	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{Mark: fwmark2})
 	if err != nil {
 		t.Fatal(err)
 	}

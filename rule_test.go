@@ -252,7 +252,7 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 				r.Family = family
 				r.Table = 1
 				RuleAdd(r)
-				
+
 				r.Priority = 32765 // Set priority for assertion
 				return r
 			},
@@ -325,7 +325,7 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 		},
 		{
 			name:       "returns rules filtered by Mask",
-			ruleFilter: &Rule{Mask: 0x5},
+			ruleFilter: &Rule{Mask: &[]uint32{0x5}[0]},
 			filterMask: RT_FILTER_MASK,
 			preRun: func() *Rule {
 				r := NewRule()
@@ -333,7 +333,7 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 				r.Priority = 1 // Must add priority and table otherwise it's auto-assigned
 				r.Family = family
 				r.Table = 1
-				r.Mask = 0x5
+				r.Mask = &[]uint32{0x5}[0]
 				RuleAdd(r)
 				return r
 			},
@@ -352,9 +352,207 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 				r.Priority = 1 // Must add priority, table, mask otherwise it's auto-assigned
 				r.Family = family
 				r.Table = 1
-				r.Mask = 0xff
+				r.Mask = &[]uint32{0xff}[0]
 				r.Mark = 0xbb
 				RuleAdd(r)
+				return r
+			},
+			postRun: func(r *Rule) { RuleDel(r) },
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
+			name:       "returns rules filtered by fwmark 0",
+			ruleFilter: &Rule{Mark: 0, Mask: nil, Table: 100},
+			filterMask: RT_FILTER_MARK | RT_FILTER_MASK | RT_FILTER_TABLE,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Priority = 1
+				r.Family = family
+				r.Table = 100
+				r.Mark = 0
+				r.Mask = nil
+				if err := RuleAdd(r); err != nil {
+					t.Fatal(err)
+				}
+				return r
+			},
+			postRun: func(r *Rule) { RuleDel(r) },
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
+			name:       "returns rules filtered by fwmark 0/0xFFFFFFFF",
+			ruleFilter: &Rule{Mark: 0, Mask: &[]uint32{0xFFFFFFFF}[0], Table: 100},
+			filterMask: RT_FILTER_MARK | RT_FILTER_MASK | RT_FILTER_TABLE,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Priority = 1
+				r.Family = family
+				r.Table = 100
+				r.Mark = 0
+				r.Mask = &[]uint32{0xFFFFFFFF}[0]
+				if err := RuleAdd(r); err != nil {
+					t.Fatal(err)
+				}
+				return r
+			},
+			postRun: func(r *Rule) { RuleDel(r) },
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
+			name:       "returns rules filtered by fwmark 0x1234/0",
+			ruleFilter: &Rule{Mark: 0x1234, Mask: &[]uint32{0}[0], Table: 100},
+			filterMask: RT_FILTER_MARK | RT_FILTER_MASK | RT_FILTER_TABLE,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Priority = 1
+				r.Family = family
+				r.Table = 100
+				r.Mark = 0x1234
+				r.Mask = &[]uint32{0}[0]
+				if err := RuleAdd(r); err != nil {
+					t.Fatal(err)
+				}
+				return r
+			},
+			postRun: func(r *Rule) { RuleDel(r) },
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
+			name:       "returns rules filtered by fwmark 0/0xFFFFFFFF",
+			ruleFilter: &Rule{Mark: 0, Mask: &[]uint32{0xFFFFFFFF}[0], Table: 100},
+			filterMask: RT_FILTER_MARK | RT_FILTER_MASK | RT_FILTER_TABLE,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Priority = 1
+				r.Family = family
+				r.Table = 100
+				r.Mark = 0
+				r.Mask = &[]uint32{0xFFFFFFFF}[0]
+				if err := RuleAdd(r); err != nil {
+					t.Fatal(err)
+				}
+				return r
+			},
+			postRun: func(r *Rule) { RuleDel(r) },
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
+			name:       "returns rules filtered by fwmark 0xFFFFFFFF",
+			ruleFilter: &Rule{Mark: 0xFFFFFFFF, Mask: &[]uint32{0xFFFFFFFF}[0], Table: 100},
+			filterMask: RT_FILTER_MARK | RT_FILTER_MASK | RT_FILTER_TABLE,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Priority = 1
+				r.Family = family
+				r.Table = 100
+				r.Mark = 0xFFFFFFFF
+				r.Mask = nil
+				if err := RuleAdd(r); err != nil {
+					t.Fatal(err)
+				}
+				return r
+			},
+			postRun: func(r *Rule) { RuleDel(r) },
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
+			name:       "returns rules filtered by fwmark 0x1234",
+			ruleFilter: &Rule{Mark: 0x1234, Mask: &[]uint32{0xFFFFFFFF}[0], Table: 100},
+			filterMask: RT_FILTER_MARK | RT_FILTER_MASK | RT_FILTER_TABLE,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Priority = 1
+				r.Family = family
+				r.Table = 100
+				r.Mark = 0x1234
+				r.Mask = nil
+				if err := RuleAdd(r); err != nil {
+					t.Fatal(err)
+				}
+				return r
+			},
+			postRun: func(r *Rule) { RuleDel(r) },
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
+			name:       "returns rules filtered by fwmark 0x12345678",
+			ruleFilter: &Rule{Mark: 0x12345678, Mask: &[]uint32{0xFFFFFFFF}[0], Table: 100},
+			filterMask: RT_FILTER_MARK | RT_FILTER_MASK | RT_FILTER_TABLE,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Priority = 1
+				r.Family = family
+				r.Table = 100
+				r.Mark = 0x12345678
+				r.Mask = nil
+				if err := RuleAdd(r); err != nil {
+					t.Fatal(err)
+				}
+				return r
+			},
+			postRun: func(r *Rule) { RuleDel(r) },
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
+			name:       "returns rules filtered by fwmark 0xFFFFFFFF/0",
+			ruleFilter: &Rule{Mark: 0xFFFFFFFF, Mask: &[]uint32{0}[0], Table: 100},
+			filterMask: RT_FILTER_MARK | RT_FILTER_MASK | RT_FILTER_TABLE,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Priority = 1
+				r.Family = family
+				r.Table = 100
+				r.Mark = 0xFFFFFFFF
+				r.Mask = &[]uint32{0}[0]
+				if err := RuleAdd(r); err != nil {
+					t.Fatal(err)
+				}
+				return r
+			},
+			postRun: func(r *Rule) { RuleDel(r) },
+			setupWant: func(r *Rule) ([]Rule, bool) {
+				return []Rule{*r}, false
+			},
+		},
+		{
+			name:       "returns rules filtered by fwmark 0xFFFFFFFF/0xFFFFFFFF",
+			ruleFilter: &Rule{Mark: 0xFFFFFFFF, Mask: &[]uint32{0xFFFFFFFF}[0], Table: 100},
+			filterMask: RT_FILTER_MARK | RT_FILTER_MASK | RT_FILTER_TABLE,
+			preRun: func() *Rule {
+				r := NewRule()
+				r.Src = srcNet
+				r.Priority = 1
+				r.Family = family
+				r.Table = 100
+				r.Mark = 0xFFFFFFFF
+				r.Mask = &[]uint32{0xFFFFFFFF}[0]
+				if err := RuleAdd(r); err != nil {
+					t.Fatal(err)
+				}
 				return r
 			},
 			postRun: func(r *Rule) { RuleDel(r) },
@@ -474,5 +672,8 @@ func ruleEquals(a, b Rule) bool {
 		a.Invert == b.Invert &&
 		a.Tos == b.Tos &&
 		a.IPProto == b.IPProto &&
-		a.Protocol == b.Protocol
+		a.Protocol == b.Protocol &&
+		a.Mark == b.Mark &&
+		(ptrEqual(a.Mask, b.Mask) || (a.Mark != 0 &&
+			(a.Mask == nil && *b.Mask == 0xFFFFFFFF || b.Mask == nil && *a.Mask == 0xFFFFFFFF)))
 }
