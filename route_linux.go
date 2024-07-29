@@ -1448,7 +1448,7 @@ type RouteGetOptions struct {
 	VrfName  string
 	SrcAddr  net.IP
 	UID      *uint32
-	Mark     int
+	Mark     uint32
 	FIBMatch bool
 }
 
@@ -1557,7 +1557,7 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 
 		if options.Mark > 0 {
 			b := make([]byte, 4)
-			native.PutUint32(b, uint32(options.Mark))
+			native.PutUint32(b, options.Mark)
 
 			req.AddData(nl.NewRtAttr(unix.RTA_MARK, b))
 		}
