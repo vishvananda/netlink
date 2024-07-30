@@ -3205,6 +3205,108 @@ func TestLinkSetBondSlave(t *testing.T) {
 	}
 }
 
+func testFailover(t *testing.T, slaveName, bondName string) {
+	slaveLink, err := LinkByName(slaveName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bondLink, err := LinkByName(bondName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkSetBondSlaveActive(slaveLink, &Bond{LinkAttrs: *bondLink.Attrs()})
+	if err != nil {
+		t.Errorf("set slave link active failed: %v", err)
+		return
+	}
+
+	bondLink, err = LinkByName(bondName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bond := bondLink.(*Bond)
+	if bond.ActiveSlave != slaveLink.Attrs().Index {
+		t.Errorf("the current active slave %d is not expected as %d", bond.ActiveSlave, slaveLink.Attrs().Index)
+	}
+}
+
+func TestLinkFailover(t *testing.T) {
+	minKernelRequired(t, 3, 13)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	const (
+		bondName     = "foo"
+		slaveOneName = "fooFoo"
+		slaveTwoName = "fooBar"
+	)
+
+	bond := NewLinkBond(LinkAttrs{Name: bondName})
+	bond.Mode = StringToBondModeMap["active-backup"]
+	bond.Miimon = 100
+
+	if err := LinkAdd(bond); err != nil {
+		t.Fatal(err)
+	}
+
+	bondLink, err := LinkByName(bondName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(bondLink)
+
+	if err := LinkAdd(&Dummy{LinkAttrs{Name: slaveOneName}}); err != nil {
+		t.Fatal(err)
+	}
+
+	slaveOneLink, err := LinkByName(slaveOneName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(slaveOneLink)
+
+	if err := LinkAdd(&Dummy{LinkAttrs{Name: slaveTwoName}}); err != nil {
+		t.Fatal(err)
+	}
+	slaveTwoLink, err := LinkByName(slaveTwoName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(slaveTwoLink)
+
+	if err := LinkSetBondSlave(slaveOneLink, &Bond{LinkAttrs: *bondLink.Attrs()}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkSetBondSlave(slaveTwoLink, &Bond{LinkAttrs: *bondLink.Attrs()}); err != nil {
+		t.Fatal(err)
+	}
+
+	testFailover(t, slaveOneName, bondName)
+	testFailover(t, slaveTwoName, bondName)
+	testFailover(t, slaveTwoName, bondName)
+
+	// del slave from bond
+	slaveOneLink, err = LinkByName(slaveOneName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = LinkDelBondSlave(slaveOneLink, &Bond{LinkAttrs: *bondLink.Attrs()})
+	if err != nil {
+		t.Errorf("Remove slave %s from bond failed: %v", slaveOneName, err)
+	}
+	slaveOneLink, err = LinkByName(slaveOneName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slaveOneLink.Attrs().MasterIndex > 0 {
+		t.Errorf("The nic %s is still a slave of %d", slaveOneName, slaveOneLink.Attrs().MasterIndex)
+	}
+}
+
 func TestLinkSetAllmulticast(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()

@@ -3704,8 +3704,7 @@ func parseXfrmiData(link Link, data []syscall.NetlinkRouteAttr) {
 	}
 }
 
-// LinkSetBondSlave add slave to bond link via ioctl interface.
-func LinkSetBondSlave(link Link, master *Bond) error {
+func ioctlBondSlave(cmd uintptr, link Link, master *Bond) error {
 	fd, err := getSocketUDP()
 	if err != nil {
 		return err
@@ -3713,10 +3712,38 @@ func LinkSetBondSlave(link Link, master *Bond) error {
 	defer syscall.Close(fd)
 
 	ifreq := newIocltSlaveReq(link.Attrs().Name, master.Attrs().Name)
-
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), unix.SIOCBONDENSLAVE, uintptr(unsafe.Pointer(ifreq)))
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), cmd, uintptr(unsafe.Pointer(ifreq)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to enslave %q to %q, errno=%v", link.Attrs().Name, master.Attrs().Name, errno)
+		return fmt.Errorf("errno=%v", errno)
+	}
+	return nil
+}
+
+// LinkSetBondSlaveActive sets specified slave to ACTIVE in an `active-backup` bond link via ioctl interface.
+//
+//	Multiple calls keeps the status unchanged(shown in the unit test).
+func LinkSetBondSlaveActive(link Link, master *Bond) error {
+	err := ioctlBondSlave(unix.SIOCBONDCHANGEACTIVE, link, master)
+	if err != nil {
+		return fmt.Errorf("Failed to set slave %q active in %q, %v", link.Attrs().Name, master.Attrs().Name, err)
+	}
+	return nil
+}
+
+// LinkSetBondSlave add slave to bond link via ioctl interface.
+func LinkSetBondSlave(link Link, master *Bond) error {
+	err := ioctlBondSlave(unix.SIOCBONDENSLAVE, link, master)
+	if err != nil {
+		return fmt.Errorf("Failed to enslave %q to %q, %v", link.Attrs().Name, master.Attrs().Name, err)
+	}
+	return nil
+}
+
+// LinkSetBondSlave removes specified slave from bond link via ioctl interface.
+func LinkDelBondSlave(link Link, master *Bond) error {
+	err := ioctlBondSlave(unix.SIOCBONDRELEASE, link, master)
+	if err != nil {
+		return fmt.Errorf("Failed to del slave %q from %q, %v", link.Attrs().Name, master.Attrs().Name, err)
 	}
 	return nil
 }
