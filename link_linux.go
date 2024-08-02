@@ -1975,9 +1975,6 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 	base.Flags = linkFlags(msg.Flags)
 	base.EncapType = msg.EncapType()
 	base.NetNsID = -1
-	if msg.Flags&unix.IFF_PROMISC != 0 {
-		base.Promisc = 1
-	}
 	if msg.Flags&unix.IFF_ALLMULTI != 0 {
 		base.Allmulti = 1
 	}
@@ -2164,6 +2161,8 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			base.Name = string(attr.Value[:len(attr.Value)-1])
 		case unix.IFLA_MTU:
 			base.MTU = int(native.Uint32(attr.Value[0:4]))
+		case unix.IFLA_PROMISCUITY:
+			base.Promisc = int(native.Uint32(attr.Value[0:4]))
 		case unix.IFLA_LINK:
 			base.ParentIndex = int(native.Uint32(attr.Value[0:4]))
 		case unix.IFLA_MASTER:
