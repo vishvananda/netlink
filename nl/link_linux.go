@@ -321,7 +321,7 @@ const (
 const (
 	SizeofVfMac        = 0x24
 	SizeofVfVlan       = 0x0c
-	SizeofVfVlanInfo   = 0x0e
+	SizeofVfVlanInfo   = 0x10
 	SizeofVfTxRate     = 0x08
 	SizeofVfRate       = 0x0c
 	SizeofVfSpoofchk   = 0x08
