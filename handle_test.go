@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -209,6 +210,7 @@ func getXfrmPolicy(thread int) *XfrmPolicy {
 		},
 	}
 }
+
 func initParallel() {
 	ns1, initError = netns.New()
 	if initError != nil {

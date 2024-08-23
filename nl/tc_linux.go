@@ -1126,8 +1126,10 @@ const (
 	__TCA_FLOWER_MAX
 )
 
-const TCA_CLS_FLAGS_SKIP_HW = 1 << 0 /* don't offload filter to HW */
-const TCA_CLS_FLAGS_SKIP_SW = 1 << 1 /* don't use filter in SW */
+const (
+	TCA_CLS_FLAGS_SKIP_HW = 1 << 0 // don't offload filter to HW
+	TCA_CLS_FLAGS_SKIP_SW = 1 << 1 // don't use filter in SW
+)
 
 // struct tc_sfq_qopt {
 // 	unsigned	quantum;	/* Bytes per round allocated to flow */
@@ -1285,12 +1287,11 @@ const (
 	TCA_PEDIT_KEY_EX
 )
 
-// /* TCA_PEDIT_KEY_EX_HDR_TYPE_NETWROK is a special case for legacy users. It
-//   - means no specific header type - offset is relative to the network layer
-//     */
 type PeditHeaderType uint16
 
 const (
+	// TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK is a special case for legacy users. It
+	// means no specific header type - offset is relative to the network layer
 	TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK = iota
 	TCA_PEDIT_KEY_EX_HDR_TYPE_ETH
 	TCA_PEDIT_KEY_EX_HDR_TYPE_IP4

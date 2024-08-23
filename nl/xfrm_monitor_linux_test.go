@@ -20,13 +20,13 @@ func (msg *XfrmUserExpire) serializeSafe() []byte {
 }
 
 func deserializeXfrmUserExpireSafe(b []byte) *XfrmUserExpire {
-	var msg = XfrmUserExpire{}
+	msg := XfrmUserExpire{}
 	binary.Read(bytes.NewReader(b[0:SizeofXfrmUserExpire]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestXfrmUserExpireDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofXfrmUserExpire)
+	orig := make([]byte, SizeofXfrmUserExpire)
 	rand.Read(orig)
 	safemsg := deserializeXfrmUserExpireSafe(orig)
 	msg := DeserializeXfrmUserExpire(orig)

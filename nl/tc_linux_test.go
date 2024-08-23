@@ -26,13 +26,13 @@ func (msg *TcMsg) serializeSafe() []byte {
 }
 
 func deserializeTcMsgSafe(b []byte) *TcMsg {
-	var msg = TcMsg{}
+	msg := TcMsg{}
 	binary.Read(bytes.NewReader(b[0:SizeofTcMsg]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestTcMsgDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofTcMsg)
+	orig := make([]byte, SizeofTcMsg)
 	rand.Read(orig)
 	safemsg := deserializeTcMsgSafe(orig)
 	msg := DeserializeTcMsg(orig)
@@ -53,13 +53,13 @@ func (msg *TcActionMsg) serializeSafe() []byte {
 }
 
 func deserializeTcActionMsgSafe(b []byte) *TcActionMsg {
-	var msg = TcActionMsg{}
+	msg := TcActionMsg{}
 	binary.Read(bytes.NewReader(b[0:SizeofTcActionMsg]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestTcActionMsgDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofTcActionMsg)
+	orig := make([]byte, SizeofTcActionMsg)
 	rand.Read(orig)
 	safemsg := deserializeTcActionMsgSafe(orig)
 	msg := DeserializeTcActionMsg(orig)
@@ -85,13 +85,13 @@ func (msg *TcRateSpec) serializeSafe() []byte {
 }
 
 func deserializeTcRateSpecSafe(b []byte) *TcRateSpec {
-	var msg = TcRateSpec{}
+	msg := TcRateSpec{}
 	binary.Read(bytes.NewReader(b[0:SizeofTcRateSpec]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestTcRateSpecDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofTcRateSpec)
+	orig := make([]byte, SizeofTcRateSpec)
 	rand.Read(orig)
 	safemsg := deserializeTcRateSpecSafe(orig)
 	msg := DeserializeTcRateSpec(orig)
@@ -120,13 +120,13 @@ func (msg *TcTbfQopt) serializeSafe() []byte {
 }
 
 func deserializeTcTbfQoptSafe(b []byte) *TcTbfQopt {
-	var msg = TcTbfQopt{}
+	msg := TcTbfQopt{}
 	binary.Read(bytes.NewReader(b[0:SizeofTcTbfQopt]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestTcTbfQoptDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofTcTbfQopt)
+	orig := make([]byte, SizeofTcTbfQopt)
 	rand.Read(orig)
 	safemsg := deserializeTcTbfQoptSafe(orig)
 	msg := DeserializeTcTbfQopt(orig)
@@ -159,13 +159,13 @@ func (msg *TcHtbCopt) serializeSafe() []byte {
 }
 
 func deserializeTcHtbCoptSafe(b []byte) *TcHtbCopt {
-	var msg = TcHtbCopt{}
+	msg := TcHtbCopt{}
 	binary.Read(bytes.NewReader(b[0:SizeofTcHtbCopt]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestTcHtbCoptDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofTcHtbCopt)
+	orig := make([]byte, SizeofTcHtbCopt)
 	rand.Read(orig)
 	safemsg := deserializeTcHtbCoptSafe(orig)
 	msg := DeserializeTcHtbCopt(orig)

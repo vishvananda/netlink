@@ -80,7 +80,7 @@ func TestBridgeVlan(t *testing.T) {
 }
 
 func TestBridgeGroupFwdMask(t *testing.T) {
-	minKernelRequired(t, 4, 15) //minimal release for per-port group_fwd_mask
+	minKernelRequired(t, 4, 15) // minimal release for per-port group_fwd_mask
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 	if err := remountSysfs(); err != nil {

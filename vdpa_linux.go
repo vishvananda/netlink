@@ -398,7 +398,8 @@ func (h *Handle) VDPANewDev(name, mgmtBus, mgmtName string, params VDPANewDevPar
 // Equivalent to: `vdpa dev del <name>`
 func (h *Handle) VDPADelDev(name string) error {
 	_, err := h.vdpaRequest(nl.VDPA_CMD_DEV_DEL, 0, []*nl.RtAttr{
-		nl.NewRtAttr(nl.VDPA_ATTR_DEV_NAME, nl.ZeroTerminated(name))})
+		nl.NewRtAttr(nl.VDPA_ATTR_DEV_NAME, nl.ZeroTerminated(name)),
+	})
 	return err
 }
 
