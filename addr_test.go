@@ -26,9 +26,9 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 	}
 	// TODO: IFA_F_PERMANENT does not seem to be set by default on older kernels?
 	// TODO: IFA_F_OPTIMISTIC failing in CI. should we just skip that one check?
-	var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(32, 32)}
-	var peer = &net.IPNet{IP: net.IPv4(127, 0, 0, 3), Mask: net.CIDRMask(24, 32)}
-	var addrTests = []struct {
+	address := &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(32, 32)}
+	peer := &net.IPNet{IP: net.IPv4(127, 0, 0, 3), Mask: net.CIDRMask(24, 32)}
+	addrTests := []struct {
 		addr     *Addr
 		expected *Addr
 	}{
@@ -138,7 +138,6 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 			t.Fatal("Address not removed properly")
 		}
 	}
-
 }
 
 func TestAddrAddReplace(t *testing.T) {
@@ -146,8 +145,8 @@ func TestAddrAddReplace(t *testing.T) {
 	defer tearDown()
 
 	for _, nilLink := range []bool{false, true} {
-		var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
-		var addr = &Addr{IPNet: address}
+		address := &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
+		addr := &Addr{IPNet: address}
 
 		link, err := LinkByName("lo")
 		if err != nil {
