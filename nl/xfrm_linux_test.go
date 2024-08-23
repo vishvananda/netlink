@@ -18,13 +18,13 @@ func (msg *XfrmAddress) serializeSafe() []byte {
 }
 
 func deserializeXfrmAddressSafe(b []byte) *XfrmAddress {
-	var msg = XfrmAddress{}
+	msg := XfrmAddress{}
 	binary.Read(bytes.NewReader(b[0:SizeofXfrmAddress]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestXfrmAddressDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofXfrmAddress)
+	orig := make([]byte, SizeofXfrmAddress)
 	rand.Read(orig)
 	safemsg := deserializeXfrmAddressSafe(orig)
 	msg := DeserializeXfrmAddress(orig)
@@ -57,13 +57,13 @@ func (msg *XfrmSelector) serializeSafe() []byte {
 }
 
 func deserializeXfrmSelectorSafe(b []byte) *XfrmSelector {
-	var msg = XfrmSelector{}
+	msg := XfrmSelector{}
 	binary.Read(bytes.NewReader(b[0:SizeofXfrmSelector]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestXfrmSelectorDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofXfrmSelector)
+	orig := make([]byte, SizeofXfrmSelector)
 	rand.Read(orig)
 	safemsg := deserializeXfrmSelectorSafe(orig)
 	msg := DeserializeXfrmSelector(orig)
@@ -90,13 +90,13 @@ func (msg *XfrmLifetimeCfg) serializeSafe() []byte {
 }
 
 func deserializeXfrmLifetimeCfgSafe(b []byte) *XfrmLifetimeCfg {
-	var msg = XfrmLifetimeCfg{}
+	msg := XfrmLifetimeCfg{}
 	binary.Read(bytes.NewReader(b[0:SizeofXfrmLifetimeCfg]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestXfrmLifetimeCfgDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofXfrmLifetimeCfg)
+	orig := make([]byte, SizeofXfrmLifetimeCfg)
 	rand.Read(orig)
 	safemsg := deserializeXfrmLifetimeCfgSafe(orig)
 	msg := DeserializeXfrmLifetimeCfg(orig)
@@ -119,13 +119,13 @@ func (msg *XfrmLifetimeCur) serializeSafe() []byte {
 }
 
 func deserializeXfrmLifetimeCurSafe(b []byte) *XfrmLifetimeCur {
-	var msg = XfrmLifetimeCur{}
+	msg := XfrmLifetimeCur{}
 	binary.Read(bytes.NewReader(b[0:SizeofXfrmLifetimeCur]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestXfrmLifetimeCurDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofXfrmLifetimeCur)
+	orig := make([]byte, SizeofXfrmLifetimeCur)
 	rand.Read(orig)
 	safemsg := deserializeXfrmLifetimeCurSafe(orig)
 	msg := DeserializeXfrmLifetimeCur(orig)
@@ -147,13 +147,13 @@ func (msg *XfrmId) serializeSafe() []byte {
 }
 
 func deserializeXfrmIdSafe(b []byte) *XfrmId {
-	var msg = XfrmId{}
+	msg := XfrmId{}
 	binary.Read(bytes.NewReader(b[0:SizeofXfrmId]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestXfrmIdDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofXfrmId)
+	orig := make([]byte, SizeofXfrmId)
 	rand.Read(orig)
 	safemsg := deserializeXfrmIdSafe(orig)
 	msg := DeserializeXfrmId(orig)

@@ -26,13 +26,13 @@ func (msg *IfAddrmsg) serializeSafe() []byte {
 }
 
 func deserializeIfAddrmsgSafe(b []byte) *IfAddrmsg {
-	var msg = IfAddrmsg{}
+	msg := IfAddrmsg{}
 	binary.Read(bytes.NewReader(b[0:unix.SizeofIfAddrmsg]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestIfAddrmsgDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, unix.SizeofIfAddrmsg)
+	orig := make([]byte, unix.SizeofIfAddrmsg)
 	rand.Read(orig)
 	safemsg := deserializeIfAddrmsgSafe(orig)
 	msg := DeserializeIfAddrmsg(orig)
@@ -55,13 +55,13 @@ func (msg *IfaCacheInfo) serializeSafe() []byte {
 }
 
 func deserializeIfaCacheInfoSafe(b []byte) *IfaCacheInfo {
-	var msg = IfaCacheInfo{}
+	msg := IfaCacheInfo{}
 	binary.Read(bytes.NewReader(b[0:unix.SizeofIfaCacheinfo]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestIfaCacheInfoDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, unix.SizeofIfaCacheinfo)
+	orig := make([]byte, unix.SizeofIfaCacheinfo)
 	rand.Read(orig)
 	safemsg := deserializeIfaCacheInfoSafe(orig)
 	msg := DeserializeIfaCacheInfo(orig)
