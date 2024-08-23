@@ -341,7 +341,8 @@ func AddrSubscribeWithOptions(ch chan<- AddrUpdate, done <-chan struct{}, option
 }
 
 func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-chan struct{}, cberr func(error), listExisting bool,
-	rcvbuf int, rcvTimeout *unix.Timeval, rcvBufForce bool) error {
+	rcvbuf int, rcvTimeout *unix.Timeval, rcvBufForce bool,
+) error {
 	s, err := nl.SubscribeAt(newNs, curNs, unix.NETLINK_ROUTE, unix.RTNLGRP_IPV4_IFADDR, unix.RTNLGRP_IPV6_IFADDR)
 	if err != nil {
 		return err
@@ -420,13 +421,15 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					continue
 				}
 
-				ch <- AddrUpdate{LinkAddress: *addr.IPNet,
+				ch <- AddrUpdate{
+					LinkAddress: *addr.IPNet,
 					LinkIndex:   addr.LinkIndex,
 					NewAddr:     msgType == unix.RTM_NEWADDR,
 					Flags:       addr.Flags,
 					Scope:       addr.Scope,
 					PreferedLft: addr.PreferedLft,
-					ValidLft:    addr.ValidLft}
+					ValidLft:    addr.ValidLft,
+				}
 			}
 		}
 	}()

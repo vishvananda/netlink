@@ -147,9 +147,11 @@ func TestDevLinkSfPortFnSet(t *testing.T) {
 	}
 }
 
-var bus string
-var device string
-var sfnum uint
+var (
+	bus    string
+	device string
+	sfnum  uint
+)
 
 func init() {
 	flag.StringVar(&bus, "bus", "", "devlink device bus name")
@@ -204,7 +206,8 @@ func mockDevlinkInfoGetterEmpty(bus, device string) ([]byte, error) {
 }
 
 func devlinkInfo() []byte {
-	return []byte{51, 1, 0, 0, 8, 0, 1, 0, 112, 99, 105, 0, 17, 0, 2, 0, 48,
+	return []byte{
+		51, 1, 0, 0, 8, 0, 1, 0, 112, 99, 105, 0, 17, 0, 2, 0, 48,
 		48, 48, 48, 58, 56, 52, 58, 48, 48, 46, 48, 0, 0, 0, 0, 8, 0, 98, 0,
 		105, 99, 101, 0, 28, 0, 99, 0, 51, 48, 45, 56, 57, 45, 97, 51, 45,
 		102, 102, 45, 102, 102, 45, 99, 97, 45, 48, 53, 45, 54, 56, 0, 36,
@@ -234,7 +237,8 @@ func devlinkInfo() []byte {
 		52, 48, 46, 50, 48, 48, 48, 45, 51, 46, 49, 54, 46, 48, 0, 0, 0, 0,
 		44, 0, 101, 0, 21, 0, 103, 0, 102, 119, 46, 110, 101, 116, 108, 105,
 		115, 116, 46, 98, 117, 105, 108, 100, 0, 0, 0, 0, 15, 0, 104, 0, 48,
-		120, 54, 55, 54, 97, 52, 56, 57, 100, 0, 0}
+		120, 54, 55, 54, 97, 52, 56, 57, 100, 0, 0,
+	}
 }
 
 func devlinkTestInfoParesd() map[string]string {
@@ -275,7 +279,7 @@ func TestDevlinkGetDeviceResources(t *testing.T) {
 	defer tearDown()
 
 	if bus == "" || device == "" {
-		//TODO: setup netdevsim device instead of getting device from flags
+		// TODO: setup netdevsim device instead of getting device from flags
 		t.Log("devlink bus and device are empty, skipping test")
 		t.SkipNow()
 	}
