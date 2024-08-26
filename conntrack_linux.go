@@ -70,7 +70,7 @@ func ConntrackUpdate(table ConntrackTableType, family InetFamily, flow *Conntrac
 // ConntrackDeleteFilter deletes entries on the specified table on the base of the filter
 // conntrack -D [table] parameters         Delete conntrack or expectation
 //
-// Deprecated: use [ConntrackDeleteFilter] instead.
+// Deprecated: use [ConntrackDeleteFilters] instead.
 func ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
 	return pkgHandle.ConntrackDeleteFilters(table, family, filter)
 }
