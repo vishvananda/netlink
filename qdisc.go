@@ -28,6 +28,8 @@ type Qdisc interface {
 	Type() string
 }
 
+type QdiscStatistics ClassStatistics
+
 // QdiscAttrs represents a netlink qdisc. A qdisc is associated with a link,
 // has a handle, a parent and a refcnt. The root qdisc of a device should
 // have parent == HANDLE_ROOT.
@@ -37,6 +39,7 @@ type QdiscAttrs struct {
 	Parent       uint32
 	Refcnt       uint32 // read only
 	IngressBlock *uint32
+	Statistics   *QdiscStatistics
 }
 
 func (q QdiscAttrs) String() string {
@@ -120,6 +123,7 @@ type Htb struct {
 	Defcls       uint32
 	Debug        uint32
 	DirectPkts   uint32
+	DirectQlen   *uint32
 }
 
 func NewHtb(attrs QdiscAttrs) *Htb {
@@ -130,6 +134,7 @@ func NewHtb(attrs QdiscAttrs) *Htb {
 		Rate2Quantum: 10,
 		Debug:        0,
 		DirectPkts:   0,
+		DirectQlen:   nil,
 	}
 }
 
@@ -157,6 +162,7 @@ type NetemQdiscAttrs struct {
 	ReorderCorr   float32 // in %
 	CorruptProb   float32 // in %
 	CorruptCorr   float32 // in %
+	Rate64        uint64
 }
 
 func (q NetemQdiscAttrs) String() string {
@@ -181,6 +187,7 @@ type Netem struct {
 	ReorderCorr   uint32
 	CorruptProb   uint32
 	CorruptCorr   uint32
+	Rate64        uint64
 }
 
 func (netem *Netem) String() string {

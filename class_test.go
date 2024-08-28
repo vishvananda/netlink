@@ -154,6 +154,7 @@ func TestClassAddDel(t *testing.T) {
 		ReorderProb: 23.4,
 		CorruptProb: 10.0,
 		CorruptCorr: 10,
+		Rate64:      10 * 1024 * 1024,
 	}
 	qdiscnetem := NewNetem(qattrs, nattrs)
 	if err := QdiscAdd(qdiscnetem); err != nil {
@@ -194,6 +195,9 @@ func TestClassAddDel(t *testing.T) {
 	}
 	if netem.DuplicateCorr != qdiscnetem.DuplicateCorr {
 		t.Fatal("DuplicateCorr does not match")
+	}
+	if netem.Rate64 != qdiscnetem.Rate64 {
+		t.Fatalf("Rate64 does not match. Expected %d, got %d", netem.Rate64, qdiscnetem.Rate64)
 	}
 
 	// Deletion

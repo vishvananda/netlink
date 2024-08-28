@@ -10,6 +10,8 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"sort"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -199,6 +201,16 @@ func testLinkAddDel(t *testing.T, link Link) {
 		if macv.Mode != other.Mode {
 			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, macv.Mode)
 		}
+		if other.BCQueueLen > 0 || other.UsedBCQueueLen > 0 {
+			if other.UsedBCQueueLen < other.BCQueueLen {
+				t.Fatalf("UsedBCQueueLen (%d) is smaller than BCQueueLen (%d)", other.UsedBCQueueLen, other.BCQueueLen)
+			}
+		}
+		if macv.BCQueueLen > 0 {
+			if macv.BCQueueLen != other.BCQueueLen {
+				t.Fatalf("BCQueueLen not set correctly: %d, expected: %d", other.BCQueueLen, macv.BCQueueLen)
+			}
+		}
 	}
 
 	if macv, ok := link.(*Macvtap); ok {
@@ -208,6 +220,16 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 		if macv.Mode != other.Mode {
 			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, macv.Mode)
+		}
+		if other.BCQueueLen > 0 || other.UsedBCQueueLen > 0 {
+			if other.UsedBCQueueLen < other.BCQueueLen {
+				t.Fatalf("UsedBCQueueLen (%d) is smaller than BCQueueLen (%d)", other.UsedBCQueueLen, other.BCQueueLen)
+			}
+		}
+		if macv.BCQueueLen > 0 {
+			if macv.BCQueueLen != other.BCQueueLen {
+				t.Fatalf("BCQueueLen not set correctly: %d, expected: %d", other.BCQueueLen, macv.BCQueueLen)
+			}
 		}
 	}
 
@@ -385,6 +407,10 @@ func compareGeneve(t *testing.T, expected, actual *Geneve) {
 
 	if actual.FlowBased != expected.FlowBased {
 		t.Fatal("Geneve.FlowBased doesn't match")
+	}
+
+	if actual.InnerProtoInherit != expected.InnerProtoInherit {
+		t.Fatal("Geneve.InnerProtoInherit doesn't match")
 	}
 
 	// TODO: we should implement the rest of the geneve methods
@@ -902,6 +928,36 @@ func TestLinkAddDelMacvtap(t *testing.T) {
 		Macvlan: Macvlan{
 			LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
 			Mode:      MACVLAN_MODE_VEPA,
+		},
+	})
+
+	if err := LinkDel(parent); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLinkMacvBCQueueLen(t *testing.T) {
+	minKernelRequired(t, 5, 11)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	testLinkAddDel(t, &Macvlan{
+		LinkAttrs:  LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+		Mode:       MACVLAN_MODE_PRIVATE,
+		BCQueueLen: 10000,
+	})
+
+	testLinkAddDel(t, &Macvtap{
+		Macvlan: Macvlan{
+			LinkAttrs:  LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+			Mode:       MACVLAN_MODE_PRIVATE,
+			BCQueueLen: 10000,
 		},
 	})
 
@@ -1605,10 +1661,8 @@ func TestLinkAddDelVxlanFlowBased(t *testing.T) {
 }
 
 func TestLinkAddDelBareUDP(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skipf("Fails in CI due to operation not supported (missing kernel module?)")
-	}
-	minKernelRequired(t, 5, 8)
+	minKernelRequired(t, 5, 1)
+	setUpNetlinkTestWithKModule(t, "bareudp")
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
@@ -1635,6 +1689,7 @@ func TestBareUDPCompareToIP(t *testing.T) {
 	}
 	// requires iproute2 >= 5.10
 	minKernelRequired(t, 5, 9)
+	setUpNetlinkTestWithKModule(t, "bareudp")
 	ns, tearDown := setUpNamedNetlinkTest(t)
 	defer tearDown()
 
@@ -1883,6 +1938,72 @@ func TestLinkSet(t *testing.T) {
 	if link.Attrs().Group != 42 {
 		t.Fatal("Link group not changed")
 	}
+}
+
+func TestLinkAltName(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	iface := &Dummy{LinkAttrs{Name: "bar"}}
+	if err := LinkAdd(iface); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	altNames := []string{"altname", "altname2", "some_longer_altname"}
+	sort.Strings(altNames)
+	altNamesStr := strings.Join(altNames, ",")
+
+	for _, altname := range altNames {
+		err = LinkAddAltName(link, altname)
+		if err != nil {
+			t.Fatalf("Could not add %s: %v", altname, err)
+		}
+	}
+
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sort.Strings(link.Attrs().AltNames)
+	linkAltNamesStr := strings.Join(link.Attrs().AltNames, ",")
+
+	if altNamesStr != linkAltNamesStr {
+		t.Fatalf("Expected %s AltNames, got %s", altNamesStr, linkAltNamesStr)
+	}
+
+	for _, altname := range altNames {
+		link, err = LinkByName(altname)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for idx, altName := range altNames {
+		err = LinkDelAltName(link, altName)
+		if err != nil {
+			t.Fatalf("Could not delete %s: %v", altName, err)
+		}
+
+		link, err = LinkByName("bar")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		sort.Strings(link.Attrs().AltNames)
+		linkAltNamesStr := strings.Join(link.Attrs().AltNames, ",")
+		altNamesStr := strings.Join(altNames[idx+1:], ",")
+
+		if linkAltNamesStr != altNamesStr {
+			t.Fatalf("Expected %s AltNames, got %s", altNamesStr, linkAltNamesStr)
+		}
+	}
+
 }
 
 func TestLinkSetARP(t *testing.T) {
@@ -3131,6 +3252,108 @@ func TestLinkSetBondSlave(t *testing.T) {
 
 	if slaveTwoLink.Attrs().MasterIndex != bondLink.Attrs().Index {
 		t.Errorf("For %s expected %s to be master", slaveTwoLink.Attrs().Name, bondLink.Attrs().Name)
+	}
+}
+
+func testFailover(t *testing.T, slaveName, bondName string) {
+	slaveLink, err := LinkByName(slaveName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bondLink, err := LinkByName(bondName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = LinkSetBondSlaveActive(slaveLink, &Bond{LinkAttrs: *bondLink.Attrs()})
+	if err != nil {
+		t.Errorf("set slave link active failed: %v", err)
+		return
+	}
+
+	bondLink, err = LinkByName(bondName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bond := bondLink.(*Bond)
+	if bond.ActiveSlave != slaveLink.Attrs().Index {
+		t.Errorf("the current active slave %d is not expected as %d", bond.ActiveSlave, slaveLink.Attrs().Index)
+	}
+}
+
+func TestLinkFailover(t *testing.T) {
+	minKernelRequired(t, 3, 13)
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	const (
+		bondName     = "foo"
+		slaveOneName = "fooFoo"
+		slaveTwoName = "fooBar"
+	)
+
+	bond := NewLinkBond(LinkAttrs{Name: bondName})
+	bond.Mode = StringToBondModeMap["active-backup"]
+	bond.Miimon = 100
+
+	if err := LinkAdd(bond); err != nil {
+		t.Fatal(err)
+	}
+
+	bondLink, err := LinkByName(bondName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(bondLink)
+
+	if err := LinkAdd(&Dummy{LinkAttrs{Name: slaveOneName}}); err != nil {
+		t.Fatal(err)
+	}
+
+	slaveOneLink, err := LinkByName(slaveOneName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(slaveOneLink)
+
+	if err := LinkAdd(&Dummy{LinkAttrs{Name: slaveTwoName}}); err != nil {
+		t.Fatal(err)
+	}
+	slaveTwoLink, err := LinkByName(slaveTwoName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer LinkDel(slaveTwoLink)
+
+	if err := LinkSetBondSlave(slaveOneLink, &Bond{LinkAttrs: *bondLink.Attrs()}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := LinkSetBondSlave(slaveTwoLink, &Bond{LinkAttrs: *bondLink.Attrs()}); err != nil {
+		t.Fatal(err)
+	}
+
+	testFailover(t, slaveOneName, bondName)
+	testFailover(t, slaveTwoName, bondName)
+	testFailover(t, slaveTwoName, bondName)
+
+	// del slave from bond
+	slaveOneLink, err = LinkByName(slaveOneName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = LinkDelBondSlave(slaveOneLink, &Bond{LinkAttrs: *bondLink.Attrs()})
+	if err != nil {
+		t.Errorf("Remove slave %s from bond failed: %v", slaveOneName, err)
+	}
+	slaveOneLink, err = LinkByName(slaveOneName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slaveOneLink.Attrs().MasterIndex > 0 {
+		t.Errorf("The nic %s is still a slave of %d", slaveOneName, slaveOneLink.Attrs().MasterIndex)
 	}
 }
 

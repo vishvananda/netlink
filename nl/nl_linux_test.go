@@ -68,14 +68,12 @@ func TestIfSocketCloses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error on creating the socket: %v", err)
 	}
-	nlSock.SetReceiveTimeout(&unix.Timeval{Sec: 2, Usec: 0})
 	endCh := make(chan error)
 	go func(sk *NetlinkSocket, endCh chan error) {
 		endCh <- nil
 		for {
 			_, _, err := sk.Receive()
-			// Receive returned because of a timeout and the FD == -1 means that the socket got closed
-			if err == unix.EAGAIN && nlSock.GetFd() == -1 {
+			if err == unix.EAGAIN {
 				endCh <- err
 				return
 			}
@@ -129,4 +127,26 @@ func TestCnMsgOpDeserializeSerialize(t *testing.T) {
 	safemsg := deserializeCnMsgOpSafe(orig)
 	msg := DeserializeCnMsgOp(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
+}
+
+func TestParseRouteAttrAsMap(t *testing.T) {
+	attr1 := NewRtAttr(0x1, ZeroTerminated("foo"))
+	attr2 := NewRtAttr(0x2, ZeroTerminated("bar"))
+	raw := make([]byte, 0)
+	raw = append(raw, attr1.Serialize()...)
+	raw = append(raw, attr2.Serialize()...)
+	attrs, err := ParseRouteAttrAsMap(raw)
+	if err != nil {
+		t.Errorf("failed to parse route attributes %s", err)
+	}
+
+	attr, ok := attrs[0x1]
+	if !ok || BytesToString(attr.Value) != "foo" {
+		t.Error("missing/incorrect \"foo\" attribute")
+	}
+
+	attr, ok = attrs[0x2]
+	if !ok || BytesToString(attr.Value) != "bar" {
+		t.Error("missing/incorrect \"bar\" attribute")
+	}
 }

@@ -33,6 +33,7 @@ type LinkAttrs struct {
 	MasterIndex    int         // must be the index of a bridge
 	Namespace      interface{} // nil | NsPid | NsFd
 	Alias          string
+	AltNames       []string
 	Statistics     *LinkStatistics
 	Promisc        int
 	Allmulti       int
@@ -54,6 +55,7 @@ type LinkAttrs struct {
 	GROIPv4MaxSize uint32
 	Vfs            []VfInfo // virtual functions available on link
 	Group          uint32
+	PermHWAddr     net.HardwareAddr
 	Slave          LinkSlave
 }
 
@@ -272,6 +274,7 @@ type Bridge struct {
 	HelloTime         *uint32
 	VlanFiltering     *bool
 	VlanDefaultPVID   *uint16
+	GroupFwdMask      *uint16
 }
 
 func (bridge *Bridge) Attrs() *LinkAttrs {
@@ -315,6 +318,9 @@ type Macvlan struct {
 
 	// MACAddrs is only populated for Macvlan SOURCE links
 	MACAddrs []net.HardwareAddr
+
+	BCQueueLen     uint32
+	UsedBCQueueLen uint32
 }
 
 func (macvlan *Macvlan) Attrs() *LinkAttrs {
@@ -750,6 +756,7 @@ const (
 	BOND_XMIT_HASH_POLICY_LAYER2_3
 	BOND_XMIT_HASH_POLICY_ENCAP2_3
 	BOND_XMIT_HASH_POLICY_ENCAP3_4
+	BOND_XMIT_HASH_POLICY_VLAN_SRCMAC
 	BOND_XMIT_HASH_POLICY_UNKNOWN
 )
 
@@ -759,6 +766,7 @@ var bondXmitHashPolicyToString = map[BondXmitHashPolicy]string{
 	BOND_XMIT_HASH_POLICY_LAYER2_3: "layer2+3",
 	BOND_XMIT_HASH_POLICY_ENCAP2_3: "encap2+3",
 	BOND_XMIT_HASH_POLICY_ENCAP3_4: "encap3+4",
+	BOND_XMIT_HASH_POLICY_VLAN_SRCMAC: "vlan+srcmac",
 }
 var StringToBondXmitHashPolicyMap = map[string]BondXmitHashPolicy{
 	"layer2":   BOND_XMIT_HASH_POLICY_LAYER2,
@@ -766,6 +774,7 @@ var StringToBondXmitHashPolicyMap = map[string]BondXmitHashPolicy{
 	"layer2+3": BOND_XMIT_HASH_POLICY_LAYER2_3,
 	"encap2+3": BOND_XMIT_HASH_POLICY_ENCAP2_3,
 	"encap3+4": BOND_XMIT_HASH_POLICY_ENCAP3_4,
+	"vlan+srcmac": BOND_XMIT_HASH_POLICY_VLAN_SRCMAC,
 }
 
 // BondLacpRate type
@@ -1021,16 +1030,18 @@ func (v *VrfSlave) SlaveType() string {
 // https://github.com/torvalds/linux/blob/47ec5303d73ea344e84f46660fff693c57641386/drivers/net/geneve.c#L1209-L1223
 type Geneve struct {
 	LinkAttrs
-	ID             uint32 // vni
-	Remote         net.IP
-	Ttl            uint8
-	Tos            uint8
-	Dport          uint16
-	UdpCsum        uint8
-	UdpZeroCsum6Tx uint8
-	UdpZeroCsum6Rx uint8
-	Link           uint32
-	FlowBased      bool
+	ID                uint32 // vni
+	Remote            net.IP
+	Ttl               uint8
+	Tos               uint8
+	Dport             uint16
+	UdpCsum           uint8
+	UdpZeroCsum6Tx    uint8
+	UdpZeroCsum6Rx    uint8
+	Link              uint32
+	FlowBased         bool
+	InnerProtoInherit bool
+	Df                GeneveDf
 }
 
 func (geneve *Geneve) Attrs() *LinkAttrs {
@@ -1040,6 +1051,15 @@ func (geneve *Geneve) Attrs() *LinkAttrs {
 func (geneve *Geneve) Type() string {
 	return "geneve"
 }
+
+type GeneveDf uint8
+
+const (
+	GENEVE_DF_UNSET GeneveDf = iota
+	GENEVE_DF_SET
+	GENEVE_DF_INHERIT
+	GENEVE_DF_MAX
+)
 
 // Gretap devices must specify LocalIP and RemoteIP on create
 type Gretap struct {

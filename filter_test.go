@@ -2276,6 +2276,108 @@ func TestFilterU32PoliceAddDel(t *testing.T) {
 	}
 }
 
+func TestFilterU32DirectPoliceAddDel(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	qdisc := &Ingress{
+		QdiscAttrs: QdiscAttrs{
+			LinkIndex: link.Attrs().Index,
+			Handle:    MakeHandle(0xffff, 0),
+			Parent:    HANDLE_INGRESS,
+		},
+	}
+	if err := QdiscAdd(qdisc); err != nil {
+		t.Fatal(err)
+	}
+
+	const (
+		policeRate     = 0x40000000 // 1 Gbps
+		policeBurst    = 0x19000    // 100 KB
+		policePeakRate = 0x4000     // 16 Kbps
+	)
+
+	police := NewPoliceAction()
+	police.Rate = policeRate
+	police.PeakRate = policePeakRate
+	police.Burst = policeBurst
+	police.ExceedAction = TC_POLICE_SHOT
+	police.NotExceedAction = TC_POLICE_UNSPEC
+
+	classId := MakeHandle(1, 1)
+	filter := &U32{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+		},
+		ClassId: classId,
+		Police:  police,
+	}
+
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+
+	filters, err := FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	u32, ok := filters[0].(*U32)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+
+	if u32.Police == nil {
+		t.Fatalf("No police in filter")
+	}
+
+	if u32.Police.Rate != policeRate {
+		t.Fatal("Filter Rate doesn't match")
+	}
+
+	if u32.Police.PeakRate != policePeakRate {
+		t.Fatal("Filter PeakRate doesn't match")
+	}
+
+	if u32.Police.LinkLayer != nl.LINKLAYER_ETHERNET {
+		t.Fatal("Filter LinkLayer doesn't match")
+	}
+
+	if err := QdiscDel(qdisc); err != nil {
+		t.Fatal(err)
+	}
+	qdiscs, err := SafeQdiscList(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := false
+	for _, v := range qdiscs {
+		if _, ok := v.(*Ingress); ok {
+			found = true
+			break
+		}
+	}
+	if found {
+		t.Fatal("Failed to remove qdisc")
+	}
+}
+
 func TestFilterChainAddDel(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()

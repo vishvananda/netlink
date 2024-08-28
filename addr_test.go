@@ -145,58 +145,65 @@ func TestAddrAddReplace(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
-	var addr = &Addr{IPNet: address}
+	for _, nilLink := range []bool{false, true} {
+		var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
+		var addr = &Addr{IPNet: address}
 
-	link, err := LinkByName("lo")
-	if err != nil {
-		t.Fatal(err)
-	}
+		link, err := LinkByName("lo")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	err = AddrAdd(link, addr)
-	if err != nil {
-		t.Fatal(err)
-	}
+		if nilLink {
+			addr.LinkIndex = link.Attrs().Index
+			link = nil
+		}
 
-	addrs, err := AddrList(link, FAMILY_ALL)
-	if err != nil {
-		t.Fatal(err)
-	}
+		err = AddrAdd(link, addr)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if len(addrs) != 1 {
-		t.Fatal("Address not added properly")
-	}
+		addrs, err := AddrList(link, FAMILY_ALL)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	err = AddrAdd(link, addr)
-	if err == nil {
-		t.Fatal("Re-adding address should fail (but succeeded unexpectedly).")
-	}
+		if len(addrs) != 1 {
+			t.Fatal("Address not added properly")
+		}
 
-	err = AddrReplace(link, addr)
-	if err != nil {
-		t.Fatal("Replacing address failed.")
-	}
+		err = AddrAdd(link, addr)
+		if err == nil {
+			t.Fatal("Re-adding address should fail (but succeeded unexpectedly).")
+		}
 
-	addrs, err = AddrList(link, FAMILY_ALL)
-	if err != nil {
-		t.Fatal(err)
-	}
+		err = AddrReplace(link, addr)
+		if err != nil {
+			t.Fatal("Replacing address failed.")
+		}
 
-	if len(addrs) != 1 {
-		t.Fatal("Address not added properly")
-	}
+		addrs, err = AddrList(link, FAMILY_ALL)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if err = AddrDel(link, addr); err != nil {
-		t.Fatal(err)
-	}
+		if len(addrs) != 1 {
+			t.Fatal("Address not added properly")
+		}
 
-	addrs, err = AddrList(link, FAMILY_ALL)
-	if err != nil {
-		t.Fatal(err)
-	}
+		if err = AddrDel(link, addr); err != nil {
+			t.Fatal(err)
+		}
 
-	if len(addrs) != 0 {
-		t.Fatal("Address not removed properly")
+		addrs, err = AddrList(link, FAMILY_ALL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(addrs) != 0 {
+			t.Fatal("Address not removed properly")
+		}
 	}
 }
 

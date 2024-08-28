@@ -23,7 +23,7 @@ import (
 
 type tearDownNetlinkTest func()
 
-func skipUnlessRoot(t *testing.T) {
+func skipUnlessRoot(t testing.TB) {
 	t.Helper()
 
 	if os.Getuid() != 0 {
@@ -31,7 +31,40 @@ func skipUnlessRoot(t *testing.T) {
 	}
 }
 
-func setUpNetlinkTest(t *testing.T) tearDownNetlinkTest {
+func skipUnlessKModuleLoaded(t *testing.T, moduleNames ...string) {
+	t.Helper()
+	file, err := ioutil.ReadFile("/proc/modules")
+	if err != nil {
+		t.Fatal("Failed to open /proc/modules", err)
+	}
+
+	foundRequiredMods := make(map[string]bool)
+	lines := strings.Split(string(file), "\n")
+
+	for _, name := range moduleNames {
+		foundRequiredMods[name] = false
+		for _, line := range lines {
+			n := strings.Split(line, " ")[0]
+			if n == name {
+				foundRequiredMods[name] = true
+				break
+			}
+		}
+	}
+
+	failed := false
+	for _, name := range moduleNames {
+		if found, _ := foundRequiredMods[name]; !found {
+			t.Logf("Test requires missing kmodule %q.", name)
+			failed = true
+		}
+	}
+	if failed {
+		t.SkipNow()
+	}
+}
+
+func setUpNetlinkTest(t testing.TB) tearDownNetlinkTest {
 	skipUnlessRoot(t)
 
 	// new temporary namespace so we don't pollute the host
@@ -158,24 +191,42 @@ func setUpSEG6NetlinkTest(t *testing.T) tearDownNetlinkTest {
 	return setUpNetlinkTest(t)
 }
 
-func setUpNetlinkTestWithKModule(t *testing.T, name string) tearDownNetlinkTest {
+func setUpNetlinkTestWithKModule(t *testing.T, moduleNames ...string) tearDownNetlinkTest {
+	skipUnlessKModuleLoaded(t, moduleNames...)
+	return setUpNetlinkTest(t)
+}
+func setUpNamedNetlinkTestWithKModule(t *testing.T, moduleNames ...string) (string, tearDownNetlinkTest) {
 	file, err := ioutil.ReadFile("/proc/modules")
 	if err != nil {
 		t.Fatal("Failed to open /proc/modules", err)
 	}
-	found := false
-	for _, line := range strings.Split(string(file), "\n") {
-		n := strings.Split(line, " ")[0]
-		if n == name {
-			found = true
-			break
-		}
 
+	foundRequiredMods := make(map[string]bool)
+	lines := strings.Split(string(file), "\n")
+
+	for _, name := range moduleNames {
+		foundRequiredMods[name] = false
+		for _, line := range lines {
+			n := strings.Split(line, " ")[0]
+			if n == name {
+				foundRequiredMods[name] = true
+				break
+			}
+		}
 	}
-	if !found {
-		t.Skipf("Test requires kmodule %q.", name)
+
+	failed := false
+	for _, name := range moduleNames {
+		if found, _ := foundRequiredMods[name]; !found {
+			t.Logf("Test requires missing kmodule %q.", name)
+			failed = true
+		}
 	}
-	return setUpNetlinkTest(t)
+	if failed {
+		t.SkipNow()
+	}
+
+	return setUpNamedNetlinkTest(t)
 }
 
 func remountSysfs() error {

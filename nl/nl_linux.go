@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -488,10 +489,30 @@ func (req *NetlinkRequest) AddRawData(data []byte) {
 	req.RawData = append(req.RawData, data...)
 }
 
-// Execute the request against a the given sockType.
+// Execute the request against the given sockType.
 // Returns a list of netlink messages in serialized format, optionally filtered
 // by resType.
 func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, error) {
+	var res [][]byte
+	err := req.ExecuteIter(sockType, resType, func(msg []byte) bool {
+		res = append(res, msg)
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// ExecuteIter executes the request against the given sockType.
+// Calls the provided callback func once for each netlink message.
+// If the callback returns false, it is not called again, but
+// the remaining messages are consumed/discarded.
+//
+// Thread safety: ExecuteIter holds a lock on the socket until
+// it finishes iteration so the callback must not call back into
+// the netlink API.
+func (req *NetlinkRequest) ExecuteIter(sockType int, resType uint16, f func(msg []byte) bool) error {
 	var (
 		s   *NetlinkSocket
 		err error
@@ -508,18 +529,18 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 	if s == nil {
 		s, err = getNetlinkSocket(sockType)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if err := s.SetSendTimeout(&SocketTimeoutTv); err != nil {
-			return nil, err
+			return err
 		}
 		if err := s.SetReceiveTimeout(&SocketTimeoutTv); err != nil {
-			return nil, err
+			return err
 		}
 		if EnableErrorMessageReporting {
 			if err := s.SetExtAck(true); err != nil {
-				return nil, err
+				return err
 			}
 		}
 
@@ -530,41 +551,44 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 	}
 
 	if err := s.Send(req); err != nil {
-		return nil, err
+		return err
 	}
 
 	pid, err := s.GetPid()
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	var res [][]byte
 
 done:
 	for {
 		msgs, from, err := s.Receive()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if from.Pid != PidKernel {
-			return nil, fmt.Errorf("Wrong sender portid %d, expected %d", from.Pid, PidKernel)
+			return fmt.Errorf("Wrong sender portid %d, expected %d", from.Pid, PidKernel)
 		}
 		for _, m := range msgs {
 			if m.Header.Seq != req.Seq {
 				if sharedSocket {
 					continue
 				}
-				return nil, fmt.Errorf("Wrong Seq nr %d, expected %d", m.Header.Seq, req.Seq)
+				return fmt.Errorf("Wrong Seq nr %d, expected %d", m.Header.Seq, req.Seq)
 			}
 			if m.Header.Pid != pid {
 				continue
 			}
 
 			if m.Header.Flags&unix.NLM_F_DUMP_INTR != 0 {
-				return nil, syscall.Errno(unix.EINTR)
+				return syscall.Errno(unix.EINTR)
 			}
 
 			if m.Header.Type == unix.NLMSG_DONE || m.Header.Type == unix.NLMSG_ERROR {
+				// NLMSG_DONE might have no payload, if so assume no error.
+				if m.Header.Type == unix.NLMSG_DONE && len(m.Data) == 0 {
+					break done
+				}
+
 				native := NativeEndian()
 				errno := int32(native.Uint32(m.Data[0:4]))
 				if errno == 0 {
@@ -595,18 +619,26 @@ done:
 					}
 				}
 
-				return nil, err
+				return err
 			}
 			if resType != 0 && m.Header.Type != resType {
 				continue
 			}
-			res = append(res, m.Data)
+			if cont := f(m.Data); !cont {
+				// Drain the rest of the messages from the kernel but don't
+				// pass them to the iterator func.
+				f = dummyMsgIterFunc
+			}
 			if m.Header.Flags&unix.NLM_F_MULTI == 0 {
 				break done
 			}
 		}
 	}
-	return res, nil
+	return nil
+}
+
+func dummyMsgIterFunc(msg []byte) bool {
+	return true
 }
 
 // Create a new netlink request from proto and flags
@@ -624,8 +656,9 @@ func NewNetlinkRequest(proto, flags int) *NetlinkRequest {
 }
 
 type NetlinkSocket struct {
-	fd  int32
-	lsa unix.SockaddrNetlink
+	fd   int32
+	file *os.File
+	lsa  unix.SockaddrNetlink
 	sync.Mutex
 }
 
@@ -634,8 +667,13 @@ func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = unix.SetNonblock(fd, true)
+	if err != nil {
+		return nil, err
+	}
 	s := &NetlinkSocket{
-		fd: int32(fd),
+		fd:   int32(fd),
+		file: os.NewFile(uintptr(fd), "netlink"),
 	}
 	s.lsa.Family = unix.AF_NETLINK
 	if err := unix.Bind(fd, &s.lsa); err != nil {
@@ -722,8 +760,13 @@ func Subscribe(protocol int, groups ...uint) (*NetlinkSocket, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = unix.SetNonblock(fd, true)
+	if err != nil {
+		return nil, err
+	}
 	s := &NetlinkSocket{
-		fd: int32(fd),
+		fd:   int32(fd),
+		file: os.NewFile(uintptr(fd), "netlink"),
 	}
 	s.lsa.Family = unix.AF_NETLINK
 
@@ -752,33 +795,36 @@ func SubscribeAt(newNs, curNs netns.NsHandle, protocol int, groups ...uint) (*Ne
 }
 
 func (s *NetlinkSocket) Close() {
-	fd := int(atomic.SwapInt32(&s.fd, -1))
-	unix.Close(fd)
+	s.file.Close()
 }
 
 func (s *NetlinkSocket) GetFd() int {
-	return int(atomic.LoadInt32(&s.fd))
+	return int(s.fd)
 }
 
 func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
-	fd := int(atomic.LoadInt32(&s.fd))
-	if fd < 0 {
-		return fmt.Errorf("Send called on a closed socket")
-	}
-	if err := unix.Sendto(fd, request.Serialize(), 0, &s.lsa); err != nil {
-		return err
-	}
-	return nil
+	return unix.Sendto(int(s.fd), request.Serialize(), 0, &s.lsa)
 }
 
 func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetlink, error) {
-	fd := int(atomic.LoadInt32(&s.fd))
-	if fd < 0 {
-		return nil, nil, fmt.Errorf("Receive called on a closed socket")
+	rawConn, err := s.file.SyscallConn()
+	if err != nil {
+		return nil, nil, err
 	}
-	var fromAddr *unix.SockaddrNetlink
-	var rb [RECEIVE_BUFFER_SIZE]byte
-	nr, from, err := unix.Recvfrom(fd, rb[:], 0)
+	var (
+		fromAddr *unix.SockaddrNetlink
+		rb       [RECEIVE_BUFFER_SIZE]byte
+		nr       int
+		from     unix.Sockaddr
+		innerErr error
+	)
+	err = rawConn.Read(func(fd uintptr) (done bool) {
+		nr, from, innerErr = unix.Recvfrom(int(fd), rb[:], 0)
+		return innerErr != unix.EWOULDBLOCK
+	})
+	if innerErr != nil {
+		err = innerErr
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -789,8 +835,9 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 	if nr < unix.NLMSG_HDRLEN {
 		return nil, nil, fmt.Errorf("Got short response from netlink")
 	}
-	rb2 := make([]byte, nr)
-	copy(rb2, rb[:nr])
+	msgLen := nlmAlignOf(nr)
+	rb2 := make([]byte, msgLen)
+	copy(rb2, rb[:msgLen])
 	nl, err := syscall.ParseNetlinkMessage(rb2)
 	if err != nil {
 		return nil, nil, err
@@ -832,8 +879,7 @@ func (s *NetlinkSocket) SetExtAck(enable bool) error {
 }
 
 func (s *NetlinkSocket) GetPid() (uint32, error) {
-	fd := int(atomic.LoadInt32(&s.fd))
-	lsa, err := unix.Getsockname(fd)
+	lsa, err := unix.Getsockname(int(s.fd))
 	if err != nil {
 		return 0, err
 	}
@@ -877,6 +923,12 @@ func Uint16Attr(v uint16) []byte {
 	return bytes
 }
 
+func BEUint16Attr(v uint16) []byte {
+	bytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(bytes, v)
+	return bytes
+}
+
 func Uint32Attr(v uint32) []byte {
 	native := NativeEndian()
 	bytes := make([]byte, 4)
@@ -884,10 +936,22 @@ func Uint32Attr(v uint32) []byte {
 	return bytes
 }
 
+func BEUint32Attr(v uint32) []byte {
+	bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(bytes, v)
+	return bytes
+}
+
 func Uint64Attr(v uint64) []byte {
 	native := NativeEndian()
 	bytes := make([]byte, 8)
 	native.PutUint64(bytes, v)
+	return bytes
+}
+
+func BEUint64Attr(v uint64) []byte {
+	bytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(bytes, v)
 	return bytes
 }
 
@@ -903,6 +967,22 @@ func ParseRouteAttr(b []byte) ([]syscall.NetlinkRouteAttr, error) {
 		b = b[alen:]
 	}
 	return attrs, nil
+}
+
+// ParseRouteAttrAsMap parses provided buffer that contains raw RtAttrs and returns a map of parsed
+// atttributes indexed by attribute type or error if occured.
+func ParseRouteAttrAsMap(b []byte) (map[uint16]syscall.NetlinkRouteAttr, error) {
+	attrMap := make(map[uint16]syscall.NetlinkRouteAttr)
+
+	attrs, err := ParseRouteAttr(b)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, attr := range attrs {
+		attrMap[attr.Attr.Type] = attr
+	}
+	return attrMap, nil
 }
 
 func netlinkRouteAttrAndValue(b []byte) (*unix.RtAttr, []byte, int, error) {
