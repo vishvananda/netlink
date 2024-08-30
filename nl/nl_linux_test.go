@@ -97,6 +97,69 @@ func TestIfSocketCloses(t *testing.T) {
 	}
 }
 
+func TestReceiveTimeout(t *testing.T) {
+	nlSock, err := getNetlinkSocket(unix.NETLINK_ROUTE)
+	if err != nil {
+		t.Fatalf("Error creating the socket: %v", err)
+	}
+	// Even if the test fails because the timeout doesn't work, closing the
+	// socket at the end of the test should result in an EAGAIN (as long as
+	// TestIfSocketCloses completed, otherwise this test will leak the
+	// goroutines running the Receive).
+	defer nlSock.Close()
+	const failAfter = time.Second
+
+	tests := []struct {
+		name    string
+		timeout time.Duration
+	}{
+		{
+			name:    "1us timeout", // The smallest value accepted by Handle.SetSocketTimeout
+			timeout: time.Microsecond,
+		},
+		{
+			name:    "100ms timeout",
+			timeout: 100 * time.Millisecond,
+		},
+		{
+			name:    "500ms timeout",
+			timeout: 500 * time.Millisecond,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			timeout := unix.NsecToTimeval(int64(tc.timeout))
+			nlSock.SetReceiveTimeout(&timeout)
+
+			doneC := make(chan time.Duration)
+			errC := make(chan error)
+			go func() {
+				start := time.Now()
+				_, _, err := nlSock.Receive()
+				dur := time.Since(start)
+				if err != unix.EAGAIN {
+					errC <- err
+					return
+				}
+				doneC <- dur
+			}()
+
+			failTimerC := time.After(failAfter)
+			select {
+			case dur := <-doneC:
+				if dur < tc.timeout || dur > (tc.timeout+(100*time.Millisecond)) {
+					t.Fatalf("Expected timeout %v got %v", tc.timeout, dur)
+				}
+			case err := <-errC:
+				t.Fatalf("Expected EAGAIN, but got: %v", err)
+			case <-failTimerC:
+				t.Fatalf("No timeout received")
+			}
+		})
+	}
+}
+
 func (msg *CnMsgOp) write(b []byte) {
 	native := NativeEndian()
 	native.PutUint32(b[0:4], msg.ID.Idx)

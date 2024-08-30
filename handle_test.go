@@ -12,11 +12,9 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
-	"golang.org/x/sys/unix"
 )
 
 func TestHandleCreateClose(t *testing.T) {
@@ -122,13 +120,22 @@ func TestHandleTimeout(t *testing.T) {
 	defer h.Close()
 
 	for _, sh := range h.sockets {
-		verifySockTimeVal(t, sh.Socket.GetFd(), unix.Timeval{Sec: 0, Usec: 0})
+		verifySockTimeVal(t, sh.Socket, time.Duration(0))
 	}
 
-	h.SetSocketTimeout(2*time.Second + 8*time.Millisecond)
+	const timeout = 2*time.Second + 8*time.Millisecond
+	h.SetSocketTimeout(timeout)
 
 	for _, sh := range h.sockets {
-		verifySockTimeVal(t, sh.Socket.GetFd(), unix.Timeval{Sec: 2, Usec: 8000})
+		verifySockTimeVal(t, sh.Socket, timeout)
+	}
+}
+
+func verifySockTimeVal(t *testing.T, socket *nl.NetlinkSocket, expTimeout time.Duration) {
+	t.Helper()
+	send, receive := socket.GetTimeouts()
+	if send != expTimeout || receive != expTimeout {
+		t.Fatalf("Expected timeout: %v, got Send: %v, Receive: %v", expTimeout, send, receive)
 	}
 }
 
@@ -154,30 +161,6 @@ func TestHandleReceiveBuffer(t *testing.T) {
 			t.Fatalf("Unexpected socket receive buffer size: %d (expected around %d)",
 				s, 65536)
 		}
-	}
-}
-
-func verifySockTimeVal(t *testing.T, fd int, tv unix.Timeval) {
-	var (
-		tr unix.Timeval
-		v  = uint32(0x10)
-	)
-	_, _, errno := unix.Syscall6(unix.SYS_GETSOCKOPT, uintptr(fd), unix.SOL_SOCKET, unix.SO_SNDTIMEO, uintptr(unsafe.Pointer(&tr)), uintptr(unsafe.Pointer(&v)), 0)
-	if errno != 0 {
-		t.Fatal(errno)
-	}
-
-	if tr.Sec != tv.Sec || tr.Usec != tv.Usec {
-		t.Fatalf("Unexpected timeout value read: %v. Expected: %v", tr, tv)
-	}
-
-	_, _, errno = unix.Syscall6(unix.SYS_GETSOCKOPT, uintptr(fd), unix.SOL_SOCKET, unix.SO_RCVTIMEO, uintptr(unsafe.Pointer(&tr)), uintptr(unsafe.Pointer(&v)), 0)
-	if errno != 0 {
-		t.Fatal(errno)
-	}
-
-	if tr.Sec != tv.Sec || tr.Usec != tv.Usec {
-		t.Fatalf("Unexpected timeout value read: %v. Expected: %v", tr, tv)
 	}
 }
 
