@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -128,10 +129,14 @@ func (h *Handle) FouDel(f Fou) error {
 	return nil
 }
 
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func FouList(fam int) ([]Fou, error) {
 	return pkgHandle.FouList(fam)
 }
 
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func (h *Handle) FouList(fam int) ([]Fou, error) {
 	fam_id, err := FouFamilyId()
 	if err != nil {
@@ -150,9 +155,9 @@ func (h *Handle) FouList(fam int) ([]Fou, error) {
 
 	req.AddRawData(raw)
 
-	msgs, err := req.Execute(unix.NETLINK_GENERIC, 0)
-	if err != nil {
-		return nil, err
+	msgs, executeErr := req.Execute(unix.NETLINK_GENERIC, 0)
+	if executeErr != nil && !errors.Is(err, ErrDumpInterrupted) {
+		return nil, executeErr
 	}
 
 	fous := make([]Fou, 0, len(msgs))
@@ -165,7 +170,7 @@ func (h *Handle) FouList(fam int) ([]Fou, error) {
 		fous = append(fous, f)
 	}
 
-	return fous, nil
+	return fous, executeErr
 }
 
 func deserializeFouMsg(msg []byte) (Fou, error) {
