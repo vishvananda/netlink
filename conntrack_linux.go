@@ -45,6 +45,9 @@ type InetFamily uint8
 
 // ConntrackTableList returns the flow list of a table of a specific family
 // conntrack -L [table] [options]          List conntrack or expectation table
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func ConntrackTableList(table ConntrackTableType, family InetFamily) ([]*ConntrackFlow, error) {
 	return pkgHandle.ConntrackTableList(table, family)
 }
@@ -84,10 +87,13 @@ func ConntrackDeleteFilters(table ConntrackTableType, family InetFamily, filters
 
 // ConntrackTableList returns the flow list of a table of a specific family using the netlink handle passed
 // conntrack -L [table] [options]          List conntrack or expectation table
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
 func (h *Handle) ConntrackTableList(table ConntrackTableType, family InetFamily) ([]*ConntrackFlow, error) {
-	res, err := h.dumpConntrackTable(table, family)
-	if err != nil {
-		return nil, err
+	res, executeErr := h.dumpConntrackTable(table, family)
+	if executeErr != nil && !errors.Is(executeErr, ErrDumpInterrupted) {
+		return nil, executeErr
 	}
 
 	// Deserialize all the flows
@@ -96,7 +102,7 @@ func (h *Handle) ConntrackTableList(table ConntrackTableType, family InetFamily)
 		result = append(result, parseRawData(dataRaw))
 	}
 
-	return result, nil
+	return result, executeErr
 }
 
 // ConntrackTableFlush flushes all the flows of a specified table using the netlink handle passed
