@@ -1,8 +1,10 @@
+//go:build linux
 // +build linux
 
 package netlink
 
 import (
+	"net"
 	"testing"
 )
 
@@ -33,20 +35,50 @@ func TestFouDeserializeMsg(t *testing.T) {
 		}
 	}
 
-	// deserialize truncated attribute header
-	msg = []byte{3, 1, 0, 0, 5, 0}
-	if _, err := deserializeFouMsg(msg); err == nil {
-		t.Error("expected attribute header truncated error")
-	} else if err != ErrAttrHeaderTruncated {
-		t.Errorf("unexpected error: %s", err.Error())
+	// deserialize a valid message(kernel >= 5.2)
+	msg = []byte{3, 1, 0, 0, 5, 0, 2, 0, 2, 0, 0, 0, 6, 0, 1, 0, 43, 103, 0, 0, 6, 0, 10, 0, 86, 206, 0, 0, 5, 0, 3, 0, 0, 0, 0, 0, 5, 0, 4, 0, 2, 0, 0, 0, 8, 0, 11, 0, 0, 0, 0, 0, 8, 0, 6, 0, 1, 2, 3, 4, 8, 0, 8, 0, 5, 6, 7, 8}
+	if fou, err := deserializeFouMsg(msg); err != nil {
+		t.Error(err.Error())
+	} else {
+		if fou.Family != FAMILY_V4 {
+			t.Errorf("expected family %d, got %d", FAMILY_V4, fou.Family)
+		}
+
+		if fou.Port != 11111 {
+			t.Errorf("expected port 5555, got %d", fou.Port)
+		}
+
+		if fou.Protocol != 0 { // gue
+			t.Errorf("expected protocol 0, got %d", fou.Protocol)
+		}
+
+		if fou.IfIndex != 0 {
+			t.Errorf("expected ifindex 0, got %d", fou.Protocol)
+		}
+
+		if fou.EncapType != FOU_ENCAP_GUE {
+			t.Errorf("expected encap type %d, got %d", FOU_ENCAP_GUE, fou.EncapType)
+		}
+
+		if expected := net.IPv4(1, 2, 3, 4); !fou.Local.Equal(expected) {
+			t.Errorf("expected local %v, got %v", expected, fou.Local)
+		}
+
+		if expected := net.IPv4(5, 6, 7, 8); !fou.Peer.Equal(expected) {
+			t.Errorf("expected peer %v, got %v", expected, fou.Peer)
+		}
+
+		if fou.PeerPort != 22222 {
+			t.Errorf("expected peer port 0, got %d", fou.PeerPort)
+		}
 	}
 
-	// deserialize truncated attribute header
-	msg = []byte{3, 1, 0, 0, 5, 0, 2, 0, 2, 0, 0}
-	if _, err := deserializeFouMsg(msg); err == nil {
-		t.Error("expected attribute body truncated error")
-	} else if err != ErrAttrBodyTruncated {
+	// unknown attribute should be skipped
+	msg = []byte{3, 1, 0, 0, 5, 0, 112, 0, 2, 0, 0, 0, 5, 0, 2, 0, 2, 0, 0}
+	if fou, err := deserializeFouMsg(msg); err != nil {
 		t.Errorf("unexpected error: %s", err.Error())
+	} else if fou.Family != 2 {
+		t.Errorf("expected family 2, got %d", fou.Family)
 	}
 }
 
