@@ -104,7 +104,6 @@ func testLinkAddDel(t *testing.T, link Link) {
 				}
 			}
 		}
-
 	}
 
 	if veth, ok := result.(*Veth); ok {
@@ -540,7 +539,6 @@ func compareGretun(t *testing.T, expected, actual *Gretun) {
 }
 
 func compareVxlan(t *testing.T, expected, actual *Vxlan) {
-
 	if actual.VxlanId != expected.VxlanId {
 		t.Fatal("Vxlan.VxlanId doesn't match")
 	}
@@ -725,12 +723,14 @@ func TestLinkAddDelGeneve(t *testing.T) {
 	testLinkAddDel(t, &Geneve{
 		LinkAttrs: LinkAttrs{Name: "foo4", EncapType: "geneve"},
 		ID:        0x1000,
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Remote:    net.IPv4(127, 0, 0, 1),
+	})
 
 	testLinkAddDel(t, &Geneve{
 		LinkAttrs: LinkAttrs{Name: "foo6", EncapType: "geneve"},
 		ID:        0x1000,
-		Remote:    net.ParseIP("2001:db8:ef33::2")})
+		Remote:    net.ParseIP("2001:db8:ef33::2"),
+	})
 }
 
 func TestLinkAddDelGeneveFlowBased(t *testing.T) {
@@ -740,7 +740,8 @@ func TestLinkAddDelGeneveFlowBased(t *testing.T) {
 	testLinkAddDel(t, &Geneve{
 		LinkAttrs: LinkAttrs{Name: "foo"},
 		Dport:     1234,
-		FlowBased: true})
+		FlowBased: true,
+	})
 }
 
 func TestGeneveCompareToIP(t *testing.T) {
@@ -792,14 +793,16 @@ func TestLinkAddDelGretap(t *testing.T) {
 		OKey:      0x101,
 		PMtuDisc:  1,
 		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Remote:    net.IPv4(127, 0, 0, 1),
+	})
 
 	testLinkAddDel(t, &Gretap{
 		LinkAttrs: LinkAttrs{Name: "foo6"},
 		IKey:      0x101,
 		OKey:      0x101,
 		Local:     net.ParseIP("2001:db8:abcd::1"),
-		Remote:    net.ParseIP("2001:db8:ef33::2")})
+		Remote:    net.ParseIP("2001:db8:ef33::2"),
+	})
 }
 
 func TestLinkAddDelGretun(t *testing.T) {
@@ -809,12 +812,14 @@ func TestLinkAddDelGretun(t *testing.T) {
 	testLinkAddDel(t, &Gretun{
 		LinkAttrs: LinkAttrs{Name: "foo4"},
 		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Remote:    net.IPv4(127, 0, 0, 1),
+	})
 
 	testLinkAddDel(t, &Gretun{
 		LinkAttrs: LinkAttrs{Name: "foo6"},
 		Local:     net.ParseIP("2001:db8:abcd::1"),
-		Remote:    net.ParseIP("2001:db8:ef33::2")})
+		Remote:    net.ParseIP("2001:db8:ef33::2"),
+	})
 }
 
 func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
@@ -825,13 +830,15 @@ func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "foo"},
 		Local:     net.IPv4(127, 0, 0, 1),
 		IKey:      1234,
-		OKey:      1234})
+		OKey:      1234,
+	})
 
 	testLinkAddDel(t, &Gretun{
 		LinkAttrs: LinkAttrs{Name: "foo6"},
 		Local:     net.ParseIP("2001:db8:1234::4"),
 		IKey:      5678,
-		OKey:      7890})
+		OKey:      7890,
+	})
 }
 
 func TestLinkAddDelGretunFlowBased(t *testing.T) {
@@ -842,7 +849,8 @@ func TestLinkAddDelGretunFlowBased(t *testing.T) {
 
 	testLinkAddDel(t, &Gretun{
 		LinkAttrs: LinkAttrs{Name: "foo"},
-		FlowBased: true})
+		FlowBased: true,
+	})
 }
 
 func TestLinkAddDelGretapFlowBased(t *testing.T) {
@@ -853,7 +861,8 @@ func TestLinkAddDelGretapFlowBased(t *testing.T) {
 
 	testLinkAddDel(t, &Gretap{
 		LinkAttrs: LinkAttrs{Name: "foo"},
-		FlowBased: true})
+		FlowBased: true,
+	})
 }
 
 func TestLinkAddDelVlan(t *testing.T) {
@@ -1434,7 +1443,6 @@ func TestLinkSetNs(t *testing.T) {
 	if err == nil {
 		t.Fatal("Other half of veth pair not deleted")
 	}
-
 }
 
 func TestLinkAddDelWireguard(t *testing.T) {
@@ -2003,7 +2011,6 @@ func TestLinkAltName(t *testing.T) {
 			t.Fatalf("Expected %s AltNames, got %s", altNamesStr, linkAltNamesStr)
 		}
 	}
-
 }
 
 func TestLinkSetARP(t *testing.T) {
@@ -2208,7 +2215,8 @@ func TestLinkSubscribeListExisting(t *testing.T) {
 	defer close(done)
 	if err := LinkSubscribeWithOptions(ch, done, LinkSubscribeOptions{
 		Namespace:    &newNs,
-		ListExisting: true},
+		ListExisting: true,
+	},
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -2321,7 +2329,8 @@ func TestLinkAddDelIptun(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "iptunfoo"},
 		PMtuDisc:  1,
 		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Remote:    net.IPv4(127, 0, 0, 1),
+	})
 }
 
 func TestLinkAddDelIptunFlowBased(t *testing.T) {
@@ -2364,7 +2373,8 @@ func TestLinkAddDelSittun(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "sittunfoo"},
 		PMtuDisc:  1,
 		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Remote:    net.IPv4(127, 0, 0, 1),
+	})
 }
 
 func TestLinkAddDelVti(t *testing.T) {
@@ -2376,14 +2386,16 @@ func TestLinkAddDelVti(t *testing.T) {
 		IKey:      0x101,
 		OKey:      0x101,
 		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Remote:    net.IPv4(127, 0, 0, 1),
+	})
 
 	testLinkAddDel(t, &Vti{
 		LinkAttrs: LinkAttrs{Name: "vtibar"},
 		IKey:      0x101,
 		OKey:      0x101,
 		Local:     net.IPv6loopback,
-		Remote:    net.IPv6loopback})
+		Remote:    net.IPv6loopback,
+	})
 }
 
 func TestLinkSetGSOMaxSize(t *testing.T) {
@@ -2943,7 +2955,8 @@ func TestLinkAddDelXfrmi(t *testing.T) {
 
 	testLinkAddDel(t, &Xfrmi{
 		LinkAttrs: LinkAttrs{Name: "xfrm123", ParentIndex: lo.Attrs().Index},
-		Ifid:      123})
+		Ifid:      123,
+	})
 }
 
 func TestLinkAddDelXfrmiNoId(t *testing.T) {
@@ -2953,11 +2966,11 @@ func TestLinkAddDelXfrmiNoId(t *testing.T) {
 	lo, _ := LinkByName("lo")
 
 	err := LinkAdd(&Xfrmi{
-		LinkAttrs: LinkAttrs{Name: "xfrm0", ParentIndex: lo.Attrs().Index}})
+		LinkAttrs: LinkAttrs{Name: "xfrm0", ParentIndex: lo.Attrs().Index},
+	})
 	if !errors.Is(err, unix.EINVAL) {
 		t.Errorf("Error returned expected to be EINVAL")
 	}
-
 }
 
 func TestLinkByNameWhenLinkIsNotFound(t *testing.T) {
@@ -3002,7 +3015,8 @@ func TestLinkAddDelTuntap(t *testing.T) {
 
 	testLinkAddDel(t, &Tuntap{
 		LinkAttrs: LinkAttrs{Name: "foo"},
-		Mode:      TUNTAP_MODE_TAP})
+		Mode:      TUNTAP_MODE_TAP,
+	})
 }
 
 func TestLinkAddDelTuntapMq(t *testing.T) {
@@ -3022,13 +3036,15 @@ func TestLinkAddDelTuntapMq(t *testing.T) {
 	testLinkAddDel(t, &Tuntap{
 		LinkAttrs: LinkAttrs{Name: "foo"},
 		Mode:      TUNTAP_MODE_TAP,
-		Queues:    4})
+		Queues:    4,
+	})
 
 	testLinkAddDel(t, &Tuntap{
 		LinkAttrs: LinkAttrs{Name: "foo"},
 		Mode:      TUNTAP_MODE_TAP,
 		Queues:    4,
-		Flags:     TUNTAP_MULTI_QUEUE_DEFAULTS | TUNTAP_VNET_HDR})
+		Flags:     TUNTAP_MULTI_QUEUE_DEFAULTS | TUNTAP_VNET_HDR,
+	})
 }
 
 func TestLinkAddDelTuntapOwnerGroup(t *testing.T) {
