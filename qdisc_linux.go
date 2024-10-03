@@ -9,7 +9,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/vishvananda/netlink/nl"
+	"github.com/nsdavidson/netlink/nl"
 	"golang.org/x/sys/unix"
 )
 

@@ -1,6 +1,6 @@
 package netlink
 
-import "github.com/vishvananda/netlink/nl"
+import "github.com/nsdavidson/netlink/nl"
 
 const SOCK_ANY_COOKIE = uint64(nl.TCPDIAG_NOCOOKIE)<<32 + uint64(nl.TCPDIAG_NOCOOKIE)
 

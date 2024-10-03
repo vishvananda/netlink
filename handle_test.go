@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -13,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vishvananda/netlink/nl"
+	"github.com/nsdavidson/netlink/nl"
 	"github.com/vishvananda/netns"
 )
 
