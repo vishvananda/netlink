@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/vishvananda/netlink/nl"
+	"github.com/nsdavidson/netlink/nl"
 )
 
 func TestDevLinkGetDeviceList(t *testing.T) {

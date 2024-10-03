@@ -5,7 +5,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/vishvananda/netlink/nl"
+	"github.com/nsdavidson/netlink/nl"
 )
 
 // tests in this package require following modules: vdpa, vdpa_sim, vdpa_sim_net

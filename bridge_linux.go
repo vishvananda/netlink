@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/vishvananda/netlink/nl"
+	"github.com/nsdavidson/netlink/nl"
 	"golang.org/x/sys/unix"
 )
 
@@ -146,7 +146,7 @@ func (h *Handle) bridgeVlanModify(cmd int, link Link, vid, vidEnd uint16, pvid, 
 
 		vlanEndInfo.Flags |= nl.BRIDGE_VLAN_INFO_RANGE_END
 		br.AddRtAttr(nl.IFLA_BRIDGE_VLAN_INFO, vlanEndInfo.Serialize())
-	} else { 
+	} else {
 		br.AddRtAttr(nl.IFLA_BRIDGE_VLAN_INFO, vlanInfo.Serialize())
 	}
 
