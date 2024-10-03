@@ -164,6 +164,7 @@ type RouteUpdate struct {
 	Type      uint16
 	NlFlags   uint16
 	SourcePID uint32
+	FromPID   uint32
 	Route
 }
 
