@@ -1787,9 +1787,10 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 					continue
 				}
 				ch <- RouteUpdate{
-					Type:    m.Header.Type,
-					NlFlags: m.Header.Flags & (unix.NLM_F_REPLACE | unix.NLM_F_EXCL | unix.NLM_F_CREATE | unix.NLM_F_APPEND),
-					Route:   route,
+					Type:      m.Header.Type,
+					NlFlags:   m.Header.Flags & (unix.NLM_F_REPLACE | unix.NLM_F_EXCL | unix.NLM_F_CREATE | unix.NLM_F_APPEND),
+					Route:     route,
+					SourcePID: from.Pid,
 				}
 			}
 		}
