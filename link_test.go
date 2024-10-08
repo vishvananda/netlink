@@ -80,6 +80,12 @@ func testLinkAddDel(t *testing.T, link Link) {
 			if resultPrimary.Mode != inputPrimary.Mode {
 				t.Fatalf("Mode is %d, should be %d", int(resultPrimary.Mode), int(inputPrimary.Mode))
 			}
+			if resultPrimary.SupportsScrub() && resultPrimary.Scrub != inputPrimary.Scrub {
+				t.Fatalf("Scrub is %d, should be %d", int(resultPrimary.Scrub), int(inputPrimary.Scrub))
+			}
+			if resultPrimary.SupportsScrub() && resultPrimary.PeerScrub != inputPrimary.PeerScrub {
+				t.Fatalf("Peer Scrub is %d, should be %d", int(resultPrimary.PeerScrub), int(inputPrimary.PeerScrub))
+			}
 
 			if inputPrimary.peerLinkAttrs.Name != "" {
 				var resultPeer *Netkit
@@ -101,6 +107,15 @@ func testLinkAddDel(t *testing.T, link Link) {
 				}
 				if resultPrimary.IsPrimary() == resultPeer.IsPrimary() {
 					t.Fatalf("Both primary and peer device has the same value in IsPrimary() %t", resultPrimary.IsPrimary())
+				}
+				if resultPrimary.SupportsScrub() != resultPeer.SupportsScrub() {
+					t.Fatalf("Peer SupportsScrub() should return %v", resultPrimary.SupportsScrub())
+				}
+				if resultPrimary.PeerScrub != resultPeer.Scrub {
+					t.Fatalf("Scrub from peer is %d, should be %d", int(resultPeer.Scrub), int(resultPrimary.PeerScrub))
+				}
+				if resultPrimary.Scrub != resultPeer.PeerScrub {
+					t.Fatalf("PeerScrub from peer is %d, should be %d", int(resultPeer.PeerScrub), int(resultPrimary.Scrub))
 				}
 			}
 		}
@@ -1051,6 +1066,8 @@ func TestLinkAddDelNetkit(t *testing.T) {
 		Mode:       NETKIT_MODE_L2,
 		Policy:     NETKIT_POLICY_FORWARD,
 		PeerPolicy: NETKIT_POLICY_BLACKHOLE,
+		Scrub:      NETKIT_SCRUB_DEFAULT,
+		PeerScrub:  NETKIT_SCRUB_NONE,
 	}
 	peerAttr := &LinkAttrs{
 		Name: "bar",
