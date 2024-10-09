@@ -2676,6 +2676,8 @@ func addNetkitAttrs(nk *Netkit, linkInfo *nl.RtAttr, flag int) error {
 	data.AddRtAttr(nl.IFLA_NETKIT_MODE, nl.Uint32Attr(uint32(nk.Mode)))
 	data.AddRtAttr(nl.IFLA_NETKIT_POLICY, nl.Uint32Attr(uint32(nk.Policy)))
 	data.AddRtAttr(nl.IFLA_NETKIT_PEER_POLICY, nl.Uint32Attr(uint32(nk.PeerPolicy)))
+	data.AddRtAttr(nl.IFLA_NETKIT_SCRUB, nl.Uint32Attr(uint32(nk.Scrub)))
+	data.AddRtAttr(nl.IFLA_NETKIT_PEER_SCRUB, nl.Uint32Attr(uint32(nk.PeerScrub)))
 
 	if (flag & unix.NLM_F_EXCL) == 0 {
 		// Modifying peer link attributes will not take effect
@@ -2736,6 +2738,12 @@ func parseNetkitData(link Link, data []syscall.NetlinkRouteAttr) {
 			netkit.Policy = NetkitPolicy(native.Uint32(datum.Value[0:4]))
 		case nl.IFLA_NETKIT_PEER_POLICY:
 			netkit.PeerPolicy = NetkitPolicy(native.Uint32(datum.Value[0:4]))
+		case nl.IFLA_NETKIT_SCRUB:
+			netkit.supportsScrub = true
+			netkit.Scrub = NetkitScrub(native.Uint32(datum.Value[0:4]))
+		case nl.IFLA_NETKIT_PEER_SCRUB:
+			netkit.supportsScrub = true
+			netkit.PeerScrub = NetkitScrub(native.Uint32(datum.Value[0:4]))
 		}
 	}
 }
