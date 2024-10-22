@@ -26,7 +26,7 @@ jobs:
       run: go build ./...
 
     - name: Test
-      run: sudo -E env PATH=$PATH go test -v ./ ./nl
+      run: go test -exec 'sudo --preserve-env=CI,PATH -n' -v ./ ./nl
 
   build-macos:
     # netlink is Linux-only, but this ensures that netlink builds without error
