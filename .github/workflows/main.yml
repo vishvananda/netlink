@@ -22,6 +22,9 @@ jobs:
       run: ./.github/scripts/modprobe.sh
       shell: bash
 
+    - name: Build
+      run: go build ./...
+
     - name: Test
       run: sudo -E env PATH=$PATH go test -v ./ ./nl
 
