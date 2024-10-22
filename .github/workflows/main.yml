@@ -1,4 +1,4 @@
-name: Main 
+name: Main
 
 on:
   push:
@@ -11,6 +11,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    - name: Show env
+      run: env
+
     - uses: actions/checkout@v2
 
     - name: Set up Go
@@ -36,7 +39,7 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: 1.17
-          
+
     - name: Build
       run: go build ./...
 
