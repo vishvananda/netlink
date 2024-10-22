@@ -9,34 +9,42 @@ on:
 jobs:
 
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, ubuntu-24.04]
+        go-version: [1.17.x, 1.22.x, 1.23.x]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
-        go-version: 1.17
+        go-version: ${{ matrix.go-version }}
 
     - name: Kernel Modules
       run: ./.github/scripts/modprobe.sh
       shell: bash
 
+    - name: Build
+      run: go build ./...
+
     - name: Test
-      run: sudo -E env PATH=$PATH go test -v ./ ./nl
+      run: go test -exec 'sudo --preserve-env=CI,PATH -n' -v ./ ./nl
 
   build-macos:
     # netlink is Linux-only, but this ensures that netlink builds without error
     # on macOS, which helps catch missing build tags.
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
         go-version: 1.17
-          
+
     - name: Build
       run: go build ./...
 
