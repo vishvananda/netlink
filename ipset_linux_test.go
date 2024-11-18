@@ -2,8 +2,8 @@ package netlink
 
 import (
 	"bytes"
-	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/vishvananda/netlink/nl"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestParseIpsetProtocolResult(t *testing.T) {
-	msgBytes, err := ioutil.ReadFile("testdata/ipset_protocol_result")
+	msgBytes, err := os.ReadFile("testdata/ipset_protocol_result")
 	if err != nil {
 		t.Fatalf("reading test fixture failed: %v", err)
 	}
@@ -23,7 +23,7 @@ func TestParseIpsetProtocolResult(t *testing.T) {
 }
 
 func TestParseIpsetListResult(t *testing.T) {
-	msgBytes, err := ioutil.ReadFile("testdata/ipset_list_result")
+	msgBytes, err := os.ReadFile("testdata/ipset_list_result")
 	if err != nil {
 		t.Fatalf("reading test fixture failed: %v", err)
 	}
@@ -757,5 +757,78 @@ func TestIpsetMaxElements(t *testing.T) {
 	}
 	if len(result.Entries) != int(maxElements) {
 		t.Fatalf("expected '%d' entry be created, got '%d'", maxElements, len(result.Entries))
+	}
+}
+
+func TestIpsetDefaultRevision(t *testing.T) {
+	testCases := []struct {
+		desc             string
+		typename         string
+		options          IpsetCreateOptions
+		expectedRevision uint8
+	}{
+		{
+			desc:     "Type-hash:ip,port",
+			typename: "hash:ip,port",
+			options: IpsetCreateOptions{
+				Counters: true,
+				Comments: true,
+				Skbinfo:  false,
+			},
+			expectedRevision: 3,
+		},
+		{
+			desc:     "Type-hash:ip,port_nocomment",
+			typename: "hash:ip,port",
+			options: IpsetCreateOptions{
+				Counters: true,
+				Comments: false,
+				Skbinfo:  false,
+			},
+			expectedRevision: 2,
+		},
+		{
+			desc:     "Type-hash:ip,port_skbinfo",
+			typename: "hash:ip,port",
+			options: IpsetCreateOptions{
+				Counters: true,
+				Comments: false,
+				Skbinfo:  true,
+			},
+			expectedRevision: 5,
+		},
+		{
+			desc:     "Type-hash:ip,port,net",
+			typename: "hash:ip,port,net",
+			options: IpsetCreateOptions{
+				Counters: true,
+				Comments: false,
+				Skbinfo:  true,
+			},
+			expectedRevision: 7,
+		},
+		{
+			desc:     "Type-hash:net,port_baseline_revision_no_opts",
+			typename: "hash:net,port",
+			options: IpsetCreateOptions{
+				Counters: false,
+				Comments: false,
+				Skbinfo:  false,
+			},
+			expectedRevision: 2,
+		},
+	}
+
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+
+			cadtFlags := optionsToBitflag(tC.options)
+
+			defRev := getIpsetDefaultRevision(tC.typename, cadtFlags)
+
+			if defRev != tC.expectedRevision {
+				t.Fatalf("expected default revision of '%d', got '%d'", tC.expectedRevision, defRev)
+			}
+		})
 	}
 }
