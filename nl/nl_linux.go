@@ -428,7 +428,7 @@ func (a *RtAttr) AddChild(attr NetlinkRequestData) {
 
 func (a *RtAttr) Len() int {
 	if len(a.children) == 0 {
-		return (unix.SizeofRtAttr + len(a.Data))
+		return unix.SizeofRtAttr + len(a.Data)
 	}
 
 	l := 0
