@@ -79,6 +79,131 @@ func TestBridgeVlan(t *testing.T) {
 	}
 }
 
+func TestBridgeVlanTunnelInfo(t *testing.T) {
+	minKernelRequired(t, 4, 11)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	if err := remountSysfs(); err != nil {
+		t.Fatal(err)
+	}
+	bridgeName := "br0"
+	vxlanName := "vxlan0"
+
+	// ip link add br0 type bridge
+	bridge := &Bridge{LinkAttrs: LinkAttrs{Name: bridgeName}}
+	if err := LinkAdd(bridge); err != nil {
+		t.Fatal(err)
+	}
+
+	// ip link add vxlan0 type vxlan dstport 4789 nolearning external local 10.0.1.1
+	vxlan := &Vxlan{
+		// local
+		SrcAddr:  []byte("10.0.1.1"),
+		Learning: false,
+		// external
+		FlowBased: true,
+		// dstport
+		Port:      4789,
+		LinkAttrs: LinkAttrs{Name: vxlanName},
+	}
+	if err := LinkAdd(vxlan); err != nil {
+		t.Fatal(err)
+	}
+
+	// ip link set dev vxlan0 master br0
+	if err := LinkSetMaster(vxlan, bridge); err != nil {
+		t.Fatal(err)
+	}
+
+	// ip link set br0 type bridge vlan_filtering 1
+	if err := BridgeSetVlanFiltering(bridge, true); err != nil {
+		t.Fatal(err)
+	}
+
+	// bridge link set dev vxlan0 vlan_tunnel on
+	if err := LinkSetVlanTunnel(vxlan, true); err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := LinkGetProtinfo(vxlan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.VlanTunnel {
+		t.Fatal("vlan tunnel should be enabled on vxlan device")
+	}
+
+	// bridge vlan add vid 10 dev vxlan0
+	if err := BridgeVlanAdd(vxlan, 10, false, false, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	// bridge vlan add vid 11 dev vxlan0
+	if err := BridgeVlanAdd(vxlan, 11, false, false, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	// bridge vlan add dev vxlan0 vid 10 tunnel_info id 20
+	if err := BridgeVlanAddTunnelInfo(vxlan, 10, 20, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	tis, err := BridgeVlanTunnelShow()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tis) != 1 {
+		t.Fatal("only one tunnel info")
+	}
+	ti := tis[0]
+	if ti.TunId != 20 || ti.Vid != 10 {
+		t.Fatal("unexpected result")
+	}
+
+	// bridge vlan del dev vxlan0 vid 10 tunnel_info id 20
+	if err := BridgeVlanDelTunnelInfo(vxlan, 10, 20, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	tis, err = BridgeVlanTunnelShow()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tis) != 0 {
+		t.Fatal("tunnel info should have been deleted")
+	}
+
+	// bridge vlan add dev vxlan0 vid 10-11 tunnel_info id 20-21
+	if err := BridgeVlanAddRangeTunnelInfoRange(vxlan, 10, 11, 20, 21, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	tis, err = BridgeVlanTunnelShow()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tis) != 2 {
+		t.Fatal("two tunnel info")
+	}
+
+	// bridge vlan del dev vxlan0 vid 10-11 tunnel_info id 20-21
+	if err := BridgeVlanDelRangeTunnelInfoRange(vxlan, 10, 11, 20, 21, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	tis, err = BridgeVlanTunnelShow()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tis) != 0 {
+		t.Fatal("tunnel info should have been deleted")
+	}
+}
+
 func TestBridgeGroupFwdMask(t *testing.T) {
 	minKernelRequired(t, 4, 15) //minimal release for per-port group_fwd_mask
 	tearDown := setUpNetlinkTest(t)
