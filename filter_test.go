@@ -1768,6 +1768,14 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	}
 
 	testMask := net.CIDRMask(24, 32)
+	srcMac, err := net.ParseMAC("2C:54:91:88:C9:E3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	destMac, err := net.ParseMAC("2C:54:91:88:C9:E5")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ipproto := new(nl.IPProto)
 	*ipproto = nl.IPPROTO_TCP
@@ -1790,10 +1798,19 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		EncSrcIPMask:  testMask,
 		EncDestPort:   8472,
 		EncKeyId:      1234,
+		SrcMac:        srcMac,
+		DestMac:       destMac,
 		IPProto:       ipproto,
 		DestPort:      1111,
 		SrcPort:       1111,
 		Actions: []Action{
+			&VlanAction{
+				ActionAttrs: ActionAttrs{
+					Action: TC_ACT_PIPE,
+				},
+				Action: TCA_VLAN_ACT_PUSH,
+				VlanID: 1234,
+			},
 			&MirredAction{
 				ActionAttrs: ActionAttrs{
 					Action: TC_ACT_STOLEN,
@@ -1871,8 +1888,31 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	if filter.SrcPort != flower.SrcPort {
 		t.Fatalf("Flower SrcPort doesn't match")
 	}
+	if !(filter.SrcMac.String() == flower.SrcMac.String()) {
+		t.Fatalf("Flower SrcMac doesn't match")
+	}
+	if !(filter.DestMac.String() == flower.DestMac.String()) {
+		t.Fatalf("Flower DestMac doesn't match")
+	}
 
-	mia, ok := flower.Actions[0].(*MirredAction)
+	vla, ok := flower.Actions[0].(*VlanAction)
+	if !ok {
+		t.Fatal("Unable to find vlan action")
+	}
+
+	if vla.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("Vlan action isn't TC_ACT_PIPE")
+	}
+
+	if vla.Action != TCA_VLAN_ACT_PUSH {
+		t.Fatal("Second Vlan action isn't push")
+	}
+
+	if vla.VlanID != 1234 {
+		t.Fatal("Second Vlan action vlanId isn't correct")
+	}
+
+	mia, ok := flower.Actions[1].(*MirredAction)
 	if !ok {
 		t.Fatal("Unable to find mirred action")
 	}
@@ -1889,7 +1929,7 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		t.Fatal("Incorrect mirred action stats")
 	}
 
-	ga, ok := flower.Actions[1].(*GenericAction)
+	ga, ok := flower.Actions[2].(*GenericAction)
 	if !ok {
 		t.Fatal("Unable to find generic action")
 	}
@@ -1904,6 +1944,94 @@ func TestFilterFlowerAddDel(t *testing.T) {
 
 	if ga.Statistics == nil {
 		t.Fatal("Incorrect generic action stats")
+	}
+
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
+	filter = &Flower{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  1,
+			Protocol:  unix.ETH_P_8021Q,
+		},
+		EthType: unix.ETH_P_8021Q,
+		VlanId:  2046,
+		Actions: []Action{
+			&VlanAction{
+				ActionAttrs: ActionAttrs{
+					Action: TC_ACT_PIPE,
+				},
+				Action: TCA_VLAN_ACT_POP,
+			},
+			&MirredAction{
+				ActionAttrs: ActionAttrs{
+					Action: TC_ACT_STOLEN,
+				},
+				MirredAction: TCA_EGRESS_REDIR,
+				Ifindex:      redir.Attrs().Index,
+			},
+		},
+	}
+
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Second)
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	flower, ok = filters[0].(*Flower)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+
+	if filter.VlanId != flower.VlanId {
+		t.Fatalf("Flower VlanId doesn't match")
+	}
+
+	vla, ok = flower.Actions[0].(*VlanAction)
+	if !ok {
+		t.Fatal("Unable to find vlan action")
+	}
+
+	if vla.Attrs().Action != TC_ACT_PIPE {
+		t.Fatal("Vlan action isn't TC_ACT_PIPE")
+	}
+
+	if vla.Action != TCA_VLAN_ACT_POP {
+		t.Fatal("First Vlan action isn't pop")
+	}
+
+	mia, ok = flower.Actions[1].(*MirredAction)
+	if !ok {
+		t.Fatal("Unable to find mirred action")
+	}
+
+	if mia.Attrs().Action != TC_ACT_STOLEN {
+		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
+	}
+
+	if mia.Timestamp == nil || mia.Timestamp.Installed == 0 {
+		t.Fatal("Incorrect mirred action timestamp")
+	}
+
+	if mia.Statistics == nil {
+		t.Fatal("Incorrect mirred action stats")
 	}
 
 	if err := FilterDel(filter); err != nil {
