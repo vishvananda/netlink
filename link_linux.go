@@ -1674,98 +1674,102 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		addXdpAttrs(base.Xdp, req)
 	}
 
-	linkInfo := nl.NewRtAttr(unix.IFLA_LINKINFO, nil)
-	linkInfo.AddRtAttr(nl.IFLA_INFO_KIND, nl.NonZeroTerminated(link.Type()))
+	// Don't send IFLA_INFO_KIND for Device links, those are links created by udev and are not a supported Type
+	// https://github.com/iproute2/iproute2/blob/458dce5d0431f0589aca1bc841904b5d1db3bbce/ip/iplink.c#L39-L46
+	if link.Type() != "device" {
+		linkInfo := nl.NewRtAttr(unix.IFLA_LINKINFO, nil)
+		linkInfo.AddRtAttr(nl.IFLA_INFO_KIND, nl.NonZeroTerminated(link.Type()))
 
-	switch link := link.(type) {
-	case *Vlan:
-		b := make([]byte, 2)
-		native.PutUint16(b, uint16(link.VlanId))
-		data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
-		data.AddRtAttr(nl.IFLA_VLAN_ID, b)
+		switch link := link.(type) {
+		case *Vlan:
+			b := make([]byte, 2)
+			native.PutUint16(b, uint16(link.VlanId))
+			data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+			data.AddRtAttr(nl.IFLA_VLAN_ID, b)
 
-		if link.VlanProtocol != VLAN_PROTOCOL_UNKNOWN {
-			data.AddRtAttr(nl.IFLA_VLAN_PROTOCOL, htons(uint16(link.VlanProtocol)))
-		}
-	case *Netkit:
-		if err := addNetkitAttrs(link, linkInfo, flags); err != nil {
-			return err
-		}
-	case *Veth:
-		data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
-		peer := data.AddRtAttr(nl.VETH_INFO_PEER, nil)
-		nl.NewIfInfomsgChild(peer, unix.AF_UNSPEC)
-		peer.AddRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(link.PeerName))
-		if base.TxQLen >= 0 {
-			peer.AddRtAttr(unix.IFLA_TXQLEN, nl.Uint32Attr(uint32(base.TxQLen)))
-		}
-		if base.NumTxQueues > 0 {
-			peer.AddRtAttr(unix.IFLA_NUM_TX_QUEUES, nl.Uint32Attr(uint32(base.NumTxQueues)))
-		}
-		if base.NumRxQueues > 0 {
-			peer.AddRtAttr(unix.IFLA_NUM_RX_QUEUES, nl.Uint32Attr(uint32(base.NumRxQueues)))
-		}
-		if base.MTU > 0 {
-			peer.AddRtAttr(unix.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
-		}
-		if link.PeerHardwareAddr != nil {
-			peer.AddRtAttr(unix.IFLA_ADDRESS, []byte(link.PeerHardwareAddr))
-		}
-		if link.PeerNamespace != nil {
-			switch ns := link.PeerNamespace.(type) {
-			case NsPid:
-				val := nl.Uint32Attr(uint32(ns))
-				peer.AddRtAttr(unix.IFLA_NET_NS_PID, val)
-			case NsFd:
-				val := nl.Uint32Attr(uint32(ns))
-				peer.AddRtAttr(unix.IFLA_NET_NS_FD, val)
+			if link.VlanProtocol != VLAN_PROTOCOL_UNKNOWN {
+				data.AddRtAttr(nl.IFLA_VLAN_PROTOCOL, htons(uint16(link.VlanProtocol)))
 			}
+		case *Netkit:
+			if err := addNetkitAttrs(link, linkInfo, flags); err != nil {
+				return err
+			}
+		case *Veth:
+			data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+			peer := data.AddRtAttr(nl.VETH_INFO_PEER, nil)
+			nl.NewIfInfomsgChild(peer, unix.AF_UNSPEC)
+			peer.AddRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(link.PeerName))
+			if base.TxQLen >= 0 {
+				peer.AddRtAttr(unix.IFLA_TXQLEN, nl.Uint32Attr(uint32(base.TxQLen)))
+			}
+			if base.NumTxQueues > 0 {
+				peer.AddRtAttr(unix.IFLA_NUM_TX_QUEUES, nl.Uint32Attr(uint32(base.NumTxQueues)))
+			}
+			if base.NumRxQueues > 0 {
+				peer.AddRtAttr(unix.IFLA_NUM_RX_QUEUES, nl.Uint32Attr(uint32(base.NumRxQueues)))
+			}
+			if base.MTU > 0 {
+				peer.AddRtAttr(unix.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
+			}
+			if link.PeerHardwareAddr != nil {
+				peer.AddRtAttr(unix.IFLA_ADDRESS, []byte(link.PeerHardwareAddr))
+			}
+			if link.PeerNamespace != nil {
+				switch ns := link.PeerNamespace.(type) {
+				case NsPid:
+					val := nl.Uint32Attr(uint32(ns))
+					peer.AddRtAttr(unix.IFLA_NET_NS_PID, val)
+				case NsFd:
+					val := nl.Uint32Attr(uint32(ns))
+					peer.AddRtAttr(unix.IFLA_NET_NS_FD, val)
+				}
+			}
+		case *Vxlan:
+			addVxlanAttrs(link, linkInfo)
+		case *Bond:
+			addBondAttrs(link, linkInfo)
+		case *IPVlan:
+			data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+			data.AddRtAttr(nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(link.Mode)))
+			data.AddRtAttr(nl.IFLA_IPVLAN_FLAG, nl.Uint16Attr(uint16(link.Flag)))
+		case *IPVtap:
+			data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+			data.AddRtAttr(nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(link.Mode)))
+			data.AddRtAttr(nl.IFLA_IPVLAN_FLAG, nl.Uint16Attr(uint16(link.Flag)))
+		case *Macvlan:
+			addMacvlanAttrs(link, linkInfo)
+		case *Macvtap:
+			addMacvtapAttrs(link, linkInfo)
+		case *Geneve:
+			addGeneveAttrs(link, linkInfo)
+		case *Gretap:
+			addGretapAttrs(link, linkInfo)
+		case *Iptun:
+			addIptunAttrs(link, linkInfo)
+		case *Ip6tnl:
+			addIp6tnlAttrs(link, linkInfo)
+		case *Sittun:
+			addSittunAttrs(link, linkInfo)
+		case *Gretun:
+			addGretunAttrs(link, linkInfo)
+		case *Vti:
+			addVtiAttrs(link, linkInfo)
+		case *Vrf:
+			addVrfAttrs(link, linkInfo)
+		case *Bridge:
+			addBridgeAttrs(link, linkInfo)
+		case *GTP:
+			addGTPAttrs(link, linkInfo)
+		case *Xfrmi:
+			addXfrmiAttrs(link, linkInfo)
+		case *IPoIB:
+			addIPoIBAttrs(link, linkInfo)
+		case *BareUDP:
+			addBareUDPAttrs(link, linkInfo)
 		}
-	case *Vxlan:
-		addVxlanAttrs(link, linkInfo)
-	case *Bond:
-		addBondAttrs(link, linkInfo)
-	case *IPVlan:
-		data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
-		data.AddRtAttr(nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(link.Mode)))
-		data.AddRtAttr(nl.IFLA_IPVLAN_FLAG, nl.Uint16Attr(uint16(link.Flag)))
-	case *IPVtap:
-		data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
-		data.AddRtAttr(nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(link.Mode)))
-		data.AddRtAttr(nl.IFLA_IPVLAN_FLAG, nl.Uint16Attr(uint16(link.Flag)))
-	case *Macvlan:
-		addMacvlanAttrs(link, linkInfo)
-	case *Macvtap:
-		addMacvtapAttrs(link, linkInfo)
-	case *Geneve:
-		addGeneveAttrs(link, linkInfo)
-	case *Gretap:
-		addGretapAttrs(link, linkInfo)
-	case *Iptun:
-		addIptunAttrs(link, linkInfo)
-	case *Ip6tnl:
-		addIp6tnlAttrs(link, linkInfo)
-	case *Sittun:
-		addSittunAttrs(link, linkInfo)
-	case *Gretun:
-		addGretunAttrs(link, linkInfo)
-	case *Vti:
-		addVtiAttrs(link, linkInfo)
-	case *Vrf:
-		addVrfAttrs(link, linkInfo)
-	case *Bridge:
-		addBridgeAttrs(link, linkInfo)
-	case *GTP:
-		addGTPAttrs(link, linkInfo)
-	case *Xfrmi:
-		addXfrmiAttrs(link, linkInfo)
-	case *IPoIB:
-		addIPoIBAttrs(link, linkInfo)
-	case *BareUDP:
-		addBareUDPAttrs(link, linkInfo)
-	}
 
-	req.AddData(linkInfo)
+		req.AddData(linkInfo)
+	}
 
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	if err != nil {
