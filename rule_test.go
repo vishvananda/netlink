@@ -6,6 +6,7 @@ package netlink
 import (
 	"net"
 	"testing"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -583,10 +584,17 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rule := tt.preRun()
-			rules, err := RuleListFiltered(family, tt.ruleFilter, tt.filterMask)
-			tt.postRun(rule)
-
 			wantRules, wantErr := tt.setupWant(rule)
+
+			rules, err := RuleListFiltered(family, tt.ruleFilter, tt.filterMask)
+			for i := 0; i < len(wantRules); i++ {
+				if len(wantRules) == len(rules) {
+					break
+				}
+				time.Sleep(1 * time.Second) // wait rule take effect
+				rules, err = RuleListFiltered(family, tt.ruleFilter, tt.filterMask)
+			}
+			tt.postRun(rule)
 
 			if len(wantRules) != len(rules) {
 				t.Errorf("Expected len: %d, got: %d", len(wantRules), len(rules))
