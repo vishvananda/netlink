@@ -225,6 +225,72 @@ func TestXfrmStateWithIfid(t *testing.T) {
 	}
 }
 
+func TestXfrmStateWithSADir(t *testing.T) {
+	minKernelRequired(t, 4, 19)
+	defer setUpNetlinkTest(t)()
+
+	state := getBaseState()
+	state.SADir = XFRM_SA_DIR_IN
+	if err := XfrmStateAdd(state); err != nil {
+		t.Fatal(err)
+	}
+	s, err := XfrmStateGet(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !compareStates(state, s) {
+		t.Fatalf("unexpected state returned.\nExpected: %v.\nGot %v", state, s)
+	}
+	if err = XfrmStateDel(s); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestXfrmStateWithPcpunumWithoutSADir(t *testing.T) {
+	minKernelRequired(t, 4, 19)
+	defer setUpNetlinkTest(t)()
+
+	state := getBaseState()
+	pcpuNum := uint32(1)
+	state.Pcpunum = &pcpuNum
+	if err := XfrmStateAdd(state); err != nil {
+		t.Fatal(err)
+	}
+	s, err := XfrmStateGet(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !compareStates(state, s) {
+		t.Fatalf("unexpected state returned.\nExpected: %v.\nGot %v", state, s)
+	}
+	if err = XfrmStateDel(s); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestXfrmStateWithPcpunumWithSADir(t *testing.T) {
+	minKernelRequired(t, 4, 19)
+	defer setUpNetlinkTest(t)()
+
+	state := getBaseState()
+	state.SADir = XFRM_SA_DIR_IN
+	pcpuNum := uint32(1)
+	state.Pcpunum = &pcpuNum
+	if err := XfrmStateAdd(state); err != nil {
+		t.Fatal(err)
+	}
+	s, err := XfrmStateGet(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !compareStates(state, s) {
+		t.Fatalf("unexpected state returned.\nExpected: %v.\nGot %v", state, s)
+	}
+	if err = XfrmStateDel(s); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestXfrmStateWithOutputMark(t *testing.T) {
 	minKernelRequired(t, 4, 14)
 	defer setUpNetlinkTest(t)()
