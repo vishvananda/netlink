@@ -162,7 +162,6 @@ func (h *Handle) qdiscModify(cmd, flags int, qdisc Qdisc) error {
 }
 
 func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
-
 	req.AddData(nl.NewRtAttr(nl.TCA_KIND, nl.ZeroTerminated(qdisc.Type())))
 	if qdisc.Attrs().IngressBlock != nil {
 		req.AddData(nl.NewRtAttr(nl.TCA_INGRESS_BLOCK, nl.Uint32Attr(*qdisc.Attrs().IngressBlock)))
@@ -545,7 +544,6 @@ func parseHtbData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 func parseFqCodelData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 	fqCodel := qdisc.(*FqCodel)
 	for _, datum := range data {
-
 		switch datum.Attr.Type {
 		case nl.TCA_FQ_CODEL_TARGET:
 			fqCodel.Target = native.Uint32(datum.Value)
