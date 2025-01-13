@@ -188,7 +188,7 @@ func (h *Handle) ConntrackDeleteFilters(table ConntrackTableType, family InetFam
 		}
 	}
 	if len(errMsgs) > 0 {
-		return matched, fmt.Errorf(strings.Join(errMsgs, "; "))
+		return matched, errors.New(strings.Join(errMsgs, "; "))
 	}
 	return matched, nil
 }
