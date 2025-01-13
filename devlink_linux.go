@@ -324,7 +324,7 @@ func (dlpv *DevlinkParamValue) parseAttributes(attrs []syscall.NetlinkRouteAttr,
 		switch paramType {
 		case nl.DEVLINK_PARAM_TYPE_U8:
 			dlpv.Data = uint8(0)
-			if rawData != nil && len(rawData) == 1 {
+			if len(rawData) == 1 {
 				dlpv.Data = uint8(rawData[0])
 			}
 		case nl.DEVLINK_PARAM_TYPE_U16:
