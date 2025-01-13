@@ -27,8 +27,9 @@ const (
 	ETH_SS_STATS
 	// ETH_SS_PRIV_FLAGS are driver private flag names
 	ETH_SS_PRIV_FLAGS
-	// _ETH_SS_NTUPLE_FILTERS is deprecated
-	_ETH_SS_NTUPLE_FILTERS
+
+	// Deprecated: _ETH_SS_NTUPLE_FILTERS is deprecated
+	_ETH_SS_NTUPLE_FILTERS //nolint:unused
 	// ETH_SS_FEATURES are device feature names
 	ETH_SS_FEATURES
 	// ETH_SS_RSS_HASH_FUNCS is RSS hush function names
