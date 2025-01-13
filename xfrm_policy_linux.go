@@ -344,8 +344,8 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case nl.XFRMA_TMPL:
-			max := len(attr.Value)
-			for i := 0; i < max; i += nl.SizeofXfrmUserTmpl {
+			maxVal := len(attr.Value)
+			for i := 0; i < maxVal; i += nl.SizeofXfrmUserTmpl {
 				var resTmpl XfrmPolicyTmpl
 				tmpl := nl.DeserializeXfrmUserTmpl(attr.Value[i : i+nl.SizeofXfrmUserTmpl])
 				resTmpl.Dst = tmpl.XfrmId.Daddr.ToIP()
