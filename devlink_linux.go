@@ -259,9 +259,8 @@ type DevlinkParam struct {
 // DevlinkParamValue contains values of the parameter
 // Data field contains specific type which can be cast using info from the [DevlinkParam.Type] field
 type DevlinkParamValue struct {
-	rawData []byte
-	Data    interface{}
-	CMODE   uint8 // possible values are in nl.DEVLINK_PARAM_CMODE_* constants
+	Data  interface{}
+	CMODE uint8 // possible values are in nl.DEVLINK_PARAM_CMODE_* constants
 }
 
 // parseAttributes parses provided Netlink Attributes and populates DevlinkParam, returns error if occured
