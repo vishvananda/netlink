@@ -431,13 +431,13 @@ func (d *DevlinkDevice) parseAttributes(attrs []syscall.NetlinkRouteAttr) error 
 	return nil
 }
 
-func (dev *DevlinkDevice) parseEswitchAttrs(msgs [][]byte) {
+func (d *DevlinkDevice) parseEswitchAttrs(msgs [][]byte) {
 	m := msgs[0]
 	attrs, err := nl.ParseRouteAttr(m[nl.SizeofGenlmsg:])
 	if err != nil {
 		return
 	}
-	dev.parseAttributes(attrs)
+	d.parseAttributes(attrs)
 }
 
 func (h *Handle) getEswitchAttrs(family *GenlFamily, dev *DevlinkDevice) {
