@@ -502,10 +502,6 @@ func parseBERaw64(r *bytes.Reader, v *uint64) {
 	binary.Read(r, binary.BigEndian, v)
 }
 
-func parseRaw32(r *bytes.Reader, v *uint32) {
-	binary.Read(r, nl.NativeEndian(), v)
-}
-
 func parseByteAndPacketCounters(r *bytes.Reader) (bytes, packets uint64) {
 	for i := 0; i < 2; i++ {
 		switch _, t, _ := parseNfAttrTL(r); t {
