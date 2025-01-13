@@ -159,11 +159,13 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 	// value should be "forever". To compensate for that, only add the attributes if at least one of the values is
 	// non-zero, which means the caller has explicitly set them
 	if addr.ValidLft > 0 || addr.PreferedLft > 0 {
-		cachedata := nl.IfaCacheInfo{unix.IfaCacheinfo{
-			Valid:    uint32(addr.ValidLft),
-			Prefered: uint32(addr.PreferedLft),
-		}}
-		req.AddData(nl.NewRtAttr(unix.IFA_CACHEINFO, cachedata.Serialize()))
+		cacheData := nl.IfaCacheInfo{
+			IfaCacheinfo: unix.IfaCacheinfo{
+				Valid:    uint32(addr.ValidLft),
+				Prefered: uint32(addr.PreferedLft),
+			},
+		}
+		req.AddData(nl.NewRtAttr(unix.IFA_CACHEINFO, cacheData.Serialize()))
 	}
 
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
