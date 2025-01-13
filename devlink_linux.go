@@ -257,7 +257,7 @@ type DevlinkParam struct {
 }
 
 // DevlinkParamValue contains values of the parameter
-// Data field contains specific type which can be casted by unsing info from the DevlinkParam.Type field
+// Data field contains specific type which can be cast using info from the [DevlinkParam.Type] field
 type DevlinkParamValue struct {
 	rawData []byte
 	Data    interface{}
@@ -544,7 +544,7 @@ func (h *Handle) createCmdReq(cmd uint8, bus string, device string) (*GenlFamily
 	return f, req, nil
 }
 
-// DevlinkGetDeviceByName provides a pointer to devlink device and nil error,
+// DevLinkGetDeviceByName provides a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func (h *Handle) DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevice, error) {
 	f, req, err := h.createCmdReq(nl.DEVLINK_CMD_GET, Bus, Device)
@@ -563,7 +563,7 @@ func (h *Handle) DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevi
 	return dev, err
 }
 
-// DevlinkGetDeviceByName provides a pointer to devlink device and nil error,
+// DevLinkGetDeviceByName provides a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevice, error) {
 	return pkgHandle.DevLinkGetDeviceByName(Bus, Device)
@@ -650,7 +650,7 @@ func parseDevLinkAllPortList(msgs [][]byte) ([]*DevlinkPort, error) {
 	return ports, nil
 }
 
-// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// DevLinkGetAllPortList provides a pointer to devlink ports and nil error,
 // otherwise returns an error code.
 // If the returned error is [ErrDumpInterrupted], results may be inconsistent
 // or incomplete.
@@ -677,7 +677,7 @@ func (h *Handle) DevLinkGetAllPortList() ([]*DevlinkPort, error) {
 	return ports, executeErr
 }
 
-// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// DevLinkGetAllPortList provides a pointer to devlink ports and nil error,
 // otherwise returns an error code.
 // If the returned error is [ErrDumpInterrupted], results may be inconsistent
 // or incomplete.
@@ -698,7 +698,7 @@ func parseDevlinkPortMsg(msgs [][]byte) (*DevlinkPort, error) {
 	return port, nil
 }
 
-// DevLinkGetPortByIndexprovides a pointer to devlink device and nil error,
+// DevLinkGetPortByIndex a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func (h *Handle) DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint32) (*DevlinkPort, error) {
 
