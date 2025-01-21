@@ -188,7 +188,7 @@ func (h *Handle) ConntrackDeleteFilters(table ConntrackTableType, family InetFam
 		}
 	}
 	if len(errMsgs) > 0 {
-		return matched, fmt.Errorf(strings.Join(errMsgs, "; "))
+		return matched, errors.New(strings.Join(errMsgs, "; "))
 	}
 	return matched, nil
 }
@@ -500,10 +500,6 @@ func parseBERaw64(r *bytes.Reader, v *uint64) {
 	binary.Read(r, binary.BigEndian, v)
 }
 
-func parseRaw32(r *bytes.Reader, v *uint32) {
-	binary.Read(r, nl.NativeEndian(), v)
-}
-
 func parseByteAndPacketCounters(r *bytes.Reader) (bytes, packets uint64) {
 	for i := 0; i < 2; i++ {
 		switch _, t, _ := parseNfAttrTL(r); t {
@@ -639,9 +635,10 @@ func parseRawData(data []byte) *ConntrackFlow {
 		if nested, t, l := parseNfAttrTL(reader); nested {
 			switch t {
 			case nl.CTA_TUPLE_ORIG:
-				if nested, t, l = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
+				if nested, t, _ = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
 					parseIpTuple(reader, &s.Forward)
 				}
+				// TODO(thaJeztah): should this skipNfAttrValue ?
 			case nl.CTA_TUPLE_REPLY:
 				if nested, t, l = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
 					parseIpTuple(reader, &s.Reverse)

@@ -54,7 +54,7 @@ func skipUnlessKModuleLoaded(t *testing.T, moduleNames ...string) {
 
 	failed := false
 	for _, name := range moduleNames {
-		if found, _ := foundRequiredMods[name]; !found {
+		if !foundRequiredMods[name] {
 			t.Logf("Test requires missing kmodule %q.", name)
 			failed = true
 		}
@@ -217,7 +217,7 @@ func setUpNamedNetlinkTestWithKModule(t *testing.T, moduleNames ...string) (stri
 
 	failed := false
 	for _, name := range moduleNames {
-		if found, _ := foundRequiredMods[name]; !found {
+		if !foundRequiredMods[name] {
 			t.Logf("Test requires missing kmodule %q.", name)
 			failed = true
 		}
