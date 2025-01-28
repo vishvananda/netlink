@@ -376,7 +376,7 @@ func eswitchStringToMode(modeName string) (uint16, error) {
 }
 
 func parseEswitchMode(mode uint16) string {
-	var eswitchMode = map[uint16]string{
+	eswitchMode := map[uint16]string{
 		nl.DEVLINK_ESWITCH_MODE_LEGACY:    "legacy",
 		nl.DEVLINK_ESWITCH_MODE_SWITCHDEV: "switchdev",
 	}
@@ -388,7 +388,7 @@ func parseEswitchMode(mode uint16) string {
 }
 
 func parseEswitchInlineMode(inlinemode uint8) string {
-	var eswitchInlineMode = map[uint8]string{
+	eswitchInlineMode := map[uint8]string{
 		nl.DEVLINK_ESWITCH_INLINE_MODE_NONE:      "none",
 		nl.DEVLINK_ESWITCH_INLINE_MODE_LINK:      "link",
 		nl.DEVLINK_ESWITCH_INLINE_MODE_NETWORK:   "network",
@@ -402,7 +402,7 @@ func parseEswitchInlineMode(inlinemode uint8) string {
 }
 
 func parseEswitchEncapMode(encapmode uint8) string {
-	var eswitchEncapMode = map[uint8]string{
+	eswitchEncapMode := map[uint8]string{
 		nl.DEVLINK_ESWITCH_ENCAP_MODE_NONE:  "disable",
 		nl.DEVLINK_ESWITCH_ENCAP_MODE_BASIC: "enable",
 	}
@@ -701,7 +701,6 @@ func parseDevlinkPortMsg(msgs [][]byte) (*DevlinkPort, error) {
 // DevLinkGetPortByIndexprovides a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func (h *Handle) DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint32) (*DevlinkPort, error) {
-
 	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PORT_GET, Bus, Device)
 	if err != nil {
 		return nil, err
@@ -1062,7 +1061,6 @@ func parseInfoMsg(msg []byte) (map[string]string, error) {
 
 	info := make(map[string]string)
 	err := collectInfoData(msg[nl.SizeofGenlmsg:], info)
-
 	if err != nil {
 		return nil, err
 	}

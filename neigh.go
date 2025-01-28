@@ -15,7 +15,7 @@ type Neigh struct {
 	FlagsExt     int
 	IP           net.IP
 	HardwareAddr net.HardwareAddr
-	LLIPAddr     net.IP //Used in the case of NHRP
+	LLIPAddr     net.IP // Used in the case of NHRP
 	Vlan         int
 	VNI          int
 	MasterIndex  int

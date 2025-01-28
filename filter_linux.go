@@ -565,7 +565,8 @@ func toTimeStamp(tcf *nl.Tcf) *ActionTimestamp {
 		Installed: tcf.Install,
 		LastUsed:  tcf.LastUse,
 		Expires:   tcf.Expires,
-		FirstUsed: tcf.FirstUse}
+		FirstUsed: tcf.FirstUse,
+	}
 }
 
 func encodePolice(attr *nl.RtAttr, action *PoliceAction) error {
