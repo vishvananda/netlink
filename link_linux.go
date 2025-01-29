@@ -2263,6 +2263,10 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 					break
 				}
 			}
+		case unix.IFLA_PARENT_DEV_NAME:
+			base.ParentDev = string(attr.Value[:len(attr.Value)-1])
+		case unix.IFLA_PARENT_DEV_BUS_NAME:
+			base.ParentDevBus = string(attr.Value[:len(attr.Value)-1])
 		}
 	}
 
@@ -3049,7 +3053,6 @@ func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	}
 }
 
-// copied from pkg/net_linux.go
 func linkFlags(rawFlags uint32) net.Flags {
 	var f net.Flags
 	if rawFlags&unix.IFF_UP != 0 {
@@ -3066,6 +3069,9 @@ func linkFlags(rawFlags uint32) net.Flags {
 	}
 	if rawFlags&unix.IFF_MULTICAST != 0 {
 		f |= net.FlagMulticast
+	}
+	if rawFlags&unix.IFF_RUNNING != 0 {
+		f |= net.FlagRunning
 	}
 	return f
 }
