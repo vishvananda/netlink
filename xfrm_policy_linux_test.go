@@ -136,7 +136,6 @@ func TestXfrmPolicyFlush(t *testing.T) {
 	if len(policies) != 0 {
 		t.Fatalf("unexpected number of policies: %d", len(policies))
 	}
-
 }
 
 func TestXfrmPolicyBlockWithIfindex(t *testing.T) {

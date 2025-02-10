@@ -129,7 +129,6 @@ func IpsetTest(setname string, entry *IPSetEntry) (bool, error) {
 func (h *Handle) IpsetProtocol() (protocol uint8, minVersion uint8, err error) {
 	req := h.newIpsetRequest(nl.IPSET_CMD_PROTOCOL)
 	msgs, err := req.Execute(unix.NETLINK_NETFILTER, 0)
-
 	if err != nil {
 		return 0, 0, err
 	}
@@ -408,7 +407,6 @@ func getIpsetDefaultWithTypeName(typename string) uint8 {
 
 func ipsetExecute(req *nl.NetlinkRequest) (msgs [][]byte, err error) {
 	msgs, err = req.Execute(unix.NETLINK_NETFILTER, 0)
-
 	if err != nil {
 		if errno := int(err.(syscall.Errno)); errno >= nl.IPSET_ERR_PRIVATE {
 			err = nl.IPSetError(uintptr(errno))

@@ -48,13 +48,13 @@ func (msg *IfInfomsg) serializeSafe() []byte {
 }
 
 func deserializeIfInfomsgSafe(b []byte) *IfInfomsg {
-	var msg = IfInfomsg{}
+	msg := IfInfomsg{}
 	binary.Read(bytes.NewReader(b[0:unix.SizeofIfInfomsg]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestIfInfomsgDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, unix.SizeofIfInfomsg)
+	orig := make([]byte, unix.SizeofIfInfomsg)
 	rand.Read(orig)
 	// zero out the pad byte
 	orig[1] = 0
@@ -179,13 +179,13 @@ func (msg *CnMsgOp) serializeSafe() []byte {
 }
 
 func deserializeCnMsgOpSafe(b []byte) *CnMsgOp {
-	var msg = CnMsgOp{}
+	msg := CnMsgOp{}
 	binary.Read(bytes.NewReader(b[0:SizeofCnMsgOp]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestCnMsgOpDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofCnMsgOp)
+	orig := make([]byte, SizeofCnMsgOp)
 	rand.Read(orig)
 	safemsg := deserializeCnMsgOpSafe(orig)
 	msg := DeserializeCnMsgOp(orig)

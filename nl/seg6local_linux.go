@@ -1,7 +1,5 @@
 package nl
 
-import ()
-
 // seg6local parameters
 const (
 	SEG6_LOCAL_UNSPEC = iota
@@ -15,6 +13,7 @@ const (
 	SEG6_LOCAL_BPF
 	__SEG6_LOCAL_MAX
 )
+
 const (
 	SEG6_LOCAL_MAX = __SEG6_LOCAL_MAX
 )
@@ -38,6 +37,7 @@ const (
 	SEG6_LOCAL_ACTION_END_BPF                  // 15
 	__SEG6_LOCAL_ACTION_MAX
 )
+
 const (
 	SEG6_LOCAL_ACTION_MAX = __SEG6_LOCAL_ACTION_MAX - 1
 )
