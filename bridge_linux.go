@@ -51,14 +51,31 @@ func (h *Handle) BridgeVlanTunnelShow() ([]nl.TunnelInfo, error) {
 						}
 						var tunnelId uint32
 						var vid uint16
+						var flag uint16
 						for _, tunnelInfo := range tunnelInfos {
 							switch tunnelInfo.Attr.Type {
 							case nl.IFLA_BRIDGE_VLAN_TUNNEL_ID:
 								tunnelId = native.Uint32(tunnelInfo.Value)
 							case nl.IFLA_BRIDGE_VLAN_TUNNEL_VID:
 								vid = native.Uint16(tunnelInfo.Value)
+							case nl.IFLA_BRIDGE_VLAN_TUNNEL_FLAGS:
+								flag = native.Uint16(tunnelInfo.Value)
 							}
 						}
+
+						if flag == nl.BRIDGE_VLAN_INFO_RANGE_END {
+							lastTi := ret[len(ret)-1]
+							vni := lastTi.TunId + 1
+							for i := lastTi.Vid + 1; i < vid; i++ {
+								t := nl.TunnelInfo{
+									TunId: vni,
+									Vid:   i,
+								}
+								ret = append(ret, t)
+								vni++
+							}
+						}
+
 						t := nl.TunnelInfo{
 							TunId: tunnelId,
 							Vid:   vid,
@@ -72,6 +89,7 @@ func (h *Handle) BridgeVlanTunnelShow() ([]nl.TunnelInfo, error) {
 	}
 	return ret, executeErr
 }
+
 
 // BridgeVlanList gets a map of device id to bridge vlan infos.
 // Equivalent to: `bridge vlan show`
