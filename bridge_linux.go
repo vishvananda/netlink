@@ -90,6 +90,7 @@ func (h *Handle) BridgeVlanTunnelShow() ([]nl.TunnelInfo, error) {
 	return ret, executeErr
 }
 
+
 // BridgeVlanList gets a map of device id to bridge vlan infos.
 // Equivalent to: `bridge vlan show`
 //
