@@ -1842,6 +1842,20 @@ func (h *Handle) linkByAliasDump(alias string) (Link, error) {
 	return nil, LinkNotFoundError{fmt.Errorf("Link alias %s not found", alias)}
 }
 
+func (h *Handle) linkByIndexDump(index int) (Link, error) {
+	links, executeErr := h.LinkList()
+	if executeErr != nil && !errors.Is(executeErr, ErrDumpInterrupted) {
+		return nil, executeErr
+	}
+
+	for _, link := range links {
+		if link.Attrs().Index == index {
+			return link, executeErr
+		}
+	}
+	return nil, LinkNotFoundError{fmt.Errorf("Link index %d not found", index)}
+}
+
 // LinkByName finds a link by name and returns a pointer to the object.
 //
 // If the kernel doesn't support IFLA_IFNAME, this method will fall back to
@@ -1876,9 +1890,11 @@ func (h *Handle) LinkByName(name string) (Link, error) {
 	req.AddData(nameData)
 
 	link, err := execGetLink(req)
-	if err == unix.EINVAL {
+	if err == unix.EINVAL || err == unix.EMSGSIZE {
 		// older kernels don't support looking up via IFLA_IFNAME
 		// so fall back to dumping all links
+		// In case of large number of VF, kernel will fail with "message too long"
+		// listing all links will work
 		h.lookupByDump = true
 		return h.linkByNameDump(name)
 	}
@@ -1919,9 +1935,11 @@ func (h *Handle) LinkByAlias(alias string) (Link, error) {
 	req.AddData(nameData)
 
 	link, err := execGetLink(req)
-	if err == unix.EINVAL {
-		// older kernels don't support looking up via IFLA_IFALIAS
+	if err == unix.EINVAL || err == unix.EMSGSIZE {
+		// older kernels don't support looking up via IFLA_IFNAME
 		// so fall back to dumping all links
+		// In case of large number of VF, kernel will fail with "message too long"
+		// listing all links will work
 		h.lookupByDump = true
 		return h.linkByAliasDump(alias)
 	}
@@ -1936,6 +1954,9 @@ func LinkByIndex(index int) (Link, error) {
 
 // LinkByIndex finds a link by index and returns a pointer to the object.
 func (h *Handle) LinkByIndex(index int) (Link, error) {
+	if h.lookupByDump {
+		return h.linkByIndexDump(index)
+	}
 	req := h.newNetlinkRequest(unix.RTM_GETLINK, unix.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
@@ -1944,7 +1965,15 @@ func (h *Handle) LinkByIndex(index int) (Link, error) {
 	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
 	req.AddData(attr)
 
-	return execGetLink(req)
+	link, err := execGetLink(req)
+	if err == unix.EMSGSIZE {
+		// In case of large number of VF, kernel will fail with "message too long"
+		// listing all links will work
+		h.lookupByDump = true
+		return h.linkByIndexDump(index)
+	}
+
+	return link, err
 }
 
 func execGetLink(req *nl.NetlinkRequest) (Link, error) {
