@@ -1436,6 +1436,16 @@ func TestRouteOifOption(t *testing.T) {
 		t.Fatal("Get route from unmatched interface")
 	}
 
+	// check getting route from specified Oifindex
+	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{OifIndex: link1.Attrs().Index})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 || routes[0].LinkIndex != link1.Attrs().Index ||
+		!routes[0].Gw.Equal(gw1) {
+		t.Fatal("Get route from unmatched interface")
+	}
+
 	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{Oif: "eth1"})
 	if err != nil {
 		t.Fatal(err)
@@ -1446,6 +1456,14 @@ func TestRouteOifOption(t *testing.T) {
 		t.Fatal("Get route from unmatched interface")
 	}
 
+	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{OifIndex: link2.Attrs().Index})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 || routes[0].LinkIndex != link2.Attrs().Index ||
+		!routes[0].Gw.Equal(gw2) {
+		t.Fatal("Get route from unmatched interface")
+	}
 }
 
 func TestFilterDefaultRoute(t *testing.T) {
