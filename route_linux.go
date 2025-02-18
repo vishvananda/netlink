@@ -1539,6 +1539,7 @@ type RouteGetOptions struct {
 	Iif      string
 	IifIndex int
 	Oif      string
+	OifIndex int
 	VrfName  string
 	SrcAddr  net.IP
 	UID      *uint32
@@ -1618,14 +1619,20 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 			req.AddData(nl.NewRtAttr(unix.RTA_IIF, b))
 		}
 
+		oifIndex := uint32(0)
 		if len(options.Oif) > 0 {
 			link, err := h.LinkByName(options.Oif)
 			if err != nil {
 				return nil, err
 			}
+			oifIndex = uint32(link.Attrs().Index)
+		} else if options.OifIndex > 0 {
+			oifIndex = uint32(options.OifIndex)
+		}
 
+		if oifIndex > 0 {
 			b := make([]byte, 4)
-			native.PutUint32(b, uint32(link.Attrs().Index))
+			native.PutUint32(b, oifIndex)
 
 			req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
 		}
