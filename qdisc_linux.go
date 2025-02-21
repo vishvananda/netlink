@@ -769,22 +769,6 @@ func tick2Time(tick uint32) uint32 {
 	return uint32(float64(tick) / TickInUsec())
 }
 
-func time2Ktime(time uint32) uint32 {
-	return uint32(float64(time) * ClockFactor())
-}
-
-func ktime2Time(ktime uint32) uint32 {
-	return uint32(float64(ktime) / ClockFactor())
-}
-
-func burst(rate uint64, buffer uint32) uint32 {
-	return uint32(float64(rate) * float64(tick2Time(buffer)) / TIME_UNITS_PER_SEC)
-}
-
-func latency(rate uint64, limit, buffer uint32) float64 {
-	return TIME_UNITS_PER_SEC*(float64(limit)/float64(rate)) - float64(tick2Time(buffer))
-}
-
 func Xmittime(rate uint64, size uint32) uint32 {
 	// https://git.kernel.org/pub/scm/network/iproute2/iproute2.git/tree/tc/tc_core.c#n62
 	return time2Tick(uint32(TIME_UNITS_PER_SEC * (float64(size) / float64(rate))))
