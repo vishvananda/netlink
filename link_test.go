@@ -86,6 +86,11 @@ func testLinkAddDel(t *testing.T, link Link) {
 			if resultPrimary.SupportsScrub() && resultPrimary.PeerScrub != inputPrimary.PeerScrub {
 				t.Fatalf("Peer Scrub is %d, should be %d", int(resultPrimary.PeerScrub), int(inputPrimary.PeerScrub))
 			}
+			if inputPrimary.Mode == NETKIT_MODE_L2 && inputPrimary.HardwareAddr != nil {
+				if inputPrimary.HardwareAddr.String() != resultPrimary.HardwareAddr.String() {
+					t.Fatalf("Hardware address is %s, should be %s", resultPrimary.HardwareAddr.String(), inputPrimary.HardwareAddr.String())
+				}
+			}
 
 			if inputPrimary.peerLinkAttrs.Name != "" {
 				var resultPeer *Netkit
@@ -116,6 +121,11 @@ func testLinkAddDel(t *testing.T, link Link) {
 				}
 				if resultPrimary.Scrub != resultPeer.PeerScrub {
 					t.Fatalf("PeerScrub from peer is %d, should be %d", int(resultPeer.PeerScrub), int(resultPrimary.Scrub))
+				}
+				if inputPrimary.Mode == NETKIT_MODE_L2 && inputPrimary.peerLinkAttrs.HardwareAddr != nil {
+					if inputPrimary.peerLinkAttrs.HardwareAddr.String() != resultPeer.HardwareAddr.String() {
+						t.Fatalf("Peer hardware address is %s, should be %s", resultPeer.HardwareAddr.String(), inputPrimary.peerLinkAttrs.HardwareAddr.String())
+					}
 				}
 			}
 		}
@@ -1061,7 +1071,8 @@ func TestLinkAddDelNetkit(t *testing.T) {
 
 	netkit := &Netkit{
 		LinkAttrs: LinkAttrs{
-			Name: "foo",
+			Name:         "foo",
+			HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
 		},
 		Mode:       NETKIT_MODE_L2,
 		Policy:     NETKIT_POLICY_FORWARD,
@@ -1070,7 +1081,8 @@ func TestLinkAddDelNetkit(t *testing.T) {
 		PeerScrub:  NETKIT_SCRUB_NONE,
 	}
 	peerAttr := &LinkAttrs{
-		Name: "bar",
+		Name:         "bar",
+		HardwareAddr: net.HardwareAddr{0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB},
 	}
 	netkit.SetPeerAttrs(peerAttr)
 	testLinkAddDel(t, netkit)
