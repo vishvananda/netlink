@@ -21,13 +21,13 @@ func (msg *BridgeVlanInfo) serializeSafe() []byte {
 }
 
 func deserializeBridgeVlanInfoSafe(b []byte) *BridgeVlanInfo {
-	var msg = BridgeVlanInfo{}
+	msg := BridgeVlanInfo{}
 	binary.Read(bytes.NewReader(b[0:SizeofBridgeVlanInfo]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestBridgeVlanInfoDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofBridgeVlanInfo)
+	orig := make([]byte, SizeofBridgeVlanInfo)
 	rand.Read(orig)
 	safemsg := deserializeBridgeVlanInfoSafe(orig)
 	msg := DeserializeBridgeVlanInfo(orig)
