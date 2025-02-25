@@ -2544,6 +2544,14 @@ func (h *Handle) LinkSetLearning(link Link, mode bool) error {
 	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_LEARNING)
 }
 
+func LinkSetVlanTunnel(link Link, mode bool) error {
+	return pkgHandle.LinkSetVlanTunnel(link, mode)
+}
+
+func (h *Handle) LinkSetVlanTunnel(link Link, mode bool) error {
+	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_VLAN_TUNNEL)
+}
+
 func LinkSetRootBlock(link Link, mode bool) error {
 	return pkgHandle.LinkSetRootBlock(link, mode)
 }
@@ -2665,6 +2673,35 @@ func (h *Handle) LinkSetGroup(link Link, group int) error {
 
 	data := nl.NewRtAttr(unix.IFLA_GROUP, b)
 	req.AddData(data)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
+// LinkSetIP6AddrGenMode sets the IPv6 address generation mode of the link device.
+// Equivalent to: `ip link set $link addrgenmode $mode`
+func LinkSetIP6AddrGenMode(link Link, mode int) error {
+	return pkgHandle.LinkSetIP6AddrGenMode(link, mode)
+}
+
+// LinkSetIP6AddrGenMode sets the IPv6 address generation mode of the link device.
+// Equivalent to: `ip link set $link addrgenmode $mode`
+func (h *Handle) LinkSetIP6AddrGenMode(link Link, mode int) error {
+	base := link.Attrs()
+	h.ensureIndex(base)
+	req := h.newNetlinkRequest(unix.RTM_SETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	b := make([]byte, 1)
+	b[0] = uint8(mode)
+
+	data := nl.NewRtAttr(unix.IFLA_INET6_ADDR_GEN_MODE, b)
+	af := nl.NewRtAttr(unix.AF_INET6, data.Serialize())
+	spec := nl.NewRtAttr(unix.IFLA_AF_SPEC, af.Serialize())
+	req.AddData(spec)
 
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	return err
