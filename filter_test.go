@@ -1223,7 +1223,6 @@ func TestFilterMatchAllAddDel(t *testing.T) {
 	if len(filters) != 0 {
 		t.Fatal("Failed to remove filter")
 	}
-
 }
 
 func TestFilterU32TunnelKeyAddDel(t *testing.T) {

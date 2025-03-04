@@ -129,6 +129,7 @@ func (sa XfrmState) String() string {
 	return fmt.Sprintf("Dst: %v, Src: %v, Proto: %s, Mode: %s, SPI: 0x%x, ReqID: 0x%x, ReplayWindow: %d, Mark: %v, OutputMark: %v, Ifid: %d, Auth: %v, Crypt: %v, Aead: %v, Encap: %v, ESN: %t, DontEncapDSCP: %t, OSeqMayWrap: %t, Replay: %v",
 		sa.Dst, sa.Src, sa.Proto, sa.Mode, sa.Spi, sa.Reqid, sa.ReplayWindow, sa.Mark, sa.OutputMark, sa.Ifid, sa.Auth, sa.Crypt, sa.Aead, sa.Encap, sa.ESN, sa.DontEncapDSCP, sa.OSeqMayWrap, sa.Replay)
 }
+
 func (sa XfrmState) Print(stats bool) string {
 	if !stats {
 		return sa.String()
@@ -151,6 +152,7 @@ func printLimit(lmt uint64) string {
 	}
 	return fmt.Sprintf("%d", lmt)
 }
+
 func writeStateAlgo(a *XfrmStateAlgo) []byte {
 	algo := nl.XfrmAlgo{
 		AlgKeyLen: uint32(len(a.Key) * 8),
@@ -259,7 +261,6 @@ func (h *Handle) XfrmStateUpdate(state *XfrmState) error {
 }
 
 func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
-
 	// A state with spi 0 can't be deleted so don't allow it to be set
 	if state.Spi == 0 {
 		return fmt.Errorf("Spi must be set when adding xfrm state")
