@@ -1203,6 +1203,7 @@ type Sittun struct {
 	EncapFlags uint16
 	EncapSport uint16
 	EncapDport uint16
+	Proto      uint8
 }
 
 func (sittun *Sittun) Attrs() *LinkAttrs {
