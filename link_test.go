@@ -650,8 +650,28 @@ func compareTuntap(t *testing.T, expected, actual *Tuntap) {
 		t.Fatal("Tuntap.Group doesn't match")
 	}
 
+	if expected.Flags&TUNTAP_NO_PI != actual.Flags&TUNTAP_NO_PI {
+		t.Fatal("Tuntap.NoPI doesn't match")
+	}
+
+	if expected.Flags&TUNTAP_VNET_HDR != actual.Flags&TUNTAP_VNET_HDR {
+		t.Fatal("Tuntap.VNetHdr doesn't match")
+	}
+
 	if expected.NonPersist != actual.NonPersist {
 		t.Fatal("Tuntap.Group doesn't match")
+	}
+
+	if expected.Flags&TUNTAP_MULTI_QUEUE != actual.Flags&TUNTAP_MULTI_QUEUE {
+		t.Fatal("Tuntap.MultiQueue doesn't match")
+	}
+
+	if expected.Queues != actual.Queues {
+		t.Fatal("Tuntap.Queues doesn't match")
+	}
+
+	if expected.DisabledQueues != actual.DisabledQueues {
+		t.Fatal("Tuntap.DisableQueues doesn't match")
 	}
 }
 
@@ -3051,13 +3071,78 @@ func TestLinkAddDelTuntapMq(t *testing.T) {
 	testLinkAddDel(t, &Tuntap{
 		LinkAttrs: LinkAttrs{Name: "foo"},
 		Mode:      TUNTAP_MODE_TAP,
-		Queues:    4})
+		Queues:    4,
+		Flags:     TUNTAP_MULTI_QUEUE_DEFAULTS})
 
 	testLinkAddDel(t, &Tuntap{
 		LinkAttrs: LinkAttrs{Name: "foo"},
 		Mode:      TUNTAP_MODE_TAP,
 		Queues:    4,
 		Flags:     TUNTAP_MULTI_QUEUE_DEFAULTS | TUNTAP_VNET_HDR})
+
+	testLinkAddDel(t, &Tuntap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Mode:      TUNTAP_MODE_TAP,
+		Queues:    0,
+		Flags:     TUNTAP_MULTI_QUEUE_DEFAULTS | TUNTAP_VNET_HDR})
+}
+
+func TestTuntapPartialQueues(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	if err := syscall.Mount("sysfs", "/sys", "sysfs", syscall.MS_RDONLY, ""); err != nil {
+		t.Fatal("Cannot mount sysfs")
+	}
+
+	defer func() {
+		if err := syscall.Unmount("/sys", 0); err != nil {
+			t.Fatal("Cannot umount /sys")
+		}
+	}()
+
+	compare := func(expected *Tuntap) {
+		result, err := LinkByName(expected.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		other, ok := result.(*Tuntap)
+		if !ok {
+			t.Fatal("Result of create is not a tuntap")
+		}
+		compareTuntap(t, expected, other)
+	}
+
+	tap := &Tuntap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Mode:      TUNTAP_MODE_TAP,
+		Queues:    2,
+		Flags:     TUNTAP_MULTI_QUEUE_DEFAULTS | TUNTAP_VNET_HDR,
+	}
+
+	if err := LinkAdd(tap); err != nil {
+		t.Fatalf("Failed to add tap: %v", err)
+	}
+	defer cleanupFds(tap.Fds)
+
+	fds, err := tap.AddQueues(2)
+	if err != nil {
+		t.Fatalf("Failed to enable queues: %v", err)
+	}
+
+	compare(tap)
+
+	err = tap.RemoveQueues(fds...)
+	if err != nil {
+		t.Fatalf("Failed to close queues: %v", err)
+	}
+
+	compare(tap)
+
+	if err = LinkDel(tap); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestLinkAddDelTuntapOwnerGroup(t *testing.T) {
