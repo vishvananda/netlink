@@ -1455,6 +1455,16 @@ func TestRouteOifOption(t *testing.T) {
 		t.Fatal("Get route from unmatched interface")
 	}
 
+	// check getting route from specified Oifindex
+	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{OifIndex: link1.Attrs().Index})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 || routes[0].LinkIndex != link1.Attrs().Index ||
+		!routes[0].Gw.Equal(gw1) {
+		t.Fatal("Get route from unmatched interface")
+	}
+
 	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{Oif: "eth1"})
 	if err != nil {
 		t.Fatal(err)
@@ -1465,6 +1475,14 @@ func TestRouteOifOption(t *testing.T) {
 		t.Fatal("Get route from unmatched interface")
 	}
 
+	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{OifIndex: link2.Attrs().Index})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 || routes[0].LinkIndex != link2.Attrs().Index ||
+		!routes[0].Gw.Equal(gw2) {
+		t.Fatal("Get route from unmatched interface")
+	}
 }
 
 func TestFilterDefaultRoute(t *testing.T) {
@@ -2265,6 +2283,64 @@ func TestMTURouteAddDel(t *testing.T) {
 
 	if route.MTU != routes[0].MTU {
 		t.Fatal("Route mtu not set properly")
+	}
+
+	if err := RouteDel(&route); err != nil {
+		t.Fatal(err)
+	}
+	routes, err = RouteList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 0 {
+		t.Fatal("Route not removed properly")
+	}
+}
+
+func TestMTULockRouteAddDel(t *testing.T) {
+	_, err := RouteList(nil, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	// get loopback interface
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bring the interface up
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	// add a gateway route
+	dst := &net.IPNet{
+		IP:   net.IPv4(192, 168, 0, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+
+	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, MTU: 500, MTULock: true}
+	if err := RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+	routes, err := RouteList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatal("Route not added properly")
+	}
+
+	if route.MTU != routes[0].MTU {
+		t.Fatal("Route MTU not set properly")
+	}
+
+	if route.MTULock != routes[0].MTULock {
+		t.Fatal("Route MTU lock not set properly")
 	}
 
 	if err := RouteDel(&route); err != nil {

@@ -2263,6 +2263,10 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 					break
 				}
 			}
+		case unix.IFLA_PARENT_DEV_NAME:
+			base.ParentDev = string(attr.Value[:len(attr.Value)-1])
+		case unix.IFLA_PARENT_DEV_BUS_NAME:
+			base.ParentDevBus = string(attr.Value[:len(attr.Value)-1])
 		}
 	}
 
@@ -2667,8 +2671,8 @@ func (h *Handle) LinkSetGroup(link Link, group int) error {
 }
 
 func addNetkitAttrs(nk *Netkit, linkInfo *nl.RtAttr, flag int) error {
-	if nk.peerLinkAttrs.HardwareAddr != nil || nk.HardwareAddr != nil {
-		return fmt.Errorf("netkit doesn't support setting Ethernet")
+	if nk.Mode != NETKIT_MODE_L2 && (nk.LinkAttrs.HardwareAddr != nil || nk.peerLinkAttrs.HardwareAddr != nil) {
+		return fmt.Errorf("netkit only allows setting Ethernet in L2 mode")
 	}
 
 	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
@@ -2719,6 +2723,9 @@ func addNetkitAttrs(nk *Netkit, linkInfo *nl.RtAttr, flag int) error {
 		case NsFd:
 			peer.AddRtAttr(unix.IFLA_NET_NS_FD, nl.Uint32Attr(uint32(ns)))
 		}
+	}
+	if nk.peerLinkAttrs.HardwareAddr != nil {
+		peer.AddRtAttr(unix.IFLA_ADDRESS, []byte(nk.peerLinkAttrs.HardwareAddr))
 	}
 	return nil
 }
@@ -2817,7 +2824,7 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_VXLAN_PORT_RANGE:
 			buf := bytes.NewBuffer(datum.Value[0:4])
 			var pr vxlanPortRange
-			if binary.Read(buf, binary.BigEndian, &pr) != nil {
+			if binary.Read(buf, binary.BigEndian, &pr) == nil {
 				vxlan.PortLow = int(pr.Lo)
 				vxlan.PortHigh = int(pr.Hi)
 			}
@@ -3041,7 +3048,6 @@ func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {
 	}
 }
 
-// copied from pkg/net_linux.go
 func linkFlags(rawFlags uint32) net.Flags {
 	var f net.Flags
 	if rawFlags&unix.IFF_UP != 0 {
@@ -3058,6 +3064,9 @@ func linkFlags(rawFlags uint32) net.Flags {
 	}
 	if rawFlags&unix.IFF_MULTICAST != 0 {
 		f |= net.FlagMulticast
+	}
+	if rawFlags&unix.IFF_RUNNING != 0 {
+		f |= net.FlagRunning
 	}
 	return f
 }
