@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -71,7 +72,7 @@ func TestNetNsIdByPid(t *testing.T) {
 	err = h.SetNetNsIdByPid(syscall.Gettid(), wantID)
 	CheckErrorFail(t, err)
 
-	//Get the ID and see if it worked
+	// Get the ID and see if it worked
 	haveID, _ := h.GetNetNsIdByPid(syscall.Gettid())
 	if haveID != wantID {
 		t.Errorf("GetNetNsIdByPid returned %d, want %d", haveID, wantID)

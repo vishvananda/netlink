@@ -1,13 +1,15 @@
+//go:build linux
 // +build linux
 
 package netlink
 
 import (
-	"github.com/vishvananda/netns"
 	"os"
 	"os/exec"
 	"runtime"
 	"testing"
+
+	"github.com/vishvananda/netns"
 )
 
 func TestSubscribeProcEvent(t *testing.T) {
