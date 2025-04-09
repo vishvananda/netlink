@@ -19,17 +19,20 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Family type definitions
 const (
-	// Family type definitions
 	FAMILY_ALL  = unix.AF_UNSPEC
 	FAMILY_V4   = unix.AF_INET
 	FAMILY_V6   = unix.AF_INET6
 	FAMILY_MPLS = unix.AF_MPLS
-	// Arbitrary set value (greater than default 4k) to allow receiving
-	// from kernel more verbose messages e.g. for statistics,
+)
+
+const (
+	// RECEIVE_BUFFER_SIZE is an arbitrary set value (greater than default 4k)
+	// to allow receiving from kernel more verbose messages e.g. for statistics,
 	// tc rules or filters, or other more memory requiring data.
 	RECEIVE_BUFFER_SIZE = 65536
-	// Kernel netlink pid
+	// PidKernel is the kernel netlink pid.
 	PidKernel     uint32 = 0
 	SizeofCnMsgOp        = 0x18
 )
@@ -42,7 +45,7 @@ var nextSeqNr uint32
 // Default netlink socket timeout, 60s
 var SocketTimeoutTv = unix.Timeval{Sec: 60, Usec: 0}
 
-// ErrorMessageReporting is the default error message reporting configuration for the new netlink sockets
+// EnableErrorMessageReporting is the default error message reporting configuration for the new netlink sockets
 var EnableErrorMessageReporting bool = false
 
 // ErrDumpInterrupted is an instance of errDumpInterrupted, used to report that
@@ -91,7 +94,7 @@ func NativeEndian() binary.ByteOrder {
 	return nativeEndian
 }
 
-// Byte swap a 16 bit value if we aren't big endian
+// Swap16 byte-swaps a 16 bit value if we aren't big endian.
 func Swap16(i uint16) uint16 {
 	if NativeEndian() == binary.BigEndian {
 		return i
@@ -99,7 +102,7 @@ func Swap16(i uint16) uint16 {
 	return (i&0xff00)>>8 | (i&0xff)<<8
 }
 
-// Byte swap a 32 bit value if aren't big endian
+// Swap32 byte-swaps a 32 bit value if aren't big endian.
 func Swap32(i uint32) uint32 {
 	if NativeEndian() == binary.BigEndian {
 		return i
@@ -672,7 +675,8 @@ func dummyMsgIterFunc(msg []byte) bool {
 	return true
 }
 
-// Create a new netlink request from proto and flags
+// NewNetlinkRequest creates a new netlink request from proto and flags.
+//
 // Note the Len value will be inaccurate once data is added until
 // the message is serialized
 func NewNetlinkRequest(proto, flags int) *NetlinkRequest {
@@ -784,7 +788,7 @@ func executeInNetns(newNs, curNs netns.NsHandle) (func(), error) {
 	return restore, nil
 }
 
-// Create a netlink socket with a given protocol (e.g. NETLINK_ROUTE)
+// Subscribe creates a netlink socket with a given protocol (e.g. NETLINK_ROUTE)
 // and subscribe it to multicast groups passed in variable argument list.
 // Returns the netlink socket on which Receive() method can be called
 // to retrieve the messages from the kernel.
@@ -1050,7 +1054,7 @@ func ParseRouteAttr(b []byte) ([]syscall.NetlinkRouteAttr, error) {
 }
 
 // ParseRouteAttrAsMap parses provided buffer that contains raw RtAttrs and returns a map of parsed
-// atttributes indexed by attribute type or error if occured.
+// attributes indexed by attribute type or error if occurred.
 func ParseRouteAttrAsMap(b []byte) (map[uint16]syscall.NetlinkRouteAttr, error) {
 	attrMap := make(map[uint16]syscall.NetlinkRouteAttr)
 

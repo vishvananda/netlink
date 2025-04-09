@@ -122,12 +122,6 @@ func (h *Handle) NeighAppend(neigh *Neigh) error {
 
 // NeighAppend will append an entry to FDB
 // Equivalent to: `bridge fdb append...`
-func neighAdd(neigh *Neigh, mode int) error {
-	return pkgHandle.neighAdd(neigh, mode)
-}
-
-// NeighAppend will append an entry to FDB
-// Equivalent to: `bridge fdb append...`
 func (h *Handle) neighAdd(neigh *Neigh, mode int) error {
 	req := h.newNetlinkRequest(unix.RTM_NEWNEIGH, mode|unix.NLM_F_ACK)
 	return neighHandle(neigh, req)
