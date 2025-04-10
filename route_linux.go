@@ -201,6 +201,7 @@ type SEG6Encap struct {
 func (e *SEG6Encap) Type() int {
 	return nl.LWTUNNEL_ENCAP_SEG6
 }
+
 func (e *SEG6Encap) Decode(buf []byte) error {
 	if len(buf) < 4 {
 		return fmt.Errorf("lack of bytes")
@@ -222,6 +223,7 @@ func (e *SEG6Encap) Decode(buf []byte) error {
 
 	return err
 }
+
 func (e *SEG6Encap) Encode() ([]byte, error) {
 	s, err := nl.EncodeSEG6Encap(e.Mode, e.Segments)
 	hdr := make([]byte, 4)
@@ -229,6 +231,7 @@ func (e *SEG6Encap) Encode() ([]byte, error) {
 	native.PutUint16(hdr[2:], nl.SEG6_IPTUNNEL_SRH)
 	return append(hdr, s...), err
 }
+
 func (e *SEG6Encap) String() string {
 	segs := make([]string, 0, len(e.Segments))
 	// append segment backwards (from n to 0) since seg#0 is the last segment.
@@ -239,6 +242,7 @@ func (e *SEG6Encap) String() string {
 		len(e.Segments), strings.Join(segs, " "))
 	return str
 }
+
 func (e *SEG6Encap) Equal(x Encap) bool {
 	o, ok := x.(*SEG6Encap)
 	if !ok {
@@ -290,6 +294,7 @@ func (e *SEG6LocalEncap) SetProg(progFd int, progName string) error {
 func (e *SEG6LocalEncap) Type() int {
 	return nl.LWTUNNEL_ENCAP_SEG6_LOCAL
 }
+
 func (e *SEG6LocalEncap) Decode(buf []byte) error {
 	attrs, err := nl.ParseRouteAttr(buf)
 	if err != nil {
@@ -341,6 +346,7 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 	}
 	return err
 }
+
 func (e *SEG6LocalEncap) Encode() ([]byte, error) {
 	var err error
 	res := make([]byte, 8)
@@ -419,6 +425,7 @@ func (e *SEG6LocalEncap) Encode() ([]byte, error) {
 	}
 	return res, err
 }
+
 func (e *SEG6LocalEncap) String() string {
 	strs := make([]string, 0, nl.SEG6_LOCAL_MAX)
 	strs = append(strs, fmt.Sprintf("action %s", nl.SEG6LocalActionString(e.Action)))
@@ -466,6 +473,7 @@ func (e *SEG6LocalEncap) String() string {
 	}
 	return strings.Join(strs, " ")
 }
+
 func (e *SEG6LocalEncap) Equal(x Encap) bool {
 	o, ok := x.(*SEG6LocalEncap)
 	if !ok {
@@ -539,6 +547,7 @@ func (e *BpfEncap) SetXmitHeadroom(headroom int) error {
 func (e *BpfEncap) Type() int {
 	return nl.LWTUNNEL_ENCAP_BPF
 }
+
 func (e *BpfEncap) Decode(buf []byte) error {
 	if len(buf) < 4 {
 		return fmt.Errorf("lwt bpf decode: lack of bytes")
@@ -692,7 +701,6 @@ func (e *IP6tnlEncap) Decode(buf []byte) error {
 }
 
 func (e *IP6tnlEncap) Encode() ([]byte, error) {
-
 	final := []byte{}
 
 	resID := make([]byte, 12)
@@ -1744,7 +1752,8 @@ func RouteSubscribeWithOptions(ch chan<- RouteUpdate, done <-chan struct{}, opti
 }
 
 func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <-chan struct{}, cberr func(error), listExisting bool,
-	rcvbuf int, rcvTimeout *unix.Timeval, rcvbufForce bool) error {
+	rcvbuf int, rcvTimeout *unix.Timeval, rcvbufForce bool,
+) error {
 	s, err := nl.SubscribeAt(newNs, curNs, unix.NETLINK_ROUTE, unix.RTNLGRP_IPV4_ROUTE, unix.RTNLGRP_IPV6_ROUTE)
 	if err != nil {
 		return err

@@ -758,7 +758,8 @@ func TestRouteSubscribeListExisting(t *testing.T) {
 	defer close(done)
 	if err := RouteSubscribeWithOptions(ch, done, RouteSubscribeOptions{
 		Namespace:    &newNs,
-		ListExisting: true},
+		ListExisting: true,
+	},
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -1418,8 +1419,10 @@ func TestRouteOifOption(t *testing.T) {
 	}
 	gw1 := net.IPv4(192, 168, 1, 254)
 	gw2 := net.IPv4(192, 168, 2, 254)
-	route := Route{Dst: dst, MultiPath: []*NexthopInfo{{LinkIndex: link1.Attrs().Index,
-		Gw: gw1}, {LinkIndex: link2.Attrs().Index, Gw: gw2}}}
+	route := Route{Dst: dst, MultiPath: []*NexthopInfo{{
+		LinkIndex: link1.Attrs().Index,
+		Gw:        gw1,
+	}, {LinkIndex: link2.Attrs().Index, Gw: gw2}}}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
 	}
@@ -1516,7 +1519,7 @@ func TestFilterDefaultRoute(t *testing.T) {
 	if err := RouteAdd(&extraRoute); err != nil {
 		t.Fatal(err)
 	}
-	var filterTests = []struct {
+	filterTests := []struct {
 		filter   *Route
 		mask     uint64
 		expected net.IP
@@ -1545,7 +1548,6 @@ func TestFilterDefaultRoute(t *testing.T) {
 			t.Fatal("Unexpected Gateway")
 		}
 	}
-
 }
 
 func TestMPLSRouteAddDel(t *testing.T) {
@@ -1592,7 +1594,6 @@ func TestMPLSRouteAddDel(t *testing.T) {
 	if len(routes) != 0 {
 		t.Fatal("Route not removed properly")
 	}
-
 }
 
 func TestIP6tnlRouteAddDel(t *testing.T) {
@@ -1652,7 +1653,6 @@ func TestIP6tnlRouteAddDel(t *testing.T) {
 	if len(routes) != 0 {
 		t.Fatal("Route not removed properly")
 	}
-
 }
 
 func TestRouteEqual(t *testing.T) {
@@ -2007,6 +2007,7 @@ func TestSEG6LocalEqual(t *testing.T) {
 		}
 	}
 }
+
 func TestSEG6RouteAddDel(t *testing.T) {
 	if os.Getenv("CI") == "true" {
 		t.Skipf("Fails in CI with: route_test.go:*: Invalid Type. SEG6_IPTUN_MODE_INLINE routes not added properly")
