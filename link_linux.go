@@ -2544,6 +2544,14 @@ func (h *Handle) LinkSetLearning(link Link, mode bool) error {
 	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_LEARNING)
 }
 
+func LinkSetVlanTunnel(link Link, mode bool) error {
+	return pkgHandle.LinkSetVlanTunnel(link, mode)
+}
+
+func (h *Handle) LinkSetVlanTunnel(link Link, mode bool) error {
+	return h.setProtinfoAttr(link, mode, nl.IFLA_BRPORT_VLAN_TUNNEL)
+}
+
 func LinkSetRootBlock(link Link, mode bool) error {
 	return pkgHandle.LinkSetRootBlock(link, mode)
 }
