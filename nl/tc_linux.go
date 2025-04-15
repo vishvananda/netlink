@@ -445,7 +445,7 @@ const (
 	TCA_HTB_MAX = TCA_HTB_CEIL64
 )
 
-//struct tc_htb_opt {
+// struct tc_htb_opt {
 //	struct tc_ratespec	rate;
 //	struct tc_ratespec	ceil;
 //	__u32	buffer;
@@ -453,7 +453,7 @@ const (
 //	__u32	quantum;
 //	__u32	level;		/* out only */
 //	__u32	prio;
-//};
+// };
 
 type TcHtbCopt struct {
 	Rate    TcRateSpec
@@ -1123,7 +1123,7 @@ const (
 	TCA_FLOWER_KEY_ENC_OPTS
 	TCA_FLOWER_KEY_ENC_OPTS_MASK
 
-	__TCA_FLOWER_MAX
+	__TCA_FLOWER_MAX //nolint:unused
 )
 
 const TCA_CLS_FLAGS_SKIP_HW = 1 << 0 /* don't offload filter to HW */

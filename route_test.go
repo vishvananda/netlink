@@ -1020,6 +1020,9 @@ func BenchmarkRouteListFilteredNew(b *testing.B) {
 	defer tearDown()
 
 	link, err := setUpRoutesBench(b)
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -1043,6 +1046,9 @@ func BenchmarkRouteListIter(b *testing.B) {
 	defer tearDown()
 
 	link, err := setUpRoutesBench(b)
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
