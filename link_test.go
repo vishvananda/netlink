@@ -438,6 +438,15 @@ func compareGeneve(t *testing.T, expected, actual *Geneve) {
 		t.Fatal("Geneve.InnerProtoInherit doesn't match")
 	}
 
+	if expected.PortLow > 0 || expected.PortHigh > 0 {
+		if actual.PortLow != expected.PortLow {
+			t.Fatal("Geneve.PortLow doesn't match")
+		}
+		if actual.PortHigh != expected.PortHigh {
+			t.Fatal("Geneve.PortHigh doesn't match")
+		}
+	}
+
 	// TODO: we should implement the rest of the geneve methods
 }
 
