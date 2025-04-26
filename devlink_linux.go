@@ -257,11 +257,10 @@ type DevlinkParam struct {
 }
 
 // DevlinkParamValue contains values of the parameter
-// Data field contains specific type which can be casted by unsing info from the DevlinkParam.Type field
+// Data field contains specific type which can be cast using info from the [DevlinkParam.Type] field
 type DevlinkParamValue struct {
-	rawData []byte
-	Data    interface{}
-	CMODE   uint8 // possible values are in nl.DEVLINK_PARAM_CMODE_* constants
+	Data  interface{}
+	CMODE uint8 // possible values are in nl.DEVLINK_PARAM_CMODE_* constants
 }
 
 // parseAttributes parses provided Netlink Attributes and populates DevlinkParam, returns error if occured
@@ -324,7 +323,7 @@ func (dlpv *DevlinkParamValue) parseAttributes(attrs []syscall.NetlinkRouteAttr,
 		switch paramType {
 		case nl.DEVLINK_PARAM_TYPE_U8:
 			dlpv.Data = uint8(0)
-			if rawData != nil && len(rawData) == 1 {
+			if len(rawData) == 1 {
 				dlpv.Data = uint8(rawData[0])
 			}
 		case nl.DEVLINK_PARAM_TYPE_U16:
@@ -431,13 +430,13 @@ func (d *DevlinkDevice) parseAttributes(attrs []syscall.NetlinkRouteAttr) error 
 	return nil
 }
 
-func (dev *DevlinkDevice) parseEswitchAttrs(msgs [][]byte) {
+func (d *DevlinkDevice) parseEswitchAttrs(msgs [][]byte) {
 	m := msgs[0]
 	attrs, err := nl.ParseRouteAttr(m[nl.SizeofGenlmsg:])
 	if err != nil {
 		return
 	}
-	dev.parseAttributes(attrs)
+	d.parseAttributes(attrs)
 }
 
 func (h *Handle) getEswitchAttrs(family *GenlFamily, dev *DevlinkDevice) {
@@ -544,7 +543,7 @@ func (h *Handle) createCmdReq(cmd uint8, bus string, device string) (*GenlFamily
 	return f, req, nil
 }
 
-// DevlinkGetDeviceByName provides a pointer to devlink device and nil error,
+// DevLinkGetDeviceByName provides a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func (h *Handle) DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevice, error) {
 	f, req, err := h.createCmdReq(nl.DEVLINK_CMD_GET, Bus, Device)
@@ -563,7 +562,7 @@ func (h *Handle) DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevi
 	return dev, err
 }
 
-// DevlinkGetDeviceByName provides a pointer to devlink device and nil error,
+// DevLinkGetDeviceByName provides a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func DevLinkGetDeviceByName(Bus string, Device string) (*DevlinkDevice, error) {
 	return pkgHandle.DevLinkGetDeviceByName(Bus, Device)
@@ -650,7 +649,7 @@ func parseDevLinkAllPortList(msgs [][]byte) ([]*DevlinkPort, error) {
 	return ports, nil
 }
 
-// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// DevLinkGetAllPortList provides a pointer to devlink ports and nil error,
 // otherwise returns an error code.
 // If the returned error is [ErrDumpInterrupted], results may be inconsistent
 // or incomplete.
@@ -677,7 +676,7 @@ func (h *Handle) DevLinkGetAllPortList() ([]*DevlinkPort, error) {
 	return ports, executeErr
 }
 
-// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// DevLinkGetAllPortList provides a pointer to devlink ports and nil error,
 // otherwise returns an error code.
 // If the returned error is [ErrDumpInterrupted], results may be inconsistent
 // or incomplete.
@@ -698,7 +697,7 @@ func parseDevlinkPortMsg(msgs [][]byte) (*DevlinkPort, error) {
 	return port, nil
 }
 
-// DevLinkGetPortByIndexprovides a pointer to devlink device and nil error,
+// DevLinkGetPortByIndex a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func (h *Handle) DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint32) (*DevlinkPort, error) {
 

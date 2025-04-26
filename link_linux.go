@@ -2944,22 +2944,6 @@ func parseBondArpIpTargets(value []byte) []net.IP {
 	return targets
 }
 
-func addBondSlaveAttrs(bondSlave *BondSlave, linkInfo *nl.RtAttr) {
-	data := linkInfo.AddRtAttr(nl.IFLA_INFO_SLAVE_DATA, nil)
-
-	data.AddRtAttr(nl.IFLA_BOND_SLAVE_STATE, nl.Uint8Attr(uint8(bondSlave.State)))
-	data.AddRtAttr(nl.IFLA_BOND_SLAVE_MII_STATUS, nl.Uint8Attr(uint8(bondSlave.MiiStatus)))
-	data.AddRtAttr(nl.IFLA_BOND_SLAVE_LINK_FAILURE_COUNT, nl.Uint32Attr(bondSlave.LinkFailureCount))
-	data.AddRtAttr(nl.IFLA_BOND_SLAVE_QUEUE_ID, nl.Uint16Attr(bondSlave.QueueId))
-	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_AGGREGATOR_ID, nl.Uint16Attr(bondSlave.AggregatorId))
-	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE, nl.Uint8Attr(bondSlave.AdActorOperPortState))
-	data.AddRtAttr(nl.IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE, nl.Uint16Attr(bondSlave.AdPartnerOperPortState))
-
-	if mac := bondSlave.PermHardwareAddr; mac != nil {
-		data.AddRtAttr(nl.IFLA_BOND_SLAVE_PERM_HWADDR, []byte(mac))
-	}
-}
-
 func parseBondSlaveData(slave LinkSlave, data []syscall.NetlinkRouteAttr) {
 	bondSlave := slave.(*BondSlave)
 	for i := range data {
