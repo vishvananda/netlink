@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"reflect"
 	"sort"
 	"strings"
 	"syscall"
@@ -919,10 +920,175 @@ func TestLinkAddDelVlan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testLinkAddDel(t, &Vlan{LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index}, 900, VLAN_PROTOCOL_8021Q})
+	testLinkAddDel(t, &Vlan{
+		LinkAttrs: LinkAttrs{
+			Name:        "bar",
+			ParentIndex: parent.Attrs().Index,
+		},
+		VlanId:       900,
+		VlanProtocol: VLAN_PROTOCOL_8021Q,
+	})
 
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLinkAddVlanWithQosMaps(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	ingressMap := map[uint32]uint32{
+		0: 2,
+		1: 3,
+		2: 5,
+	}
+
+	egressMap := map[uint32]uint32{
+		1: 3,
+		2: 5,
+		3: 7,
+	}
+
+	vlan := &Vlan{
+		LinkAttrs:     LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+		VlanId:        900,
+		VlanProtocol:  VLAN_PROTOCOL_8021Q,
+		IngressQosMap: ingressMap,
+		EgressQosMap:  egressMap,
+	}
+	if err := LinkAdd(vlan); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if vlan, ok := link.(*Vlan); !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	} else {
+		if !reflect.DeepEqual(vlan.IngressQosMap, ingressMap) {
+			t.Fatalf("expected ingress qos map to be %v, got %v", ingressMap, vlan.IngressQosMap)
+		}
+		if !reflect.DeepEqual(vlan.EgressQosMap, egressMap) {
+			t.Fatalf("expected egress qos map to be %v, got %v", egressMap, vlan.EgressQosMap)
+		}
+	}
+}
+
+func TestLinkAddVlanWithFlags(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+	valueTrue := true
+	valueFalse := false
+	vlan := &Vlan{
+		LinkAttrs:     LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+		VlanId:        900,
+		VlanProtocol:  VLAN_PROTOCOL_8021Q,
+		Gvrp:          &valueTrue,
+		Mvrp:          &valueFalse,
+		BridgeBinding: &valueFalse,
+		LooseBinding:  &valueFalse,
+		ReorderHdr:    &valueTrue,
+	}
+	if err := LinkAdd(vlan); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if vlan, ok := link.(*Vlan); !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	} else {
+		if vlan.Gvrp == nil || *vlan.Gvrp != true {
+			t.Fatalf("expected gvrp to be true, got %v", vlan.Gvrp)
+		}
+		if vlan.Mvrp == nil || *vlan.Mvrp != false {
+			t.Fatalf("expected mvrp to be false, got %v", vlan.Mvrp)
+		}
+		if vlan.BridgeBinding == nil || *vlan.BridgeBinding != false {
+			t.Fatalf("expected bridge binding to be false, got %v", vlan.BridgeBinding)
+		}
+		if vlan.LooseBinding == nil || *vlan.LooseBinding != false {
+			t.Fatalf("expected loose binding to be false, got %v", vlan.LooseBinding)
+		}
+		if vlan.ReorderHdr == nil || *vlan.ReorderHdr != true {
+			t.Fatalf("expected reorder hdr to be true, got %v", vlan.ReorderHdr)
+		}
+	}
+}
+
+func TestLinkModifyVlanFlags(t *testing.T) {
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+	valueTrue := true
+	valueFalse := false
+	vlan := &Vlan{
+		LinkAttrs:     LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+		VlanId:        900,
+		VlanProtocol:  VLAN_PROTOCOL_8021Q,
+		Gvrp:          &valueTrue,
+		Mvrp:          &valueFalse,
+		BridgeBinding: &valueFalse,
+		LooseBinding:  &valueFalse,
+		ReorderHdr:    &valueTrue,
+	}
+	if err := LinkAdd(vlan); err != nil {
+		t.Fatal(err)
+	}
+
+	vlan = &Vlan{
+		LinkAttrs:     LinkAttrs{Name: "bar"},
+		BridgeBinding: &valueTrue,
+	}
+
+	if err := LinkModify(vlan); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if vlan, ok := link.(*Vlan); !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	} else {
+		if vlan.Gvrp == nil || *vlan.Gvrp != true {
+			t.Fatalf("expected gvrp to be true, got %v", vlan.Gvrp)
+		}
+		if vlan.Mvrp == nil || *vlan.Mvrp != false {
+			t.Fatalf("expected mvrp to be false, got %v", vlan.Mvrp)
+		}
+		if vlan.BridgeBinding == nil || *vlan.BridgeBinding != true {
+			t.Fatalf("expected bridge binding to be true, got %v", vlan.BridgeBinding)
+		}
+		if vlan.LooseBinding == nil || *vlan.LooseBinding != false {
+			t.Fatalf("expected loose binding to be false, got %v", vlan.LooseBinding)
+		}
+		if vlan.ReorderHdr == nil || *vlan.ReorderHdr != true {
+			t.Fatalf("expected reorder hdr to be true, got %v", vlan.ReorderHdr)
+		}
 	}
 }
 

@@ -290,8 +290,15 @@ func (bridge *Bridge) Type() string {
 // Vlan links have ParentIndex set in their Attrs()
 type Vlan struct {
 	LinkAttrs
-	VlanId       int
-	VlanProtocol VlanProtocol
+	VlanId        int
+	VlanProtocol  VlanProtocol
+	IngressQosMap map[uint32]uint32
+	EgressQosMap  map[uint32]uint32
+	ReorderHdr    *bool
+	Gvrp          *bool
+	LooseBinding  *bool
+	Mvrp          *bool
+	BridgeBinding *bool
 }
 
 func (vlan *Vlan) Attrs() *LinkAttrs {
