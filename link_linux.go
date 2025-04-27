@@ -1696,16 +1696,25 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		peer := data.AddRtAttr(nl.VETH_INFO_PEER, nil)
 		nl.NewIfInfomsgChild(peer, unix.AF_UNSPEC)
 		peer.AddRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(link.PeerName))
-		if base.TxQLen >= 0 {
+
+		if link.PeerTxQLen >= 0 {
+			peer.AddRtAttr(unix.IFLA_TXQLEN, nl.Uint32Attr(uint32(link.PeerTxQLen)))
+		} else if base.TxQLen >= 0 {
 			peer.AddRtAttr(unix.IFLA_TXQLEN, nl.Uint32Attr(uint32(base.TxQLen)))
 		}
-		if base.NumTxQueues > 0 {
+		if link.PeerNumTxQueues > 0 {
+			peer.AddRtAttr(unix.IFLA_NUM_TX_QUEUES, nl.Uint32Attr(link.PeerNumTxQueues))
+		} else if base.NumTxQueues > 0 {
 			peer.AddRtAttr(unix.IFLA_NUM_TX_QUEUES, nl.Uint32Attr(uint32(base.NumTxQueues)))
 		}
-		if base.NumRxQueues > 0 {
+		if link.PeerNumRxQueues > 0 {
+			peer.AddRtAttr(unix.IFLA_NUM_RX_QUEUES, nl.Uint32Attr(link.PeerNumRxQueues))
+		} else if base.NumRxQueues > 0 {
 			peer.AddRtAttr(unix.IFLA_NUM_RX_QUEUES, nl.Uint32Attr(uint32(base.NumRxQueues)))
 		}
-		if base.MTU > 0 {
+		if link.PeerMTU > 0 {
+			peer.AddRtAttr(unix.IFLA_MTU, nl.Uint32Attr(link.PeerMTU))
+		} else if base.MTU > 0 {
 			peer.AddRtAttr(unix.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
 		}
 		if link.PeerHardwareAddr != nil {
