@@ -366,12 +366,12 @@ func NewSkbEditAction() *SkbEditAction {
 
 type PoliceAction struct {
 	ActionAttrs
-	Rate            uint32 // in byte per second
+	Rate            uint64 // in byte per second
 	Burst           uint32 // in byte
 	RCellLog        int
 	Mtu             uint32
 	Mpu             uint16 // in byte
-	PeakRate        uint32 // in byte per second
+	PeakRate        uint64 // in byte per second
 	PCellLog        int
 	AvRate          uint32 // in byte per second
 	Overhead        uint16

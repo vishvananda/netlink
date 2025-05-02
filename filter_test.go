@@ -2275,113 +2275,125 @@ func TestFilterU32PoliceAddDel(t *testing.T) {
 		t.Fatal("Qdisc is the wrong type")
 	}
 
-	const (
-		policeRate     = 0x40000000 // 1 Gbps
-		policeBurst    = 0x19000    // 100 KB
-		policePeakRate = 0x4000     // 16 Kbps
-	)
+	tests := []struct {
+		rate     uint64
+		peakRate uint64
+		burst    uint32
+	}{
+		// Fits in a uint32
+		{0x400000, 0x20000, 0x4000},
+		// Doesn't fit in a uint32
+		{0x80000000000, 0x80000000000, 0x20000}}
 
-	police := NewPoliceAction()
-	police.Rate = policeRate
-	police.PeakRate = policePeakRate
-	police.Burst = policeBurst
-	police.ExceedAction = TC_POLICE_SHOT
-	police.NotExceedAction = TC_POLICE_UNSPEC
+	for _, tt := range tests {
 
-	classId := MakeHandle(1, 1)
-	filter := &U32{
-		FilterAttrs: FilterAttrs{
-			LinkIndex: link.Attrs().Index,
-			Parent:    MakeHandle(0xffff, 0),
-			Priority:  1,
-			Protocol:  unix.ETH_P_ALL,
-		},
-		ClassId: classId,
-		Actions: []Action{
-			police,
-			&MirredAction{
-				ActionAttrs: ActionAttrs{
-					Action: TC_ACT_STOLEN,
-				},
-				MirredAction: TCA_EGRESS_REDIR,
-				Ifindex:      redir.Attrs().Index,
+		police := NewPoliceAction()
+		police.Rate = tt.rate
+		police.PeakRate = tt.peakRate
+		police.Burst = tt.burst
+		police.ExceedAction = TC_POLICE_SHOT
+		police.NotExceedAction = TC_POLICE_UNSPEC
+
+		classId := MakeHandle(1, 1)
+		filter := &U32{
+			FilterAttrs: FilterAttrs{
+				LinkIndex: link.Attrs().Index,
+				Parent:    MakeHandle(0xffff, 0),
+				Priority:  1,
+				Protocol:  unix.ETH_P_ALL,
 			},
-		},
-	}
-
-	if err := FilterAdd(filter); err != nil {
-		t.Fatal(err)
-	}
-
-	filters, err := FilterList(link, MakeHandle(0xffff, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(filters) != 1 {
-		t.Fatal("Failed to add filter")
-	}
-	u32, ok := filters[0].(*U32)
-	if !ok {
-		t.Fatal("Filter is the wrong type")
-	}
-
-	if len(u32.Actions) != 2 {
-		t.Fatalf("Too few Actions in filter")
-	}
-	if u32.ClassId != classId {
-		t.Fatalf("ClassId of the filter is the wrong value")
-	}
-
-	// actions can be returned in reverse order
-	p, ok := u32.Actions[0].(*PoliceAction)
-	if !ok {
-		p, ok = u32.Actions[1].(*PoliceAction)
-		if !ok {
-			t.Fatal("Unable to find police action")
+			ClassId: classId,
+			Actions: []Action{
+				police,
+				&MirredAction{
+					ActionAttrs: ActionAttrs{
+						Action: TC_ACT_STOLEN,
+					},
+					MirredAction: TCA_EGRESS_REDIR,
+					Ifindex:      redir.Attrs().Index,
+				},
+			},
 		}
-	}
 
-	if p.ExceedAction != TC_POLICE_SHOT {
-		t.Fatal("Police ExceedAction isn't TC_POLICE_SHOT")
-	}
-
-	if p.NotExceedAction != TC_POLICE_UNSPEC {
-		t.Fatal("Police NotExceedAction isn't TC_POLICE_UNSPEC")
-	}
-
-	if p.Rate != policeRate {
-		t.Fatal("Action Rate doesn't match")
-	}
-
-	if p.PeakRate != policePeakRate {
-		t.Fatal("Action PeakRate doesn't match")
-	}
-
-	if p.LinkLayer != nl.LINKLAYER_ETHERNET {
-		t.Fatal("Action LinkLayer doesn't match")
-	}
-
-	mia, ok := u32.Actions[0].(*MirredAction)
-	if !ok {
-		mia, ok = u32.Actions[1].(*MirredAction)
-		if !ok {
-			t.Fatal("Unable to find mirred action")
+		if err := FilterAdd(filter); err != nil {
+			t.Fatal(err)
 		}
-	}
 
-	if mia.Attrs().Action != TC_ACT_STOLEN {
-		t.Fatal("Mirred action isn't TC_ACT_STOLEN")
-	}
+		filters, err := FilterList(link, MakeHandle(0xffff, 0))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(filters) != 1 {
+			t.Fatal("Failed to add filter")
+		}
+		u32, ok := filters[0].(*U32)
+		if !ok {
+			t.Fatal("Filter is the wrong type")
+		}
 
-	if err := FilterDel(filter); err != nil {
-		t.Fatal(err)
-	}
-	filters, err = FilterList(link, MakeHandle(0xffff, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(filters) != 0 {
-		t.Fatal("Failed to remove filter")
+		if len(u32.Actions) != 2 {
+			t.Fatalf("Too few Actions in filter")
+		}
+		if u32.ClassId != classId {
+			t.Fatalf("ClassId of the filter is the wrong value")
+		}
+
+		// actions can be returned in reverse order
+		p, ok := u32.Actions[0].(*PoliceAction)
+		if !ok {
+			p, ok = u32.Actions[1].(*PoliceAction)
+			if !ok {
+				t.Fatal("Unable to find police action")
+			}
+		}
+
+		if p.ExceedAction != TC_POLICE_SHOT {
+			t.Fatal("Police ExceedAction isn't TC_POLICE_SHOT")
+		}
+
+		if p.NotExceedAction != TC_POLICE_UNSPEC {
+			t.Fatal("Police NotExceedAction isn't TC_POLICE_UNSPEC")
+		}
+
+		if p.Rate != tt.rate {
+			t.Fatal("Action Rate doesn't match")
+		}
+
+		if p.PeakRate != tt.peakRate {
+			t.Fatal("Action PeakRate doesn't match")
+		}
+
+		// Burst doesn't match exactly because of rounding errors.
+		if frac, eps := float64(p.Burst)/float64(tt.burst), 1e-5; frac < 1-eps && frac > 1+eps {
+			t.Fatal("Filter Burst doesn't match")
+		}
+
+		if p.LinkLayer != nl.LINKLAYER_ETHERNET {
+			t.Fatal("Action LinkLayer doesn't match")
+		}
+
+		mia, ok := u32.Actions[0].(*MirredAction)
+		if !ok {
+			mia, ok = u32.Actions[1].(*MirredAction)
+			if !ok {
+				t.Fatal("Unable to find mirred action")
+			}
+		}
+
+		if mia.Attrs().Action != TC_ACT_STOLEN {
+			t.Fatal("Mirred action isn't TC_ACT_STOLEN")
+		}
+
+		if err := FilterDel(filter); err != nil {
+			t.Fatal(err)
+		}
+		filters, err = FilterList(link, MakeHandle(0xffff, 0))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(filters) != 0 {
+			t.Fatal("Failed to remove filter")
+		}
 	}
 
 	if err := QdiscDel(qdisc); err != nil {
@@ -2429,61 +2441,74 @@ func TestFilterU32DirectPoliceAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const (
-		policeRate     = 0x40000000 // 1 Gbps
-		policeBurst    = 0x19000    // 100 KB
-		policePeakRate = 0x4000     // 16 Kbps
-	)
+	tests := []struct {
+		rate     uint64
+		peakRate uint64
+		burst    uint32
+	}{
+		// Fits in a uint32
+		{0x400000, 0x20000, 0x4000},
+		// Doesn't fit in a uint32
+		{0x80000000000, 0x80000000000, 0x8000}}
 
-	police := NewPoliceAction()
-	police.Rate = policeRate
-	police.PeakRate = policePeakRate
-	police.Burst = policeBurst
-	police.ExceedAction = TC_POLICE_SHOT
-	police.NotExceedAction = TC_POLICE_UNSPEC
+	for _, tt := range tests {
 
-	classId := MakeHandle(1, 1)
-	filter := &U32{
-		FilterAttrs: FilterAttrs{
-			LinkIndex: link.Attrs().Index,
-			Parent:    MakeHandle(0xffff, 0),
-			Priority:  1,
-			Protocol:  unix.ETH_P_ALL,
-		},
-		ClassId: classId,
-		Police:  police,
-	}
+		police := NewPoliceAction()
+		police.Rate = tt.rate
+		police.PeakRate = tt.peakRate
+		police.Burst = tt.burst
+		police.ExceedAction = TC_POLICE_SHOT
+		police.NotExceedAction = TC_POLICE_UNSPEC
 
-	if err := FilterAdd(filter); err != nil {
-		t.Fatal(err)
-	}
+		classId := MakeHandle(1, 1)
+		filter := &U32{
+			FilterAttrs: FilterAttrs{
+				LinkIndex: link.Attrs().Index,
+				Parent:    MakeHandle(0xffff, 0),
+				Handle:    0x80000600,
+				Priority:  1,
+				Protocol:  unix.ETH_P_ALL,
+			},
+			ClassId: classId,
+			Police:  police,
+		}
 
-	filters, err := FilterList(link, MakeHandle(0xffff, 0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(filters) != 1 {
-		t.Fatal("Failed to add filter")
-	}
-	u32, ok := filters[0].(*U32)
-	if !ok {
-		t.Fatal("Filter is the wrong type")
-	}
+		if err := FilterReplace(filter); err != nil {
+			t.Fatal(err)
+		}
 
-	if u32.Police == nil {
-		t.Fatalf("No police in filter")
-	}
+		filters, err := FilterList(link, MakeHandle(0xffff, 0))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(filters) != 1 {
+			t.Fatal("Failed to add filter")
+		}
+		u32, ok := filters[0].(*U32)
+		if !ok {
+			t.Fatal("Filter is the wrong type")
+		}
 
-	if u32.Police.Rate != policeRate {
-		t.Fatal("Filter Rate doesn't match")
-	}
+		if u32.Police == nil {
+			t.Fatalf("No police in filter")
+		}
 
-	if u32.Police.PeakRate != policePeakRate {
-		t.Fatal("Filter PeakRate doesn't match")
-	}
+		if u32.Police.Rate != tt.rate {
+			t.Fatal("Filter Rate doesn't match")
+		}
 
-	if u32.Police.LinkLayer != nl.LINKLAYER_ETHERNET {
-		t.Fatal("Filter LinkLayer doesn't match")
+		if u32.Police.PeakRate != tt.peakRate {
+			t.Fatal("Filter PeakRate doesn't match")
+		}
+
+		// Burst doesn't match exactly because of rounding errors.
+		if frac, eps := float64(u32.Police.Burst)/float64(tt.burst), 1e-5; frac < 1-eps && frac > 1+eps {
+			t.Fatal("Filter Burst doesn't match")
+		}
+
+		if u32.Police.LinkLayer != nl.LINKLAYER_ETHERNET {
+			t.Fatal("Filter LinkLayer doesn't match")
+		}
 	}
 
 	if err := QdiscDel(qdisc); err != nil {
