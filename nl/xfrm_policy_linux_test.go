@@ -22,13 +22,13 @@ func (msg *XfrmUserpolicyId) serializeSafe() []byte {
 }
 
 func deserializeXfrmUserpolicyIdSafe(b []byte) *XfrmUserpolicyId {
-	var msg = XfrmUserpolicyId{}
+	msg := XfrmUserpolicyId{}
 	binary.Read(bytes.NewReader(b[0:SizeofXfrmUserpolicyId]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestXfrmUserpolicyIdDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofXfrmUserpolicyId)
+	orig := make([]byte, SizeofXfrmUserpolicyId)
 	rand.Read(orig)
 	safemsg := deserializeXfrmUserpolicyIdSafe(orig)
 	msg := DeserializeXfrmUserpolicyId(orig)
@@ -58,13 +58,13 @@ func (msg *XfrmUserpolicyInfo) serializeSafe() []byte {
 }
 
 func deserializeXfrmUserpolicyInfoSafe(b []byte) *XfrmUserpolicyInfo {
-	var msg = XfrmUserpolicyInfo{}
+	msg := XfrmUserpolicyInfo{}
 	binary.Read(bytes.NewReader(b[0:SizeofXfrmUserpolicyInfo]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestXfrmUserpolicyInfoDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofXfrmUserpolicyInfo)
+	orig := make([]byte, SizeofXfrmUserpolicyInfo)
 	rand.Read(orig)
 	safemsg := deserializeXfrmUserpolicyInfoSafe(orig)
 	msg := DeserializeXfrmUserpolicyInfo(orig)
@@ -95,13 +95,13 @@ func (msg *XfrmUserTmpl) serializeSafe() []byte {
 }
 
 func deserializeXfrmUserTmplSafe(b []byte) *XfrmUserTmpl {
-	var msg = XfrmUserTmpl{}
+	msg := XfrmUserTmpl{}
 	binary.Read(bytes.NewReader(b[0:SizeofXfrmUserTmpl]), NativeEndian(), &msg)
 	return &msg
 }
 
 func TestXfrmUserTmplDeserializeSerialize(t *testing.T) {
-	var orig = make([]byte, SizeofXfrmUserTmpl)
+	orig := make([]byte, SizeofXfrmUserTmpl)
 	rand.Read(orig)
 	safemsg := deserializeXfrmUserTmplSafe(orig)
 	msg := DeserializeXfrmUserTmpl(orig)

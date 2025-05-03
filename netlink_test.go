@@ -195,6 +195,7 @@ func setUpNetlinkTestWithKModule(t *testing.T, moduleNames ...string) tearDownNe
 	skipUnlessKModuleLoaded(t, moduleNames...)
 	return setUpNetlinkTest(t)
 }
+
 func setUpNamedNetlinkTestWithKModule(t *testing.T, moduleNames ...string) (string, tearDownNetlinkTest) {
 	file, err := ioutil.ReadFile("/proc/modules")
 	if err != nil {

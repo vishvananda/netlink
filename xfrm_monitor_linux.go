@@ -31,9 +31,7 @@ func parseXfrmMsgExpire(b []byte) *XfrmMsgExpire {
 	return &e
 }
 
-func XfrmMonitor(ch chan<- XfrmMsg, done <-chan struct{}, errorChan chan<- error,
-	types ...nl.XfrmMsgType) error {
-
+func XfrmMonitor(ch chan<- XfrmMsg, done <-chan struct{}, errorChan chan<- error, types ...nl.XfrmMsgType) error {
 	groups, err := xfrmMcastGroups(types)
 	if err != nil {
 		return nil
@@ -48,7 +46,6 @@ func XfrmMonitor(ch chan<- XfrmMsg, done <-chan struct{}, errorChan chan<- error
 			<-done
 			s.Close()
 		}()
-
 	}
 
 	go func() {

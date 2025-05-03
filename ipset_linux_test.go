@@ -114,7 +114,6 @@ func TestIpsetCreateListAddDelDestroy(t *testing.T) {
 	}
 
 	results, err := IpsetListAll()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +158,6 @@ func TestIpsetCreateListAddDelDestroy(t *testing.T) {
 		IP:      ip,
 		Replace: false,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +173,6 @@ func TestIpsetCreateListAddDelDestroy(t *testing.T) {
 	}
 
 	result, err := IpsetList("my-test-ipset-1")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -470,7 +467,6 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			}
 
 			err = IpsetAdd(tC.setname, tC.entry)
-
 			if err != nil {
 				t.Error(result.Protocol, result.Family)
 				t.Fatal(err)
@@ -485,7 +481,6 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			}
 
 			result, err = IpsetList(tC.setname)
-
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -637,7 +632,6 @@ func TestIpsetBitmapCreateListWithTestCases(t *testing.T) {
 					t.Fatalf("expected ip range %v-%v, got %v-%v", tC.options.IPFrom, tC.options.IPTo, result.IPFrom, result.IPTo)
 				}
 			}
-
 		})
 	}
 }

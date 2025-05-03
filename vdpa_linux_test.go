@@ -16,9 +16,7 @@ const (
 	vdpaTestDeviceName = "__nl_test_dev"
 )
 
-var (
-	vdapTestReqModules = []string{"vdpa", "vdpa_sim", "vdpa_sim_net"}
-)
+var vdapTestReqModules = []string{"vdpa", "vdpa_sim", "vdpa_sim_net"}
 
 func setupVDPATest(t *testing.T, reqCommands ...int) func() {
 	t.Helper()

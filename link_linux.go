@@ -1413,7 +1413,7 @@ func (h *Handle) linkModify(link Link, flags int) error {
 
 		req.Flags = uint16(tuntap.Flags)
 
-		if queues == 0 { //Legacy compatibility
+		if queues == 0 { // Legacy compatibility
 			queues = 1
 			if tuntap.Flags == 0 {
 				req.Flags = uint16(TUNTAP_DEFAULTS)
@@ -2419,7 +2419,8 @@ func LinkSubscribeWithOptions(ch chan<- LinkUpdate, done <-chan struct{}, option
 }
 
 func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}, cberr func(error), listExisting bool,
-	rcvbuf int, rcvTimeout *unix.Timeval, rcvbufForce bool) error {
+	rcvbuf int, rcvTimeout *unix.Timeval, rcvbufForce bool,
+) error {
 	s, err := nl.SubscribeAt(newNs, curNs, unix.NETLINK_ROUTE, unix.RTNLGRP_LINK)
 	if err != nil {
 		return err
@@ -2610,6 +2611,7 @@ func (h *Handle) setProtinfoAttrRawVal(link Link, val []byte, attr int) error {
 	}
 	return nil
 }
+
 func (h *Handle) setProtinfoAttr(link Link, mode bool, attr int) error {
 	return h.setProtinfoAttrRawVal(link, boolToByte(mode), attr)
 }
@@ -3899,7 +3901,7 @@ type vethEthtoolStats struct {
 }
 
 func vethStatsDeserialize(b []byte) (vethEthtoolStats, error) {
-	var stats = vethEthtoolStats{}
+	stats := vethEthtoolStats{}
 	err := binary.Read(bytes.NewReader(b), nl.NativeEndian(), &stats)
 	return stats, err
 }
@@ -3994,7 +3996,6 @@ func parseIPoIBData(link Link, data []syscall.NetlinkRouteAttr) {
 func parseCanData(link Link, data []syscall.NetlinkRouteAttr) {
 	can := link.(*Can)
 	for _, datum := range data {
-
 		switch datum.Attr.Type {
 		case nl.IFLA_CAN_BITTIMING:
 			can.BitRate = native.Uint32(datum.Value)

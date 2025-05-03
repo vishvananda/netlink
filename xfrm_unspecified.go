@@ -3,5 +3,7 @@
 
 package netlink
 
-type XfrmPolicy struct{}
-type XfrmState struct{}
+type (
+	XfrmPolicy struct{}
+	XfrmState  struct{}
+)
