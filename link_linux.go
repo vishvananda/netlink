@@ -1933,7 +1933,7 @@ func LinkByName(name string) (Link, error) {
 // filtering a dump of all link names. In this case, if the returned error is
 // [ErrDumpInterrupted] the result may be missing or outdated.
 func (h *Handle) LinkByName(name string) (Link, error) {
-	if h.lookupByDump {
+	if h.options.lookupByDump {
 		return h.linkByNameDump(name)
 	}
 
@@ -1942,8 +1942,10 @@ func (h *Handle) LinkByName(name string) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	req.AddData(msg)
 
-	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
-	req.AddData(attr)
+	if h.options.collectVFInfo {
+		attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+		req.AddData(attr)
+	}
 
 	nameData := nl.NewRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(name))
 	if len(name) > 15 {
@@ -1955,7 +1957,7 @@ func (h *Handle) LinkByName(name string) (Link, error) {
 	if err == unix.EINVAL {
 		// older kernels don't support looking up via IFLA_IFNAME
 		// so fall back to dumping all links
-		h.lookupByDump = true
+		h.options.lookupByDump = true
 		return h.linkByNameDump(name)
 	}
 
@@ -1979,7 +1981,7 @@ func LinkByAlias(alias string) (Link, error) {
 // filtering a dump of all link names. In this case, if the returned error is
 // [ErrDumpInterrupted] the result may be missing or outdated.
 func (h *Handle) LinkByAlias(alias string) (Link, error) {
-	if h.lookupByDump {
+	if h.options.lookupByDump {
 		return h.linkByAliasDump(alias)
 	}
 
@@ -1988,8 +1990,10 @@ func (h *Handle) LinkByAlias(alias string) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	req.AddData(msg)
 
-	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
-	req.AddData(attr)
+	if h.options.collectVFInfo {
+		attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+		req.AddData(attr)
+	}
 
 	nameData := nl.NewRtAttr(unix.IFLA_IFALIAS, nl.ZeroTerminated(alias))
 	req.AddData(nameData)
@@ -1998,7 +2002,7 @@ func (h *Handle) LinkByAlias(alias string) (Link, error) {
 	if err == unix.EINVAL {
 		// older kernels don't support looking up via IFLA_IFALIAS
 		// so fall back to dumping all links
-		h.lookupByDump = true
+		h.options.lookupByDump = true
 		return h.linkByAliasDump(alias)
 	}
 
@@ -2017,8 +2021,10 @@ func (h *Handle) LinkByIndex(index int) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	msg.Index = int32(index)
 	req.AddData(msg)
-	attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
-	req.AddData(attr)
+	if h.options.collectVFInfo {
+		attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+		req.AddData(attr)
+	}
 
 	return execGetLink(req)
 }
