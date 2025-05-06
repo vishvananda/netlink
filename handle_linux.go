@@ -12,13 +12,26 @@ import (
 // Empty handle used by the netlink package methods
 var pkgHandle = &Handle{}
 
-// Handle is an handle for the netlink requests on a
+type HandleOptions struct {
+	lookupByDump bool
+	skipVFInfo   bool
+}
+
+type HandleOption func(*Handle)
+
+// Handle is a handle for the netlink requests on a
 // specific network namespace. All the requests on the
 // same netlink family share the same netlink socket,
 // which gets released when the handle is Close'd.
 type Handle struct {
-	sockets      map[int]*nl.SocketHandle
-	lookupByDump bool
+	sockets map[int]*nl.SocketHandle
+	options HandleOptions
+}
+
+// DisableVFInfo configures the handle to skip VF information fetching
+func (h *Handle) DisableVFInfo() *Handle {
+	h.options.skipVFInfo = true
+	return h
 }
 
 // SetSocketTimeout configures timeout for default netlink sockets
