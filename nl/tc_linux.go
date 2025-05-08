@@ -1138,11 +1138,11 @@ const TCA_CLS_FLAGS_SKIP_SW = 1 << 1 /* don't use filter in SW */
 // };
 
 type TcSfqQopt struct {
-	Quantum uint8
+	Quantum uint32
 	Perturb int32
 	Limit   uint32
-	Divisor uint8
-	Flows   uint8
+	Divisor uint32
+	Flows   uint32
 }
 
 func (x *TcSfqQopt) Len() int {
