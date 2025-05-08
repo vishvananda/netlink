@@ -2045,6 +2045,58 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		t.Fatal("Failed to remove filter")
 	}
 
+	classId := MakeHandle(1, 101)
+
+	filter = &Flower{
+		FilterAttrs: FilterAttrs{
+			LinkIndex: link.Attrs().Index,
+			Parent:    MakeHandle(0xffff, 0),
+			Priority:  1,
+			Protocol:  unix.ETH_P_ALL,
+		},
+
+		EthType:         unix.ETH_P_IP,
+		IPProto:         ipproto,
+		ClassId:         classId,
+		SrcPortRangeMin: 1000,
+		SrcPortRangeMax: 2000,
+	}
+	if err := FilterAdd(filter); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Second)
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 1 {
+		t.Fatal("Failed to add filter")
+	}
+	flower, ok = filters[0].(*Flower)
+	if !ok {
+		t.Fatal("Filter is the wrong type")
+	}
+	if filter.ClassId != flower.ClassId {
+		t.Fatalf("Flower ClassId doesn't match")
+	}
+	if filter.SrcPortRangeMin != flower.SrcPortRangeMin {
+		t.Fatalf("Flower SrcPortRangeMin doesn't match")
+	}
+	if filter.SrcPortRangeMax != flower.SrcPortRangeMax {
+		t.Fatalf("Flower SrcPortRangeMax doesn't match")
+	}
+	if err := FilterDel(filter); err != nil {
+		t.Fatal(err)
+	}
+	filters, err = FilterList(link, MakeHandle(0xffff, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filters) != 0 {
+		t.Fatal("Failed to remove filter")
+	}
+
 	if err := QdiscDel(qdisc); err != nil {
 		t.Fatal(err)
 	}
