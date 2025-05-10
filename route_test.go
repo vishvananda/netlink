@@ -190,7 +190,7 @@ func TestRoute6AddDel(t *testing.T) {
 		IP:   net.ParseIP("2001:db8::0"),
 		Mask: net.CIDRMask(64, 128),
 	}
-	route := Route{LinkIndex: link.Attrs().Index, Dst: dst}
+	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Expires: 10}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
 	}
@@ -200,6 +200,25 @@ func TestRoute6AddDel(t *testing.T) {
 	}
 	if len(routes) != nroutes+1 {
 		t.Fatal("Route not added properly")
+	}
+
+	// route expiry is supported by kernel 4.4+
+	k, m, err := KernelVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if k > 4 || (k == 4 && m > 4) {
+		foundExpires := false
+		for _, route := range routes {
+			if route.Dst.IP.Equal(dst.IP) {
+				if route.Expires > 0 && route.Expires <= 10 {
+					foundExpires = true
+				}
+			}
+		}
+		if !foundExpires {
+			t.Fatal("Route 'expires' not set")
+		}
 	}
 
 	dstIP := net.ParseIP("2001:db8::1")
