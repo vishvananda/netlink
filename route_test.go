@@ -1921,6 +1921,9 @@ func TestSEG6LocalEqual(t *testing.T) {
 	var flags_end_dt6 [nl.SEG6_LOCAL_MAX]bool
 	flags_end_dt6[nl.SEG6_LOCAL_ACTION] = true
 	flags_end_dt6[nl.SEG6_LOCAL_TABLE] = true
+	var flags_end_dt46 [nl.SEG6_LOCAL_MAX]bool
+	flags_end_dt46[nl.SEG6_LOCAL_ACTION] = true
+	flags_end_dt46[nl.SEG6_LOCAL_VRFTABLE] = true
 	var flags_end_dt4 [nl.SEG6_LOCAL_MAX]bool
 	flags_end_dt4[nl.SEG6_LOCAL_ACTION] = true
 	flags_end_dt4[nl.SEG6_LOCAL_TABLE] = true
@@ -1973,6 +1976,11 @@ func TestSEG6LocalEqual(t *testing.T) {
 			Flags:  flags_end_dt4,
 			Action: nl.SEG6_LOCAL_ACTION_END_DT4,
 			Table:  40,
+		},
+		{
+			Flags:    flags_end_dt46,
+			Action:   nl.SEG6_LOCAL_ACTION_END_DT46,
+			VrfTable: 50,
 		},
 		{
 			Flags:    flags_end_b6,
