@@ -58,6 +58,8 @@ func (errDumpInterrupted) Error() string {
 	return "results may be incomplete or inconsistent"
 }
 
+func (errDumpInterrupted) Temporary() bool { return true }
+
 // Before errDumpInterrupted was introduced, EINTR was returned when a netlink
 // response had NLM_F_DUMP_INTR. Retain backward compatibility with code that
 // may be checking for EINTR using Is.
