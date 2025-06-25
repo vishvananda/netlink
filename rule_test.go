@@ -55,7 +55,7 @@ func TestRuleAddDel(t *testing.T) {
 	// find this rule
 	found := ruleExists(rules, *rule)
 	if !found {
-		t.Fatal("Rule has diffrent options than one added")
+		t.Fatal("Rule has different options than one added")
 	}
 
 	if err := RuleDel(rule); err != nil {
@@ -699,6 +699,7 @@ func TestRuleEqual(t *testing.T) {
 		{UIDRange: &RuleUIDRange{Start: 3, End: 5}},
 		{Protocol: FAMILY_V6},
 		{Type: unix.RTN_UNREACHABLE},
+		{L3mdev: 1},
 	}
 	for i1 := range cases {
 		for i2 := range cases {
@@ -711,6 +712,14 @@ func TestRuleEqual(t *testing.T) {
 					strconv.FormatBool(expected))
 			}
 		}
+	}
+}
+
+func TestRuleEqualTypeUnspecifiedEqualsUnicast(t *testing.T) {
+	a := Rule{Type: unix.RTN_UNSPEC}
+	b := Rule{Type: unix.RTN_UNICAST}
+	if !a.Equal(b) || !b.Equal(a) {
+		t.Errorf("Rules are expected to be equal")
 	}
 }
 

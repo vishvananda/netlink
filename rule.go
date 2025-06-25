@@ -29,6 +29,7 @@ type Rule struct {
 	UIDRange          *RuleUIDRange
 	Protocol          uint8
 	Type              uint8
+	L3mdev            uint8
 }
 
 func (r Rule) Equal(x Rule) bool {
@@ -43,7 +44,8 @@ func (r Rule) Equal(x Rule) bool {
 		r.IifName == x.IifName &&
 		r.Invert == x.Invert &&
 		r.Tos == x.Tos &&
-		r.Type == x.Type &&
+		(r.Type == x.Type ||
+			(r.Type == 0 && x.Type == 1 || r.Type == 1 && x.Type == 0)) && // 1 is unix.RTN_UNICAST
 		r.IPProto == x.IPProto &&
 		r.Protocol == x.Protocol &&
 		r.Mark == x.Mark &&
@@ -59,7 +61,8 @@ func (r Rule) Equal(x Rule) bool {
 		r.SuppressPrefixlen == x.SuppressPrefixlen &&
 		(r.Dport == x.Dport || (r.Dport != nil && x.Dport != nil && r.Dport.Equal(*x.Dport))) &&
 		(r.Sport == x.Sport || (r.Sport != nil && x.Sport != nil && r.Sport.Equal(*x.Sport))) &&
-		(r.UIDRange == x.UIDRange || (r.UIDRange != nil && x.UIDRange != nil && r.UIDRange.Equal(*x.UIDRange)))
+		(r.UIDRange == x.UIDRange || (r.UIDRange != nil && x.UIDRange != nil && r.UIDRange.Equal(*x.UIDRange))) &&
+		r.L3mdev == x.L3mdev
 }
 
 func ptrEqual(a, b *uint32) bool {
