@@ -5,6 +5,7 @@ package netlink
 
 import (
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -600,7 +601,7 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 				t.Errorf("Expected len: %d, got: %d", len(wantRules), len(rules))
 			} else {
 				for i := range wantRules {
-					if !ruleEquals(wantRules[i], rules[i]) {
+					if !wantRules[i].Equal(rules[i]) {
 						t.Errorf("Rules mismatch, want %v, got %v", wantRules[i], rules[i])
 					}
 				}
@@ -666,7 +667,7 @@ func TestRuleString(t *testing.T) {
 
 func ruleExists(rules []Rule, rule Rule) bool {
 	for i := range rules {
-		if ruleEquals(rules[i], rule) {
+		if rules[i].Equal(rule) {
 			return true
 		}
 	}
@@ -674,22 +675,100 @@ func ruleExists(rules []Rule, rule Rule) bool {
 	return false
 }
 
-func ruleEquals(a, b Rule) bool {
-	return a.Table == b.Table &&
-		((a.Src == nil && b.Src == nil) ||
-			(a.Src != nil && b.Src != nil && a.Src.String() == b.Src.String())) &&
-		((a.Dst == nil && b.Dst == nil) ||
-			(a.Dst != nil && b.Dst != nil && a.Dst.String() == b.Dst.String())) &&
-		a.OifName == b.OifName &&
-		a.Priority == b.Priority &&
-		a.Family == b.Family &&
-		a.IifName == b.IifName &&
-		a.Invert == b.Invert &&
-		a.Tos == b.Tos &&
-		a.Type == b.Type &&
-		a.IPProto == b.IPProto &&
-		a.Protocol == b.Protocol &&
-		a.Mark == b.Mark &&
-		(ptrEqual(a.Mask, b.Mask) || (a.Mark != 0 &&
-			(a.Mask == nil && *b.Mask == 0xFFFFFFFF || b.Mask == nil && *a.Mask == 0xFFFFFFFF)))
+func TestRuleEqual(t *testing.T) {
+	cases := []Rule{
+		{Priority: 1000},
+		{Family: FAMILY_V6},
+		{Table: 10},
+		{Mark: 1},
+		{Mask: &[]uint32{0x1}[0]},
+		{Tos: 1},
+		{TunID: 3},
+		{Goto: 10},
+		{Src: &net.IPNet{IP: net.IPv4(172, 16, 0, 1), Mask: net.CIDRMask(16, 32)}},
+		{Dst: &net.IPNet{IP: net.IPv4(172, 16, 1, 1), Mask: net.CIDRMask(24, 32)}},
+		{Flow: 3},
+		{IifName: "IifName"},
+		{OifName: "OifName"},
+		{SuppressIfgroup: 7},
+		{SuppressPrefixlen: 16},
+		{Invert: true},
+		{Dport: &RulePortRange{Start: 10, End: 20}},
+		{Sport: &RulePortRange{Start: 1, End: 2}},
+		{IPProto: unix.IPPROTO_TCP},
+		{UIDRange: &RuleUIDRange{Start: 3, End: 5}},
+		{Protocol: FAMILY_V6},
+		{Type: unix.RTN_UNREACHABLE},
+	}
+	for i1 := range cases {
+		for i2 := range cases {
+			got := cases[i1].Equal(cases[i2])
+			expected := i1 == i2
+			if got != expected {
+				t.Errorf("Equal(%q,%q) == %s but expected %s",
+					cases[i1], cases[i2],
+					strconv.FormatBool(got),
+					strconv.FormatBool(expected))
+			}
+		}
+	}
+}
+
+func TestRuleEqualMaskMark(t *testing.T) {
+	a := Rule{Mark: 1, Mask: nil}
+	b := Rule{Mark: 1, Mask: &[]uint32{0xFFFFFFFF}[0]}
+	if !a.Equal(b) || !b.Equal(a) {
+		t.Errorf("Rules are expected to be equal")
+	}
+
+	b = Rule{Mark: 2, Mask: &[]uint32{0xFFFFFFFF}[0]}
+	if a.Equal(b) || b.Equal(a) {
+		t.Errorf("Rules are not expected to be equal")
+	}
+
+	a = Rule{Mark: 0, Mask: nil}
+	b = Rule{Mark: 0, Mask: &[]uint32{0xFFFFFFFF}[0]}
+	if a.Equal(b) || b.Equal(a) {
+		t.Errorf("Rules are not expected to be equal")
+	}
+}
+
+func TestRulePortRangeEqual(t *testing.T) {
+	cases := []RulePortRange{
+		{Start: 10, End: 10},
+		{Start: 10, End: 22},
+		{Start: 11, End: 22},
+	}
+	for i1 := range cases {
+		for i2 := range cases {
+			got := cases[i1].Equal(cases[i2])
+			expected := i1 == i2
+			if got != expected {
+				t.Errorf("Equal(%q,%q) == %s but expected %s",
+					cases[i1], cases[i2],
+					strconv.FormatBool(got),
+					strconv.FormatBool(expected))
+			}
+		}
+	}
+}
+
+func TestRuleUIDRangeEqual(t *testing.T) {
+	cases := []RuleUIDRange{
+		{Start: 10, End: 10},
+		{Start: 10, End: 22},
+		{Start: 11, End: 22},
+	}
+	for i1 := range cases {
+		for i2 := range cases {
+			got := cases[i1].Equal(cases[i2])
+			expected := i1 == i2
+			if got != expected {
+				t.Errorf("Equal(%q,%q) == %s but expected %s",
+					cases[i1], cases[i2],
+					strconv.FormatBool(got),
+					strconv.FormatBool(expected))
+			}
+		}
+	}
 }
