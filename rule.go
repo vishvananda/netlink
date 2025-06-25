@@ -29,6 +29,7 @@ type Rule struct {
 	UIDRange          *RuleUIDRange
 	Protocol          uint8
 	Type              uint8
+	L3mdev            uint8
 }
 
 func (r Rule) Equal(x Rule) bool {
@@ -59,7 +60,8 @@ func (r Rule) Equal(x Rule) bool {
 		r.SuppressPrefixlen == x.SuppressPrefixlen &&
 		(r.Dport == x.Dport || (r.Dport != nil && x.Dport != nil && r.Dport.Equal(*x.Dport))) &&
 		(r.Sport == x.Sport || (r.Sport != nil && x.Sport != nil && r.Sport.Equal(*x.Sport))) &&
-		(r.UIDRange == x.UIDRange || (r.UIDRange != nil && x.UIDRange != nil && r.UIDRange.Equal(*x.UIDRange)))
+		(r.UIDRange == x.UIDRange || (r.UIDRange != nil && x.UIDRange != nil && r.UIDRange.Equal(*x.UIDRange))) &&
+		r.L3mdev == x.L3mdev
 }
 
 func (r Rule) String() string {

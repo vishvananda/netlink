@@ -699,6 +699,7 @@ func TestRuleEqual(t *testing.T) {
 		{UIDRange: &RuleUIDRange{Start: 3, End: 5}},
 		{Protocol: FAMILY_V6},
 		{Type: unix.RTN_UNREACHABLE},
+		{L3mdev: 1},
 	}
 	for i1 := range cases {
 		for i2 := range cases {
