@@ -1086,6 +1086,12 @@ func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.R
 		msg.Type = uint8(route.Type)
 	}
 
+	if route.Expires > 0 {
+		b := make([]byte, 4)
+		native.PutUint32(b, uint32(route.Expires))
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_EXPIRES, b))
+	}
+
 	var metrics []*nl.RtAttr
 	if route.MTU > 0 {
 		b := nl.Uint32Attr(uint32(route.MTU))
@@ -1320,6 +1326,25 @@ func (h *Handle) RouteListFilteredIter(family int, filter *Route, filterMask uin
 	return executeErr
 }
 
+// deserializeRouteCacheInfo decodes a RTA_CACHEINFO attribute into a RouteCacheInfo struct
+func deserializeRouteCacheInfo(b []byte) (*RouteCacheInfo, error) {
+	if len(b) != 32 {
+		return nil, unix.EINVAL
+	}
+
+	e := nl.NativeEndian()
+	return &RouteCacheInfo{
+		e.Uint32(b),
+		e.Uint32(b[4:]),
+		int32(e.Uint32(b[8:])),
+		e.Uint32(b[12:]),
+		e.Uint32(b[16:]),
+		e.Uint32(b[20:]),
+		e.Uint32(b[24:]),
+		e.Uint32(b[28:]),
+	}, nil
+}
+
 // deserializeRoute decodes a binary netlink message into a Route struct
 func deserializeRoute(m []byte) (Route, error) {
 	msg := nl.DeserializeRtMsg(m)
@@ -1363,6 +1388,12 @@ func deserializeRoute(m []byte) (Route, error) {
 			route.ILinkIndex = int(native.Uint32(attr.Value[0:4]))
 		case unix.RTA_PRIORITY:
 			route.Priority = int(native.Uint32(attr.Value[0:4]))
+		case unix.RTA_CACHEINFO:
+			route.CacheInfo, err = deserializeRouteCacheInfo(attr.Value)
+			if err != nil {
+				return route, err
+			}
+			route.Expires = int(route.CacheInfo.Expires) / 100
 		case unix.RTA_FLOW:
 			route.Realm = int(native.Uint32(attr.Value[0:4]))
 		case unix.RTA_TABLE:
