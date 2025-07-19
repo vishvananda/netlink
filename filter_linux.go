@@ -505,7 +505,8 @@ func (h *Handle) FilterList(link Link, parent uint32) ([]Filter, error) {
 		filterType := ""
 		detailed := false
 		for _, attr := range attrs {
-			switch attr.Attr.Type {
+			attrType := attr.Attr.Type & nl.NLA_TYPE_MASK
+			switch attrType {
 			case nl.TCA_KIND:
 				filterType = string(attr.Value[:len(attr.Value)-1])
 				switch filterType {
