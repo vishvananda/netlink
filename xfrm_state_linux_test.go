@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
@@ -247,13 +248,34 @@ func TestXfrmStateWithSADir(t *testing.T) {
 }
 
 func TestXfrmStateWithPcpunumWithoutSADir(t *testing.T) {
-	minKernelRequired(t, 4, 19)
+	minKernel, minMajor, maxKernel, maxMajor := 4, 19, 6, 11
+	unsupportedMsg := "invalid argument: SA_PCPU only supported with SA_DIR"
+	k, m, err := KernelVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Not using minKernelRequired here, as we will be using k,m later in our test
+	if k < minKernel || k == minKernel && m < minMajor {
+		t.Skipf("Host Kernel (%d.%d) does not meet test's minimum required version: (%d.%d)",
+			k, m, minKernel, minMajor)
+	}
 	defer setUpNetlinkTest(t)()
 
 	state := getBaseState()
 	pcpuNum := uint32(1)
 	state.Pcpunum = &pcpuNum
-	if err := XfrmStateAdd(state); err != nil {
+	err = XfrmStateAdd(state)
+	
+	if err != nil {
+		if k > maxKernel || k == maxKernel && m >= maxMajor {
+			// On and After maxKernel.maxMajor, SA_PCPU is only supported with SA_DIR
+			t.Logf("Host Kernel(%d.%d) does not allows SA_PCPU without SA_DIR", k, m)
+			if ! strings.Contains(err.Error(), unsupportedMsg) {
+				t.Fatal("Unexpected error from XfrmStateAdd", "error: ", err)
+			}
+			return
+		}
 		t.Fatal(err)
 	}
 	s, err := XfrmStateGet(state)
