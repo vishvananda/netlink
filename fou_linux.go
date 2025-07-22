@@ -6,7 +6,6 @@ package netlink
 import (
 	"encoding/binary"
 	"errors"
-	"log"
 	"net"
 
 	"github.com/vishvananda/netlink/nl"
@@ -202,8 +201,6 @@ func deserializeFouMsg(msg []byte) (Fou, error) {
 			fou.PeerPort = int(networkOrder.Uint16(attr.Value))
 		case FOU_ATTR_IFINDEX:
 			fou.IfIndex = int(native.Uint16(attr.Value))
-		default:
-			log.Printf("unknown fou attribute from kernel: %+v %v", attr, attr.Type&nl.NLA_TYPE_MASK)
 		}
 	}
 
