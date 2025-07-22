@@ -169,18 +169,13 @@ func (h *Handle) FouList(fam int) ([]Fou, error) {
 
 	fous := make([]Fou, 0, len(msgs))
 	for _, m := range msgs {
-		f, err := deserializeFouMsg(m)
-		if err != nil {
-			return fous, err
-		}
-
-		fous = append(fous, f)
+		fous = append(fous, deserializeFouMsg(m))
 	}
 
 	return fous, executeErr
 }
 
-func deserializeFouMsg(msg []byte) (Fou, error) {
+func deserializeFouMsg(msg []byte) Fou {
 	fou := Fou{}
 
 	for attr := range nl.ParseAttributes(msg[4:]) {
@@ -204,5 +199,5 @@ func deserializeFouMsg(msg []byte) (Fou, error) {
 		}
 	}
 
-	return fou, nil
+	return fou
 }
