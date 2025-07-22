@@ -4,8 +4,6 @@
 package netlink
 
 import (
-	"fmt"
-	"log"
 	"net"
 	"os/user"
 	"strconv"
@@ -66,11 +64,11 @@ func TestSocketGet(t *testing.T) {
 	for _, v := range [...]string{"tcp4", "tcp6"} {
 		addr, err := net.ResolveTCPAddr(v, "localhost:0")
 		if err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 		l, err := net.ListenTCP(v, addr)
 		if err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 		defer l.Close()
 
@@ -86,11 +84,11 @@ func TestSocketGet(t *testing.T) {
 	for _, v := range [...]string{"udp4", "udp6"} {
 		addr, err := net.ResolveUDPAddr(v, "localhost:0")
 		if err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 		l, err := net.ListenUDP(v, addr)
 		if err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		}
 		defer l.Close()
 		conn, err := net.Dial(l.LocalAddr().Network(), l.LocalAddr().String())
@@ -108,11 +106,11 @@ func TestSocketDestroy(t *testing.T) {
 
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	l, err := net.ListenTCP("tcp", addr)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	defer l.Close()
 
@@ -171,7 +169,6 @@ func TestUnixSocketDiagInfo(t *testing.T) {
 	}
 
 	for i, r := range result {
-		fmt.Println(r.DiagMsg)
 		if got := r.DiagMsg.Family; got != uint8(want) {
 			t.Fatalf("%d: protocol family = %v, want %v", i, got, want)
 		}
