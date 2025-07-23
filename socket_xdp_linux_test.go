@@ -4,6 +4,7 @@
 package netlink
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -13,6 +14,9 @@ import (
 func TestSocketXDPGetInfo(t *testing.T) {
 	xdpsockfd, err := unix.Socket(unix.AF_XDP, unix.SOCK_RAW, 0)
 	if err != nil {
+		if errors.Is(err, unix.EPERM) {
+			t.Skipf("creating AF_XDP socket not permitted")
+		}
 		t.Fatal(err)
 	}
 	defer unix.Close(xdpsockfd)
