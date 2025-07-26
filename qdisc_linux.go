@@ -664,8 +664,14 @@ func parseTbfData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 		switch datum.Attr.Type {
 		case nl.TCA_TBF_PARMS:
 			opt := nl.DeserializeTcTbfQopt(datum.Value)
-			tbf.Rate = uint64(opt.Rate.Rate)
-			tbf.Peakrate = uint64(opt.Peakrate.Rate)
+			// tbf.Rate may already have been set via nl.TCA_TBF_RATE64.
+			if tbf.Rate == 0 {
+				tbf.Rate = uint64(opt.Rate.Rate)
+			}
+			// tbf.Peakrate may already have been set via nl.TCA_TBF_PRATE64.
+			if tbf.Peakrate == 0 {
+				tbf.Peakrate = uint64(opt.Peakrate.Rate)
+			}
 			tbf.Limit = opt.Limit
 			tbf.Buffer = opt.Buffer
 		case nl.TCA_TBF_RATE64:
