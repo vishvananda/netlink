@@ -669,7 +669,7 @@ func (e *IP6tnlEncap) Decode(buf []byte) error {
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case nl.LWTUNNEL_IP6_ID:
-			e.ID = uint64(native.Uint64(attr.Value[0:4]))
+			e.ID = uint64(binary.BigEndian.Uint64(attr.Value[0:8]))
 		case nl.LWTUNNEL_IP6_DST:
 			e.Dst = net.IP(attr.Value[:])
 		case nl.LWTUNNEL_IP6_SRC:
@@ -677,11 +677,9 @@ func (e *IP6tnlEncap) Decode(buf []byte) error {
 		case nl.LWTUNNEL_IP6_HOPLIMIT:
 			e.Hoplimit = attr.Value[0]
 		case nl.LWTUNNEL_IP6_TC:
-			// e.TC = attr.Value[0]
-			err = fmt.Errorf("decoding TC in IP6tnlEncap is not supported")
+			e.TC = attr.Value[0]
 		case nl.LWTUNNEL_IP6_FLAGS:
-			// e.Flags = uint16(native.Uint16(attr.Value[0:2]))
-			err = fmt.Errorf("decoding FLAG in IP6tnlEncap is not supported")
+			e.Flags = uint16(native.Uint16(attr.Value[0:2]))
 		case nl.LWTUNNEL_IP6_PAD:
 			err = fmt.Errorf("decoding PAD in IP6tnlEncap is not supported")
 		case nl.LWTUNNEL_IP6_OPTS:
@@ -698,7 +696,7 @@ func (e *IP6tnlEncap) Encode() ([]byte, error) {
 	resID := make([]byte, 12)
 	native.PutUint16(resID, 12) //  2+2+8
 	native.PutUint16(resID[2:], nl.LWTUNNEL_IP6_ID)
-	native.PutUint64(resID[4:], 0)
+	binary.BigEndian.PutUint64(resID[4:], e.ID)
 	final = append(final, resID...)
 
 	resDst := make([]byte, 4)
@@ -713,11 +711,11 @@ func (e *IP6tnlEncap) Encode() ([]byte, error) {
 	resSrc = append(resSrc, e.Src...)
 	final = append(final, resSrc...)
 
-	// resTc := make([]byte, 5)
-	// native.PutUint16(resTc, 5)
-	// native.PutUint16(resTc[2:], nl.LWTUNNEL_IP6_TC)
-	// resTc[4] = e.TC
-	// final = append(final,resTc...)
+	resTc := make([]byte, 5)
+	native.PutUint16(resTc, 5)
+	native.PutUint16(resTc[2:], nl.LWTUNNEL_IP6_TC)
+	resTc[4] = e.TC
+	final = append(final, resTc...)
 
 	resHops := make([]byte, 5)
 	native.PutUint16(resHops, 5)
@@ -725,11 +723,11 @@ func (e *IP6tnlEncap) Encode() ([]byte, error) {
 	resHops[4] = e.Hoplimit
 	final = append(final, resHops...)
 
-	// resFlags := make([]byte, 6)
-	// native.PutUint16(resFlags, 6)
-	// native.PutUint16(resFlags[2:], nl.LWTUNNEL_IP6_FLAGS)
-	// native.PutUint16(resFlags[4:], e.Flags)
-	// final = append(final,resFlags...)
+	resFlags := make([]byte, 6)
+	native.PutUint16(resFlags, 6)
+	native.PutUint16(resFlags[2:], nl.LWTUNNEL_IP6_FLAGS)
+	binary.BigEndian.PutUint16(resFlags[4:], e.Flags)
+	final = append(final, resFlags...)
 
 	return final, nil
 }
@@ -1577,6 +1575,11 @@ func deserializeRoute(m []byte) (Route, error) {
 			}
 		case nl.LWTUNNEL_ENCAP_BPF:
 			e = &BpfEncap{}
+			if err := e.Decode(encap.Value); err != nil {
+				return route, err
+			}
+		case nl.LWTUNNEL_ENCAP_IP6:
+			e = &IP6tnlEncap{}
 			if err := e.Decode(encap.Value); err != nil {
 				return route, err
 			}
