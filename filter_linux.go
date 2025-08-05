@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"syscall"
 
@@ -605,24 +606,22 @@ func encodePolice(attr *nl.RtAttr, action *PoliceAction) error {
 	police.Bindcnt = int32(action.Attrs().Bindcnt)
 	police.Capab = uint32(action.Attrs().Capab)
 	police.Refcnt = int32(action.Attrs().Refcnt)
-	police.Rate.Rate = action.Rate
-	police.PeakRate.Rate = action.PeakRate
 	police.Action = int32(action.ExceedAction)
 
-	if police.Rate.Rate != 0 {
+	if action.Rate != 0 {
 		police.Rate.Mpu = action.Mpu
 		police.Rate.Overhead = action.Overhead
-		if CalcRtable(&police.Rate, rtab[:], action.RCellLog, action.Mtu, action.LinkLayer) < 0 {
+		if CalcRtable(action.Rate, &police.Rate, rtab[:], action.RCellLog, action.Mtu, action.LinkLayer) < 0 {
 			return errors.New("TBF: failed to calculate rate table")
 		}
-		police.Burst = Xmittime(uint64(police.Rate.Rate), action.Burst)
+		police.Burst = Xmittime(action.Rate, action.Burst)
 	}
 
 	police.Mtu = action.Mtu
-	if police.PeakRate.Rate != 0 {
+	if action.PeakRate != 0 {
 		police.PeakRate.Mpu = action.Mpu
 		police.PeakRate.Overhead = action.Overhead
-		if CalcRtable(&police.PeakRate, ptab[:], action.PCellLog, action.Mtu, action.LinkLayer) < 0 {
+		if CalcRtable(action.PeakRate, &police.PeakRate, ptab[:], action.PCellLog, action.Mtu, action.LinkLayer) < 0 {
 			return errors.New("POLICE: failed to calculate peak rate table")
 		}
 	}
@@ -630,9 +629,15 @@ func encodePolice(attr *nl.RtAttr, action *PoliceAction) error {
 	attr.AddRtAttr(nl.TCA_POLICE_TBF, police.Serialize())
 	if police.Rate.Rate != 0 {
 		attr.AddRtAttr(nl.TCA_POLICE_RATE, SerializeRtab(rtab))
+		if action.Rate > math.MaxUint32 {
+			attr.AddRtAttr(nl.TCA_POLICE_RATE64, nl.Uint64Attr(action.Rate))
+		}
 	}
 	if police.PeakRate.Rate != 0 {
 		attr.AddRtAttr(nl.TCA_POLICE_PEAKRATE, SerializeRtab(ptab))
+		if action.PeakRate > math.MaxUint32 {
+			attr.AddRtAttr(nl.TCA_POLICE_PEAKRATE64, nl.Uint64Attr(action.PeakRate))
+		}
 	}
 	if action.AvRate != 0 {
 		attr.AddRtAttr(nl.TCA_POLICE_AVRATE, nl.Uint32Attr(action.AvRate))
@@ -817,27 +822,45 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 	return nil
 }
 
-func parsePolice(data syscall.NetlinkRouteAttr, police *PoliceAction) {
-	switch data.Attr.Type {
-	case nl.TCA_POLICE_RESULT:
-		police.NotExceedAction = TcPolAct(native.Uint32(data.Value[0:4]))
-	case nl.TCA_POLICE_AVRATE:
-		police.AvRate = native.Uint32(data.Value[0:4])
-	case nl.TCA_POLICE_TBF:
-		p := *nl.DeserializeTcPolice(data.Value)
-		police.ActionAttrs = ActionAttrs{}
-		police.Attrs().Index = int(p.Index)
-		police.Attrs().Bindcnt = int(p.Bindcnt)
-		police.Attrs().Capab = int(p.Capab)
-		police.Attrs().Refcnt = int(p.Refcnt)
-		police.ExceedAction = TcPolAct(p.Action)
-		police.Rate = p.Rate.Rate
-		police.PeakRate = p.PeakRate.Rate
-		police.Burst = Xmitsize(uint64(p.Rate.Rate), p.Burst)
-		police.Mtu = p.Mtu
-		police.LinkLayer = int(p.Rate.Linklayer) & nl.TC_LINKLAYER_MASK
-		police.Overhead = p.Rate.Overhead
+func parsePolice(indata []syscall.NetlinkRouteAttr) *PoliceAction {
+	var police PoliceAction
+	var burstTicks uint32
+	for _, data := range indata {
+		switch data.Attr.Type {
+		case nl.TCA_POLICE_RESULT:
+			police.NotExceedAction = TcPolAct(native.Uint32(data.Value[0:4]))
+		case nl.TCA_POLICE_AVRATE:
+			police.AvRate = native.Uint32(data.Value[0:4])
+		case nl.TCA_POLICE_TBF:
+			p := *nl.DeserializeTcPolice(data.Value)
+			police.ActionAttrs = ActionAttrs{}
+			police.Attrs().Index = int(p.Index)
+			police.Attrs().Bindcnt = int(p.Bindcnt)
+			police.Attrs().Capab = int(p.Capab)
+			police.Attrs().Refcnt = int(p.Refcnt)
+			police.ExceedAction = TcPolAct(p.Action)
+			// police.Rate may already have been set via nl.TCA_POLICE_RATE64.
+			if police.Rate == 0 {
+				police.Rate = uint64(p.Rate.Rate)
+			}
+			// police.PeakRate may already have been set via nl.TCA_POLICE_PEAKRATE64.
+			if police.PeakRate == 0 {
+				police.PeakRate = uint64(p.PeakRate.Rate)
+			}
+			burstTicks = p.Burst
+			police.Mtu = p.Mtu
+			police.LinkLayer = int(p.Rate.Linklayer) & nl.TC_LINKLAYER_MASK
+			police.Overhead = p.Rate.Overhead
+		case nl.TCA_POLICE_RATE64:
+			police.Rate = native.Uint64(data.Value[0:8])
+		case nl.TCA_POLICE_PEAKRATE64:
+			police.PeakRate = native.Uint64(data.Value[0:8])
+		}
 	}
+	// Outside the loop, since we must use the final values of police.Rate
+	// and burstTicks.
+	police.Burst = Xmitsize(police.Rate, burstTicks)
+	return &police
 }
 
 func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
@@ -888,136 +911,138 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 				if err != nil {
 					return nil, err
 				}
-				for _, adatum := range adata {
-					switch actionType {
-					case "mirred":
-						switch adatum.Attr.Type {
-						case nl.TCA_MIRRED_PARMS:
-							mirred := *nl.DeserializeTcMirred(adatum.Value)
-							action.(*MirredAction).ActionAttrs = ActionAttrs{}
-							toAttrs(&mirred.TcGen, action.Attrs())
-							action.(*MirredAction).Ifindex = int(mirred.Ifindex)
-							action.(*MirredAction).MirredAction = MirredAct(mirred.Eaction)
-						case nl.TCA_MIRRED_TM:
-							tcTs := nl.DeserializeTcf(adatum.Value)
-							actionTimestamp = toTimeStamp(tcTs)
-						}
-					case "vlan":
-						switch adatum.Attr.Type {
-						case nl.TCA_VLAN_PARMS:
-							vlan := *nl.DeserializeTcVlan(adatum.Value)
-							action.(*VlanAction).ActionAttrs = ActionAttrs{}
-							toAttrs(&vlan.TcGen, action.Attrs())
-							action.(*VlanAction).Action = VlanAct(vlan.Action)
-						case nl.TCA_VLAN_PUSH_VLAN_ID:
-							vlanId := native.Uint16(adatum.Value[0:2])
-							action.(*VlanAction).VlanID = vlanId
-						}
-					case "tunnel_key":
-						switch adatum.Attr.Type {
-						case nl.TCA_TUNNEL_KEY_PARMS:
-							tun := *nl.DeserializeTunnelKey(adatum.Value)
-							action.(*TunnelKeyAction).ActionAttrs = ActionAttrs{}
-							toAttrs(&tun.TcGen, action.Attrs())
-							action.(*TunnelKeyAction).Action = TunnelKeyAct(tun.Action)
-						case nl.TCA_TUNNEL_KEY_ENC_KEY_ID:
-							action.(*TunnelKeyAction).KeyID = networkOrder.Uint32(adatum.Value[0:4])
-						case nl.TCA_TUNNEL_KEY_ENC_IPV6_SRC, nl.TCA_TUNNEL_KEY_ENC_IPV4_SRC:
-							action.(*TunnelKeyAction).SrcAddr = adatum.Value[:]
-						case nl.TCA_TUNNEL_KEY_ENC_IPV6_DST, nl.TCA_TUNNEL_KEY_ENC_IPV4_DST:
-							action.(*TunnelKeyAction).DstAddr = adatum.Value[:]
-						case nl.TCA_TUNNEL_KEY_ENC_DST_PORT:
-							action.(*TunnelKeyAction).DestPort = ntohs(adatum.Value)
-						case nl.TCA_TUNNEL_KEY_TM:
-							tcTs := nl.DeserializeTcf(adatum.Value)
-							actionTimestamp = toTimeStamp(tcTs)
-						}
-					case "skbedit":
-						switch adatum.Attr.Type {
-						case nl.TCA_SKBEDIT_PARMS:
-							skbedit := *nl.DeserializeSkbEdit(adatum.Value)
-							action.(*SkbEditAction).ActionAttrs = ActionAttrs{}
-							toAttrs(&skbedit.TcGen, action.Attrs())
-						case nl.TCA_SKBEDIT_MARK:
-							mark := native.Uint32(adatum.Value[0:4])
-							action.(*SkbEditAction).Mark = &mark
-						case nl.TCA_SKBEDIT_MASK:
-							mask := native.Uint32(adatum.Value[0:4])
-							action.(*SkbEditAction).Mask = &mask
-						case nl.TCA_SKBEDIT_PRIORITY:
-							priority := native.Uint32(adatum.Value[0:4])
-							action.(*SkbEditAction).Priority = &priority
-						case nl.TCA_SKBEDIT_PTYPE:
-							ptype := native.Uint16(adatum.Value[0:2])
-							action.(*SkbEditAction).PType = &ptype
-						case nl.TCA_SKBEDIT_QUEUE_MAPPING:
-							mapping := native.Uint16(adatum.Value[0:2])
-							action.(*SkbEditAction).QueueMapping = &mapping
-						case nl.TCA_SKBEDIT_TM:
-							tcTs := nl.DeserializeTcf(adatum.Value)
-							actionTimestamp = toTimeStamp(tcTs)
-						}
-					case "bpf":
-						switch adatum.Attr.Type {
-						case nl.TCA_ACT_BPF_PARMS:
-							gen := *nl.DeserializeTcGen(adatum.Value)
-							toAttrs(&gen, action.Attrs())
-						case nl.TCA_ACT_BPF_FD:
-							action.(*BpfAction).Fd = int(native.Uint32(adatum.Value[0:4]))
-						case nl.TCA_ACT_BPF_NAME:
-							action.(*BpfAction).Name = string(adatum.Value[:len(adatum.Value)-1])
-						case nl.TCA_ACT_BPF_TM:
-							tcTs := nl.DeserializeTcf(adatum.Value)
-							actionTimestamp = toTimeStamp(tcTs)
-						}
-					case "connmark":
-						switch adatum.Attr.Type {
-						case nl.TCA_CONNMARK_PARMS:
-							connmark := *nl.DeserializeTcConnmark(adatum.Value)
-							action.(*ConnmarkAction).ActionAttrs = ActionAttrs{}
-							toAttrs(&connmark.TcGen, action.Attrs())
-							action.(*ConnmarkAction).Zone = connmark.Zone
-						case nl.TCA_CONNMARK_TM:
-							tcTs := nl.DeserializeTcf(adatum.Value)
-							actionTimestamp = toTimeStamp(tcTs)
-						}
-					case "csum":
-						switch adatum.Attr.Type {
-						case nl.TCA_CSUM_PARMS:
-							csum := *nl.DeserializeTcCsum(adatum.Value)
-							action.(*CsumAction).ActionAttrs = ActionAttrs{}
-							toAttrs(&csum.TcGen, action.Attrs())
-							action.(*CsumAction).UpdateFlags = CsumUpdateFlags(csum.UpdateFlags)
-						case nl.TCA_CSUM_TM:
-							tcTs := nl.DeserializeTcf(adatum.Value)
-							actionTimestamp = toTimeStamp(tcTs)
-						}
-					case "sample":
-						switch adatum.Attr.Type {
-						case nl.TCA_ACT_SAMPLE_PARMS:
-							gen := *nl.DeserializeTcGen(adatum.Value)
-							toAttrs(&gen, action.Attrs())
-						case nl.TCA_ACT_SAMPLE_RATE:
-							action.(*SampleAction).Rate = native.Uint32(adatum.Value[0:4])
-						case nl.TCA_ACT_SAMPLE_PSAMPLE_GROUP:
-							action.(*SampleAction).Group = native.Uint32(adatum.Value[0:4])
-						case nl.TCA_ACT_SAMPLE_TRUNC_SIZE:
-							action.(*SampleAction).TruncSize = native.Uint32(adatum.Value[0:4])
-						}
-					case "gact":
-						switch adatum.Attr.Type {
-						case nl.TCA_GACT_PARMS:
-							gen := *nl.DeserializeTcGen(adatum.Value)
-							toAttrs(&gen, action.Attrs())
-							if action.Attrs().Action.String() == "goto" {
-								action.(*GenericAction).Chain = TC_ACT_EXT_VAL_MASK & gen.Action
+				if actionType == "police" {
+					action = parsePolice(adata)
+				} else {
+					for _, adatum := range adata {
+						switch actionType {
+						case "mirred":
+							switch adatum.Attr.Type {
+							case nl.TCA_MIRRED_PARMS:
+								mirred := *nl.DeserializeTcMirred(adatum.Value)
+								action.(*MirredAction).ActionAttrs = ActionAttrs{}
+								toAttrs(&mirred.TcGen, action.Attrs())
+								action.(*MirredAction).Ifindex = int(mirred.Ifindex)
+								action.(*MirredAction).MirredAction = MirredAct(mirred.Eaction)
+							case nl.TCA_MIRRED_TM:
+								tcTs := nl.DeserializeTcf(adatum.Value)
+								actionTimestamp = toTimeStamp(tcTs)
 							}
-						case nl.TCA_GACT_TM:
-							tcTs := nl.DeserializeTcf(adatum.Value)
-							actionTimestamp = toTimeStamp(tcTs)
+						case "vlan":
+							switch adatum.Attr.Type {
+							case nl.TCA_VLAN_PARMS:
+								vlan := *nl.DeserializeTcVlan(adatum.Value)
+								action.(*VlanAction).ActionAttrs = ActionAttrs{}
+								toAttrs(&vlan.TcGen, action.Attrs())
+								action.(*VlanAction).Action = VlanAct(vlan.Action)
+							case nl.TCA_VLAN_PUSH_VLAN_ID:
+								vlanId := native.Uint16(adatum.Value[0:2])
+								action.(*VlanAction).VlanID = vlanId
+							}
+						case "tunnel_key":
+							switch adatum.Attr.Type {
+							case nl.TCA_TUNNEL_KEY_PARMS:
+								tun := *nl.DeserializeTunnelKey(adatum.Value)
+								action.(*TunnelKeyAction).ActionAttrs = ActionAttrs{}
+								toAttrs(&tun.TcGen, action.Attrs())
+								action.(*TunnelKeyAction).Action = TunnelKeyAct(tun.Action)
+							case nl.TCA_TUNNEL_KEY_ENC_KEY_ID:
+								action.(*TunnelKeyAction).KeyID = networkOrder.Uint32(adatum.Value[0:4])
+							case nl.TCA_TUNNEL_KEY_ENC_IPV6_SRC, nl.TCA_TUNNEL_KEY_ENC_IPV4_SRC:
+								action.(*TunnelKeyAction).SrcAddr = adatum.Value[:]
+							case nl.TCA_TUNNEL_KEY_ENC_IPV6_DST, nl.TCA_TUNNEL_KEY_ENC_IPV4_DST:
+								action.(*TunnelKeyAction).DstAddr = adatum.Value[:]
+							case nl.TCA_TUNNEL_KEY_ENC_DST_PORT:
+								action.(*TunnelKeyAction).DestPort = ntohs(adatum.Value)
+							case nl.TCA_TUNNEL_KEY_TM:
+								tcTs := nl.DeserializeTcf(adatum.Value)
+								actionTimestamp = toTimeStamp(tcTs)
+							}
+						case "skbedit":
+							switch adatum.Attr.Type {
+							case nl.TCA_SKBEDIT_PARMS:
+								skbedit := *nl.DeserializeSkbEdit(adatum.Value)
+								action.(*SkbEditAction).ActionAttrs = ActionAttrs{}
+								toAttrs(&skbedit.TcGen, action.Attrs())
+							case nl.TCA_SKBEDIT_MARK:
+								mark := native.Uint32(adatum.Value[0:4])
+								action.(*SkbEditAction).Mark = &mark
+							case nl.TCA_SKBEDIT_MASK:
+								mask := native.Uint32(adatum.Value[0:4])
+								action.(*SkbEditAction).Mask = &mask
+							case nl.TCA_SKBEDIT_PRIORITY:
+								priority := native.Uint32(adatum.Value[0:4])
+								action.(*SkbEditAction).Priority = &priority
+							case nl.TCA_SKBEDIT_PTYPE:
+								ptype := native.Uint16(adatum.Value[0:2])
+								action.(*SkbEditAction).PType = &ptype
+							case nl.TCA_SKBEDIT_QUEUE_MAPPING:
+								mapping := native.Uint16(adatum.Value[0:2])
+								action.(*SkbEditAction).QueueMapping = &mapping
+							case nl.TCA_SKBEDIT_TM:
+								tcTs := nl.DeserializeTcf(adatum.Value)
+								actionTimestamp = toTimeStamp(tcTs)
+							}
+						case "bpf":
+							switch adatum.Attr.Type {
+							case nl.TCA_ACT_BPF_PARMS:
+								gen := *nl.DeserializeTcGen(adatum.Value)
+								toAttrs(&gen, action.Attrs())
+							case nl.TCA_ACT_BPF_FD:
+								action.(*BpfAction).Fd = int(native.Uint32(adatum.Value[0:4]))
+							case nl.TCA_ACT_BPF_NAME:
+								action.(*BpfAction).Name = string(adatum.Value[:len(adatum.Value)-1])
+							case nl.TCA_ACT_BPF_TM:
+								tcTs := nl.DeserializeTcf(adatum.Value)
+								actionTimestamp = toTimeStamp(tcTs)
+							}
+						case "connmark":
+							switch adatum.Attr.Type {
+							case nl.TCA_CONNMARK_PARMS:
+								connmark := *nl.DeserializeTcConnmark(adatum.Value)
+								action.(*ConnmarkAction).ActionAttrs = ActionAttrs{}
+								toAttrs(&connmark.TcGen, action.Attrs())
+								action.(*ConnmarkAction).Zone = connmark.Zone
+							case nl.TCA_CONNMARK_TM:
+								tcTs := nl.DeserializeTcf(adatum.Value)
+								actionTimestamp = toTimeStamp(tcTs)
+							}
+						case "csum":
+							switch adatum.Attr.Type {
+							case nl.TCA_CSUM_PARMS:
+								csum := *nl.DeserializeTcCsum(adatum.Value)
+								action.(*CsumAction).ActionAttrs = ActionAttrs{}
+								toAttrs(&csum.TcGen, action.Attrs())
+								action.(*CsumAction).UpdateFlags = CsumUpdateFlags(csum.UpdateFlags)
+							case nl.TCA_CSUM_TM:
+								tcTs := nl.DeserializeTcf(adatum.Value)
+								actionTimestamp = toTimeStamp(tcTs)
+							}
+						case "sample":
+							switch adatum.Attr.Type {
+							case nl.TCA_ACT_SAMPLE_PARMS:
+								gen := *nl.DeserializeTcGen(adatum.Value)
+								toAttrs(&gen, action.Attrs())
+							case nl.TCA_ACT_SAMPLE_RATE:
+								action.(*SampleAction).Rate = native.Uint32(adatum.Value[0:4])
+							case nl.TCA_ACT_SAMPLE_PSAMPLE_GROUP:
+								action.(*SampleAction).Group = native.Uint32(adatum.Value[0:4])
+							case nl.TCA_ACT_SAMPLE_TRUNC_SIZE:
+								action.(*SampleAction).TruncSize = native.Uint32(adatum.Value[0:4])
+							}
+						case "gact":
+							switch adatum.Attr.Type {
+							case nl.TCA_GACT_PARMS:
+								gen := *nl.DeserializeTcGen(adatum.Value)
+								toAttrs(&gen, action.Attrs())
+								if action.Attrs().Action.String() == "goto" {
+									action.(*GenericAction).Chain = TC_ACT_EXT_VAL_MASK & gen.Action
+								}
+							case nl.TCA_GACT_TM:
+								tcTs := nl.DeserializeTcf(adatum.Value)
+								actionTimestamp = toTimeStamp(tcTs)
+							}
 						}
-					case "police":
-						parsePolice(adatum, action.(*PoliceAction))
 					}
 				}
 			case nl.TCA_ACT_STATS:
@@ -1070,12 +1095,11 @@ func parseU32Data(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) 
 				}
 			}
 		case nl.TCA_U32_POLICE:
-			var police PoliceAction
-			adata, _ := nl.ParseRouteAttr(datum.Value)
-			for _, aattr := range adata {
-				parsePolice(aattr, &police)
+			adata, err := nl.ParseRouteAttr(datum.Value)
+			if err != nil {
+				return detailed, err
 			}
-			u32.Police = &police
+			u32.Police = parsePolice(adata)
 		case nl.TCA_U32_CLASSID:
 			u32.ClassId = native.Uint32(datum.Value)
 		case nl.TCA_U32_DIVISOR:
@@ -1101,12 +1125,11 @@ func parseFwData(filter Filter, data []syscall.NetlinkRouteAttr) (bool, error) {
 		case nl.TCA_FW_INDEV:
 			fw.InDev = string(datum.Value[:len(datum.Value)-1])
 		case nl.TCA_FW_POLICE:
-			var police PoliceAction
-			adata, _ := nl.ParseRouteAttr(datum.Value)
-			for _, aattr := range adata {
-				parsePolice(aattr, &police)
+			adata, err := nl.ParseRouteAttr(datum.Value)
+			if err != nil {
+				return detailed, err
 			}
-			fw.Police = &police
+			fw.Police = parsePolice(adata)
 		case nl.TCA_FW_ACT:
 			tables, err := nl.ParseRouteAttr(datum.Value)
 			if err != nil {
@@ -1193,10 +1216,8 @@ func AdjustSize(sz uint, mpu uint, linklayer int) uint {
 	}
 }
 
-func CalcRtable(rate *nl.TcRateSpec, rtab []uint32, cellLog int, mtu uint32, linklayer int) int {
-	bps := rate.Rate
+func CalcRtable(bps uint64, rate *nl.TcRateSpec, rtab []uint32, cellLog int, mtu uint32, linklayer int) int {
 	mpu := rate.Mpu
-	var sz uint
 	if mtu == 0 {
 		mtu = 2047
 	}
@@ -1207,8 +1228,13 @@ func CalcRtable(rate *nl.TcRateSpec, rtab []uint32, cellLog int, mtu uint32, lin
 		}
 	}
 	for i := 0; i < 256; i++ {
-		sz = AdjustSize(uint((i+1)<<uint32(cellLog)), uint(mpu), linklayer)
-		rtab[i] = Xmittime(uint64(bps), uint32(sz))
+		sz := AdjustSize(uint((i+1)<<uint32(cellLog)), uint(mpu), linklayer)
+		rtab[i] = Xmittime(bps, uint32(sz))
+	}
+	if bps > math.MaxUint32 {
+		rate.Rate = math.MaxUint32
+	} else {
+		rate.Rate = uint32(bps)
 	}
 	rate.CellAlign = -1
 	rate.CellLog = uint8(cellLog)
