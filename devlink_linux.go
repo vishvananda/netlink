@@ -46,15 +46,21 @@ type DevlinkPortFnSetAttrs struct {
 
 // DevlinkPort represents port and its attributes
 type DevlinkPort struct {
-	BusName        string
-	DeviceName     string
-	PortIndex      uint32
-	PortType       uint16
-	NetdeviceName  string
-	NetdevIfIndex  uint32
-	RdmaDeviceName string
-	PortFlavour    uint16
-	Fn             *DevlinkPortFn
+	BusName          string
+	DeviceName       string
+	PortIndex        uint32
+	PortType         uint16
+	NetdeviceName    string
+	NetdevIfIndex    uint32
+	RdmaDeviceName   string
+	PortFlavour      uint16
+	Fn               *DevlinkPortFn
+	PortNumber       *uint32
+	PfNumber         *uint16
+	VfNumber         *uint16
+	SfNumber         *uint32
+	ControllerNumber *uint32
+	External         *bool
 }
 
 type DevLinkPortAddAttrs struct {
@@ -629,6 +635,24 @@ func (port *DevlinkPort) parseAttributes(attrs []syscall.NetlinkRouteAttr) error
 					port.Fn.OpState = uint8(nested.Value[0])
 				}
 			}
+		case nl.DEVLINK_ATTR_PORT_NUMBER:
+			val := native.Uint32(a.Value)
+			port.PortNumber = &val
+		case nl.DEVLINK_ATTR_PORT_PCI_PF_NUMBER:
+			val := native.Uint16(a.Value)
+			port.PfNumber = &val
+		case nl.DEVLINK_ATTR_PORT_PCI_VF_NUMBER:
+			val := native.Uint16(a.Value)
+			port.VfNumber = &val
+		case nl.DEVLINK_ATTR_PORT_PCI_SF_NUMBER:
+			val := native.Uint32(a.Value)
+			port.SfNumber = &val
+		case nl.DEVLINK_ATTR_PORT_CONTROLLER_NUMBER:
+			val := native.Uint32(a.Value)
+			port.ControllerNumber = &val
+		case nl.DEVLINK_ATTR_PORT_EXTERNAL:
+			val := uint8(a.Value[0]) != 0
+			port.External = &val
 		}
 	}
 	return nil

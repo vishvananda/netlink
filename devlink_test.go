@@ -5,11 +5,16 @@ package netlink
 
 import (
 	"flag"
+	"fmt"
 	"math/rand"
 	"net"
 	"os"
 	"strconv"
+	"strings"
+	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/vishvananda/netlink/nl"
 )
@@ -49,6 +54,61 @@ func TestDevLinkSetEswitchMode(t *testing.T) {
 	}
 }
 
+func logPort(t *testing.T, port *DevlinkPort) {
+	type field struct {
+		key   string
+		value string
+	}
+
+	fields := []field{}
+
+	fields = append(fields, field{key: "bus", value: port.BusName})
+	fields = append(fields, field{key: "device", value: port.DeviceName})
+	fields = append(fields, field{key: "port_index", value: strconv.Itoa(int(port.PortIndex))})
+	fields = append(fields, field{key: "port_type", value: strconv.Itoa(int(port.PortType))})
+	fields = append(fields, field{key: "port_flavour", value: strconv.Itoa(int(port.PortFlavour))})
+	fields = append(fields, field{key: "netdev_name", value: port.NetdeviceName})
+	fields = append(fields, field{key: "netdev_index", value: strconv.Itoa(int(port.NetdevIfIndex))})
+	fields = append(fields, field{key: "rdma_dev_name", value: port.RdmaDeviceName})
+
+	if port.Fn != nil {
+		fields = append(fields, field{key: "hw_addr", value: port.Fn.HwAddr.String()})
+		fields = append(fields, field{key: "state", value: strconv.Itoa(int(port.Fn.State))})
+		fields = append(fields, field{key: "op_state", value: strconv.Itoa(int(port.Fn.OpState))})
+	}
+
+	if port.PortNumber != nil {
+		fields = append(fields, field{key: "port_number", value: strconv.Itoa(int(*port.PortNumber))})
+	}
+
+	if port.PfNumber != nil {
+		fields = append(fields, field{key: "pf_number", value: strconv.Itoa(int(*port.PfNumber))})
+	}
+
+	if port.VfNumber != nil {
+		fields = append(fields, field{key: "vf_number", value: strconv.Itoa(int(*port.VfNumber))})
+	}
+
+	if port.SfNumber != nil {
+		fields = append(fields, field{key: "sf_number", value: strconv.Itoa(int(*port.SfNumber))})
+	}
+
+	if port.ControllerNumber != nil {
+		fields = append(fields, field{key: "controller_number", value: strconv.Itoa(int(*port.ControllerNumber))})
+	}
+
+	if port.External != nil {
+		fields = append(fields, field{key: "external", value: strconv.FormatBool(*port.External)})
+	}
+
+	fieldsStr := []string{}
+	for _, field := range fields {
+		fieldsStr = append(fieldsStr, fmt.Sprintf("%s=%s", field.key, field.value))
+	}
+
+	t.Log(strings.Join(fieldsStr, " "))
+}
+
 func TestDevLinkGetAllPortList(t *testing.T) {
 	minKernelRequired(t, 5, 4)
 	ports, err := DevLinkGetAllPortList()
@@ -57,7 +117,7 @@ func TestDevLinkGetAllPortList(t *testing.T) {
 	}
 	t.Log("devlink port count = ", len(ports))
 	for _, port := range ports {
-		t.Log(*port)
+		logPort(t, port)
 	}
 }
 
@@ -400,4 +460,212 @@ func validateDeviceParams(t *testing.T, p *DevlinkParam) {
 			}
 		}
 	}
+}
+
+func testGetDevlinkPortCommonAttrs() []*nl.RtAttr {
+	nlAttrs := []*nl.RtAttr{}
+	nlAttrs = append(nlAttrs,
+		nl.NewRtAttr(nl.DEVLINK_ATTR_BUS_NAME, nl.ZeroTerminated("pci")),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_DEV_NAME, nl.ZeroTerminated("0000:08:00.0")),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_INDEX, nl.Uint32Attr(131071)),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_TYPE, nl.Uint16Attr(nl.DEVLINK_PORT_TYPE_ETH)),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_NETDEV_NAME, nl.ZeroTerminated("eth0")),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_NETDEV_IFINDEX, nl.Uint32Attr(5)),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_IBDEV_NAME, nl.ZeroTerminated("rdma0")),
+	)
+
+	return nlAttrs
+}
+
+func testAddDevlinkPortPhysicalAttrs(nlAttrs []*nl.RtAttr) []*nl.RtAttr {
+	nlAttrs = append(nlAttrs,
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_FLAVOUR, nl.Uint16Attr(nl.DEVLINK_PORT_FLAVOUR_PHYSICAL)),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_NUMBER, nl.Uint32Attr(1)),
+	)
+
+	return nlAttrs
+}
+
+func testAddDevlinkPortPfAttrs(nlAttrs []*nl.RtAttr) []*nl.RtAttr {
+	nlAttrs = append(nlAttrs,
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_FLAVOUR, nl.Uint16Attr(nl.DEVLINK_PORT_FLAVOUR_PCI_PF)),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_PCI_PF_NUMBER, nl.Uint16Attr(1)),
+	)
+
+	return nlAttrs
+}
+
+func testAddDevlinkPortVfAttrs(nlAttrs []*nl.RtAttr) []*nl.RtAttr {
+	nlAttrs = append(nlAttrs,
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_FLAVOUR, nl.Uint16Attr(nl.DEVLINK_PORT_FLAVOUR_PCI_VF)),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_PCI_PF_NUMBER, nl.Uint16Attr(0)),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_PCI_VF_NUMBER, nl.Uint16Attr(4)),
+	)
+
+	nlAttrs = testAddDevlinkPortFnAttrs(nlAttrs)
+	return nlAttrs
+}
+
+func testAddDevlinkPortSfAttrs(nlAttrs []*nl.RtAttr) []*nl.RtAttr {
+	nlAttrs = append(nlAttrs,
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_FLAVOUR, nl.Uint16Attr(nl.DEVLINK_PORT_FLAVOUR_PCI_SF)),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_PCI_PF_NUMBER, nl.Uint16Attr(0)),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_PCI_SF_NUMBER, nl.Uint32Attr(123)),
+	)
+
+	nlAttrs = testAddDevlinkPortFnAttrs(nlAttrs)
+	return nlAttrs
+}
+
+func testNlAttrsToNetlinkRouteAttrs(nlAttrs []*nl.RtAttr) []syscall.NetlinkRouteAttr {
+	attrs := []syscall.NetlinkRouteAttr{}
+	for _, attr := range nlAttrs {
+		attrs = append(attrs, syscall.NetlinkRouteAttr{Attr: syscall.RtAttr(attr.RtAttr), Value: attr.Data})
+	}
+	return attrs
+}
+
+func testAddDevlinkPortFnAttrs(nlAttrs []*nl.RtAttr) []*nl.RtAttr {
+	hwAddr, _ := net.ParseMAC("00:11:22:33:44:55")
+	hwAddrAttr := nl.NewRtAttr(nl.DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR, []byte(hwAddr))
+	raw := hwAddrAttr.Serialize()
+
+	nlAttr := nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_FUNCTION, raw)
+	return append(nlAttrs, nlAttr)
+}
+
+func testAddDevlinkPortControllerAttrs(nlAttrs []*nl.RtAttr, controllerNumber uint32, external bool) []*nl.RtAttr {
+	extVal := uint8(0)
+	if external {
+		extVal = 1
+	}
+
+	nlAttrs = append(nlAttrs,
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_CONTROLLER_NUMBER, nl.Uint32Attr(controllerNumber)),
+		nl.NewRtAttr(nl.DEVLINK_ATTR_PORT_EXTERNAL, nl.Uint8Attr(extVal)),
+	)
+
+	return nlAttrs
+}
+func testAssertCommonAttrs(t *testing.T, port *DevlinkPort) {
+	assert.Equal(t, "pci", port.BusName)
+	assert.Equal(t, "0000:08:00.0", port.DeviceName)
+	assert.Equal(t, uint32(131071), port.PortIndex)
+	assert.Equal(t, uint16(nl.DEVLINK_PORT_TYPE_ETH), port.PortType)
+	assert.Equal(t, "eth0", port.NetdeviceName)
+	assert.Equal(t, uint32(5), port.NetdevIfIndex)
+	assert.Equal(t, "rdma0", port.RdmaDeviceName)
+}
+
+func TestDevlinkPortParseAttributes(t *testing.T) {
+	t.Run("flavor physical", func(t *testing.T) {
+		nlAttrs := testGetDevlinkPortCommonAttrs()
+		nlAttrs = testAddDevlinkPortPhysicalAttrs(nlAttrs)
+		attrs := testNlAttrsToNetlinkRouteAttrs(nlAttrs)
+
+		port := &DevlinkPort{}
+		err := port.parseAttributes(attrs)
+		assert.NoError(t, err)
+
+		testAssertCommonAttrs(t, port)
+		assert.Equal(t, uint16(nl.DEVLINK_PORT_FLAVOUR_PHYSICAL), port.PortFlavour)
+		assert.Equal(t, uint32(1), *port.PortNumber)
+
+		assert.Nil(t, port.Fn)
+		assert.Nil(t, port.PfNumber)
+		assert.Nil(t, port.VfNumber)
+		assert.Nil(t, port.SfNumber)
+		assert.Nil(t, port.ControllerNumber)
+		assert.Nil(t, port.External)
+	})
+
+	t.Run("flavor pcipf", func(t *testing.T) {
+		nlAttrs := testGetDevlinkPortCommonAttrs()
+		nlAttrs = testAddDevlinkPortPfAttrs(nlAttrs)
+		attrs := testNlAttrsToNetlinkRouteAttrs(nlAttrs)
+
+		port := &DevlinkPort{}
+		err := port.parseAttributes(attrs)
+		assert.NoError(t, err)
+
+		testAssertCommonAttrs(t, port)
+		assert.Equal(t, uint16(nl.DEVLINK_PORT_FLAVOUR_PCI_PF), port.PortFlavour)
+		assert.Equal(t, uint16(1), *port.PfNumber)
+
+		assert.Nil(t, port.Fn)
+		assert.Nil(t, port.PortNumber)
+		assert.Nil(t, port.VfNumber)
+		assert.Nil(t, port.SfNumber)
+		assert.Nil(t, port.ControllerNumber)
+		assert.Nil(t, port.External)
+	})
+	t.Run("flavor pcivf", func(t *testing.T) {
+		nlAttrs := testGetDevlinkPortCommonAttrs()
+		nlAttrs = testAddDevlinkPortVfAttrs(nlAttrs)
+		attrs := testNlAttrsToNetlinkRouteAttrs(nlAttrs)
+
+		port := &DevlinkPort{}
+		err := port.parseAttributes(attrs)
+		assert.NoError(t, err)
+
+		testAssertCommonAttrs(t, port)
+		assert.Equal(t, uint16(nl.DEVLINK_PORT_FLAVOUR_PCI_VF), port.PortFlavour)
+		assert.Equal(t, uint16(0), *port.PfNumber)
+		assert.Equal(t, uint16(4), *port.VfNumber)
+		assert.Equal(t, "00:11:22:33:44:55", port.Fn.HwAddr.String())
+
+		assert.Nil(t, port.PortNumber)
+		assert.Nil(t, port.SfNumber)
+		assert.Nil(t, port.ControllerNumber)
+		assert.Nil(t, port.External)
+	})
+
+	t.Run("flavor pcisf", func(t *testing.T) {
+		nlAttrs := testGetDevlinkPortCommonAttrs()
+		nlAttrs = testAddDevlinkPortSfAttrs(nlAttrs)
+		attrs := testNlAttrsToNetlinkRouteAttrs(nlAttrs)
+
+		port := &DevlinkPort{}
+		err := port.parseAttributes(attrs)
+		assert.NoError(t, err)
+
+		testAssertCommonAttrs(t, port)
+		assert.Equal(t, uint16(nl.DEVLINK_PORT_FLAVOUR_PCI_SF), port.PortFlavour)
+		assert.Equal(t, uint16(0), *port.PfNumber)
+		assert.Equal(t, uint32(123), *port.SfNumber)
+		assert.Equal(t, "00:11:22:33:44:55", port.Fn.HwAddr.String())
+
+		assert.Nil(t, port.PortNumber)
+		assert.Nil(t, port.VfNumber)
+		assert.Nil(t, port.ControllerNumber)
+		assert.Nil(t, port.External)
+	})
+
+	t.Run("port with controller - external false", func(t *testing.T) {
+		nlAttrs := testGetDevlinkPortCommonAttrs()
+		nlAttrs = testAddDevlinkPortVfAttrs(nlAttrs)
+		nlAttrs = testAddDevlinkPortControllerAttrs(nlAttrs, 0, false)
+		attrs := testNlAttrsToNetlinkRouteAttrs(nlAttrs)
+
+		port := &DevlinkPort{}
+		err := port.parseAttributes(attrs)
+		assert.NoError(t, err)
+
+		assert.Equal(t, uint32(0), *port.ControllerNumber)
+		assert.Equal(t, false, *port.External)
+	})
+
+	t.Run("port with controller - external true", func(t *testing.T) {
+		nlAttrs := testGetDevlinkPortCommonAttrs()
+		nlAttrs = testAddDevlinkPortVfAttrs(nlAttrs)
+		nlAttrs = testAddDevlinkPortControllerAttrs(nlAttrs, 1, true)
+		attrs := testNlAttrsToNetlinkRouteAttrs(nlAttrs)
+
+		port := &DevlinkPort{}
+		err := port.parseAttributes(attrs)
+		assert.NoError(t, err)
+
+		assert.Equal(t, uint32(1), *port.ControllerNumber)
+		assert.Equal(t, true, *port.External)
+	})
 }
