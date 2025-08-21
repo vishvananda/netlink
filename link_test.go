@@ -23,10 +23,12 @@ import (
 )
 
 const (
-	testTxQLen    int = 100
-	defaultTxQLen int = 1000
-	testTxQueues  int = 4
-	testRxQueues  int = 8
+	testTxQLen    int    = 100
+	defaultTxQLen int    = 1000
+	testTxQueues  int    = 4
+	testRxQueues  int    = 8
+	testHeadroom  uint16 = 32
+	testTailroom  uint16 = 64
 )
 
 func testLinkAddDel(t *testing.T, link Link) {
@@ -87,6 +89,12 @@ func testLinkAddDel(t *testing.T, link Link) {
 			if resultPrimary.SupportsScrub() && resultPrimary.PeerScrub != inputPrimary.PeerScrub {
 				t.Fatalf("Peer Scrub is %d, should be %d", int(resultPrimary.PeerScrub), int(inputPrimary.PeerScrub))
 			}
+			if resultPrimary.Headroom != inputPrimary.Headroom {
+				t.Fatalf("Headroom is %d, should be %d", resultPrimary.Headroom, inputPrimary.Headroom)
+			}
+			if resultPrimary.Tailroom != inputPrimary.Tailroom {
+				t.Fatalf("Tailroom is %d, should be %d", resultPrimary.Tailroom, inputPrimary.Tailroom)
+			}
 			if inputPrimary.Mode == NETKIT_MODE_L2 && inputPrimary.HardwareAddr != nil {
 				if inputPrimary.HardwareAddr.String() != resultPrimary.HardwareAddr.String() {
 					t.Fatalf("Hardware address is %s, should be %s", resultPrimary.HardwareAddr.String(), inputPrimary.HardwareAddr.String())
@@ -122,6 +130,12 @@ func testLinkAddDel(t *testing.T, link Link) {
 				}
 				if resultPrimary.Scrub != resultPeer.PeerScrub {
 					t.Fatalf("PeerScrub from peer is %d, should be %d", int(resultPeer.PeerScrub), int(resultPrimary.Scrub))
+				}
+				if resultPrimary.Headroom != resultPeer.Headroom {
+					t.Fatalf("Headroom from peer is %d, should be %d", resultPeer.Headroom, resultPeer.Headroom)
+				}
+				if resultPrimary.Tailroom != resultPeer.Tailroom {
+					t.Fatalf("Tailroom from peer is %d, should be %d", resultPeer.Tailroom, resultPeer.Tailroom)
 				}
 				if inputPrimary.Mode == NETKIT_MODE_L2 && inputPrimary.peerLinkAttrs.HardwareAddr != nil {
 					if inputPrimary.peerLinkAttrs.HardwareAddr.String() != resultPeer.HardwareAddr.String() {
@@ -1274,6 +1288,82 @@ func TestLinkAddDelNetkit(t *testing.T) {
 		PeerPolicy: NETKIT_POLICY_BLACKHOLE,
 		Scrub:      NETKIT_SCRUB_DEFAULT,
 		PeerScrub:  NETKIT_SCRUB_NONE,
+	}
+	peerAttr := &LinkAttrs{
+		Name:         "bar",
+		HardwareAddr: net.HardwareAddr{0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB},
+	}
+	netkit.SetPeerAttrs(peerAttr)
+	testLinkAddDel(t, netkit)
+}
+
+func TestLinkAddDelNetkitWithHeadroom(t *testing.T) {
+	minKernelRequired(t, 6, 14)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	netkit := &Netkit{
+		LinkAttrs: LinkAttrs{
+			Name:         "foo",
+			HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		},
+		Mode:       NETKIT_MODE_L2,
+		Policy:     NETKIT_POLICY_FORWARD,
+		PeerPolicy: NETKIT_POLICY_BLACKHOLE,
+		Scrub:      NETKIT_SCRUB_DEFAULT,
+		PeerScrub:  NETKIT_SCRUB_NONE,
+		Headroom:   testHeadroom,
+	}
+	peerAttr := &LinkAttrs{
+		Name:         "bar",
+		HardwareAddr: net.HardwareAddr{0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB},
+	}
+	netkit.SetPeerAttrs(peerAttr)
+	testLinkAddDel(t, netkit)
+}
+
+func TestLinkAddDelNetkitWithTailroom(t *testing.T) {
+	minKernelRequired(t, 6, 14)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	netkit := &Netkit{
+		LinkAttrs: LinkAttrs{
+			Name:         "foo",
+			HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		},
+		Mode:       NETKIT_MODE_L2,
+		Policy:     NETKIT_POLICY_FORWARD,
+		PeerPolicy: NETKIT_POLICY_BLACKHOLE,
+		Scrub:      NETKIT_SCRUB_DEFAULT,
+		PeerScrub:  NETKIT_SCRUB_NONE,
+		Tailroom:   testTailroom,
+	}
+	peerAttr := &LinkAttrs{
+		Name:         "bar",
+		HardwareAddr: net.HardwareAddr{0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB},
+	}
+	netkit.SetPeerAttrs(peerAttr)
+	testLinkAddDel(t, netkit)
+}
+
+func TestLinkAddDelNetkitWithHeadAndTailroom(t *testing.T) {
+	minKernelRequired(t, 6, 14)
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	netkit := &Netkit{
+		LinkAttrs: LinkAttrs{
+			Name:         "foo",
+			HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		},
+		Mode:       NETKIT_MODE_L2,
+		Policy:     NETKIT_POLICY_FORWARD,
+		PeerPolicy: NETKIT_POLICY_BLACKHOLE,
+		Scrub:      NETKIT_SCRUB_DEFAULT,
+		PeerScrub:  NETKIT_SCRUB_NONE,
+		Headroom:   testHeadroom,
+		Tailroom:   testTailroom,
 	}
 	peerAttr := &LinkAttrs{
 		Name:         "bar",

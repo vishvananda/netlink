@@ -2802,6 +2802,15 @@ func addNetkitAttrs(nk *Netkit, linkInfo *nl.RtAttr, flag int) error {
 	data.AddRtAttr(nl.IFLA_NETKIT_SCRUB, nl.Uint32Attr(uint32(nk.Scrub)))
 	data.AddRtAttr(nl.IFLA_NETKIT_PEER_SCRUB, nl.Uint32Attr(uint32(nk.PeerScrub)))
 
+	// Any headroom or tailroom set on the primary device attributes will result in
+	// the kernel carrying them over into the peer device attributes for us.
+	if nk.Headroom > 0 {
+		data.AddRtAttr(nl.IFLA_NETKIT_HEADROOM, nl.Uint16Attr(nk.Headroom))
+	}
+	if nk.Tailroom > 0 {
+		data.AddRtAttr(nl.IFLA_NETKIT_TAILROOM, nl.Uint16Attr(nk.Tailroom))
+	}
+
 	if (flag & unix.NLM_F_EXCL) == 0 {
 		// Modifying peer link attributes will not take effect
 		return nil
@@ -2870,6 +2879,10 @@ func parseNetkitData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_NETKIT_PEER_SCRUB:
 			netkit.supportsScrub = true
 			netkit.PeerScrub = NetkitScrub(native.Uint32(datum.Value[0:4]))
+		case nl.IFLA_NETKIT_HEADROOM:
+			netkit.Headroom = native.Uint16(datum.Value[0:2])
+		case nl.IFLA_NETKIT_TAILROOM:
+			netkit.Tailroom = native.Uint16(datum.Value[0:2])
 		}
 	}
 }
