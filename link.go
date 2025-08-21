@@ -410,6 +410,8 @@ type Netkit struct {
 	PeerPolicy    NetkitPolicy
 	Scrub         NetkitScrub
 	PeerScrub     NetkitScrub
+	Headroom      uint16
+	Tailroom      uint16
 	supportsScrub bool
 	isPrimary     bool
 	peerLinkAttrs LinkAttrs
