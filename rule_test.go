@@ -13,7 +13,7 @@ import (
 
 func TestRuleAddDel(t *testing.T) {
 	skipUnlessRoot(t)
-	defer setUpNetlinkTest(t)()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	srcNet := &net.IPNet{IP: net.IPv4(172, 16, 0, 1), Mask: net.CIDRMask(16, 32)}
 	dstNet := &net.IPNet{IP: net.IPv4(172, 16, 1, 1), Mask: net.CIDRMask(24, 32)}
@@ -584,7 +584,7 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer setUpNetlinkTest(t)()
+			t.Cleanup(setUpNetlinkTest(t))
 			rule := tt.preRun()
 			wantRules, wantErr := tt.setupWant(rule)
 

@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -8,8 +9,7 @@ import (
 )
 
 func TestPDPv0AddDel(t *testing.T) {
-	tearDown := setUpNetlinkTestWithKModule(t, "gtp")
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "gtp"))
 
 	if err := LinkAdd(testGTPLink(t)); err != nil {
 		t.Fatal(err)
@@ -61,8 +61,7 @@ func TestPDPv0AddDel(t *testing.T) {
 }
 
 func TestPDPv1AddDel(t *testing.T) {
-	tearDown := setUpNetlinkTestWithKModule(t, "gtp")
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "gtp"))
 
 	if err := LinkAdd(testGTPLink(t)); err != nil {
 		t.Fatal(err)

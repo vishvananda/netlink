@@ -87,8 +87,7 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.t = t
 
-			tearDown := setUpNetlinkTest(t)
-			defer tearDown()
+			t.Cleanup(setUpNetlinkTest(t))
 
 			link, err := LinkByName("lo")
 			if err != nil {
@@ -171,8 +170,7 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 }
 
 func TestAddrAddReplace(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	for _, nilLink := range []bool{false, true} {
 		var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
@@ -251,8 +249,7 @@ func expectAddrUpdate(ch <-chan AddrUpdate, add bool, dst net.IP) bool {
 }
 
 func TestAddrSubscribeWithOptions(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	ch := make(chan AddrUpdate)
 	done := make(chan struct{})
@@ -289,8 +286,7 @@ func TestAddrSubscribeWithOptions(t *testing.T) {
 }
 
 func TestAddrSubscribeListExisting(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	ch := make(chan AddrUpdate)
 	done := make(chan struct{})

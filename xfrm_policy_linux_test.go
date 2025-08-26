@@ -9,8 +9,7 @@ import (
 const zeroCIDR = "0.0.0.0/0"
 
 func TestXfrmPolicyAddUpdateDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	policy := getPolicy()
 	if err := XfrmPolicyAdd(policy); err != nil {
@@ -102,7 +101,7 @@ func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 }
 
 func TestXfrmPolicyFlush(t *testing.T) {
-	defer setUpNetlinkTest(t)()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	p1 := getPolicy()
 	if err := XfrmPolicyAdd(p1); err != nil {
@@ -140,7 +139,7 @@ func TestXfrmPolicyFlush(t *testing.T) {
 }
 
 func TestXfrmPolicyBlockWithIfindex(t *testing.T) {
-	defer setUpNetlinkTest(t)()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	pBlock := getPolicy()
 	pBlock.Action = XFRM_POLICY_BLOCK
@@ -165,7 +164,7 @@ func TestXfrmPolicyBlockWithIfindex(t *testing.T) {
 
 func TestXfrmPolicyWithIfid(t *testing.T) {
 	minKernelRequired(t, 4, 19)
-	defer setUpNetlinkTest(t)()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	pol := getPolicy()
 	pol.Ifid = 54321
@@ -190,7 +189,7 @@ func TestXfrmPolicyWithIfid(t *testing.T) {
 
 func TestXfrmPolicyWithOptional(t *testing.T) {
 	minKernelRequired(t, 4, 19)
-	defer setUpNetlinkTest(t)()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	pol := getPolicy()
 	pol.Dir = XFRM_DIR_IN

@@ -9,8 +9,7 @@ import (
 func TestBridgeVlan(t *testing.T) {
 	minKernelRequired(t, 3, 10)
 
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := remountSysfs(); err != nil {
 		t.Fatal(err)
 	}
@@ -81,8 +80,7 @@ func TestBridgeVlan(t *testing.T) {
 
 func TestBridgeVlanTunnelInfo(t *testing.T) {
 	minKernelRequired(t, 4, 11)
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	if err := remountSysfs(); err != nil {
 		t.Fatal(err)
@@ -206,8 +204,7 @@ func TestBridgeVlanTunnelInfo(t *testing.T) {
 
 func TestBridgeGroupFwdMask(t *testing.T) {
 	minKernelRequired(t, 4, 15) //minimal release for per-port group_fwd_mask
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := remountSysfs(); err != nil {
 		t.Fatal(err)
 	}

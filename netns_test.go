@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package netlink
@@ -25,7 +26,7 @@ func TestNetNsIdByFd(t *testing.T) {
 	// In an attempt to avoid namespace id collisions, set this to something
 	// insanely high. When the kernel assigns IDs, it does so starting from 0
 	// So, just use our pid shifted up 16 bits
-	wantID := os.Getpid() << 16
+	wantID := (os.Getpid() << 16) & 0x7FFFFFFF
 
 	h, err := NewHandle()
 	CheckErrorFail(t, err)
@@ -64,7 +65,7 @@ func TestNetNsIdByPid(t *testing.T) {
 	}()
 
 	// As above, we'll pick a crazy large netnsid to avoid collisions
-	wantID := syscall.Gettid() << 16
+	wantID := (syscall.Gettid() << 16) & 0x7FFFFFFF
 
 	h, err := NewHandle()
 	CheckErrorFail(t, err)

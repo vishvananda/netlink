@@ -79,8 +79,7 @@ func TestFouAddDel(t *testing.T) {
 	minKernelRequired(t, 3, 18)
 
 	// the fou module is usually not compiled in the kernel so we'll load it
-	tearDown := setUpNetlinkTestWithKModule(t, "fou")
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "fou"))
 
 	fou := Fou{
 		Port:      5555,

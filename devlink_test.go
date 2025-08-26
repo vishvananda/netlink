@@ -16,7 +16,7 @@ import (
 
 func TestDevLinkGetDeviceList(t *testing.T) {
 	minKernelRequired(t, 4, 12)
-	setUpNetlinkTestWithKModule(t, "devlink")
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
 	_, err := DevLinkGetDeviceList()
 	if err != nil {
 		t.Fatal(err)
@@ -25,7 +25,7 @@ func TestDevLinkGetDeviceList(t *testing.T) {
 
 func TestDevLinkGetDeviceByName(t *testing.T) {
 	minKernelRequired(t, 4, 12)
-	setUpNetlinkTestWithKModule(t, "devlink")
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
 	_, err := DevLinkGetDeviceByName("foo", "bar")
 	if err != nil {
 		t.Fatal(err)
@@ -34,7 +34,7 @@ func TestDevLinkGetDeviceByName(t *testing.T) {
 
 func TestDevLinkSetEswitchMode(t *testing.T) {
 	minKernelRequired(t, 4, 12)
-	setUpNetlinkTestWithKModule(t, "devlink")
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
 	dev, err := DevLinkGetDeviceByName("foo", "bar")
 	if err != nil {
 		t.Fatal(err)
@@ -271,8 +271,7 @@ func areInfoStructsEqual(first *DevlinkDeviceInfo, second *DevlinkDeviceInfo) bo
 
 func TestDevlinkGetDeviceResources(t *testing.T) {
 	minKernelRequired(t, 5, 11)
-	tearDown := setUpNetlinkTestWithKModule(t, "devlink")
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
 
 	if bus == "" || device == "" {
 		//TODO: setup netdevsim device instead of getting device from flags
