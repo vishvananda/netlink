@@ -11,7 +11,7 @@ func TestXfrmMonitorExpire(t *testing.T) {
 	if os.Getenv("CI") == "true" {
 		t.Skipf("Flaky in CI: Intermittently causes 10 minute timeout")
 	}
-	defer setUpNetlinkTest(t)()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	ch := make(chan XfrmMsg)
 	done := make(chan struct{})

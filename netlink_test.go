@@ -66,18 +66,37 @@ func skipUnlessKModuleLoaded(t *testing.T, moduleNames ...string) {
 
 func setUpNetlinkTest(t testing.TB) tearDownNetlinkTest {
 	skipUnlessRoot(t)
-
-	// new temporary namespace so we don't pollute the host
-	// lock thread since the namespace is thread local
+	// Lock the OS thread, then record original namespace
 	runtime.LockOSThread()
-	var err error
+	origNS, err := netns.Get()
+	if err != nil {
+		runtime.UnlockOSThread()
+		t.Fatal("Failed to get current namespace:", err)
+	}
+	// Create and enter a fresh namespace
 	ns, err := netns.New()
 	if err != nil {
-		t.Fatal("Failed to create newns", ns)
+		// attempt to restore before failing
+		_ = netns.Set(origNS)
+		runtime.UnlockOSThread()
+		t.Fatal("Failed to create new namespace:", err)
 	}
+	// Reinitialize the package-level handle in this namespace
+	if pkgHandle != nil {
+		// ensure all sockets from the previous Handle are closed
+		_ = pkgHandle.Close()
+	}
+	pkgHandle = &Handle{}
 
 	return func() {
+		// Close the new namespace handle
 		ns.Close()
+		// Restore the original namespace
+		if err := netns.Set(origNS); err != nil {
+			t.Fatalf("Failed to restore original namespace: %v", err)
+		}
+		_ = origNS.Close()
+		// Unlock the OS thread
 		runtime.UnlockOSThread()
 	}
 }
@@ -123,11 +142,22 @@ func setUpNetlinkTestWithLoopback(t *testing.T) tearDownNetlinkTest {
 	skipUnlessRoot(t)
 
 	runtime.LockOSThread()
-	ns, err := netns.New()
+
+	// Save the current namespace
+	origNS, err := netns.Get()
 	if err != nil {
-		t.Fatal("Failed to create new netns", ns)
+		runtime.UnlockOSThread()
+		t.Fatal("Failed to get current namespace:", err)
 	}
 
+	// Create and enter a fresh namespace
+	ns, err := netns.New()
+	if err != nil {
+		runtime.UnlockOSThread()
+		t.Fatal("Failed to create new netns:", err)
+	}
+
+	// Bring up the loopback interface
 	link, err := LinkByName("lo")
 	if err != nil {
 		t.Fatalf("Failed to find \"lo\" in new netns: %v", err)
@@ -136,8 +166,13 @@ func setUpNetlinkTestWithLoopback(t *testing.T) tearDownNetlinkTest {
 		t.Fatalf("Failed to bring up \"lo\" in new netns: %v", err)
 	}
 
+	// Teardown: restore original namespace and thread state
 	return func() {
 		ns.Close()
+		if err := netns.Set(origNS); err != nil {
+			t.Fatalf("Failed to restore original namespace: %v", err)
+		}
+		_ = origNS.Close()
 		runtime.UnlockOSThread()
 	}
 }

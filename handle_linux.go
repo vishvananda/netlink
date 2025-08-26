@@ -165,12 +165,16 @@ func newHandle(newNs, curNs netns.NsHandle, nlFamilies ...int) (*Handle, error) 
 	return h, nil
 }
 
-// Close releases the resources allocated to this handle
-func (h *Handle) Close() {
+// Close closes all netlink sockets held by this Handle.
+func (h *Handle) Close() error {
+	var firstErr error
 	for _, sh := range h.sockets {
-		sh.Close()
+		if err := sh.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
 	h.sockets = nil
+	return firstErr
 }
 
 // Delete releases the resources allocated to this handle
@@ -178,7 +182,7 @@ func (h *Handle) Close() {
 // Deprecated: use Close instead which is in line with typical resource release
 // patterns for files and other resources.
 func (h *Handle) Delete() {
-	h.Close()
+	_ = h.Close()
 }
 
 func (h *Handle) newNetlinkRequest(proto, flags int) *nl.NetlinkRequest {

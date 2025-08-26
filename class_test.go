@@ -54,8 +54,7 @@ func testClassStats(this, that *ClassStatistics, t *testing.T) {
 }
 
 func TestClassAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -235,8 +234,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 	ClassChange when the parent/handle pair exists and that it will create a
 	new class if the handle is modified.
 	*/
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -474,8 +472,7 @@ func TestHtbClassAddHtbClassChangeDel(t *testing.T) {
 
 func TestClassHfsc(t *testing.T) {
 	// New network namespace for tests
-	tearDown := setUpNetlinkTestWithKModule(t, "sch_hfsc")
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "sch_hfsc"))
 
 	// Set up testing link and check if succeeded
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {

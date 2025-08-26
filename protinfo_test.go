@@ -8,8 +8,7 @@ import (
 )
 
 func TestProtinfo(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	master := &Bridge{LinkAttrs: LinkAttrs{Name: "foo"}}
 	if err := LinkAdd(master); err != nil {
 		t.Fatal(err)

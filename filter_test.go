@@ -14,8 +14,7 @@ import (
 )
 
 func TestFilterAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -108,8 +107,7 @@ func TestFilterAddDel(t *testing.T) {
 }
 
 func TestFilterReplace(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -169,8 +167,7 @@ func TestFilterReplace(t *testing.T) {
 }
 
 func TestAdvancedFilterAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "baz"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -365,8 +362,7 @@ func TestAdvancedFilterAddDel(t *testing.T) {
 }
 
 func TestFilterFwAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -512,8 +508,7 @@ func TestFilterFwAddDel(t *testing.T) {
 }
 
 func TestFilterFwActAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -642,8 +637,7 @@ func TestFilterFwActAddDel(t *testing.T) {
 
 func TestFilterU32BpfAddDel(t *testing.T) {
 	t.Skipf("Fd does not match in ci")
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -775,8 +769,7 @@ func TestFilterU32BpfAddDel(t *testing.T) {
 }
 
 func TestFilterU32ConnmarkAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -916,8 +909,7 @@ func TestFilterU32ConnmarkAddDel(t *testing.T) {
 }
 
 func TestFilterU32CsumAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatalf("add link foo error: %v", err)
 	}
@@ -1084,8 +1076,7 @@ func TestFilterClsActBpfAddDel(t *testing.T) {
 	// This feature was added in kernel 4.5
 	minKernelRequired(t, 4, 5)
 
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 
 	qdisc, link := setupLinkForTestWithQdisc(t, "foo")
 	filterattrs := FilterAttrs{
@@ -1159,8 +1150,7 @@ func TestFilterMatchAllAddDel(t *testing.T) {
 	// This classifier was added in kernel 4.7
 	minKernelRequired(t, 4, 7)
 
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	_, link := setupLinkForTestWithQdisc(t, "foo")
 	_, link2 := setupLinkForTestWithQdisc(t, "bar")
 	filter := &MatchAll{
@@ -1227,8 +1217,7 @@ func TestFilterMatchAllAddDel(t *testing.T) {
 }
 
 func TestFilterU32TunnelKeyAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -1399,8 +1388,7 @@ func TestFilterU32TunnelKeyAddDel(t *testing.T) {
 }
 
 func TestFilterU32SkbEditAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -1576,8 +1564,7 @@ func TestFilterU32SkbEditAddDel(t *testing.T) {
 }
 
 func TestFilterU32LinkOption(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatalf("add link foo error: %v", err)
 	}
@@ -1718,8 +1705,7 @@ func TestFilterU32LinkOption(t *testing.T) {
 }
 
 func TestFilterFlowerAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -2118,8 +2104,7 @@ func TestFilterFlowerAddDel(t *testing.T) {
 }
 
 func TestFilterIPv6FlowerPedit(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -2278,8 +2263,7 @@ func TestFilterIPv6FlowerPedit(t *testing.T) {
 }
 
 func TestFilterU32PoliceAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -2457,8 +2441,7 @@ func TestFilterU32PoliceAddDel(t *testing.T) {
 }
 
 func TestFilterU32DirectPoliceAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -2559,8 +2542,7 @@ func TestFilterU32DirectPoliceAddDel(t *testing.T) {
 }
 
 func TestFilterChainAddDel(t *testing.T) {
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -2658,8 +2640,7 @@ func TestFilterSampleAddDel(t *testing.T) {
 		t.Skip("psample genetlink family unavailable - is CONFIG_PSAMPLE enabled?")
 	}
 
-	tearDown := setUpNetlinkTest(t)
-	defer tearDown()
+	t.Cleanup(setUpNetlinkTest(t))
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
