@@ -14,8 +14,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/vishvananda/netlink/nl"
 )
 
@@ -549,13 +547,27 @@ func testAddDevlinkPortControllerAttrs(nlAttrs []*nl.RtAttr, controllerNumber ui
 	return nlAttrs
 }
 func testAssertCommonAttrs(t *testing.T, port *DevlinkPort) {
-	assert.Equal(t, "pci", port.BusName)
-	assert.Equal(t, "0000:08:00.0", port.DeviceName)
-	assert.Equal(t, uint32(131071), port.PortIndex)
-	assert.Equal(t, uint16(nl.DEVLINK_PORT_TYPE_ETH), port.PortType)
-	assert.Equal(t, "eth0", port.NetdeviceName)
-	assert.Equal(t, uint32(5), port.NetdevIfIndex)
-	assert.Equal(t, "rdma0", port.RdmaDeviceName)
+	if port.BusName != "pci" {
+		t.Errorf("expected BusName to be 'pci', got %s", port.BusName)
+	}
+	if port.DeviceName != "0000:08:00.0" {
+		t.Errorf("expected DeviceName to be '0000:08:00.0', got %s", port.DeviceName)
+	}
+	if port.PortIndex != uint32(131071) {
+		t.Errorf("expected PortIndex to be 131071, got %d", port.PortIndex)
+	}
+	if port.PortType != uint16(nl.DEVLINK_PORT_TYPE_ETH) {
+		t.Errorf("expected PortType to be %d, got %d", nl.DEVLINK_PORT_TYPE_ETH, port.PortType)
+	}
+	if port.NetdeviceName != "eth0" {
+		t.Errorf("expected NetdeviceName to be 'eth0', got %s", port.NetdeviceName)
+	}
+	if port.NetdevIfIndex != uint32(5) {
+		t.Errorf("expected NetdevIfIndex to be 5, got %d", port.NetdevIfIndex)
+	}
+	if port.RdmaDeviceName != "rdma0" {
+		t.Errorf("expected RdmaDeviceName to be 'rdma0', got %s", port.RdmaDeviceName)
+	}
 }
 
 func TestDevlinkPortParseAttributes(t *testing.T) {
@@ -566,18 +578,36 @@ func TestDevlinkPortParseAttributes(t *testing.T) {
 
 		port := &DevlinkPort{}
 		err := port.parseAttributes(attrs)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
 
 		testAssertCommonAttrs(t, port)
-		assert.Equal(t, uint16(nl.DEVLINK_PORT_FLAVOUR_PHYSICAL), port.PortFlavour)
-		assert.Equal(t, uint32(1), *port.PortNumber)
+		if port.PortFlavour != uint16(nl.DEVLINK_PORT_FLAVOUR_PHYSICAL) {
+			t.Errorf("expected PortFlavour to be %d, got %d", nl.DEVLINK_PORT_FLAVOUR_PHYSICAL, port.PortFlavour)
+		}
+		if *port.PortNumber != uint32(1) {
+			t.Errorf("expected PortNumber to be 1, got %d", *port.PortNumber)
+		}
 
-		assert.Nil(t, port.Fn)
-		assert.Nil(t, port.PfNumber)
-		assert.Nil(t, port.VfNumber)
-		assert.Nil(t, port.SfNumber)
-		assert.Nil(t, port.ControllerNumber)
-		assert.Nil(t, port.External)
+		if port.Fn != nil {
+			t.Errorf("expected Fn to be nil, got %v", port.Fn)
+		}
+		if port.PfNumber != nil {
+			t.Errorf("expected PfNumber to be nil, got %v", port.PfNumber)
+		}
+		if port.VfNumber != nil {
+			t.Errorf("expected VfNumber to be nil, got %v", port.VfNumber)
+		}
+		if port.SfNumber != nil {
+			t.Errorf("expected SfNumber to be nil, got %v", port.SfNumber)
+		}
+		if port.ControllerNumber != nil {
+			t.Errorf("expected ControllerNumber to be nil, got %v", port.ControllerNumber)
+		}
+		if port.External != nil {
+			t.Errorf("expected External to be nil, got %v", port.External)
+		}
 	})
 
 	t.Run("flavor pcipf", func(t *testing.T) {
@@ -587,18 +617,36 @@ func TestDevlinkPortParseAttributes(t *testing.T) {
 
 		port := &DevlinkPort{}
 		err := port.parseAttributes(attrs)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
 
 		testAssertCommonAttrs(t, port)
-		assert.Equal(t, uint16(nl.DEVLINK_PORT_FLAVOUR_PCI_PF), port.PortFlavour)
-		assert.Equal(t, uint16(1), *port.PfNumber)
+		if port.PortFlavour != uint16(nl.DEVLINK_PORT_FLAVOUR_PCI_PF) {
+			t.Errorf("expected PortFlavour to be %d, got %d", nl.DEVLINK_PORT_FLAVOUR_PCI_PF, port.PortFlavour)
+		}
+		if *port.PfNumber != uint16(1) {
+			t.Errorf("expected PfNumber to be 1, got %d", *port.PfNumber)
+		}
 
-		assert.Nil(t, port.Fn)
-		assert.Nil(t, port.PortNumber)
-		assert.Nil(t, port.VfNumber)
-		assert.Nil(t, port.SfNumber)
-		assert.Nil(t, port.ControllerNumber)
-		assert.Nil(t, port.External)
+		if port.Fn != nil {
+			t.Errorf("expected Fn to be nil, got %v", port.Fn)
+		}
+		if port.PortNumber != nil {
+			t.Errorf("expected PortNumber to be nil, got %v", port.PortNumber)
+		}
+		if port.VfNumber != nil {
+			t.Errorf("expected VfNumber to be nil, got %v", port.VfNumber)
+		}
+		if port.SfNumber != nil {
+			t.Errorf("expected SfNumber to be nil, got %v", port.SfNumber)
+		}
+		if port.ControllerNumber != nil {
+			t.Errorf("expected ControllerNumber to be nil, got %v", port.ControllerNumber)
+		}
+		if port.External != nil {
+			t.Errorf("expected External to be nil, got %v", port.External)
+		}
 	})
 	t.Run("flavor pcivf", func(t *testing.T) {
 		nlAttrs := testGetDevlinkPortCommonAttrs()
@@ -607,18 +655,36 @@ func TestDevlinkPortParseAttributes(t *testing.T) {
 
 		port := &DevlinkPort{}
 		err := port.parseAttributes(attrs)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
 
 		testAssertCommonAttrs(t, port)
-		assert.Equal(t, uint16(nl.DEVLINK_PORT_FLAVOUR_PCI_VF), port.PortFlavour)
-		assert.Equal(t, uint16(0), *port.PfNumber)
-		assert.Equal(t, uint16(4), *port.VfNumber)
-		assert.Equal(t, "00:11:22:33:44:55", port.Fn.HwAddr.String())
+		if port.PortFlavour != uint16(nl.DEVLINK_PORT_FLAVOUR_PCI_VF) {
+			t.Errorf("expected PortFlavour to be %d, got %d", nl.DEVLINK_PORT_FLAVOUR_PCI_VF, port.PortFlavour)
+		}
+		if *port.PfNumber != uint16(0) {
+			t.Errorf("expected PfNumber to be 0, got %d", *port.PfNumber)
+		}
+		if *port.VfNumber != uint16(4) {
+			t.Errorf("expected VfNumber to be 4, got %d", *port.VfNumber)
+		}
+		if port.Fn.HwAddr.String() != "00:11:22:33:44:55" {
+			t.Errorf("expected HwAddr to be '00:11:22:33:44:55', got %s", port.Fn.HwAddr.String())
+		}
 
-		assert.Nil(t, port.PortNumber)
-		assert.Nil(t, port.SfNumber)
-		assert.Nil(t, port.ControllerNumber)
-		assert.Nil(t, port.External)
+		if port.PortNumber != nil {
+			t.Errorf("expected PortNumber to be nil, got %v", port.PortNumber)
+		}
+		if port.SfNumber != nil {
+			t.Errorf("expected SfNumber to be nil, got %v", port.SfNumber)
+		}
+		if port.ControllerNumber != nil {
+			t.Errorf("expected ControllerNumber to be nil, got %v", port.ControllerNumber)
+		}
+		if port.External != nil {
+			t.Errorf("expected External to be nil, got %v", port.External)
+		}
 	})
 
 	t.Run("flavor pcisf", func(t *testing.T) {
@@ -628,18 +694,36 @@ func TestDevlinkPortParseAttributes(t *testing.T) {
 
 		port := &DevlinkPort{}
 		err := port.parseAttributes(attrs)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
 
 		testAssertCommonAttrs(t, port)
-		assert.Equal(t, uint16(nl.DEVLINK_PORT_FLAVOUR_PCI_SF), port.PortFlavour)
-		assert.Equal(t, uint16(0), *port.PfNumber)
-		assert.Equal(t, uint32(123), *port.SfNumber)
-		assert.Equal(t, "00:11:22:33:44:55", port.Fn.HwAddr.String())
+		if port.PortFlavour != uint16(nl.DEVLINK_PORT_FLAVOUR_PCI_SF) {
+			t.Errorf("expected PortFlavour to be %d, got %d", nl.DEVLINK_PORT_FLAVOUR_PCI_SF, port.PortFlavour)
+		}
+		if *port.PfNumber != uint16(0) {
+			t.Errorf("expected PfNumber to be 0, got %d", *port.PfNumber)
+		}
+		if *port.SfNumber != uint32(123) {
+			t.Errorf("expected SfNumber to be 123, got %d", *port.SfNumber)
+		}
+		if port.Fn.HwAddr.String() != "00:11:22:33:44:55" {
+			t.Errorf("expected HwAddr to be '00:11:22:33:44:55', got %s", port.Fn.HwAddr.String())
+		}
 
-		assert.Nil(t, port.PortNumber)
-		assert.Nil(t, port.VfNumber)
-		assert.Nil(t, port.ControllerNumber)
-		assert.Nil(t, port.External)
+		if port.PortNumber != nil {
+			t.Errorf("expected PortNumber to be nil, got %v", port.PortNumber)
+		}
+		if port.VfNumber != nil {
+			t.Errorf("expected VfNumber to be nil, got %v", port.VfNumber)
+		}
+		if port.ControllerNumber != nil {
+			t.Errorf("expected ControllerNumber to be nil, got %v", port.ControllerNumber)
+		}
+		if port.External != nil {
+			t.Errorf("expected External to be nil, got %v", port.External)
+		}
 	})
 
 	t.Run("port with controller - external false", func(t *testing.T) {
@@ -650,10 +734,16 @@ func TestDevlinkPortParseAttributes(t *testing.T) {
 
 		port := &DevlinkPort{}
 		err := port.parseAttributes(attrs)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
 
-		assert.Equal(t, uint32(0), *port.ControllerNumber)
-		assert.Equal(t, false, *port.External)
+		if *port.ControllerNumber != uint32(0) {
+			t.Errorf("expected ControllerNumber to be 0, got %d", *port.ControllerNumber)
+		}
+		if *port.External != false {
+			t.Errorf("expected External to be false, got %t", *port.External)
+		}
 	})
 
 	t.Run("port with controller - external true", func(t *testing.T) {
@@ -664,9 +754,15 @@ func TestDevlinkPortParseAttributes(t *testing.T) {
 
 		port := &DevlinkPort{}
 		err := port.parseAttributes(attrs)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
 
-		assert.Equal(t, uint32(1), *port.ControllerNumber)
-		assert.Equal(t, true, *port.External)
+		if *port.ControllerNumber != uint32(1) {
+			t.Errorf("expected ControllerNumber to be 1, got %d", *port.ControllerNumber)
+		}
+		if *port.External != true {
+			t.Errorf("expected External to be true, got %t", *port.External)
+		}
 	})
 }
