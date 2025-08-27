@@ -2681,14 +2681,32 @@ func TestLinkXdp(t *testing.T) {
 	if err != nil {
 		t.Skipf("Loading bpf program failed: %s", err)
 	}
+	t.Cleanup(func() {
+		_ = unix.Close(fd)
+	})
+
 	if err := LinkSetXdpFd(testXdpLink, fd); err != nil {
 		t.Fatal(err)
 	}
-	if err := LinkSetXdpFdWithFlags(testXdpLink, fd, nl.XDP_FLAGS_UPDATE_IF_NOEXIST); !errors.Is(err, unix.EBUSY) {
-		t.Fatal(err)
+	t.Cleanup(func() {
+		_ = LinkSetXdpFd(testXdpLink, -1)
+	})
+	var err2 error
+	// It can take a moment for the kernel to update the link state, so we retry here
+	attempts := 0
+	for ; attempts < 10; attempts++ {
+		err2 = LinkSetXdpFdWithFlags(testXdpLink, fd, nl.XDP_FLAGS_UPDATE_IF_NOEXIST)
+		if err2 != nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
-	if err := LinkSetXdpFd(testXdpLink, -1); err != nil {
-		t.Fatal(err)
+
+	if err2 == nil {
+		t.Fatalf("expected EBUSY when reattaching XDP with UPDATE_IF_NOEXIST after %d attempts; got nil", attempts)
+	}
+	if !errors.Is(err2, unix.EBUSY) {
+		t.Fatalf("expected EBUSY when reattaching XDP with UPDATE_IF_NOEXIST; got %v", err2)
 	}
 }
 
