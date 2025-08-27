@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"runtime"
 	"testing"
 	"time"
@@ -29,7 +30,7 @@ func CheckError(t *testing.T, err error) {
 }
 
 func udpFlowCreateProg(t *testing.T, flows, srcPort int, dstIP string, dstPort int) {
-	for i := 0; i < flows; i++ {
+	for i := range flows {
 		ServerAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", dstIP, dstPort))
 		CheckError(t, err)
 
@@ -42,6 +43,68 @@ func udpFlowCreateProg(t *testing.T, flows, srcPort int, dstIP string, dstPort i
 		Conn.Write([]byte("Hello World"))
 		Conn.Close()
 	}
+}
+
+// Install minimal hooks so packets traverse conntrack in this netns.
+// Prefer iptables if available; otherwise use nftables.
+// Returns a cleanup function that removes the installed hooks.
+func ensureCtHooksInThisNS(t *testing.T) func() {
+	t.Helper()
+
+	// Prefer iptables if present
+	if _, err := exec.LookPath("iptables"); err == nil {
+		ipt := func(fatalOnErr bool, args ...string) error {
+			cmd := exec.Command("iptables", args...)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				if fatalOnErr {
+					t.Fatalf("iptables %v failed: %v\n%s", args, err, out)
+				}
+				// For -C, non-zero exit is expected when rule doesn't exist.
+				// For -D, we don't want to fail the test on cleanup.
+				t.Logf("iptables %v -> non-fatal error (ok): %v\n%s", args, err, out)
+			}
+			return err
+		}
+
+		// Minimal hooks so packets traverse conntrack in this netns.
+		// Check (-C); if absent, insert (-I). Idempotent on reruns.
+		var addedInput, addedOutput bool
+		if ipt(false, "-C", "INPUT", "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED", "-j", "ACCEPT") != nil {
+			ipt(true, "-I", "INPUT", "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED", "-j", "ACCEPT")
+			addedInput = true
+		}
+		if ipt(false, "-C", "OUTPUT", "-m", "conntrack", "--ctstate", "ESTABLISHED", "-j", "ACCEPT") != nil {
+			ipt(true, "-I", "OUTPUT", "-m", "conntrack", "--ctstate", "ESTABLISHED", "-j", "ACCEPT")
+			addedOutput = true
+		}
+		return func() {
+			if addedInput {
+				ipt(false, "-D", "INPUT", "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED", "-j", "ACCEPT")
+			}
+			if addedOutput {
+				ipt(false, "-D", "OUTPUT", "-m", "conntrack", "--ctstate", "ESTABLISHED", "-j", "ACCEPT")
+			}
+		}
+	}
+
+	// Fallback to nft if iptables isn’t available
+	if _, err := exec.LookPath("nft"); err == nil {
+		// Best-effort, ignore “already exists” errors to be idempotent
+		_ = exec.Command("nft", "add", "table", "inet", "ct_test").Run()
+		_ = exec.Command("nft", "add", "chain", "inet", "ct_test", "input",
+			"{", "type", "filter", "hook", "input", "priority", "0", ";",
+			"ct", "state", "{", "new,established", "}", "accept", "}").Run()
+		_ = exec.Command("nft", "add", "chain", "inet", "ct_test", "output",
+			"{", "type", "filter", "hook", "output", "priority", "0", ";",
+			"ct", "state", "established", "accept", "}").Run()
+		return func() {
+			_ = exec.Command("nft", "delete", "table", "inet", "ct_test").Run()
+		}
+	}
+
+	t.Skip("neither iptables nor nft found to install conntrack hooks")
+	return func() {}
 }
 
 func nsCreateAndEnter(t *testing.T) (*netns.NsHandle, *netns.NsHandle, *Handle) {
@@ -63,6 +126,12 @@ func nsCreateAndEnter(t *testing.T) (*netns.NsHandle, *netns.NsHandle, *Handle) 
 	// Bing up loopback
 	link, _ := h.LinkByName("lo")
 	h.LinkSetUp(link)
+
+	setUpF(t, "/proc/sys/net/netfilter/nf_conntrack_acct", "1")
+	setUpF(t, "/proc/sys/net/netfilter/nf_conntrack_timestamp", "1")
+	setUpF(t, "/proc/sys/net/netfilter/nf_conntrack_udp_timeout", "45")
+
+	t.Cleanup(ensureCtHooksInThisNS(t))
 
 	return &origns, &ns, h
 }
@@ -96,9 +165,6 @@ func TestConntrackSocket(t *testing.T) {
 // TestConntrackTableList test the conntrack table list
 // Creates some flows and checks that they are correctly fetched from the conntrack table
 func TestConntrackTableList(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skipf("Fails in CI: Flow creation fails")
-	}
 	skipUnlessRoot(t)
 	k, m, err := KernelVersion()
 	if err != nil {
@@ -119,10 +185,6 @@ func TestConntrackTableList(t *testing.T) {
 	defer origns.Close()
 	defer ns.Close()
 	defer runtime.UnlockOSThread()
-
-	setUpF(t, "/proc/sys/net/netfilter/nf_conntrack_acct", "1")
-	setUpF(t, "/proc/sys/net/netfilter/nf_conntrack_timestamp", "1")
-	setUpF(t, "/proc/sys/net/netfilter/nf_conntrack_udp_timeout", "45")
 
 	// Flush the table to start fresh
 	err = h.ConntrackTableFlush(ConntrackTable)
@@ -176,9 +238,6 @@ func TestConntrackTableList(t *testing.T) {
 // TestConntrackTableFlush test the conntrack table flushing
 // Creates some flows and then call the table flush
 func TestConntrackTableFlush(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skipf("Fails in CI: Flow creation fails")
-	}
 	skipUnlessRoot(t)
 	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack"))
 	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink"))
@@ -249,9 +308,6 @@ func TestConntrackTableFlush(t *testing.T) {
 // TestConntrackTableDelete tests the deletion with filter
 // Creates 2 group of flows then deletes only one group and validates the result
 func TestConntrackTableDelete(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skipf("Fails in CI: Flow creation fails")
-	}
 	skipUnlessRoot(t)
 
 	requiredModules := []string{"nf_conntrack", "nf_conntrack_netlink"}
