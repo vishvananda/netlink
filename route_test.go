@@ -5,7 +5,6 @@ package netlink
 
 import (
 	"net"
-	"os"
 	"runtime"
 	"strconv"
 	"testing"
@@ -1997,18 +1996,26 @@ func TestSEG6LocalEqual(t *testing.T) {
 	}
 }
 func TestSEG6RouteAddDel(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skipf("Fails in CI with: route_test.go:*: Invalid Type. SEG6_IPTUN_MODE_INLINE routes not added properly")
-	}
-	// add/del routes with LWTUNNEL_SEG6 to/from loopback interface.
+	// add/del routes with LWTUNNEL_SEG6 to/from interface.
 	// Test both seg6 modes: encap (IPv4) & inline (IPv6).
 	t.Cleanup(setUpSEG6NetlinkTest(t))
 
-	// get loopback interface and bring it up
-	link, err := LinkByName("lo")
+	// loopback doesn't work on recent kernels, so use a dummy
+	err := LinkAdd(&Dummy{LinkAttrs{Name: "dummy0"}})
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	link, err := LinkByName("dummy0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := LinkDel(link); err != nil {
+			t.Logf("failed to delete device: %v", err)
+		}
+	})
+
 	if err := LinkSetUp(link); err != nil {
 		t.Fatal(err)
 	}
@@ -2022,7 +2029,6 @@ func TestSEG6RouteAddDel(t *testing.T) {
 		Mask: net.CIDRMask(32, 32),
 	}
 	var s1, s2 []net.IP
-	s1 = append(s1, net.ParseIP("::")) // inline requires "::"
 	s1 = append(s1, net.ParseIP("fc00:a000::12"))
 	s1 = append(s1, net.ParseIP("fc00:a000::11"))
 	s2 = append(s2, net.ParseIP("fc00:a000::22"))
@@ -2042,7 +2048,9 @@ func TestSEG6RouteAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 	// SEG6_IPTUN_MODE_INLINE
-	routes, err := RouteList(link, FAMILY_V6)
+	// Kernel adds multiple routes so filter them
+	filtV6 := &Route{LinkIndex: link.Attrs().Index, Dst: dst1}
+	routes, err := RouteListFiltered(FAMILY_V6, filtV6, RT_FILTER_OIF|RT_FILTER_DST)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2055,7 +2063,9 @@ func TestSEG6RouteAddDel(t *testing.T) {
 		}
 	}
 	// SEG6_IPTUN_MODE_ENCAP
-	routes, err = RouteList(link, FAMILY_V4)
+	// Kernel adds multiple routes so filter them
+	filtV4 := &Route{LinkIndex: link.Attrs().Index, Dst: dst2}
+	routes, err = RouteListFiltered(FAMILY_V4, filtV4, RT_FILTER_OIF|RT_FILTER_DST)
 	if err != nil {
 		t.Fatal(err)
 	}
