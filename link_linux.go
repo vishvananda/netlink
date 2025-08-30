@@ -1181,6 +1181,83 @@ func (h *Handle) LinkSetGROIPv4MaxSize(link Link, maxSize int) error {
 	return err
 }
 
+// LinkSetVXLANGroup sets the group address of a VXLAN link device.
+// Equivalent to: `ip link set $link type vxlan { remote | group } $group`
+// Note: netlink does not support changing the group address family. If attempted, this will return an EOPNOTSUPP error.
+func LinkSetVXLANGroup(link *Vxlan, group net.IP) error {
+	return pkgHandle.LinkSetVXLANGroup(link, group)
+}
+
+// LinkSetVXLANGroup sets the group address of a VXLAN link device.
+// Equivalent to: `ip link set $link type vxlan { remote | group } $group [ dev $dev ]`
+// Note: netlink does not support changing the group address family. If attempted, this will return an EOPNOTSUPP error.
+func (h *Handle) LinkSetVXLANGroup(link *Vxlan, group net.IP) error {
+	if link.VtepDevIndex == 0 {
+		return fmt.Errorf("VTEP device index must be set to change or set the group address")
+	}
+
+	base := link.Attrs()
+	h.ensureIndex(base)
+	// RTM_SETLINK does not currently support changing the group address
+	req := h.newNetlinkRequest(unix.RTM_NEWLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	linkInfo := nl.NewRtAttr(unix.IFLA_LINKINFO, nil)
+	linkInfo.AddRtAttr(nl.IFLA_INFO_KIND, nl.NonZeroTerminated(link.Type()))
+
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+
+	if v4Group := group.To4(); v4Group != nil {
+		data.AddRtAttr(nl.IFLA_VXLAN_GROUP, []byte(v4Group))
+	} else if v6group := group.To16(); v6group != nil {
+		data.AddRtAttr(nl.IFLA_VXLAN_GROUP6, []byte(v6group))
+	} else {
+		return fmt.Errorf("invalid group address %q", group.String())
+	}
+
+	req.AddData(linkInfo)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
+// LinkSetVXLANVtepDevIndex sets the VTEP device index of a VXLAN link device.
+// Equivalent to: `ip link set $link type [ dev $dev ]`
+func LinkSetVXLANVtepDevIndex(link *Vxlan, ifIndex int) error {
+	return pkgHandle.LinkSetVXLANVtepDevIndex(link, ifIndex)
+}
+
+// LinkSetVXLANVtepDevIndex sets the VTEP device index of a VXLAN link device.
+// Equivalent to: `ip link set $link type [ dev $dev ]`
+func (h *Handle) LinkSetVXLANVtepDevIndex(link *Vxlan, ifIndex int) error {
+	if link.Group != nil && ifIndex == 0 {
+		return fmt.Errorf("VTEP device index must be set when group address is set")
+	}
+
+	base := link.Attrs()
+	h.ensureIndex(base)
+	// RTM_SETLINK does not currently support changing the the VTEP device index
+	req := h.newNetlinkRequest(unix.RTM_NEWLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	linkInfo := nl.NewRtAttr(unix.IFLA_LINKINFO, nil)
+	linkInfo.AddRtAttr(nl.IFLA_INFO_KIND, nl.NonZeroTerminated(link.Type()))
+
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+	data.AddRtAttr(nl.IFLA_VXLAN_LINK, nl.Uint32Attr(uint32(ifIndex)))
+
+	req.AddData(linkInfo)
+
+	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
+	return err
+}
+
 func boolAttr(val bool) []byte {
 	var v uint8
 	if val {
