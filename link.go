@@ -1118,7 +1118,15 @@ type Gretap struct {
 	EncapFlags uint16
 	Link       uint32
 	FlowBased  bool
+	IgnoreDf   GretapIgnoreDf
 }
+
+type GretapIgnoreDf uint8
+
+const (
+	GRETAP_IGNORE_DF_FALSE = iota
+	GRETAP_IGNORE_DF_TRUE
+)
 
 func (gretap *Gretap) Attrs() *LinkAttrs {
 	return &gretap.LinkAttrs
