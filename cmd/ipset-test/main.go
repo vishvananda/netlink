@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/netip"
 	"os"
 	"sort"
 
@@ -145,7 +146,8 @@ func cmdAddDel(f func(string, *netlink.IPSetEntry) error) func([]string) {
 func cmdTest(args []string) {
 	setName := args[0]
 	element := args[1]
-	ip := net.ParseIP(element)
+	ip, err := netip.ParseAddr(element)
+	check(err)
 	entry := &netlink.IPSetEntry{
 		Timeout: timeoutVal,
 		IP:      ip,

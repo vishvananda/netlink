@@ -3,6 +3,7 @@ package netlink
 import (
 	"fmt"
 	"net"
+	"net/netip"
 )
 
 // Neigh represents a link layer neighbor from netlink.
@@ -13,9 +14,9 @@ type Neigh struct {
 	Type         int
 	Flags        int
 	FlagsExt     int
-	IP           net.IP
+	IP           netip.Addr
 	HardwareAddr net.HardwareAddr
-	LLIPAddr     net.IP //Used in the case of NHRP
+	LLIPAddr     netip.Addr //Used in the case of NHRP
 	Vlan         int
 	VNI          int
 	MasterIndex  int
