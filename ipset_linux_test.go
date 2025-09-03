@@ -3,6 +3,7 @@ package netlink
 import (
 	"bytes"
 	"net"
+	"net/netip"
 	"os"
 	"testing"
 
@@ -142,7 +143,7 @@ func TestIpsetCreateListAddDelDestroy(t *testing.T) {
 		t.Errorf("expected timeout to be 3, but got '%d'", *results[0].Timeout)
 	}
 
-	ip := net.ParseIP("10.99.99.99")
+	ip := netip.MustParseAddr("10.99.99.99")
 	exist, err := IpsetTest("my-test-ipset-1", &IPSetEntry{
 		IP: ip,
 	})
@@ -193,7 +194,7 @@ func TestIpsetCreateListAddDelDestroy(t *testing.T) {
 
 	err = IpsetDel("my-test-ipset-1", &IPSetEntry{
 		Comment: "test comment",
-		IP:      net.ParseIP("10.99.99.99"),
+		IP:      netip.MustParseAddr("10.99.99.99"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -244,7 +245,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment: "test comment",
-				IP:      net.ParseIP("10.99.99.99"),
+				IP:      netip.MustParseAddr("10.99.99.99"),
 				Replace: false,
 			},
 		},
@@ -261,7 +262,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment: "test comment",
-				IP:      net.ParseIP("10.99.99.0"),
+				IP:      netip.MustParseAddr("10.99.99.0"),
 				CIDR:    24,
 				Replace: false,
 			},
@@ -279,9 +280,9 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment: "test comment",
-				IP:      net.ParseIP("10.99.99.0"),
+				IP:      netip.MustParseAddr("10.99.99.0"),
 				CIDR:    24,
-				IP2:     net.ParseIP("10.99.0.0"),
+				IP2:     netip.MustParseAddr("10.99.0.0"),
 				CIDR2:   24,
 				Replace: false,
 			},
@@ -299,8 +300,8 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment: "test comment",
-				IP:      net.ParseIP("10.99.99.0"),
-				IP2:     net.ParseIP("10.99.0.0"),
+				IP:      netip.MustParseAddr("10.99.99.0"),
+				IP2:     netip.MustParseAddr("10.99.0.0"),
 				Replace: false,
 			},
 		},
@@ -317,7 +318,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment:  "test comment",
-				IP:       net.ParseIP("10.99.99.1"),
+				IP:       netip.MustParseAddr("10.99.99.1"),
 				Protocol: &protocalTCP,
 				Port:     &port,
 				Replace:  false,
@@ -336,9 +337,9 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment:  "test comment",
-				IP:       net.ParseIP("10.99.99.0"),
+				IP:       netip.MustParseAddr("10.99.99.0"),
 				CIDR:     24,
-				IP2:      net.ParseIP("10.99.0.0"),
+				IP2:      netip.MustParseAddr("10.99.0.0"),
 				CIDR2:    24,
 				Protocol: &protocalTCP,
 				Port:     &port,
@@ -375,7 +376,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment: "test comment",
-				IP:      net.ParseIP("10.99.99.0"),
+				IP:      netip.MustParseAddr("10.99.99.0"),
 				CIDR:    24,
 				IFace:   "eth0",
 				Replace: false,
@@ -394,7 +395,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment: "test comment",
-				IP:      net.ParseIP("10.99.99.0"),
+				IP:      netip.MustParseAddr("10.99.99.0"),
 				Mark:    &timeout,
 				Replace: false,
 			},
@@ -413,7 +414,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment: "test comment",
-				IP:      net.ParseIP("::1"),
+				IP:      netip.MustParseAddr("::1"),
 				CIDR:    128,
 				Replace: false,
 			},
@@ -432,9 +433,9 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment: "test comment",
-				IP:      net.ParseIP("::1"),
+				IP:      netip.MustParseAddr("::1"),
 				CIDR:    128,
-				IP2:     net.ParseIP("::2"),
+				IP2:     netip.MustParseAddr("::2"),
 				CIDR2:   128,
 				Replace: false,
 			},
@@ -492,8 +493,8 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 				t.Fatalf("expected 1 entry be created, got '%d'", len(result.Entries))
 			}
 
-			if tC.entry.IP != nil {
-				if !tC.entry.IP.Equal(result.Entries[0].IP) {
+			if tC.entry.IP.IsValid() {
+				if tC.entry.IP != result.Entries[0].IP {
 					t.Fatalf("expected entry to be '%v', got '%v'", tC.entry.IP, result.Entries[0].IP)
 				}
 			}
@@ -504,8 +505,8 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 				}
 			}
 
-			if tC.entry.IP2 != nil {
-				if !tC.entry.IP2.Equal(result.Entries[0].IP2) {
+			if tC.entry.IP2.IsValid() {
+				if tC.entry.IP2 != result.Entries[0].IP2 {
 					t.Fatalf("expected entry.ip2 to be '%v', got '%v'", tC.entry.IP2, result.Entries[0].IP2)
 				}
 			}
@@ -603,7 +604,7 @@ func TestIpsetBitmapCreateListWithTestCases(t *testing.T) {
 			},
 			entry: &IPSetEntry{
 				Comment: "test comment",
-				IP:      net.ParseIP("10.99.99.0"),
+				IP:      netip.MustParseAddr("10.99.99.0"),
 				CIDR:    26,
 				Mark:    &timeout,
 				Replace: false,
@@ -630,7 +631,7 @@ func TestIpsetBitmapCreateListWithTestCases(t *testing.T) {
 					t.Fatalf("expected port range %d-%d, got %d-%d", tC.options.PortFrom, tC.options.PortTo, result.PortFrom, result.PortTo)
 				}
 			} else if tC.typename == "bitmap:ip" {
-				if result.IPFrom == nil || result.IPTo == nil || result.IPFrom.Equal(tC.options.IPFrom) || result.IPTo.Equal(tC.options.IPTo) {
+				if !result.IPFrom.IsValid() || !result.IPTo.IsValid() || result.IPFrom == tC.options.IPFrom || result.IPTo == tC.options.IPTo {
 					t.Fatalf("expected ip range %v-%v, got %v-%v", tC.options.IPFrom, tC.options.IPTo, result.IPFrom, result.IPTo)
 				}
 			}
@@ -666,7 +667,7 @@ func TestIpsetSwap(t *testing.T) {
 	}()
 
 	err = IpsetAdd(ipset1, &IPSetEntry{
-		IP: net.ParseIP("10.99.99.99"),
+		IP: netip.MustParseAddr("10.99.99.99"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -707,15 +708,6 @@ func TestIpsetSwap(t *testing.T) {
 	assertHasOneEntry(ipset2)
 }
 
-func nextIP(ip net.IP) {
-	for j := len(ip) - 1; j >= 0; j-- {
-		ip[j]++
-		if ip[j] > 0 {
-			break
-		}
-	}
-}
-
 // TestIpsetMaxElements tests that we can create an ipset containing
 // 128k elements, which is double the default size (64k elements).
 func TestIpsetMaxElements(t *testing.T) {
@@ -735,7 +727,7 @@ func TestIpsetMaxElements(t *testing.T) {
 		_ = IpsetDestroy(ipsetName)
 	}()
 
-	ip := net.ParseIP("10.0.0.0")
+	ip := netip.MustParseAddr("10.0.0.0")
 	for i := uint32(0); i < maxElements; i++ {
 		err = IpsetAdd(ipsetName, &IPSetEntry{
 			IP: ip,
@@ -743,7 +735,7 @@ func TestIpsetMaxElements(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		nextIP(ip)
+		ip = ip.Next()
 	}
 
 	result, err := IpsetList(ipsetName)

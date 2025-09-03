@@ -2,19 +2,19 @@ package netlink
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 	"strings"
 )
 
 // Addr represents an IP address from netlink. Netlink ip addresses
-// include a mask, so it stores the address as a net.IPNet.
+// include a mask, so it stores the address as a netip.Prefix.
 type Addr struct {
-	*net.IPNet
+	netip.Prefix
 	Label       string
 	Flags       int
 	Scope       int
-	Peer        *net.IPNet
-	Broadcast   net.IP
+	Peer        netip.Prefix
+	Broadcast   netip.Addr
 	PreferedLft int
 	ValidLft    int
 	LinkIndex   int
@@ -22,7 +22,7 @@ type Addr struct {
 
 // String returns $ip/$netmask $label
 func (a Addr) String() string {
-	return strings.TrimSpace(fmt.Sprintf("%s %s", a.IPNet, a.Label))
+	return strings.TrimSpace(fmt.Sprintf("%s %s", a.Prefix, a.Label))
 }
 
 // ParseAddr parses the string representation of an address in the
@@ -38,20 +38,14 @@ func ParseAddr(s string) (*Addr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Addr{IPNet: m, Label: label}, nil
+	return &Addr{Prefix: m, Label: label}, nil
 }
 
-// Equal returns true if both Addrs have the same net.IPNet value.
+// Equal returns true if both Addrs have the same netip.Prefix value.
 func (a Addr) Equal(x Addr) bool {
-	sizea, _ := a.Mask.Size()
-	sizeb, _ := x.Mask.Size()
-	// ignore label for comparison
-	return a.IP.Equal(x.IP) && sizea == sizeb
+	return a.Prefix == x.Prefix
 }
 
 func (a Addr) PeerEqual(x Addr) bool {
-	sizea, _ := a.Peer.Mask.Size()
-	sizeb, _ := x.Peer.Mask.Size()
-	// ignore label for comparison
-	return a.Peer.IP.Equal(x.Peer.IP) && sizea == sizeb
+	return a.Peer == x.Peer
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"syscall"
@@ -195,7 +196,7 @@ func (e *MPLSEncap) Equal(x Encap) bool {
 // SEG6 definitions
 type SEG6Encap struct {
 	Mode     int
-	Segments []net.IP
+	Segments []netip.Addr
 }
 
 func (e *SEG6Encap) Type() int {
@@ -257,7 +258,7 @@ func (e *SEG6Encap) Equal(x Encap) bool {
 		return false
 	}
 	for i := range e.Segments {
-		if !e.Segments[i].Equal(o.Segments[i]) {
+		if e.Segments[i] != o.Segments[i] {
 			return false
 		}
 	}
@@ -268,11 +269,11 @@ func (e *SEG6Encap) Equal(x Encap) bool {
 type SEG6LocalEncap struct {
 	Flags    [nl.SEG6_LOCAL_MAX]bool
 	Action   int
-	Segments []net.IP // from SRH in seg6_local_lwt
-	Table    int      // table id for End.T and End.DT6
-	VrfTable int      // vrftable id for END.DT4 and END.DT6
-	InAddr   net.IP
-	In6Addr  net.IP
+	Segments []netip.Addr // from SRH in seg6_local_lwt
+	Table    int          // table id for End.T and End.DT6
+	VrfTable int          // vrftable id for END.DT4 and END.DT6
+	InAddr   netip.Addr
+	In6Addr  netip.Addr
 	Iif      int
 	Oif      int
 	bpf      bpfObj
@@ -310,10 +311,10 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 			e.VrfTable = int(native.Uint32(attr.Value[0:4]))
 			e.Flags[nl.SEG6_LOCAL_VRFTABLE] = true
 		case nl.SEG6_LOCAL_NH4:
-			e.InAddr = net.IP(attr.Value[0:4])
+			e.InAddr, _ = netip.AddrFromSlice(attr.Value[0:4])
 			e.Flags[nl.SEG6_LOCAL_NH4] = true
 		case nl.SEG6_LOCAL_NH6:
-			e.In6Addr = net.IP(attr.Value[0:16])
+			e.In6Addr, _ = netip.AddrFromSlice(attr.Value[0:16])
 			e.Flags[nl.SEG6_LOCAL_NH6] = true
 		case nl.SEG6_LOCAL_IIF:
 			e.Iif = int(native.Uint32(attr.Value[0:4]))
@@ -378,19 +379,18 @@ func (e *SEG6LocalEncap) Encode() ([]byte, error) {
 		attr := make([]byte, 4)
 		native.PutUint16(attr, 8)
 		native.PutUint16(attr[2:], nl.SEG6_LOCAL_NH4)
-		ipv4 := e.InAddr.To4()
-		if ipv4 == nil {
+		if !e.InAddr.Is4() {
 			err = fmt.Errorf("SEG6_LOCAL_NH4 has invalid IPv4 address")
 			return nil, err
 		}
-		attr = append(attr, ipv4...)
+		attr = append(attr, e.InAddr.AsSlice()...)
 		res = append(res, attr...)
 	}
 	if e.Flags[nl.SEG6_LOCAL_NH6] {
 		attr := make([]byte, 4)
 		native.PutUint16(attr, 20)
 		native.PutUint16(attr[2:], nl.SEG6_LOCAL_NH6)
-		attr = append(attr, e.In6Addr...)
+		attr = append(attr, e.In6Addr.AsSlice()...)
 		res = append(res, attr...)
 	}
 	if e.Flags[nl.SEG6_LOCAL_IIF] {
@@ -487,12 +487,12 @@ func (e *SEG6LocalEncap) Equal(x Encap) bool {
 		return false
 	}
 	for i := range e.Segments {
-		if !e.Segments[i].Equal(o.Segments[i]) {
+		if e.Segments[i] != o.Segments[i] {
 			return false
 		}
 	}
 	// compare values
-	if !e.InAddr.Equal(o.InAddr) || !e.In6Addr.Equal(o.In6Addr) {
+	if e.InAddr != o.InAddr || e.In6Addr != o.In6Addr {
 		return false
 	}
 	if e.Action != o.Action || e.Table != o.Table || e.Iif != o.Iif || e.Oif != o.Oif || e.bpf != o.bpf || e.VrfTable != o.VrfTable {
@@ -650,8 +650,8 @@ func (e *BpfEncap) Equal(x Encap) bool {
 // IP6tnlEncap definition
 type IP6tnlEncap struct {
 	ID       uint64
-	Dst      net.IP
-	Src      net.IP
+	Dst      netip.Addr
+	Src      netip.Addr
 	Hoplimit uint8
 	TC       uint8
 	Flags    uint16
@@ -671,9 +671,9 @@ func (e *IP6tnlEncap) Decode(buf []byte) error {
 		case nl.LWTUNNEL_IP6_ID:
 			e.ID = uint64(binary.BigEndian.Uint64(attr.Value[0:8]))
 		case nl.LWTUNNEL_IP6_DST:
-			e.Dst = net.IP(attr.Value[:])
+			e.Dst, _ = netip.AddrFromSlice(attr.Value[:])
 		case nl.LWTUNNEL_IP6_SRC:
-			e.Src = net.IP(attr.Value[:])
+			e.Src, _ = netip.AddrFromSlice(attr.Value[:])
 		case nl.LWTUNNEL_IP6_HOPLIMIT:
 			e.Hoplimit = attr.Value[0]
 		case nl.LWTUNNEL_IP6_TC:
@@ -702,13 +702,13 @@ func (e *IP6tnlEncap) Encode() ([]byte, error) {
 	resDst := make([]byte, 4)
 	native.PutUint16(resDst, 20) //  2+2+16
 	native.PutUint16(resDst[2:], nl.LWTUNNEL_IP6_DST)
-	resDst = append(resDst, e.Dst...)
+	resDst = append(resDst, e.Dst.AsSlice()...)
 	final = append(final, resDst...)
 
 	resSrc := make([]byte, 4)
 	native.PutUint16(resSrc, 20)
 	native.PutUint16(resSrc[2:], nl.LWTUNNEL_IP6_SRC)
-	resSrc = append(resSrc, e.Src...)
+	resSrc = append(resSrc, e.Src.AsSlice()...)
 	final = append(final, resSrc...)
 
 	resTc := make([]byte, 5)
@@ -742,7 +742,7 @@ func (e *IP6tnlEncap) Equal(x Encap) bool {
 		return false
 	}
 
-	if e.ID != o.ID || e.Flags != o.Flags || e.Hoplimit != o.Hoplimit || e.Src.Equal(o.Src) || e.Dst.Equal(o.Dst) || e.TC != o.TC {
+	if e.ID != o.ID || e.Flags != o.Flags || e.Hoplimit != o.Hoplimit || e.Src != o.Src || e.Dst != o.Dst || e.TC != o.TC {
 		return false
 	}
 	return true
@@ -750,7 +750,7 @@ func (e *IP6tnlEncap) Equal(x Encap) bool {
 
 type Via struct {
 	AddrFamily int
-	Addr       net.IP
+	Addr       netip.Addr
 }
 
 func (v *Via) Equal(x Destination) bool {
@@ -758,7 +758,7 @@ func (v *Via) Equal(x Destination) bool {
 	if !ok {
 		return false
 	}
-	if v.AddrFamily == x.Family() && v.Addr.Equal(o.Addr) {
+	if v.AddrFamily == x.Family() && v.Addr == o.Addr {
 		return true
 	}
 	return false
@@ -791,13 +791,13 @@ func (v *Via) Decode(b []byte) error {
 	}
 	v.AddrFamily = int(native.Uint16(b[0:2]))
 	if v.AddrFamily == nl.FAMILY_V4 {
-		v.Addr = net.IP(b[2:6])
+		v.Addr, _ = netip.AddrFromSlice(b[2:6])
 		return nil
 	} else if v.AddrFamily == nl.FAMILY_V6 {
 		if len(b) < 18 {
 			return fmt.Errorf("decoding failed: buffer too small (%d bytes)", len(b))
 		}
-		v.Addr = net.IP(b[2:])
+		v.Addr, _ = netip.AddrFromSlice(b[2:])
 		return nil
 	}
 	return fmt.Errorf("decoding failed: address family %d unknown", v.AddrFamily)
@@ -905,24 +905,19 @@ func (h *Handle) routeHandleIter(route *Route, req *nl.NetlinkRequest, msg *nl.R
 }
 
 func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
-	if req.NlMsghdr.Type != unix.RTM_GETROUTE && (route.Dst == nil || route.Dst.IP == nil) && route.Src == nil && route.Gw == nil && route.MPLSDst == nil {
+	if req.NlMsghdr.Type != unix.RTM_GETROUTE && (!route.Dst.IsValid() || !route.Dst.IsValid()) && !route.Src.IsValid() && !route.Gw.IsValid() && route.MPLSDst == nil {
 		return fmt.Errorf("either Dst.IP, Src.IP or Gw must be set")
 	}
 
 	family := -1
 	var rtAttrs []*nl.RtAttr
 
-	if route.Dst != nil && route.Dst.IP != nil {
-		dstLen, _ := route.Dst.Mask.Size()
+	if route.Dst.IsValid() {
+		dstLen := route.Dst.Bits()
 		msg.Dst_len = uint8(dstLen)
-		dstFamily := nl.GetIPFamily(route.Dst.IP)
+		dstFamily := nl.GetIPFamily(route.Dst.Addr())
 		family = dstFamily
-		var dstData []byte
-		if dstFamily == FAMILY_V4 {
-			dstData = route.Dst.IP.To4()
-		} else {
-			dstData = route.Dst.IP.To16()
-		}
+		dstData := route.Dst.Addr().AsSlice()
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_DST, dstData))
 	} else if route.MPLSDst != nil {
 		family = nl.FAMILY_MPLS
@@ -959,34 +954,24 @@ func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.R
 
 	}
 
-	if route.Src != nil {
+	if route.Src.IsValid() {
 		srcFamily := nl.GetIPFamily(route.Src)
 		if family != -1 && family != srcFamily {
 			return fmt.Errorf("source and destination ip are not the same IP family")
 		}
 		family = srcFamily
-		var srcData []byte
-		if srcFamily == FAMILY_V4 {
-			srcData = route.Src.To4()
-		} else {
-			srcData = route.Src.To16()
-		}
+		srcData := route.Src.AsSlice()
 		// The commonly used src ip for routes is actually PREFSRC
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_PREFSRC, srcData))
 	}
 
-	if route.Gw != nil {
+	if route.Gw.IsValid() {
 		gwFamily := nl.GetIPFamily(route.Gw)
 		if family != -1 && family != gwFamily {
 			return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
 		}
 		family = gwFamily
-		var gwData []byte
-		if gwFamily == FAMILY_V4 {
-			gwData = route.Gw.To4()
-		} else {
-			gwData = route.Gw.To16()
-		}
+		gwData := route.Gw.AsSlice()
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_GATEWAY, gwData))
 	}
 
@@ -1009,16 +994,12 @@ func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.R
 				},
 			}
 			children := []nl.NetlinkRequestData{}
-			if nh.Gw != nil {
+			if nh.Gw.IsValid() {
 				gwFamily := nl.GetIPFamily(nh.Gw)
 				if family != -1 && family != gwFamily {
 					return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
 				}
-				if gwFamily == FAMILY_V4 {
-					children = append(children, nl.NewRtAttr(unix.RTA_GATEWAY, []byte(nh.Gw.To4())))
-				} else {
-					children = append(children, nl.NewRtAttr(unix.RTA_GATEWAY, []byte(nh.Gw.To16())))
-				}
+				children = append(children, nl.NewRtAttr(unix.RTA_GATEWAY, nh.Gw.AsSlice()))
 			}
 			if nh.NewDst != nil {
 				if family != -1 && family != nh.NewDst.Family() {
@@ -1296,16 +1277,16 @@ func (h *Handle) RouteListFilteredIter(family int, filter *Route, filterMask uin
 				return true
 			case filterMask&RT_FILTER_IIF != 0 && route.ILinkIndex != filter.ILinkIndex:
 				return true
-			case filterMask&RT_FILTER_GW != 0 && !route.Gw.Equal(filter.Gw):
+			case filterMask&RT_FILTER_GW != 0 && route.Gw != filter.Gw:
 				return true
-			case filterMask&RT_FILTER_SRC != 0 && !route.Src.Equal(filter.Src):
+			case filterMask&RT_FILTER_SRC != 0 && route.Src != filter.Src:
 				return true
 			case filterMask&RT_FILTER_DST != 0:
 				if filter.MPLSDst == nil || route.MPLSDst == nil || (*filter.MPLSDst) != (*route.MPLSDst) {
-					if filter.Dst == nil {
+					if filter.Dst.IsValid() {
 						filter.Dst = genZeroIPNet(family)
 					}
-					if !ipNetEqual(route.Dst, filter.Dst) {
+					if route.Dst != filter.Dst {
 						return true
 					}
 				}
@@ -1364,9 +1345,9 @@ func deserializeRoute(m []byte) (Route, error) {
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case unix.RTA_GATEWAY:
-			route.Gw = net.IP(attr.Value)
+			route.Gw, _ = netip.AddrFromSlice(attr.Value)
 		case unix.RTA_PREFSRC:
-			route.Src = net.IP(attr.Value)
+			route.Src, _ = netip.AddrFromSlice(attr.Value)
 		case unix.RTA_DST:
 			if msg.Family == nl.FAMILY_MPLS {
 				stack := nl.DecodeMPLSStack(attr.Value)
@@ -1375,9 +1356,13 @@ func deserializeRoute(m []byte) (Route, error) {
 				}
 				route.MPLSDst = &stack[0]
 			} else {
-				route.Dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
+				addr, ok := netip.AddrFromSlice(attr.Value)
+				if !ok {
+					return route, fmt.Errorf("RTA_DST: invalid address")
+				}
+				route.Dst, err = addr.Prefix(int(msg.Dst_len))
+				if err != nil {
+					return route, fmt.Errorf("RTA_DST: %w", err)
 				}
 			}
 		case unix.RTA_OIF:
@@ -1418,7 +1403,7 @@ func deserializeRoute(m []byte) (Route, error) {
 				for _, attr := range attrs {
 					switch attr.Attr.Type {
 					case unix.RTA_GATEWAY:
-						info.Gw = net.IP(attr.Value)
+						info.Gw, _ = netip.AddrFromSlice(attr.Value)
 					case unix.RTA_NEWDST:
 						var d Destination
 						switch msg.Family {
@@ -1534,22 +1519,22 @@ func deserializeRoute(m []byte) (Route, error) {
 	}
 
 	// Same logic to generate "default" dst with iproute2 implementation
-	if route.Dst == nil {
+	if !route.Dst.IsValid() {
 		var addLen int
-		var ip net.IP
+		var ip netip.Addr
 		switch msg.Family {
 		case FAMILY_V4:
 			addLen = net.IPv4len
-			ip = net.IPv4zero
+			ip = v4zero
 		case FAMILY_V6:
 			addLen = net.IPv6len
-			ip = net.IPv6zero
+			ip = v6zero
 		}
 
 		if addLen != 0 {
-			route.Dst = &net.IPNet{
-				IP:   ip,
-				Mask: net.CIDRMask(int(msg.Dst_len), 8*addLen),
+			route.Dst, err = ip.Prefix(int(msg.Dst_len))
+			if err != nil {
+				return route, fmt.Errorf("Dst: %w", err)
 			}
 		}
 	}
@@ -1598,7 +1583,7 @@ type RouteGetOptions struct {
 	Oif      string
 	OifIndex int
 	VrfName  string
-	SrcAddr  net.IP
+	SrcAddr  netip.Addr
 	UID      *uint32
 	Mark     uint32
 	FIBMatch bool
@@ -1606,35 +1591,28 @@ type RouteGetOptions struct {
 
 // RouteGetWithOptions gets a route to a specific destination from the host system.
 // Equivalent to: 'ip route get <> vrf <VrfName>'.
-func RouteGetWithOptions(destination net.IP, options *RouteGetOptions) ([]Route, error) {
+func RouteGetWithOptions(destination netip.Addr, options *RouteGetOptions) ([]Route, error) {
 	return pkgHandle.RouteGetWithOptions(destination, options)
 }
 
 // RouteGet gets a route to a specific destination from the host system.
 // Equivalent to: 'ip route get'.
-func RouteGet(destination net.IP) ([]Route, error) {
+func RouteGet(destination netip.Addr) ([]Route, error) {
 	return pkgHandle.RouteGet(destination)
 }
 
 // RouteGetWithOptions gets a route to a specific destination from the host system.
 // Equivalent to: 'ip route get <> vrf <VrfName>'.
-func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOptions) ([]Route, error) {
+func (h *Handle) RouteGetWithOptions(destination netip.Addr, options *RouteGetOptions) ([]Route, error) {
 	req := h.newNetlinkRequest(unix.RTM_GETROUTE, unix.NLM_F_REQUEST)
 	family := nl.GetIPFamily(destination)
-	var destinationData []byte
-	var bitlen uint8
-	if family == FAMILY_V4 {
-		destinationData = destination.To4()
-		bitlen = 32
-	} else {
-		destinationData = destination.To16()
-		bitlen = 128
-	}
+	destinationData := destination.AsSlice()
+
 	msg := &nl.RtMsg{}
 	msg.Family = uint8(family)
-	msg.Dst_len = bitlen
-	if options != nil && options.SrcAddr != nil {
-		msg.Src_len = bitlen
+	msg.Dst_len = uint8(destination.BitLen())
+	if options != nil && options.SrcAddr.IsValid() {
+		msg.Src_len = uint8(destination.BitLen())
 	}
 	msg.Flags = unix.RTM_F_LOOKUP_TABLE
 	if options != nil && options.FIBMatch {
@@ -1694,15 +1672,8 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 			req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
 		}
 
-		if options.SrcAddr != nil {
-			var srcAddr []byte
-			if family == FAMILY_V4 {
-				srcAddr = options.SrcAddr.To4()
-			} else {
-				srcAddr = options.SrcAddr.To16()
-			}
-
-			req.AddData(nl.NewRtAttr(unix.RTA_SRC, srcAddr))
+		if options.SrcAddr.IsValid() {
+			req.AddData(nl.NewRtAttr(unix.RTA_SRC, options.SrcAddr.AsSlice()))
 		}
 
 		if options.UID != nil {
@@ -1739,7 +1710,7 @@ func (h *Handle) RouteGetWithOptions(destination net.IP, options *RouteGetOption
 
 // RouteGet gets a route to a specific destination from the host system.
 // Equivalent to: 'ip route get'.
-func (h *Handle) RouteGet(destination net.IP) ([]Route, error) {
+func (h *Handle) RouteGet(destination netip.Addr) ([]Route, error) {
 	return h.RouteGetWithOptions(destination, nil)
 }
 
@@ -1920,22 +1891,15 @@ func (p RouteProtocol) String() string {
 }
 
 // genZeroIPNet returns 0.0.0.0/0 or ::/0 for IPv4 or IPv6, otherwise nil
-func genZeroIPNet(family int) *net.IPNet {
-	var addLen int
-	var ip net.IP
+func genZeroIPNet(family int) netip.Prefix {
+	var a netip.Addr
 	switch family {
 	case FAMILY_V4:
-		addLen = net.IPv4len
-		ip = net.IPv4zero
+		a = v4zero
 	case FAMILY_V6:
-		addLen = net.IPv6len
-		ip = net.IPv6zero
+		a = v6zero
 	}
-	if addLen != 0 {
-		return &net.IPNet{
-			IP:   ip,
-			Mask: net.CIDRMask(0, 8*addLen),
-		}
-	}
-	return nil
+
+	p, _ := a.Prefix(0)
+	return p
 }

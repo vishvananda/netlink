@@ -5,6 +5,7 @@ package netlink
 
 import (
 	"net"
+	"net/netip"
 	"os/user"
 	"strconv"
 	"syscall"
@@ -15,7 +16,7 @@ func TestSocketGet(t *testing.T) {
 	t.Cleanup(setUpNetlinkTestWithLoopback(t))
 
 	type Addr struct {
-		IP   net.IP
+		IP   netip.Addr
 		Port int
 	}
 
@@ -23,10 +24,10 @@ func TestSocketGet(t *testing.T) {
 		var addr Addr
 		switch v := a.(type) {
 		case *net.UDPAddr:
-			addr.IP = v.IP
+			addr.IP, _ = netip.AddrFromSlice(v.IP)
 			addr.Port = v.Port
 		case *net.TCPAddr:
-			addr.IP = v.IP
+			addr.IP, _ = netip.AddrFromSlice(v.IP)
 			addr.Port = v.Port
 		}
 		return addr
@@ -40,10 +41,10 @@ func TestSocketGet(t *testing.T) {
 
 		localAddr, remoteAddr := getAddr(local), getAddr(remote)
 
-		if got, want := socket.ID.Source, localAddr.IP; !got.Equal(want) {
+		if got, want := socket.ID.Source, localAddr.IP; got != want {
 			t.Fatalf("local ip = %v, want %v", got, want)
 		}
-		if got, want := socket.ID.Destination, remoteAddr.IP; !got.Equal(want) {
+		if got, want := socket.ID.Destination, remoteAddr.IP; got != want {
 			t.Fatalf("remote ip = %v, want %v", got, want)
 		}
 		if got, want := int(socket.ID.SourcePort), localAddr.Port; got != want {

@@ -4,7 +4,7 @@
 package netlink
 
 import (
-	"net"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -15,8 +15,8 @@ func TestRuleAddDel(t *testing.T) {
 	skipUnlessRoot(t)
 	t.Cleanup(setUpNetlinkTest(t))
 
-	srcNet := &net.IPNet{IP: net.IPv4(172, 16, 0, 1), Mask: net.CIDRMask(16, 32)}
-	dstNet := &net.IPNet{IP: net.IPv4(172, 16, 1, 1), Mask: net.CIDRMask(24, 32)}
+	srcNet := netip.MustParsePrefix("172.16.0.1/16")
+	dstNet := netip.MustParsePrefix("172.16.1.1/24")
 
 	rulesBegin, err := RuleList(FAMILY_V4)
 	if err != nil {
@@ -79,21 +79,18 @@ func TestRuleListFiltered(t *testing.T) {
 }
 
 func testRuleListFilteredIPv4(t *testing.T) {
-	srcNet := &net.IPNet{IP: net.IPv4(172, 16, 0, 1), Mask: net.CIDRMask(16, 32)}
-	dstNet := &net.IPNet{IP: net.IPv4(172, 16, 1, 1), Mask: net.CIDRMask(24, 32)}
+	srcNet := netip.MustParsePrefix("172.16.0.1/16")
+	dstNet := netip.MustParsePrefix("172.16.1.1/24")
 	runRuleListFiltered(t, FAMILY_V4, srcNet, dstNet)
 }
 
 func testRuleListFilteredIPv6(t *testing.T) {
-	ip1 := net.ParseIP("fd56:6b58:db28:2913::")
-	ip2 := net.ParseIP("fde9:379f:3b35:6635::")
-
-	srcNet := &net.IPNet{IP: ip1, Mask: net.CIDRMask(64, 128)}
-	dstNet := &net.IPNet{IP: ip2, Mask: net.CIDRMask(96, 128)}
+	srcNet := netip.MustParsePrefix("fd56:6b58:db28:2913::/64")
+	dstNet := netip.MustParsePrefix("fde9:379f:3b35:6635::/96")
 	runRuleListFiltered(t, FAMILY_V6, srcNet, dstNet)
 }
 
-func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
+func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet netip.Prefix) {
 	tests := []struct {
 		name       string
 		ruleFilter *Rule
@@ -628,8 +625,6 @@ func TestRuleString(t *testing.T) {
 		"rule with src and dst equivalent to <nil>": {
 			r: Rule{
 				Priority: 100,
-				Src:      &net.IPNet{IP: net.IPv4(10, 0, 0, 0)},
-				Dst:      &net.IPNet{IP: net.IPv4(20, 0, 0, 0)},
 				Table:    99,
 			},
 			s: "ip rule 100: from all to all table 99 ",
@@ -637,8 +632,8 @@ func TestRuleString(t *testing.T) {
 		"rule with src and dst": {
 			r: Rule{
 				Priority: 100,
-				Src:      &net.IPNet{IP: net.IPv4(10, 0, 0, 0), Mask: net.IPv4Mask(255, 255, 255, 0)},
-				Dst:      &net.IPNet{IP: net.IPv4(20, 0, 0, 0), Mask: net.IPv4Mask(255, 255, 255, 0)},
+				Src:      netip.MustParsePrefix("10.0.0.0/24"),
+				Dst:      netip.MustParsePrefix("20.0.0.0/24"),
 				Table:    99,
 			},
 			s: "ip rule 100: from 10.0.0.0/24 to 20.0.0.0/24 table 99 ",
@@ -678,10 +673,10 @@ func ruleExists(rules []Rule, rule Rule) bool {
 
 func ruleEquals(a, b Rule) bool {
 	return a.Table == b.Table &&
-		((a.Src == nil && b.Src == nil) ||
-			(a.Src != nil && b.Src != nil && a.Src.String() == b.Src.String())) &&
-		((a.Dst == nil && b.Dst == nil) ||
-			(a.Dst != nil && b.Dst != nil && a.Dst.String() == b.Dst.String())) &&
+		((!a.Src.IsValid() && !b.Src.IsValid()) ||
+			(a.Src.IsValid() && b.Src.IsValid() && a.Src.String() == b.Src.String())) &&
+		((!a.Dst.IsValid() && !b.Dst.IsValid()) ||
+			(a.Dst.IsValid() && b.Dst.IsValid() && a.Dst.String() == b.Dst.String())) &&
 		a.OifName == b.OifName &&
 		a.Priority == b.Priority &&
 		a.Family == b.Family &&

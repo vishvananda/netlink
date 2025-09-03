@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -52,13 +53,8 @@ func (r *socketRequest) Serialize() []byte {
 	native.PutUint32(b.Next(4), r.States)
 	networkOrder.PutUint16(b.Next(2), r.ID.SourcePort)
 	networkOrder.PutUint16(b.Next(2), r.ID.DestinationPort)
-	if r.Family == unix.AF_INET6 {
-		copy(b.Next(16), r.ID.Source)
-		copy(b.Next(16), r.ID.Destination)
-	} else {
-		copy(b.Next(16), r.ID.Source.To4())
-		copy(b.Next(16), r.ID.Destination.To4())
-	}
+	r.ID.Source, _ = netip.AddrFromSlice(b.Next(16))
+	r.ID.Destination, _ = netip.AddrFromSlice(b.Next(16))
 	native.PutUint32(b.Next(4), r.ID.Interface)
 	native.PutUint32(b.Next(4), r.ID.Cookie[0])
 	native.PutUint32(b.Next(4), r.ID.Cookie[1])
@@ -122,12 +118,30 @@ func (s *Socket) deserialize(b []byte) error {
 	s.ID.SourcePort = networkOrder.Uint16(rb.Next(2))
 	s.ID.DestinationPort = networkOrder.Uint16(rb.Next(2))
 	if s.Family == unix.AF_INET6 {
-		s.ID.Source = net.IP(rb.Next(16))
-		s.ID.Destination = net.IP(rb.Next(16))
+		addr, ok := netip.AddrFromSlice(rb.Next(16))
+		if !ok {
+			return fmt.Errorf("source: invalid address")
+		}
+		s.ID.Source = addr
+
+		addr, ok = netip.AddrFromSlice(rb.Next(16))
+		if !ok {
+			return fmt.Errorf("destination: invalid address")
+		}
+		s.ID.Destination = addr
 	} else {
-		s.ID.Source = net.IPv4(rb.Read(), rb.Read(), rb.Read(), rb.Read())
+		addr, ok := netip.AddrFromSlice(rb.Next(4))
+		if !ok {
+			return fmt.Errorf("source: invalid address")
+		}
+		s.ID.Source = addr
 		rb.Next(12)
-		s.ID.Destination = net.IPv4(rb.Read(), rb.Read(), rb.Read(), rb.Read())
+
+		addr, ok = netip.AddrFromSlice(rb.Next(4))
+		if !ok {
+			return fmt.Errorf("destination: invalid address")
+		}
+		s.ID.Destination = addr
 		rb.Next(12)
 	}
 	s.ID.Interface = native.Uint32(rb.Next(4))
@@ -162,7 +176,7 @@ func (u *UnixSocket) deserialize(b []byte) error {
 // be incomplete and the caller should retry.
 func (h *Handle) SocketGet(local, remote net.Addr) (*Socket, error) {
 	var protocol uint8
-	var localIP, remoteIP net.IP
+	var localIP, remoteIP netip.Addr
 	var localPort, remotePort uint16
 	switch l := local.(type) {
 	case *net.TCPAddr:
@@ -170,9 +184,9 @@ func (h *Handle) SocketGet(local, remote net.Addr) (*Socket, error) {
 		if !ok {
 			return nil, ErrNotImplemented
 		}
-		localIP = l.IP
+		localIP, _ = netip.AddrFromSlice(l.IP)
 		localPort = uint16(l.Port)
-		remoteIP = r.IP
+		remoteIP, _ = netip.AddrFromSlice(r.IP)
 		remotePort = uint16(r.Port)
 		protocol = unix.IPPROTO_TCP
 	case *net.UDPAddr:
@@ -180,9 +194,9 @@ func (h *Handle) SocketGet(local, remote net.Addr) (*Socket, error) {
 		if !ok {
 			return nil, ErrNotImplemented
 		}
-		localIP = l.IP
+		localIP, _ = netip.AddrFromSlice(l.IP)
 		localPort = uint16(l.Port)
-		remoteIP = r.IP
+		remoteIP, _ = netip.AddrFromSlice(r.IP)
 		remotePort = uint16(r.Port)
 		protocol = unix.IPPROTO_UDP
 	default:
@@ -190,11 +204,11 @@ func (h *Handle) SocketGet(local, remote net.Addr) (*Socket, error) {
 	}
 
 	var family uint8
-	if localIP.To4() != nil && remoteIP.To4() != nil {
+	if localIP.Is4() && remoteIP.Is4() {
 		family = unix.AF_INET
 	}
 
-	if family == 0 && localIP.To16() != nil && remoteIP.To16() != nil {
+	if family == 0 && localIP.Is6() && remoteIP.Is6() {
 		family = unix.AF_INET6
 	}
 
@@ -252,14 +266,17 @@ func (h *Handle) SocketDestroy(local, remote net.Addr) error {
 	if !ok {
 		return ErrNotImplemented
 	}
-	localIP := localTCP.IP.To4()
-	if localIP == nil {
+	localIP4 := localTCP.IP.To4()
+	if localIP4 == nil {
 		return ErrNotImplemented
 	}
-	remoteIP := remoteTCP.IP.To4()
-	if remoteIP == nil {
+	localIP, _ := netip.AddrFromSlice(localIP4)
+
+	remoteIP4 := remoteTCP.IP.To4()
+	if remoteIP4 == nil {
 		return ErrNotImplemented
 	}
+	remoteIP, _ := netip.AddrFromSlice(remoteIP4)
 
 	s, err := nl.Subscribe(unix.NETLINK_INET_DIAG)
 	if err != nil {

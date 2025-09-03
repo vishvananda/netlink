@@ -4,7 +4,7 @@
 package netlink
 
 import (
-	"net"
+	"net/netip"
 	"runtime"
 	"strconv"
 	"testing"
@@ -30,12 +30,8 @@ func TestRouteAddDel(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
-
-	ip := net.IPv4(127, 1, 1, 1)
+	dst := netip.MustParsePrefix("192.168.0.0/24")
+	ip := netip.MustParseAddr("127.1.1.1")
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
@@ -56,7 +52,7 @@ func TestRouteAddDel(t *testing.T) {
 		t.Fatal("Route not listed properly")
 	}
 
-	dstIP := net.IPv4(192, 168, 0, 42)
+	dstIP := netip.MustParseAddr("192.168.0.42")
 	routeToDstIP, err := RouteGet(dstIP)
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +74,7 @@ func TestRouteAddDel(t *testing.T) {
 
 	// add default route test
 	// equiv: default dev lo
-	_, defaultDst, _ := net.ParseCIDR("0.0.0.0/0")
+	defaultDst := netip.MustParsePrefix("0.0.0.0/0")
 	route = Route{Dst: defaultDst, LinkIndex: link.Attrs().Index}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
@@ -185,10 +181,7 @@ func TestRoute6AddDel(t *testing.T) {
 	nroutes := len(routes)
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.ParseIP("2001:db8::0"),
-		Mask: net.CIDRMask(64, 128),
-	}
+	dst := netip.MustParsePrefix("2001:db8::0/64")
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Expires: 10}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
@@ -209,7 +202,7 @@ func TestRoute6AddDel(t *testing.T) {
 	if k > 4 || (k == 4 && m > 4) {
 		foundExpires := false
 		for _, route := range routes {
-			if route.Dst.IP.Equal(dst.IP) {
+			if route.Dst.Addr() == dst.Addr() {
 				if route.Expires > 0 && route.Expires <= 10 {
 					foundExpires = true
 				}
@@ -220,7 +213,7 @@ func TestRoute6AddDel(t *testing.T) {
 		}
 	}
 
-	dstIP := net.ParseIP("2001:db8::1")
+	dstIP := netip.MustParseAddr("2001:db8::1")
 	routeToDstIP, err := RouteGet(dstIP)
 	if err != nil {
 		t.Fatal(err)
@@ -242,7 +235,7 @@ func TestRoute6AddDel(t *testing.T) {
 	}
 
 	// add a default link route
-	_, defaultDst, _ := net.ParseCIDR("::/0")
+	defaultDst := netip.MustParsePrefix("::/0")
 	route = Route{LinkIndex: link.Attrs().Index, Dst: defaultDst}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
@@ -292,7 +285,7 @@ func TestRoute6AddDel(t *testing.T) {
 
 	// add blackhole default link route
 	for _, route := range routes {
-		if ipNetEqual(route.Dst, defaultDst) {
+		if route.Dst == defaultDst {
 			if err := RouteDel(&route); err != nil {
 				t.Fatal(err)
 			}
@@ -327,7 +320,7 @@ func TestRoute6AddDel(t *testing.T) {
 
 	// add prohibit default link route
 	for _, route := range routes {
-		if ipNetEqual(route.Dst, defaultDst) {
+		if route.Dst == defaultDst {
 			if err := RouteDel(&route); err != nil {
 				t.Fatal(err)
 			}
@@ -362,12 +355,9 @@ func TestRouteChange(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.168.0.0/24")
 
-	ip := net.IPv4(127, 1, 1, 1)
+	ip := netip.MustParseAddr("127.1.1.1")
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 
 	if err := RouteChange(&route); err == nil {
@@ -385,7 +375,7 @@ func TestRouteChange(t *testing.T) {
 		t.Fatal("Route not added properly")
 	}
 
-	ip = net.IPv4(127, 1, 1, 2)
+	ip = netip.MustParseAddr("127.1.1.2")
 	route = Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 	if err := RouteChange(&route); err != nil {
 		t.Fatal(err)
@@ -396,7 +386,7 @@ func TestRouteChange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(routes) != 1 || !routes[0].Src.Equal(ip) {
+	if len(routes) != 1 || routes[0].Src != ip {
 		t.Fatal("Route not changed properly")
 	}
 
@@ -427,12 +417,9 @@ func TestRouteReplace(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.168.0.0/24")
 
-	ip := net.IPv4(127, 1, 1, 1)
+	ip := netip.MustParseAddr("127.1.1.1")
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
@@ -445,7 +432,7 @@ func TestRouteReplace(t *testing.T) {
 		t.Fatal("Route not added properly")
 	}
 
-	ip = net.IPv4(127, 1, 1, 2)
+	ip = netip.MustParseAddr("127.1.1.2")
 	route = Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 	if err := RouteReplace(&route); err != nil {
 		t.Fatal(err)
@@ -456,7 +443,7 @@ func TestRouteReplace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(routes) != 1 || !routes[0].Src.Equal(ip) {
+	if len(routes) != 1 || routes[0].Src == ip {
 		t.Fatal("Route not replaced properly")
 	}
 
@@ -487,12 +474,9 @@ func TestRouteAppend(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.168.0.0/24")
 
-	ip := net.IPv4(127, 1, 1, 1)
+	ip := netip.MustParseAddr("127.1.1.1")
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
@@ -505,7 +489,7 @@ func TestRouteAppend(t *testing.T) {
 		t.Fatal("Route not added properly")
 	}
 
-	ip = net.IPv4(127, 1, 1, 2)
+	ip = netip.MustParseAddr("127.1.1.2")
 	route = Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 	if err := RouteAppend(&route); err != nil {
 		t.Fatal(err)
@@ -516,7 +500,7 @@ func TestRouteAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(routes) != 2 || !routes[1].Src.Equal(ip) {
+	if len(routes) != 2 || routes[1].Src == ip {
 		t.Fatal("Route not append properly")
 	}
 
@@ -556,15 +540,15 @@ func TestRouteAddIncomplete(t *testing.T) {
 }
 
 // expectRouteUpdate returns whether the expected updated is received within one minute.
-func expectRouteUpdate(ch <-chan RouteUpdate, t, f uint16, dst net.IP) bool {
+func expectRouteUpdate(ch <-chan RouteUpdate, t, f uint16, dst netip.Addr) bool {
 	for {
 		timeout := time.After(time.Minute)
 		select {
 		case update := <-ch:
 			if update.Type == t &&
 				update.NlFlags == f &&
-				update.Route.Dst != nil &&
-				update.Route.Dst.IP.Equal(dst) {
+				update.Route.Dst.IsValid() &&
+				update.Route.Dst.Addr() == dst {
 				return true
 			}
 		case <-timeout:
@@ -595,24 +579,21 @@ func TestRouteSubscribe(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.168.0.0/24")
 
-	ip := net.IPv4(127, 1, 1, 1)
+	ip := netip.MustParseAddr("127.1.1.1")
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.Addr()) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.Addr()) {
 		t.Fatal("Del update not received as expected")
 	}
 }
@@ -649,18 +630,15 @@ func TestRouteSubscribeWithOptions(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.168.0.0/24")
 
-	ip := net.IPv4(127, 1, 1, 1)
+	ip := netip.MustParseAddr("127.1.1.1")
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 	if err := RouteAdd(&route); err != nil {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.Addr()) {
 		t.Fatal("Add update not received as expected")
 	}
 }
@@ -701,24 +679,21 @@ func TestRouteSubscribeAt(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 169, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.169.0.0/24")
 
-	ip := net.IPv4(127, 100, 1, 1)
+	ip := netip.MustParseAddr("127.100.1.1")
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 	if err := nh.RouteAdd(&route); err != nil {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.Addr()) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := nh.RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.Addr()) {
 		t.Fatal("Del update not received as expected")
 	}
 }
@@ -751,12 +726,9 @@ func TestRouteSubscribeListExisting(t *testing.T) {
 	}
 
 	// add a gateway route before subscribing
-	dst10 := &net.IPNet{
-		IP:   net.IPv4(10, 10, 10, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst10 := netip.MustParsePrefix("10.10.10.0/24")
 
-	ip := net.IPv4(127, 100, 1, 1)
+	ip := netip.MustParseAddr("127.100.1.1")
 	route10 := Route{LinkIndex: link.Attrs().Index, Dst: dst10, Src: ip}
 	if err := nh.RouteAdd(&route10); err != nil {
 		t.Fatal(err)
@@ -773,34 +745,31 @@ func TestRouteSubscribeListExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, 0, dst10.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, 0, dst10.Addr()) {
 		t.Fatal("Existing add update not received as expected")
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 169, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.169.0.0/24")
 
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Src: ip}
 	if err := nh.RouteAdd(&route); err != nil {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.Addr()) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := nh.RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.Addr()) {
 		t.Fatal("Del update not received as expected")
 	}
 	if err := nh.RouteDel(&route10); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst10.IP) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst10.Addr()) {
 		t.Fatal("Del update not received as expected")
 	}
 }
@@ -819,13 +788,10 @@ func TestRouteFilterAllTables(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(1, 1, 1, 1),
-		Mask: net.CIDRMask(32, 32),
-	}
+	dst := netip.MustParsePrefix("1.1.1.1/32")
 
 	tables := []int{1000, 1001, 1002}
-	src := net.IPv4(127, 3, 3, 3)
+	src := netip.MustParseAddr("127.3.3.3")
 	for _, table := range tables {
 		route := Route{
 			LinkIndex: link.Attrs().Index,
@@ -901,20 +867,14 @@ func TestRouteFilterByFamily(t *testing.T) {
 	}
 
 	// add a IPv4 gateway route
-	dst4 := &net.IPNet{
-		IP:   net.IPv4(2, 2, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst4 := netip.MustParsePrefix("2.2.0.0/24")
 	route4 := Route{LinkIndex: link.Attrs().Index, Dst: dst4, Table: table}
 	if err := RouteAdd(&route4); err != nil {
 		t.Fatal(err)
 	}
 
 	// add a IPv6 gateway route
-	dst6 := &net.IPNet{
-		IP:   net.ParseIP("2001:db9::0"),
-		Mask: net.CIDRMask(64, 128),
-	}
+	dst6 := netip.MustParsePrefix("2001:db9::0/64")
 	route6 := Route{LinkIndex: link.Attrs().Index, Dst: dst6, Table: table}
 	if err := RouteAdd(&route6); err != nil {
 		t.Fatal(err)
@@ -971,10 +931,7 @@ func TestRouteFilterIterCanStop(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(1, 1, 1, 1),
-		Mask: net.CIDRMask(32, 32),
-	}
+	dst := netip.MustParsePrefix("1.1.1.1/32")
 
 	for i := 0; i < 3; i++ {
 		route := Route{
@@ -1081,10 +1038,7 @@ func setUpRoutesBench(b *testing.B) (Link, error) {
 
 	// add a gateway route
 	for i := 0; i < 65535; i++ {
-		dst := &net.IPNet{
-			IP:   net.IPv4(1, 1, byte(i>>8), byte(i&0xff)),
-			Mask: net.CIDRMask(32, 32),
-		}
+		dst, _ := netip.AddrFrom4([4]byte{1, 1, byte(i >> 8), byte(i & 0xff)}).Prefix(32)
 		route := Route{
 			LinkIndex: link.Attrs().Index,
 			Dst:       dst,
@@ -1122,12 +1076,9 @@ func TestRouteExtraFields(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(1, 1, 1, 1),
-		Mask: net.CIDRMask(32, 32),
-	}
+	dst := netip.MustParsePrefix("1.1.1.1/32")
 
-	src := net.IPv4(127, 3, 3, 3)
+	src := netip.MustParseAddr("127.3.3.3")
 	route := Route{
 		LinkIndex: link.Attrs().Index,
 		Dst:       dst,
@@ -1197,10 +1148,7 @@ func TestRouteMultiPath(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.168.0.0/24")
 
 	idx := link.Attrs().Index
 	route := Route{Dst: dst, MultiPath: []*NexthopInfo{{LinkIndex: idx}, {LinkIndex: idx}}}
@@ -1262,7 +1210,7 @@ func TestRouteIifOption(t *testing.T) {
 		t.Fatalf("could not get link veth1: %s", err)
 	}
 
-	err = rootHdl.AddrAdd(ve1, &Addr{IPNet: &net.IPNet{IP: net.ParseIP("2.2.2.3"), Mask: net.CIDRMask(24, 32)}})
+	err = rootHdl.AddrAdd(ve1, &Addr{Prefix: netip.MustParsePrefix("2.2.2.3/24")})
 	if err != nil {
 		t.Fatalf("could not set address for veth1: %s", err)
 	}
@@ -1278,7 +1226,7 @@ func TestRouteIifOption(t *testing.T) {
 		t.Fatalf("could not get link veth2: %s", err)
 	}
 
-	err = nh.AddrAdd(ve2, &Addr{IPNet: &net.IPNet{IP: net.ParseIP("2.2.2.4"), Mask: net.CIDRMask(24, 32)}})
+	err = nh.AddrAdd(ve2, &Addr{Prefix: netip.MustParsePrefix("2.2.2.4/24")})
 	if err != nil {
 		t.Fatalf("could set address for veth2: %s", err)
 	}
@@ -1292,11 +1240,8 @@ func TestRouteIifOption(t *testing.T) {
 	}
 
 	err = nh.RouteAdd(&Route{
-		Dst: &net.IPNet{
-			IP:   net.IPv4zero,
-			Mask: net.CIDRMask(0, 32),
-		},
-		Gw: net.ParseIP("2.2.2.3"),
+		Dst: netip.MustParsePrefix("0.0.0.0/0"),
+		Gw:  netip.MustParseAddr("2.2.2.3"),
 	})
 	if err != nil {
 		t.Fatalf("could not add default route to ns: %s", err)
@@ -1304,15 +1249,15 @@ func TestRouteIifOption(t *testing.T) {
 
 	// setup finished, now do the actual test
 
-	_, err = rootHdl.RouteGetWithOptions(net.ParseIP("8.8.8.8"), &RouteGetOptions{
-		SrcAddr: net.ParseIP("2.2.2.4"),
+	_, err = rootHdl.RouteGetWithOptions(netip.MustParseAddr("8.8.8.8"), &RouteGetOptions{
+		SrcAddr: netip.MustParseAddr("2.2.2.4"),
 	})
 	if err == nil {
 		t.Fatal("route get should have resulted in error but did not")
 	}
 
 	testWithOptions := func(opts *RouteGetOptions) {
-		routes, err := rootHdl.RouteGetWithOptions(net.ParseIP("8.8.8.8"), opts)
+		routes, err := rootHdl.RouteGetWithOptions(netip.MustParseAddr("8.8.8.8"), opts)
 		if err != nil {
 			t.Fatalf("could not get route: %s", err)
 		}
@@ -1321,14 +1266,14 @@ func TestRouteIifOption(t *testing.T) {
 		}
 
 		// should be the default route
-		r, err := rootHdl.RouteGet(net.ParseIP("8.8.8.8"))
+		r, err := rootHdl.RouteGet(netip.MustParseAddr("8.8.8.8"))
 		if err != nil {
 			t.Fatalf("could not get default route for 8.8.8.8: %s", err)
 		}
 		if len(r) != 1 {
 			t.Fatalf("did not get exactly one route, routes: %+v", routes)
 		}
-		if !routes[0].Gw.Equal(r[0].Gw) {
+		if routes[0].Gw != r[0].Gw {
 			t.Fatalf("wrong gateway in route: expected: %s, got: %s", r[0].Gw, routes[0].Gw)
 		}
 		if routes[0].LinkIndex != r[0].LinkIndex {
@@ -1338,21 +1283,21 @@ func TestRouteIifOption(t *testing.T) {
 
 	t.Run("with iif", func(t *testing.T) {
 		testWithOptions(&RouteGetOptions{
-			SrcAddr: net.ParseIP("2.2.2.4"),
+			SrcAddr: netip.MustParseAddr("2.2.2.4"),
 			Iif:     "veth1",
 		})
 	})
 
 	t.Run("with iifIndex", func(t *testing.T) {
 		testWithOptions(&RouteGetOptions{
-			SrcAddr:  net.ParseIP("2.2.2.4"),
+			SrcAddr:  netip.MustParseAddr("2.2.2.4"),
 			IifIndex: ve1.Attrs().Index,
 		})
 	})
 
 	t.Run("with iif and iifIndex", func(t *testing.T) {
 		testWithOptions(&RouteGetOptions{
-			SrcAddr:  net.ParseIP("2.2.2.4"),
+			SrcAddr:  netip.MustParseAddr("2.2.2.4"),
 			Iif:      "veth1",
 			IifIndex: ve2.Attrs().Index, // Iif will supersede here
 		})
@@ -1391,35 +1336,22 @@ func TestRouteOifOption(t *testing.T) {
 	}
 
 	// config ip addresses on interfaces
-	addr1 := &Addr{
-		IPNet: &net.IPNet{
-			IP:   net.IPv4(192, 168, 1, 1),
-			Mask: net.CIDRMask(24, 32),
-		},
-	}
+	addr1 := &Addr{Prefix: netip.MustParsePrefix("192.168.1.1/24")}
 
 	if err = AddrAdd(link1, addr1); err != nil {
 		t.Fatal(err)
 	}
 
-	addr2 := &Addr{
-		IPNet: &net.IPNet{
-			IP:   net.IPv4(192, 168, 2, 1),
-			Mask: net.CIDRMask(24, 32),
-		},
-	}
+	addr2 := &Addr{Prefix: netip.MustParsePrefix("192.168.2.1/24")}
 
 	if err = AddrAdd(link2, addr2); err != nil {
 		t.Fatal(err)
 	}
 
 	// add default multipath route
-	dst := &net.IPNet{
-		IP:   net.IPv4(0, 0, 0, 0),
-		Mask: net.CIDRMask(0, 32),
-	}
-	gw1 := net.IPv4(192, 168, 1, 254)
-	gw2 := net.IPv4(192, 168, 2, 254)
+	dst := netip.MustParsePrefix("0.0.0.0/0")
+	gw1 := netip.MustParseAddr("192.168.1.254")
+	gw2 := netip.MustParseAddr("192.168.2.254")
 	route := Route{Dst: dst, MultiPath: []*NexthopInfo{{LinkIndex: link1.Attrs().Index,
 		Gw: gw1}, {LinkIndex: link2.Attrs().Index, Gw: gw2}}}
 	if err := RouteAdd(&route); err != nil {
@@ -1427,14 +1359,14 @@ func TestRouteOifOption(t *testing.T) {
 	}
 
 	// check getting route from specified Oif
-	dstIP := net.IPv4(10, 1, 1, 1)
+	dstIP := netip.MustParseAddr("10.1.1.1")
 	routes, err := RouteGetWithOptions(dstIP, &RouteGetOptions{Oif: "eth0"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(routes) != 1 || routes[0].LinkIndex != link1.Attrs().Index ||
-		!routes[0].Gw.Equal(gw1) {
+		routes[0].Gw != gw1 {
 		t.Fatal("Get route from unmatched interface")
 	}
 
@@ -1444,7 +1376,7 @@ func TestRouteOifOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(routes) != 1 || routes[0].LinkIndex != link1.Attrs().Index ||
-		!routes[0].Gw.Equal(gw1) {
+		routes[0].Gw != gw1 {
 		t.Fatal("Get route from unmatched interface")
 	}
 
@@ -1454,7 +1386,7 @@ func TestRouteOifOption(t *testing.T) {
 	}
 
 	if len(routes) != 1 || routes[0].LinkIndex != link2.Attrs().Index ||
-		!routes[0].Gw.Equal(gw2) {
+		routes[0].Gw != gw2 {
 		t.Fatal("Get route from unmatched interface")
 	}
 
@@ -1463,7 +1395,7 @@ func TestRouteOifOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(routes) != 1 || routes[0].LinkIndex != link2.Attrs().Index ||
-		!routes[0].Gw.Equal(gw2) {
+		routes[0].Gw != gw2 {
 		t.Fatal("Get route from unmatched interface")
 	}
 }
@@ -1482,21 +1414,17 @@ func TestFilterDefaultRoute(t *testing.T) {
 	}
 
 	address := &Addr{
-		IPNet: &net.IPNet{
-			IP:   net.IPv4(127, 0, 0, 2),
-			Mask: net.CIDRMask(24, 32),
-		},
+		Prefix: netip.MustParsePrefix("127.0.0.2/24"),
 	}
 	if err = AddrAdd(link, address); err != nil {
 		t.Fatal(err)
 	}
 
 	// Add default route
-	gw := net.IPv4(127, 0, 0, 2)
+	gw := netip.MustParseAddr("127.0.0.2")
 
 	defaultRoute := Route{
-		Dst: nil,
-		Gw:  gw,
+		Gw: gw,
 	}
 
 	if err := RouteAdd(&defaultRoute); err != nil {
@@ -1504,10 +1432,7 @@ func TestFilterDefaultRoute(t *testing.T) {
 	}
 
 	// add an extra route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.168.0.0/24")
 
 	extraRoute := Route{
 		Dst: dst,
@@ -1520,10 +1445,10 @@ func TestFilterDefaultRoute(t *testing.T) {
 	var filterTests = []struct {
 		filter   *Route
 		mask     uint64
-		expected net.IP
+		expected netip.Addr
 	}{
 		{
-			&Route{Dst: nil},
+			&Route{},
 			RT_FILTER_DST,
 			gw,
 		},
@@ -1542,7 +1467,7 @@ func TestFilterDefaultRoute(t *testing.T) {
 		if len(routes) != 1 {
 			t.Fatal("Route not filtered properly")
 		}
-		if !routes[0].Gw.Equal(gw) {
+		if routes[0].Gw != gw {
 			t.Fatal("Unexpected Gateway")
 		}
 	}
@@ -1614,14 +1539,11 @@ func TestIP6tnlRouteAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, dst, err := net.ParseCIDR("192.168.99.0/24")
-	if err != nil {
-		t.Fatalf("cannot parse destination prefix: %v", err)
-	}
+	dst := netip.MustParsePrefix("192.168.99.0/24")
 
 	encap := IP6tnlEncap{
-		Dst: net.ParseIP("2001:db8::"),
-		Src: net.ParseIP("::"),
+		Dst: netip.MustParseAddr("2001:db8::"),
+		Src: netip.MustParseAddr("::"),
 	}
 
 	route := &Route{
@@ -1657,126 +1579,100 @@ func TestIP6tnlRouteAddDel(t *testing.T) {
 func TestRouteEqual(t *testing.T) {
 	mplsDst := 100
 	seg6encap := &SEG6Encap{Mode: nl.SEG6_IPTUN_MODE_ENCAP}
-	seg6encap.Segments = []net.IP{net.ParseIP("fc00:a000::11")}
+	seg6encap.Segments = []netip.Addr{netip.MustParseAddr("fc00:a000::11")}
 	cases := []Route{
 		{
-			Dst: nil,
-			Gw:  net.IPv4(1, 1, 1, 1),
+			Gw: netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			LinkIndex: 20,
-			Dst:       nil,
-			Gw:        net.IPv4(1, 1, 1, 1),
+			Gw:        netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			ILinkIndex: 21,
 			LinkIndex:  20,
-			Dst:        nil,
-			Gw:         net.IPv4(1, 1, 1, 1),
+			Gw:         netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			LinkIndex: 20,
-			Dst:       nil,
 			Protocol:  20,
-			Gw:        net.IPv4(1, 1, 1, 1),
+			Gw:        netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			LinkIndex: 20,
-			Dst:       nil,
 			Priority:  20,
-			Gw:        net.IPv4(1, 1, 1, 1),
+			Gw:        netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			LinkIndex: 20,
-			Dst:       nil,
 			Type:      20,
-			Gw:        net.IPv4(1, 1, 1, 1),
+			Gw:        netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			LinkIndex: 20,
-			Dst:       nil,
 			Table:     200,
-			Gw:        net.IPv4(1, 1, 1, 1),
+			Gw:        netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			LinkIndex: 20,
-			Dst:       nil,
 			Tos:       1,
-			Gw:        net.IPv4(1, 1, 1, 1),
+			Gw:        netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			LinkIndex: 20,
-			Dst:       nil,
 			Hoplimit:  1,
-			Gw:        net.IPv4(1, 1, 1, 1),
+			Gw:        netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			LinkIndex: 20,
-			Dst:       nil,
 			Realm:     29,
-			Gw:        net.IPv4(1, 1, 1, 1),
+			Gw:        netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			LinkIndex: 20,
-			Dst:       nil,
 			Flags:     int(FLAG_ONLINK),
-			Gw:        net.IPv4(1, 1, 1, 1),
+			Gw:        netip.MustParseAddr("1.1.1.1"),
 		},
 		{
 			LinkIndex: 10,
-			Dst: &net.IPNet{
-				IP:   net.IPv4(192, 168, 0, 0),
-				Mask: net.CIDRMask(24, 32),
-			},
-			Src: net.IPv4(127, 1, 1, 1),
+			Dst:       netip.MustParsePrefix("192.168.0.0/24"),
+			Src:       netip.MustParseAddr("127.1.1.1"),
 		},
 		{
 			LinkIndex: 10,
 			Scope:     unix.RT_SCOPE_LINK,
-			Dst: &net.IPNet{
-				IP:   net.IPv4(192, 168, 0, 0),
-				Mask: net.CIDRMask(24, 32),
-			},
-			Src: net.IPv4(127, 1, 1, 1),
+			Dst:       netip.MustParsePrefix("192.168.0.0/24"),
+			Src:       netip.MustParseAddr("127.1.1.1"),
 		},
 		{
 			LinkIndex: 3,
-			Dst: &net.IPNet{
-				IP:   net.IPv4(1, 1, 1, 1),
-				Mask: net.CIDRMask(32, 32),
-			},
-			Src:      net.IPv4(127, 3, 3, 3),
-			Scope:    unix.RT_SCOPE_LINK,
-			Priority: 13,
-			Table:    unix.RT_TABLE_MAIN,
-			Type:     unix.RTN_UNICAST,
-			Tos:      12,
+			Dst:       netip.MustParsePrefix("1.1.1.1/32"),
+			Src:       netip.MustParseAddr("127.3.3.3"),
+			Scope:     unix.RT_SCOPE_LINK,
+			Priority:  13,
+			Table:     unix.RT_TABLE_MAIN,
+			Type:      unix.RTN_UNICAST,
+			Tos:       12,
 		},
 		{
 			LinkIndex: 3,
-			Dst: &net.IPNet{
-				IP:   net.IPv4(1, 1, 1, 1),
-				Mask: net.CIDRMask(32, 32),
-			},
-			Src:      net.IPv4(127, 3, 3, 3),
-			Scope:    unix.RT_SCOPE_LINK,
-			Priority: 13,
-			Table:    unix.RT_TABLE_MAIN,
-			Type:     unix.RTN_UNICAST,
-			Hoplimit: 100,
+			Dst:       netip.MustParsePrefix("1.1.1.1/32"),
+			Src:       netip.MustParseAddr("127.3.3.3"),
+			Scope:     unix.RT_SCOPE_LINK,
+			Priority:  13,
+			Table:     unix.RT_TABLE_MAIN,
+			Type:      unix.RTN_UNICAST,
+			Hoplimit:  100,
 		},
 		{
 			LinkIndex: 3,
-			Dst: &net.IPNet{
-				IP:   net.IPv4(1, 1, 1, 1),
-				Mask: net.CIDRMask(32, 32),
-			},
-			Src:      net.IPv4(127, 3, 3, 3),
-			Scope:    unix.RT_SCOPE_LINK,
-			Priority: 13,
-			Table:    unix.RT_TABLE_MAIN,
-			Type:     unix.RTN_UNICAST,
-			Realm:    129,
+			Dst:       netip.MustParsePrefix("1.1.1.1/32"),
+			Src:       netip.MustParseAddr("127.3.3.3"),
+			Scope:     unix.RT_SCOPE_LINK,
+			Priority:  13,
+			Table:     unix.RT_TABLE_MAIN,
+			Type:      unix.RTN_UNICAST,
+			Realm:     129,
 		},
 		{
 			LinkIndex: 10,
@@ -1786,43 +1682,35 @@ func TestRouteEqual(t *testing.T) {
 			},
 		},
 		{
-			Dst: nil,
-			Gw:  net.IPv4(1, 1, 1, 1),
+			Gw: netip.MustParseAddr("1.1.1.1"),
 			Encap: &MPLSEncap{
 				Labels: []int{100},
 			},
 		},
 		{
 			LinkIndex: 10,
-			Dst: &net.IPNet{
-				IP:   net.IPv4(10, 0, 0, 102),
-				Mask: net.CIDRMask(32, 32),
-			},
-			Encap: seg6encap,
+			Dst:       netip.MustParsePrefix("10.0.0.102/32"),
+			Encap:     seg6encap,
 		},
 		{
-			Dst:       nil,
 			MultiPath: []*NexthopInfo{{LinkIndex: 10}, {LinkIndex: 20}},
 		},
 		{
-			Dst: nil,
 			MultiPath: []*NexthopInfo{{
 				LinkIndex: 10,
-				Gw:        net.IPv4(1, 1, 1, 1),
+				Gw:        netip.MustParseAddr("1.1.1.1"),
 			}, {LinkIndex: 20}},
 		},
 		{
-			Dst: nil,
 			MultiPath: []*NexthopInfo{{
 				LinkIndex: 10,
-				Gw:        net.IPv4(1, 1, 1, 1),
+				Gw:        netip.MustParseAddr("1.1.1.1"),
 				Encap: &MPLSEncap{
 					Labels: []int{100},
 				},
 			}, {LinkIndex: 20}},
 		},
 		{
-			Dst: nil,
 			MultiPath: []*NexthopInfo{{
 				LinkIndex: 10,
 				NewDst: &MPLSDestination{
@@ -1831,7 +1719,6 @@ func TestRouteEqual(t *testing.T) {
 			}, {LinkIndex: 20}},
 		},
 		{
-			Dst: nil,
 			MultiPath: []*NexthopInfo{{
 				LinkIndex: 10,
 				Encap:     seg6encap,
@@ -1852,53 +1739,10 @@ func TestRouteEqual(t *testing.T) {
 	}
 }
 
-func TestIPNetEqual(t *testing.T) {
-	cases := []string{
-		"1.1.1.1/24", "1.1.1.0/24", "1.1.1.1/32",
-		"0.0.0.0/0", "0.0.0.0/14",
-		"2001:db8::/32", "2001:db8::/128",
-		"2001:db8::caff/32", "2001:db8::caff/128",
-		"",
-	}
-	for _, c1 := range cases {
-		var n1 *net.IPNet
-		if c1 != "" {
-			var i1 net.IP
-			var err1 error
-			i1, n1, err1 = net.ParseCIDR(c1)
-			if err1 != nil {
-				panic(err1)
-			}
-			n1.IP = i1
-		}
-		for _, c2 := range cases {
-			var n2 *net.IPNet
-			if c2 != "" {
-				var i2 net.IP
-				var err2 error
-				i2, n2, err2 = net.ParseCIDR(c2)
-				if err2 != nil {
-					panic(err2)
-				}
-				n2.IP = i2
-			}
-
-			got := ipNetEqual(n1, n2)
-			expected := c1 == c2
-			if got != expected {
-				t.Errorf("IPNetEqual(%q,%q) == %s but expected %s",
-					c1, c2,
-					strconv.FormatBool(got),
-					strconv.FormatBool(expected))
-			}
-		}
-	}
-}
-
 func TestSEG6LocalEqual(t *testing.T) {
 	// Different attributes exists in different Actions. For example, Action
 	// SEG6_LOCAL_ACTION_END_X has In6Addr, SEG6_LOCAL_ACTION_END_T has Table etc.
-	segs := []net.IP{net.ParseIP("fc00:a000::11")}
+	segs := []netip.Addr{netip.MustParseAddr("fc00:a000::11")}
 	// set flags for each actions.
 	var flags_end [nl.SEG6_LOCAL_MAX]bool
 	flags_end[nl.SEG6_LOCAL_ACTION] = true
@@ -1944,7 +1788,7 @@ func TestSEG6LocalEqual(t *testing.T) {
 		{
 			Flags:   flags_end_x,
 			Action:  nl.SEG6_LOCAL_ACTION_END_X,
-			In6Addr: net.ParseIP("2001:db8::1"),
+			In6Addr: netip.MustParseAddr("2001:db8::1"),
 		},
 		{
 			Flags:  flags_end_t,
@@ -1959,12 +1803,12 @@ func TestSEG6LocalEqual(t *testing.T) {
 		{
 			Flags:   flags_end_dx6,
 			Action:  nl.SEG6_LOCAL_ACTION_END_DX6,
-			In6Addr: net.ParseIP("2001:db8::1"),
+			In6Addr: netip.MustParseAddr("2001:db8::1"),
 		},
 		{
 			Flags:  flags_end_dx4,
 			Action: nl.SEG6_LOCAL_ACTION_END_DX4,
-			InAddr: net.IPv4(192, 168, 10, 10),
+			InAddr: netip.MustParseAddr("192.168.10.10"),
 		},
 		{
 			Flags:  flags_end_dt6,
@@ -2039,19 +1883,13 @@ func TestSEG6RouteAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dst1 := &net.IPNet{ // INLINE mode must be IPv6 route
-		IP:   net.ParseIP("2001:db8::1"),
-		Mask: net.CIDRMask(128, 128),
-	}
-	dst2 := &net.IPNet{
-		IP:   net.IPv4(10, 0, 0, 102),
-		Mask: net.CIDRMask(32, 32),
-	}
-	var s1, s2 []net.IP
-	s1 = append(s1, net.ParseIP("fc00:a000::12"))
-	s1 = append(s1, net.ParseIP("fc00:a000::11"))
-	s2 = append(s2, net.ParseIP("fc00:a000::22"))
-	s2 = append(s2, net.ParseIP("fc00:a000::21"))
+	dst1 := netip.MustParsePrefix("2001:db8::1/128") // INLINE mode must be IPv6 route
+	dst2 := netip.MustParsePrefix("10.0.0.102/32")
+	var s1, s2 []netip.Addr
+	s1 = append(s1, netip.MustParseAddr("fc00:a000::12"))
+	s1 = append(s1, netip.MustParseAddr("fc00:a000::11"))
+	s2 = append(s2, netip.MustParseAddr("fc00:a000::22"))
+	s2 = append(s2, netip.MustParseAddr("fc00:a000::21"))
 	e1 := &SEG6Encap{Mode: nl.SEG6_IPTUN_MODE_INLINE}
 	e2 := &SEG6Encap{Mode: nl.SEG6_IPTUN_MODE_ENCAP}
 	e1.Segments = s1
@@ -2136,16 +1974,13 @@ func TestSEG6LocalRoute6AddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dst1 := &net.IPNet{
-		IP:   net.ParseIP("2001:db8::1"),
-		Mask: net.CIDRMask(128, 128),
-	}
+	dst1 := netip.MustParsePrefix("2001:db8::1/128")
 
 	// Create Route including Action SEG6_LOCAL_ACTION_END_B6.
 	// Could be any Action but thought better to have seg list.
-	var s1 []net.IP
-	s1 = append(s1, net.ParseIP("fc00:a000::12"))
-	s1 = append(s1, net.ParseIP("fc00:a000::11"))
+	var s1 []netip.Addr
+	s1 = append(s1, netip.MustParseAddr("fc00:a000::12"))
+	s1 = append(s1, netip.MustParseAddr("fc00:a000::11"))
 	var flags_end_b6_encaps [nl.SEG6_LOCAL_MAX]bool
 	flags_end_b6_encaps[nl.SEG6_LOCAL_ACTION] = true
 	flags_end_b6_encaps[nl.SEG6_LOCAL_SRH] = true
@@ -2164,7 +1999,7 @@ func TestSEG6LocalRoute6AddDel(t *testing.T) {
 	// typically one route (fe80::/64) will be created when dummy_route6 is created.
 	// Thus you cannot use RouteList() to find the route entry just added.
 	// Lookup route and confirm it's SEG6Local route just added.
-	routesFound, err := RouteGet(dst1.IP)
+	routesFound, err := RouteGet(dst1.Addr())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2180,7 +2015,7 @@ func TestSEG6LocalRoute6AddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Confirm route is deleted.
-	if _, err = RouteGet(dst1.IP); err == nil {
+	if _, err = RouteGet(dst1.Addr()); err == nil {
 		t.Fatal("SEG6Local route still exists.")
 	}
 
@@ -2260,10 +2095,7 @@ func TestMTURouteAddDel(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.168.0.0/24")
 
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, MTU: 500}
 	if err := RouteAdd(&route); err != nil {
@@ -2313,10 +2145,7 @@ func TestMTULockRouteAddDel(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.168.0.0/24")
 
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, MTU: 500, MTULock: true}
 	if err := RouteAdd(&route); err != nil {
@@ -2370,10 +2199,7 @@ func TestRtoMinLockRouteAddDel(t *testing.T) {
 	}
 
 	// add a gateway route
-	dst := &net.IPNet{
-		IP:   net.IPv4(192, 168, 0, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	dst := netip.MustParsePrefix("192.168.0.0/24")
 
 	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, RtoMin: 40, RtoMinLock: true}
 	if err := RouteAdd(&route); err != nil {
@@ -2427,16 +2253,13 @@ func TestRouteViaAddDel(t *testing.T) {
 
 	route := &Route{
 		LinkIndex: link.Attrs().Index,
-		Dst: &net.IPNet{
-			IP:   net.IPv4(192, 168, 0, 0),
-			Mask: net.CIDRMask(24, 32),
-		},
+		Dst:       netip.MustParsePrefix("192.168.0.0/14"),
 		MultiPath: []*NexthopInfo{
 			{
 				LinkIndex: link.Attrs().Index,
 				Via: &Via{
 					AddrFamily: FAMILY_V6,
-					Addr:       net.ParseIP("2001::1"),
+					Addr:       netip.MustParseAddr("2001::1"),
 				},
 			},
 		},
@@ -2487,12 +2310,7 @@ func TestRouteUIDOption(t *testing.T) {
 	if err = LinkSetUp(link); err != nil {
 		t.Fatal(err)
 	}
-	addr := &Addr{
-		IPNet: &net.IPNet{
-			IP:   net.IPv4(192, 168, 1, 1),
-			Mask: net.CIDRMask(16, 32),
-		},
-	}
+	addr := &Addr{Prefix: netip.MustParsePrefix("192.168.1.1/16")}
 	if err = AddrAdd(link, addr); err != nil {
 		t.Fatal(err)
 	}
@@ -2500,13 +2318,12 @@ func TestRouteUIDOption(t *testing.T) {
 	// a table different than unix.RT_TABLE_MAIN
 	testtable := 1000
 
-	gw1 := net.IPv4(192, 168, 1, 254)
-	gw2 := net.IPv4(192, 168, 2, 254)
+	gw1 := netip.MustParseAddr("192.168.1.254")
+	gw2 := netip.MustParseAddr("192.168.2.254")
 
 	// add default route via gw1 (in main route table by default)
 	defaultRouteMain := Route{
-		Dst: nil,
-		Gw:  gw1,
+		Gw: gw1,
 	}
 	if err := RouteAdd(&defaultRouteMain); err != nil {
 		t.Fatal(err)
@@ -2514,7 +2331,6 @@ func TestRouteUIDOption(t *testing.T) {
 
 	// add default route via gw2 in test route table
 	defaultRouteTest := Route{
-		Dst:   nil,
 		Gw:    gw2,
 		Table: testtable,
 	}
@@ -2524,7 +2340,6 @@ func TestRouteUIDOption(t *testing.T) {
 
 	// check the routes are in different tables
 	routes, err := RouteListFiltered(FAMILY_V4, &Route{
-		Dst:   nil,
 		Table: unix.RT_TABLE_UNSPEC,
 	}, RT_FILTER_DST|RT_FILTER_TABLE)
 	if err != nil {
@@ -2544,7 +2359,7 @@ func TestRouteUIDOption(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dstIP := net.IPv4(10, 1, 1, 1)
+	dstIP := netip.MustParseAddr("10.1.1.1")
 
 	// check getting route without UID option
 	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{UID: nil})
@@ -2552,7 +2367,7 @@ func TestRouteUIDOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	// current uid is outside uidrange; rule does not apply; lookup main table
-	if len(routes) != 1 || !routes[0].Gw.Equal(gw1) {
+	if len(routes) != 1 || routes[0].Gw != gw1 {
 		t.Fatal(routes)
 	}
 
@@ -2562,7 +2377,7 @@ func TestRouteUIDOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	// option uid is within uidrange; rule applies; lookup test table
-	if len(routes) != 1 || !routes[0].Gw.Equal(gw2) {
+	if len(routes) != 1 || routes[0].Gw != gw2 {
 		t.Fatal(routes)
 	}
 }
@@ -2582,12 +2397,7 @@ func TestRouteFWMarkOption(t *testing.T) {
 	if err = LinkSetUp(link); err != nil {
 		t.Fatal(err)
 	}
-	addr := &Addr{
-		IPNet: &net.IPNet{
-			IP:   net.IPv4(192, 168, 1, 1),
-			Mask: net.CIDRMask(16, 32),
-		},
-	}
+	addr := &Addr{Prefix: netip.MustParsePrefix("192.168.1.1/16")}
 	if err = AddrAdd(link, addr); err != nil {
 		t.Fatal(err)
 	}
@@ -2597,13 +2407,12 @@ func TestRouteFWMarkOption(t *testing.T) {
 	testTable1 := 1000
 	testTable2 := 1001
 
-	gw0 := net.IPv4(192, 168, 1, 254)
-	gw1 := net.IPv4(192, 168, 2, 254)
-	gw2 := net.IPv4(192, 168, 3, 254)
+	gw0 := netip.MustParseAddr("192.168.1.254")
+	gw1 := netip.MustParseAddr("192.168.2.254")
+	gw2 := netip.MustParseAddr("192.168.3.254")
 
 	// add default route via gw0 (in main route table by default)
 	defaultRouteMain := Route{
-		Dst:   nil,
 		Gw:    gw0,
 		Table: testTable0,
 	}
@@ -2613,7 +2422,6 @@ func TestRouteFWMarkOption(t *testing.T) {
 
 	// add default route via gw1 in test route table
 	defaultRouteTest1 := Route{
-		Dst:   nil,
 		Gw:    gw1,
 		Table: testTable1,
 	}
@@ -2623,7 +2431,6 @@ func TestRouteFWMarkOption(t *testing.T) {
 
 	// add default route via gw2 in test route table
 	defaultRouteTest2 := Route{
-		Dst:   nil,
 		Gw:    gw2,
 		Table: testTable2,
 	}
@@ -2633,7 +2440,6 @@ func TestRouteFWMarkOption(t *testing.T) {
 
 	// check the routes are in different tables
 	routes, err := RouteListFiltered(FAMILY_V4, &Route{
-		Dst:   nil,
 		Table: unix.RT_TABLE_UNSPEC,
 	}, RT_FILTER_DST|RT_FILTER_TABLE)
 	if err != nil {
@@ -2681,14 +2487,14 @@ func TestRouteFWMarkOption(t *testing.T) {
 		t.Fatal("Rules not added properly")
 	}
 
-	dstIP := net.IPv4(10, 1, 1, 1)
+	dstIP := netip.MustParseAddr("10.1.1.1")
 
 	// check getting route without FWMark option
 	routes, err = RouteGetWithOptions(dstIP, &RouteGetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 1 || !routes[0].Gw.Equal(gw0) {
+	if len(routes) != 1 || routes[0].Gw != gw0 {
 		t.Fatal(routes)
 	}
 
@@ -2697,7 +2503,7 @@ func TestRouteFWMarkOption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 1 || !routes[0].Gw.Equal(gw1) {
+	if len(routes) != 1 || routes[0].Gw != gw1 {
 		t.Fatal(routes)
 	}
 
@@ -2706,7 +2512,7 @@ func TestRouteFWMarkOption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 1 || !routes[0].Gw.Equal(gw2) {
+	if len(routes) != 1 || routes[0].Gw != gw2 {
 		t.Fatal(routes)
 	}
 }
@@ -2725,24 +2531,16 @@ func TestRouteGetFIBMatchOption(t *testing.T) {
 	if err = LinkSetUp(link); err != nil {
 		t.Fatal(err)
 	}
-	addr := &Addr{
-		IPNet: &net.IPNet{
-			IP:   net.IPv4(192, 168, 0, 2),
-			Mask: net.CIDRMask(24, 32),
-		},
-	}
+	addr := &Addr{Prefix: netip.MustParsePrefix("192.168.0.2/24")}
 	if err = AddrAdd(link, addr); err != nil {
 		t.Fatal(err)
 	}
 
 	route := &Route{
 		LinkIndex: link.Attrs().Index,
-		Gw:        net.IPv4(192, 168, 1, 1),
-		Dst: &net.IPNet{
-			IP:   net.IPv4(192, 168, 2, 0),
-			Mask: net.CIDRMask(24, 32),
-		},
-		Flags: int(FLAG_ONLINK),
+		Gw:        netip.MustParseAddr("192.168.1.1"),
+		Dst:       netip.MustParsePrefix("192.168.2.0/24"),
+		Flags:     int(FLAG_ONLINK),
 	}
 
 	err = RouteAdd(route)
@@ -2750,7 +2548,7 @@ func TestRouteGetFIBMatchOption(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	routes, err := RouteGetWithOptions(net.IPv4(192, 168, 2, 1), &RouteGetOptions{FIBMatch: true})
+	routes, err := RouteGetWithOptions(netip.MustParseAddr("192.168.2.1"), &RouteGetOptions{FIBMatch: true})
 	if err != nil {
 		t.Fatal(err)
 	}

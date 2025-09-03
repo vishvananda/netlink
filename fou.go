@@ -1,16 +1,14 @@
 package netlink
 
-import (
-	"net"
-)
+import "net/netip"
 
 type Fou struct {
 	Family    int
 	Port      int
 	Protocol  int
 	EncapType int
-	Local     net.IP
-	Peer      net.IP
+	Local     netip.Addr
+	Peer      netip.Addr
 	PeerPort  int
 	IfIndex   int
 }

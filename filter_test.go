@@ -5,6 +5,7 @@ package netlink
 
 import (
 	"net"
+	"net/netip"
 	"reflect"
 	"testing"
 	"time"
@@ -1266,8 +1267,8 @@ func TestFilterU32TunnelKeyAddDel(t *testing.T) {
 	}
 
 	tunnelAct := NewTunnelKeyAction()
-	tunnelAct.SrcAddr = net.IPv4(10, 10, 10, 1)
-	tunnelAct.DstAddr = net.IPv4(10, 10, 10, 2)
+	tunnelAct.SrcAddr = netip.MustParseAddr("10.10.10.1")
+	tunnelAct.DstAddr = netip.MustParseAddr("10.10.10.2")
 	tunnelAct.KeyID = 0x01
 	tunnelAct.Action = TCA_TUNNEL_KEY_SET
 	tunnelAct.DestPort = 8472
@@ -1328,10 +1329,10 @@ func TestFilterU32TunnelKeyAddDel(t *testing.T) {
 	if tun.Attrs().Action != TC_ACT_PIPE {
 		t.Fatal("TunnelKey action isn't TC_ACT_PIPE")
 	}
-	if !tun.SrcAddr.Equal(tunnelAct.SrcAddr) {
+	if tun.SrcAddr != tunnelAct.SrcAddr {
 		t.Fatal("Action SrcAddr doesn't match")
 	}
-	if !tun.DstAddr.Equal(tunnelAct.DstAddr) {
+	if tun.DstAddr != tunnelAct.DstAddr {
 		t.Fatal("Action DstAddr doesn't match")
 	}
 	if tun.KeyID != tunnelAct.KeyID {
@@ -1753,7 +1754,6 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		t.Fatal("Qdisc is the wrong type")
 	}
 
-	testMask := net.CIDRMask(24, 32)
 	srcMac, err := net.ParseMAC("2C:54:91:88:C9:E3")
 	if err != nil {
 		t.Fatal(err)
@@ -1773,22 +1773,18 @@ func TestFilterFlowerAddDel(t *testing.T) {
 			Priority:  1,
 			Protocol:  unix.ETH_P_ALL,
 		},
-		DestIP:        net.ParseIP("1.0.0.1"),
-		DestIPMask:    testMask,
-		SrcIP:         net.ParseIP("2.0.0.1"),
-		SrcIPMask:     testMask,
-		EthType:       unix.ETH_P_IP,
-		EncDestIP:     net.ParseIP("3.0.0.1"),
-		EncDestIPMask: testMask,
-		EncSrcIP:      net.ParseIP("4.0.0.1"),
-		EncSrcIPMask:  testMask,
-		EncDestPort:   8472,
-		EncKeyId:      1234,
-		SrcMac:        srcMac,
-		DestMac:       destMac,
-		IPProto:       ipproto,
-		DestPort:      1111,
-		SrcPort:       1111,
+		Dest:        netip.MustParsePrefix("1.0.0.1/24"),
+		Src:         netip.MustParsePrefix("2.0.0.1/24"),
+		EthType:     unix.ETH_P_IP,
+		EncDest:     netip.MustParsePrefix("3.0.0.1/24"),
+		EncSrc:      netip.MustParsePrefix("4.0.0.1/24"),
+		EncDestPort: 8472,
+		EncKeyId:    1234,
+		SrcMac:      srcMac,
+		DestMac:     destMac,
+		IPProto:     ipproto,
+		DestPort:    1111,
+		SrcPort:     1111,
 		Actions: []Action{
 			&VlanAction{
 				ActionAttrs: ActionAttrs{
@@ -1833,31 +1829,18 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	if filter.EthType != flower.EthType {
 		t.Fatalf("Flower EthType doesn't match")
 	}
-	if !filter.DestIP.Equal(flower.DestIP) {
+	if filter.Dest != flower.Dest {
 		t.Fatalf("Flower DestIP doesn't match")
 	}
-	if !filter.SrcIP.Equal(flower.SrcIP) {
+	if filter.Src != flower.Src {
 		t.Fatalf("Flower SrcIP doesn't match")
 	}
 
-	if !reflect.DeepEqual(filter.DestIPMask, testMask) {
-		t.Fatalf("Flower DestIPMask doesn't match")
-	}
-	if !reflect.DeepEqual(filter.SrcIPMask, testMask) {
-		t.Fatalf("Flower SrcIPMask doesn't match")
-	}
-
-	if !filter.EncDestIP.Equal(flower.EncDestIP) {
+	if filter.EncDest != flower.EncDest {
 		t.Fatalf("Flower EncDestIP doesn't match")
 	}
-	if !filter.EncSrcIP.Equal(flower.EncSrcIP) {
+	if filter.EncSrc != flower.EncSrc {
 		t.Fatalf("Flower EncSrcIP doesn't match")
-	}
-	if !reflect.DeepEqual(filter.EncDestIPMask, testMask) {
-		t.Fatalf("Flower EncDestIPMask doesn't match")
-	}
-	if !reflect.DeepEqual(filter.EncSrcIPMask, testMask) {
-		t.Fatalf("Flower EncSrcIPMask doesn't match")
 	}
 	if filter.EncKeyId != flower.EncKeyId {
 		t.Fatalf("Flower EncKeyId doesn't match")
@@ -2152,8 +2135,6 @@ func TestFilterIPv6FlowerPedit(t *testing.T) {
 		t.Fatal("Qdisc is the wrong type")
 	}
 
-	testMask := net.CIDRMask(64, 128)
-
 	ipproto := new(nl.IPProto)
 	*ipproto = nl.IPPROTO_TCP
 
@@ -2164,18 +2145,17 @@ func TestFilterIPv6FlowerPedit(t *testing.T) {
 			Priority:  1,
 			Protocol:  unix.ETH_P_ALL,
 		},
-		DestIP:     net.ParseIP("ffff::fff1"),
-		DestIPMask: testMask,
-		EthType:    unix.ETH_P_IPV6,
-		IPProto:    ipproto,
-		DestPort:   6666,
-		Actions:    []Action{},
+		Dest:     netip.MustParsePrefix("ffff::fff1/64"),
+		EthType:  unix.ETH_P_IPV6,
+		IPProto:  ipproto,
+		DestPort: 6666,
+		Actions:  []Action{},
 	}
 
 	peditAction := NewPeditAction()
 	peditAction.Proto = uint8(nl.IPPROTO_TCP)
 	peditAction.SrcPort = 7777
-	peditAction.SrcIP = net.ParseIP("ffff::fff2")
+	peditAction.SrcIP = netip.MustParseAddr("ffff::fff2")
 	filter.Actions = append(filter.Actions, peditAction)
 
 	miaAction := &MirredAction{
@@ -2206,12 +2186,8 @@ func TestFilterIPv6FlowerPedit(t *testing.T) {
 	if filter.EthType != flower.EthType {
 		t.Fatalf("Flower EthType doesn't match")
 	}
-	if !filter.DestIP.Equal(flower.DestIP) {
+	if filter.Dest != flower.Dest {
 		t.Fatalf("Flower DestIP doesn't match")
-	}
-
-	if !reflect.DeepEqual(filter.DestIPMask, testMask) {
-		t.Fatalf("Flower DestIPMask doesn't match")
 	}
 
 	if flower.IPProto == nil || *filter.IPProto != *flower.IPProto {

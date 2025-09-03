@@ -4,7 +4,7 @@
 package netlink
 
 import (
-	"net"
+	"net/netip"
 	"testing"
 )
 
@@ -19,8 +19,8 @@ func TestPDPv0AddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = GTPPDPAdd(link, &PDP{
-		PeerAddress: net.ParseIP("1.1.1.1"),
-		MSAddress:   net.ParseIP("2.2.2.2"),
+		PeerAddress: netip.MustParseAddr("1.1.1.1"),
+		MSAddress:   netip.MustParseAddr("2.2.2.2"),
 		TID:         10,
 	})
 	if err != nil {
@@ -33,7 +33,7 @@ func TestPDPv0AddDel(t *testing.T) {
 	if len(list) != 1 {
 		t.Fatal("Failed to add v0 PDP")
 	}
-	pdp, err := GTPPDPByMSAddress(link, net.ParseIP("2.2.2.2"))
+	pdp, err := GTPPDPByMSAddress(link, netip.MustParseAddr("2.2.2.2"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,8 +71,8 @@ func TestPDPv1AddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = GTPPDPAdd(link, &PDP{
-		PeerAddress: net.ParseIP("1.1.1.1"),
-		MSAddress:   net.ParseIP("2.2.2.2"),
+		PeerAddress: netip.MustParseAddr("1.1.1.1"),
+		MSAddress:   netip.MustParseAddr("2.2.2.2"),
 		Version:     1,
 		ITEI:        10,
 		OTEI:        10,
@@ -87,7 +87,7 @@ func TestPDPv1AddDel(t *testing.T) {
 	if len(list) != 1 {
 		t.Fatal("Failed to add v1 PDP")
 	}
-	pdp, err := GTPPDPByMSAddress(link, net.ParseIP("2.2.2.2"))
+	pdp, err := GTPPDPByMSAddress(link, netip.MustParseAddr("2.2.2.2"))
 	if err != nil {
 		t.Fatal(err)
 	}
