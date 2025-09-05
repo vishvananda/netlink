@@ -35,6 +35,13 @@ const (
 	TUNTAP_MULTI_QUEUE_DEFAULTS TuntapFlag = TUNTAP_MULTI_QUEUE | TUNTAP_NO_PI
 )
 
+// Temporary, until merged into kernel and golang-sys picks them up. See net-next commit:
+// https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git/commit/?id=b73b8146d7ff68e245525adb944a4c998d423d59
+const (
+	IFLA_HEADROOM = 0x44
+	IFLA_TAILROOM = 0x45
+)
+
 var StringToTuntapModeMap = map[string]TuntapMode{
 	"tun": TUNTAP_MODE_TUN,
 	"tap": TUNTAP_MODE_TAP,
@@ -2426,6 +2433,10 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			base.ParentDev = string(attr.Value[:len(attr.Value)-1])
 		case unix.IFLA_PARENT_DEV_BUS_NAME:
 			base.ParentDevBus = string(attr.Value[:len(attr.Value)-1])
+		case IFLA_HEADROOM:
+			base.Headroom = native.Uint16(attr.Value[0:2])
+		case IFLA_TAILROOM:
+			base.Tailroom = native.Uint16(attr.Value[0:2])
 		}
 	}
 
@@ -2881,11 +2892,11 @@ func addNetkitAttrs(nk *Netkit, linkInfo *nl.RtAttr, flag int) error {
 
 	// Any headroom or tailroom set on the primary device attributes will result in
 	// the kernel carrying them over into the peer device attributes for us.
-	if nk.Headroom > 0 {
-		data.AddRtAttr(nl.IFLA_NETKIT_HEADROOM, nl.Uint16Attr(nk.Headroom))
+	if nk.DesiredHeadroom > 0 {
+		data.AddRtAttr(nl.IFLA_NETKIT_HEADROOM, nl.Uint16Attr(nk.DesiredHeadroom))
 	}
-	if nk.Tailroom > 0 {
-		data.AddRtAttr(nl.IFLA_NETKIT_TAILROOM, nl.Uint16Attr(nk.Tailroom))
+	if nk.DesiredTailroom > 0 {
+		data.AddRtAttr(nl.IFLA_NETKIT_TAILROOM, nl.Uint16Attr(nk.DesiredTailroom))
 	}
 
 	if (flag & unix.NLM_F_EXCL) == 0 {
@@ -2957,9 +2968,9 @@ func parseNetkitData(link Link, data []syscall.NetlinkRouteAttr) {
 			netkit.supportsScrub = true
 			netkit.PeerScrub = NetkitScrub(native.Uint32(datum.Value[0:4]))
 		case nl.IFLA_NETKIT_HEADROOM:
-			netkit.Headroom = native.Uint16(datum.Value[0:2])
+			netkit.DesiredHeadroom = native.Uint16(datum.Value[0:2])
 		case nl.IFLA_NETKIT_TAILROOM:
-			netkit.Tailroom = native.Uint16(datum.Value[0:2])
+			netkit.DesiredTailroom = native.Uint16(datum.Value[0:2])
 		}
 	}
 }
