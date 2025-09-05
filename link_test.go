@@ -89,11 +89,11 @@ func testLinkAddDel(t *testing.T, link Link) {
 			if resultPrimary.SupportsScrub() && resultPrimary.PeerScrub != inputPrimary.PeerScrub {
 				t.Fatalf("Peer Scrub is %d, should be %d", int(resultPrimary.PeerScrub), int(inputPrimary.PeerScrub))
 			}
-			if resultPrimary.Headroom != inputPrimary.Headroom {
-				t.Fatalf("Headroom is %d, should be %d", resultPrimary.Headroom, inputPrimary.Headroom)
+			if resultPrimary.DesiredHeadroom != inputPrimary.DesiredHeadroom {
+				t.Fatalf("DesiredHeadroom is %d, should be %d", resultPrimary.DesiredHeadroom, inputPrimary.DesiredHeadroom)
 			}
-			if resultPrimary.Tailroom != inputPrimary.Tailroom {
-				t.Fatalf("Tailroom is %d, should be %d", resultPrimary.Tailroom, inputPrimary.Tailroom)
+			if resultPrimary.DesiredTailroom != inputPrimary.DesiredTailroom {
+				t.Fatalf("DesiredTailroom is %d, should be %d", resultPrimary.DesiredTailroom, inputPrimary.DesiredTailroom)
 			}
 			if inputPrimary.Mode == NETKIT_MODE_L2 && inputPrimary.HardwareAddr != nil {
 				if inputPrimary.HardwareAddr.String() != resultPrimary.HardwareAddr.String() {
@@ -131,11 +131,11 @@ func testLinkAddDel(t *testing.T, link Link) {
 				if resultPrimary.Scrub != resultPeer.PeerScrub {
 					t.Fatalf("PeerScrub from peer is %d, should be %d", int(resultPeer.PeerScrub), int(resultPrimary.Scrub))
 				}
-				if resultPrimary.Headroom != resultPeer.Headroom {
-					t.Fatalf("Headroom from peer is %d, should be %d", resultPeer.Headroom, resultPeer.Headroom)
+				if resultPrimary.DesiredHeadroom != resultPeer.DesiredHeadroom {
+					t.Fatalf("DesiredHeadroom from peer is %d, should be %d", resultPeer.DesiredHeadroom, resultPrimary.DesiredHeadroom)
 				}
-				if resultPrimary.Tailroom != resultPeer.Tailroom {
-					t.Fatalf("Tailroom from peer is %d, should be %d", resultPeer.Tailroom, resultPeer.Tailroom)
+				if resultPrimary.DesiredTailroom != resultPeer.DesiredTailroom {
+					t.Fatalf("DesiredTailroom from peer is %d, should be %d", resultPeer.DesiredTailroom, resultPrimary.DesiredTailroom)
 				}
 				if inputPrimary.Mode == NETKIT_MODE_L2 && inputPrimary.peerLinkAttrs.HardwareAddr != nil {
 					if inputPrimary.peerLinkAttrs.HardwareAddr.String() != resultPeer.HardwareAddr.String() {
@@ -1285,12 +1285,12 @@ func TestLinkAddDelNetkitWithHeadroom(t *testing.T) {
 			Name:         "foo",
 			HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
 		},
-		Mode:       NETKIT_MODE_L2,
-		Policy:     NETKIT_POLICY_FORWARD,
-		PeerPolicy: NETKIT_POLICY_BLACKHOLE,
-		Scrub:      NETKIT_SCRUB_DEFAULT,
-		PeerScrub:  NETKIT_SCRUB_NONE,
-		Headroom:   testHeadroom,
+		Mode:            NETKIT_MODE_L2,
+		Policy:          NETKIT_POLICY_FORWARD,
+		PeerPolicy:      NETKIT_POLICY_BLACKHOLE,
+		Scrub:           NETKIT_SCRUB_DEFAULT,
+		PeerScrub:       NETKIT_SCRUB_NONE,
+		DesiredHeadroom: testHeadroom,
 	}
 	peerAttr := &LinkAttrs{
 		Name:         "bar",
@@ -1310,12 +1310,12 @@ func TestLinkAddDelNetkitWithTailroom(t *testing.T) {
 			Name:         "foo",
 			HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
 		},
-		Mode:       NETKIT_MODE_L2,
-		Policy:     NETKIT_POLICY_FORWARD,
-		PeerPolicy: NETKIT_POLICY_BLACKHOLE,
-		Scrub:      NETKIT_SCRUB_DEFAULT,
-		PeerScrub:  NETKIT_SCRUB_NONE,
-		Tailroom:   testTailroom,
+		Mode:            NETKIT_MODE_L2,
+		Policy:          NETKIT_POLICY_FORWARD,
+		PeerPolicy:      NETKIT_POLICY_BLACKHOLE,
+		Scrub:           NETKIT_SCRUB_DEFAULT,
+		PeerScrub:       NETKIT_SCRUB_NONE,
+		DesiredTailroom: testTailroom,
 	}
 	peerAttr := &LinkAttrs{
 		Name:         "bar",
@@ -1335,13 +1335,13 @@ func TestLinkAddDelNetkitWithHeadAndTailroom(t *testing.T) {
 			Name:         "foo",
 			HardwareAddr: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
 		},
-		Mode:       NETKIT_MODE_L2,
-		Policy:     NETKIT_POLICY_FORWARD,
-		PeerPolicy: NETKIT_POLICY_BLACKHOLE,
-		Scrub:      NETKIT_SCRUB_DEFAULT,
-		PeerScrub:  NETKIT_SCRUB_NONE,
-		Headroom:   testHeadroom,
-		Tailroom:   testTailroom,
+		Mode:            NETKIT_MODE_L2,
+		Policy:          NETKIT_POLICY_FORWARD,
+		PeerPolicy:      NETKIT_POLICY_BLACKHOLE,
+		Scrub:           NETKIT_SCRUB_DEFAULT,
+		PeerScrub:       NETKIT_SCRUB_NONE,
+		DesiredHeadroom: testHeadroom,
+		DesiredTailroom: testTailroom,
 	}
 	peerAttr := &LinkAttrs{
 		Name:         "bar",

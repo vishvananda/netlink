@@ -29,6 +29,8 @@ type LinkAttrs struct {
 	HardwareAddr   net.HardwareAddr
 	Flags          net.Flags
 	RawFlags       uint32
+	Headroom       uint16      // Query only
+	Tailroom       uint16      // Query only
 	ParentIndex    int         // index of the parent link device
 	MasterIndex    int         // must be the index of a bridge
 	Namespace      interface{} // nil | NsPid | NsFd
@@ -405,16 +407,16 @@ func (n *Netkit) SetPeerAttrs(Attrs *LinkAttrs) {
 
 type Netkit struct {
 	LinkAttrs
-	Mode          NetkitMode
-	Policy        NetkitPolicy
-	PeerPolicy    NetkitPolicy
-	Scrub         NetkitScrub
-	PeerScrub     NetkitScrub
-	Headroom      uint16
-	Tailroom      uint16
-	supportsScrub bool
-	isPrimary     bool
-	peerLinkAttrs LinkAttrs
+	Mode            NetkitMode
+	Policy          NetkitPolicy
+	PeerPolicy      NetkitPolicy
+	Scrub           NetkitScrub
+	PeerScrub       NetkitScrub
+	DesiredHeadroom uint16 // Named due to presence of Headroom in LinkAttrs
+	DesiredTailroom uint16 // Named due to presence of Tailroom in LinkAttrs
+	supportsScrub   bool
+	isPrimary       bool
+	peerLinkAttrs   LinkAttrs
 }
 
 func (n *Netkit) Attrs() *LinkAttrs {
