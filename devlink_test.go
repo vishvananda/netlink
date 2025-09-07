@@ -23,35 +23,27 @@ func TestDevLinkGetDeviceList(t *testing.T) {
 	minKernelRequired(t, 4, 12)
 	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
 	_, err := DevLinkGetDeviceList()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestDevLinkGetDeviceByName(t *testing.T) {
 	minKernelRequired(t, 4, 12)
 	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
 	_, err := DevLinkGetDeviceByName("foo", "bar")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestDevLinkSetEswitchMode(t *testing.T) {
 	minKernelRequired(t, 4, 12)
 	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
 	dev, err := DevLinkGetDeviceByName("foo", "bar")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
+
 	err = DevLinkSetEswitchMode(dev, "switchdev")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
+
 	err = DevLinkSetEswitchMode(dev, "legacy")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 }
 
 func logPort(t *testing.T, port *DevlinkPort) {
@@ -112,9 +104,8 @@ func logPort(t *testing.T, port *DevlinkPort) {
 func TestDevLinkGetAllPortList(t *testing.T) {
 	minKernelRequired(t, 5, 4)
 	ports, err := DevLinkGetAllPortList()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
+
 	t.Log("devlink port count = ", len(ports))
 	for _, port := range ports {
 		logPort(t, port)
@@ -130,26 +121,20 @@ func TestDevLinkAddDelSfPort(t *testing.T) {
 	}
 
 	dev, err := DevLinkGetDeviceByName(bus, device)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
+	assert.NoError(t, err)
+
 	addAttrs.SfNumberValid = true
 	addAttrs.SfNumber = uint32(sfnum)
 	addAttrs.PfNumber = 0
-	port, err2 := DevLinkPortAdd(dev.BusName, dev.DeviceName, 7, addAttrs)
-	if err2 != nil {
-		t.Fatal(err2)
-		return
-	}
+	port, err := DevLinkPortAdd(dev.BusName, dev.DeviceName, 7, addAttrs)
+	assert.NoError(t, err)
+
 	t.Log(*port)
 	if port.Fn != nil {
 		t.Log("function attributes = ", *port.Fn)
 	}
-	err2 = DevLinkPortDel(dev.BusName, dev.DeviceName, port.PortIndex)
-	if err2 != nil {
-		t.Fatal(err2)
-	}
+	err = DevLinkPortDel(dev.BusName, dev.DeviceName, port.PortIndex)
+	assert.NoError(t, err)
 }
 
 func TestDevLinkSfPortFnSet(t *testing.T) {
@@ -163,18 +148,20 @@ func TestDevLinkSfPortFnSet(t *testing.T) {
 	}
 
 	dev, err := DevLinkGetDeviceByName(bus, device)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
+	assert.NoError(t, err)
+
 	addAttrs.SfNumberValid = true
 	addAttrs.SfNumber = uint32(sfnum)
 	addAttrs.PfNumber = 0
-	port, err2 := DevLinkPortAdd(dev.BusName, dev.DeviceName, 7, addAttrs)
-	if err2 != nil {
-		t.Fatal(err2)
-		return
-	}
+	port, err := DevLinkPortAdd(dev.BusName, dev.DeviceName, 7, addAttrs)
+	assert.NoError(t, err)
+
+	// cleanup
+	defer func() {
+		err := DevLinkPortDel(dev.BusName, dev.DeviceName, port.PortIndex)
+		assert.NoError(t, err)
+	}()
+
 	t.Log(*port)
 	if port.Fn != nil {
 		t.Log("function attributes = ", *port.Fn)
@@ -185,25 +172,20 @@ func TestDevLinkSfPortFnSet(t *testing.T) {
 		},
 		HwAddrValid: true,
 	}
-	err2 = DevlinkPortFnSet(dev.BusName, dev.DeviceName, port.PortIndex, macAttr)
-	if err2 != nil {
-		t.Log("function mac set err = ", err2)
-	}
+	err = DevlinkPortFnSet(dev.BusName, dev.DeviceName, port.PortIndex, macAttr)
+	assert.NoError(t, err, "failed to call DevlinkPortFnSet to set mac attribute")
+
 	stateAttr.FnAttrs.State = 1
 	stateAttr.StateValid = true
-	err2 = DevlinkPortFnSet(dev.BusName, dev.DeviceName, port.PortIndex, stateAttr)
-	if err2 != nil {
-		t.Log("function state set err = ", err2)
-	}
+	err = DevlinkPortFnSet(dev.BusName, dev.DeviceName, port.PortIndex, stateAttr)
+	assert.NoError(t, err, "failed to call DevlinkPortFnSet to set state attribute")
 
-	port, err3 := DevLinkGetPortByIndex(dev.BusName, dev.DeviceName, port.PortIndex)
-	if err3 == nil {
-		t.Log(*port)
-		t.Log(*port.Fn)
-	}
-	err2 = DevLinkPortDel(dev.BusName, dev.DeviceName, port.PortIndex)
-	if err2 != nil {
-		t.Fatal(err2)
+	gotPort, err := DevLinkGetPortByIndex(dev.BusName, dev.DeviceName, port.PortIndex)
+	assert.NoError(t, err, "failed to call DevLinkGetPortByIndex to get port")
+
+	t.Log(*gotPort)
+	if gotPort.Fn != nil {
+		t.Log(*gotPort.Fn)
 	}
 }
 
@@ -219,40 +201,30 @@ func init() {
 
 func TestDevlinkGetDeviceInfoByNameAsMap(t *testing.T) {
 	info, err := pkgHandle.DevlinkGetDeviceInfoByNameAsMap("pci", "0000:00:00.0", mockDevlinkInfoGetter)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
+
 	testInfo := devlinkTestInfoParesd()
 	for k, v := range info {
-		if testInfo[k] != v {
-			t.Fatal("Value", v, "retrieved for key", k, "is not equal to", testInfo[k])
-		}
+		assert.Equal(t, testInfo[k], v, "value %s retrieved for key %s is not equal to %s", v, k, testInfo[k])
 	}
 }
 
 func TestDevlinkGetDeviceInfoByName(t *testing.T) {
 	info, err := pkgHandle.DevlinkGetDeviceInfoByName("pci", "0000:00:00.0", mockDevlinkInfoGetter)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
+
 	testInfo := parseInfoData(devlinkTestInfoParesd())
-	if !areInfoStructsEqual(info, testInfo) {
-		t.Fatal("Info structures are not equal")
-	}
+	assert.True(t, areInfoStructsEqual(info, testInfo), "info structures are not equal")
 }
 
 func TestDevlinkGetDeviceInfoByNameAsMapFail(t *testing.T) {
 	_, err := pkgHandle.DevlinkGetDeviceInfoByNameAsMap("pci", "0000:00:00.0", mockDevlinkInfoGetterEmpty)
-	if err == nil {
-		t.Fatal()
-	}
+	assert.Error(t, err)
 }
 
 func TestDevlinkGetDeviceInfoByNameFail(t *testing.T) {
 	_, err := pkgHandle.DevlinkGetDeviceInfoByName("pci", "0000:00:00.0", mockDevlinkInfoGetterEmpty)
-	if err == nil {
-		t.Fatal()
-	}
+	assert.Error(t, err)
 }
 
 func mockDevlinkInfoGetter(bus, device string) ([]byte, error) {
@@ -340,13 +312,9 @@ func TestDevlinkGetDeviceResources(t *testing.T) {
 	}
 
 	res, err := DevlinkGetDeviceResources(bus, device)
-	if err != nil {
-		t.Fatalf("failed to get device(%s/%s) resources. %s", bus, device, err)
-	}
-
-	if res.Bus != bus || res.Device != device {
-		t.Fatalf("missmatching bus/device")
-	}
+	assert.NoError(t, err, "failed to get device(%s/%s) resources", bus, device)
+	assert.Equal(t, bus, res.Bus, "mismatching bus")
+	assert.Equal(t, device, res.Device, "mismatching device")
 
 	t.Logf("Resources: %+v", res)
 }
@@ -360,9 +328,7 @@ func setupDevlinkDeviceParamTest(t *testing.T) (string, string, func()) {
 	skipUnlessKModuleLoaded(t, "netdevsim")
 	testDevID := strconv.Itoa(1000 + rand.Intn(1000))
 	err := os.WriteFile("/sys/bus/netdevsim/new_device", []byte(testDevID), 0755)
-	if err != nil {
-		t.Fatalf("can't create netdevsim test device %s: %v", testDevID, err)
-	}
+	assert.NoError(t, err, "can't create netdevsim test device %s", testDevID)
 
 	return "netdevsim", "netdevsim" + testDevID, func() {
 		_ = os.WriteFile("/sys/bus/netdevsim/del_device", []byte(testDevID), 0755)
@@ -373,12 +339,9 @@ func TestDevlinkGetDeviceParams(t *testing.T) {
 	busName, deviceName, cleanupFunc := setupDevlinkDeviceParamTest(t)
 	defer cleanupFunc()
 	params, err := DevlinkGetDeviceParams(busName, deviceName)
-	if err != nil {
-		t.Fatalf("failed to get device(%s/%s) parameters. %s", busName, deviceName, err)
-	}
-	if len(params) == 0 {
-		t.Fatal("parameters list is empty")
-	}
+	assert.NoError(t, err, "failed to get device(%s/%s) parameters", busName, deviceName)
+	assert.NotEmpty(t, params, "parameters list is empty")
+
 	for _, p := range params {
 		validateDeviceParams(t, p)
 	}
@@ -388,9 +351,8 @@ func TestDevlinkGetDeviceParamByName(t *testing.T) {
 	busName, deviceName, cleanupFunc := setupDevlinkDeviceParamTest(t)
 	defer cleanupFunc()
 	param, err := DevlinkGetDeviceParamByName(busName, deviceName, "max_macs")
-	if err != nil {
-		t.Fatalf("failed to get device(%s/%s) parameter max_macs. %s", busName, deviceName, err)
-	}
+	assert.NoError(t, err, "failed to get device(%s/%s) parameter max_macs", busName, deviceName)
+
 	validateDeviceParams(t, param)
 }
 
@@ -398,21 +360,15 @@ func TestDevlinkSetDeviceParam(t *testing.T) {
 	busName, deviceName, cleanupFunc := setupDevlinkDeviceParamTest(t)
 	defer cleanupFunc()
 	err := DevlinkSetDeviceParam(busName, deviceName, "max_macs", nl.DEVLINK_PARAM_CMODE_DRIVERINIT, uint32(8))
-	if err != nil {
-		t.Fatalf("failed to set max_macs for device(%s/%s): %s", busName, deviceName, err)
-	}
+	assert.NoError(t, err, "failed to set max_macs for device(%s/%s)", busName, deviceName)
+
 	param, err := DevlinkGetDeviceParamByName(busName, deviceName, "max_macs")
-	if err != nil {
-		t.Fatalf("failed to get device(%s/%s) parameter max_macs. %s", busName, deviceName, err)
-	}
+	assert.NoError(t, err, "failed to get device(%s/%s) parameter max_macs", busName, deviceName)
+
 	validateDeviceParams(t, param)
 	v, ok := param.Values[0].Data.(uint32)
-	if !ok {
-		t.Fatalf("unexpected value")
-	}
-	if v != uint32(8) {
-		t.Fatalf("value not set")
-	}
+	assert.True(t, ok, "unexpected value")
+	assert.Equal(t, v, uint32(8), "value not set")
 }
 
 func validateDeviceParams(t *testing.T, p *DevlinkParam) {
