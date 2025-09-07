@@ -163,13 +163,13 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 		mtu := 1600
 		var rtab [256]uint32
 		var ctab [256]uint32
-		tcrate := nl.TcRateSpec{Rate: uint32(htb.Rate)}
-		if CalcRtable(&tcrate, rtab[:], cellLog, uint32(mtu), linklayer) < 0 {
+		tcrate := nl.TcRateSpec{}
+		if CalcRtable(htb.Rate, &tcrate, rtab[:], cellLog, uint32(mtu), linklayer) < 0 {
 			return errors.New("HTB: failed to calculate rate table")
 		}
 		opt.Rate = tcrate
-		tcceil := nl.TcRateSpec{Rate: uint32(htb.Ceil)}
-		if CalcRtable(&tcceil, ctab[:], ccellLog, uint32(mtu), linklayer) < 0 {
+		tcceil := nl.TcRateSpec{}
+		if CalcRtable(htb.Ceil, &tcceil, ctab[:], ccellLog, uint32(mtu), linklayer) < 0 {
 			return errors.New("HTB: failed to calculate ceil rate table")
 		}
 		opt.Ceil = tcceil
@@ -311,8 +311,14 @@ func parseHtbClassData(class Class, data []syscall.NetlinkRouteAttr) (bool, erro
 		switch datum.Attr.Type {
 		case nl.TCA_HTB_PARMS:
 			opt := nl.DeserializeTcHtbCopt(datum.Value)
-			htb.Rate = uint64(opt.Rate.Rate)
-			htb.Ceil = uint64(opt.Ceil.Rate)
+			// htb.Rate may already have been set via nl.TCA_HTB_RATE64.
+			if htb.Rate == 0 {
+				htb.Rate = uint64(opt.Rate.Rate)
+			}
+			// htb.Ceil may already have been set via nl.TCA_HTB_CEIL64.
+			if htb.Ceil == 0 {
+				htb.Ceil = uint64(opt.Ceil.Rate)
+			}
 			htb.Buffer = opt.Buffer
 			htb.Cbuffer = opt.Cbuffer
 			htb.Quantum = opt.Quantum
