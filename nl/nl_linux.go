@@ -716,6 +716,11 @@ func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 		return nil, err
 	}
 
+	if EnableErrorMessageReporting {
+		// ignore error
+		_ = s.SetExtAck(true)
+	}
+
 	return s, nil
 }
 
