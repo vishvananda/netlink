@@ -567,9 +567,8 @@ func (req *NetlinkRequest) ExecuteIter(sockType int, resType uint16, f func(msg 
 			return err
 		}
 		if EnableErrorMessageReporting {
-			if err := s.SetExtAck(true); err != nil {
-				return err
-			}
+			// ignore error, it's non-critical
+			_ = s.SetExtAck(true)
 		}
 
 		defer s.Close()
@@ -717,7 +716,7 @@ func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 	}
 
 	if EnableErrorMessageReporting {
-		// ignore error
+		// ignore error, it's non-critical
 		_ = s.SetExtAck(true)
 	}
 
