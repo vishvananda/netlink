@@ -817,6 +817,12 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 	return nil
 }
 
+// parsePolice parses a netlink police attribute and populates the given PoliceAction.
+// It handles the following attribute types:
+//  - nl.TCA_POLICE_RESULT: sets PoliceAction.NotExceedAction.
+//  - nl.TCA_POLICE_AVRATE: sets PoliceAction.AvRate.
+//  - nl.TCA_POLICE_TBF: populates ActionAttrs (Index, Bindcnt, Capab, Refcnt) and sets
+//    ExceedAction, Rate, PeakRate, Burst, Mtu, LinkLayer, and Overhead.
 func parsePolice(data syscall.NetlinkRouteAttr, police *PoliceAction) {
 	switch data.Attr.Type {
 	case nl.TCA_POLICE_RESULT:
@@ -840,6 +846,82 @@ func parsePolice(data syscall.NetlinkRouteAttr, police *PoliceAction) {
 	}
 }
 
+// parsePeditKeys groups TcPedit keys by header type and updates the corresponding fields on the provided PeditAction.
+// It extracts Ethernet, IPv4, IPv6, TCP and UDP key sets and sets SrcMacAddr, DstMacAddr, SrcIP, DstIP, SrcPort, DstPort,
+// and Proto on the action when those values are present.
+func parsePeditKeys(pedit *nl.TcPedit, action *PeditAction) {
+	// Group keys by header type
+	keysByType := make(map[nl.PeditHeaderType][]nl.TcPeditKey)
+	for i := 0; i < int(pedit.Sel.NKeys); i++ {
+		if i >= len(pedit.KeysEx) || i >= len(pedit.Keys) {
+			break
+		}
+		hdrType := pedit.KeysEx[i].HeaderType
+		keysByType[hdrType] = append(keysByType[hdrType], pedit.Keys[i])
+	}
+
+	for hdrType, keys := range keysByType {
+		switch hdrType {
+		case nl.TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
+			srcMac, dstMac := nl.ParsePeditEthKeys(keys)
+			if srcMac != nil {
+				action.SrcMacAddr = srcMac
+			}
+			if dstMac != nil {
+				action.DstMacAddr = dstMac
+			}
+
+		case nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
+			srcIP, dstIP := nl.ParsePeditIP4Keys(keys)
+			if srcIP != nil {
+				action.SrcIP = srcIP
+			}
+			if dstIP != nil {
+				action.DstIP = dstIP
+			}
+
+		case nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
+			srcIP, dstIP := nl.ParsePeditIP6Keys(keys)
+			if srcIP != nil {
+				action.SrcIP = srcIP
+			}
+			if dstIP != nil {
+				action.DstIP = dstIP
+			}
+
+		case nl.TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
+			srcPort, dstPort := nl.ParsePeditL4Keys(keys)
+			if srcPort > 0 {
+				action.SrcPort = srcPort
+			}
+			if dstPort > 0 {
+				action.DstPort = dstPort
+			}
+			if srcPort > 0 || dstPort > 0 {
+				action.Proto = unix.IPPROTO_TCP
+			}
+
+		case nl.TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
+			srcPort, dstPort := nl.ParsePeditL4Keys(keys)
+			if srcPort > 0 {
+				action.SrcPort = srcPort
+			}
+			if dstPort > 0 {
+				action.DstPort = dstPort
+			}
+			if srcPort > 0 || dstPort > 0 {
+				action.Proto = unix.IPPROTO_UDP
+			}
+		}
+	}
+}
+
+// parseActions parses netlink action tables into a slice of Action values.
+// It decodes each table's kind and options, instantiates the corresponding
+// concrete Action (mirred, bpf, connmark, csum, sample, gact, vlan, tunnel_key,
+// skbedit, police, pedit, etc.), populates action attributes (including
+// TcGen-derived fields), associated statistics, and timestamps. It returns an
+// error if any nested attribute parsing fails.
 func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 	var actions []Action
 	for _, table := range tables {
@@ -884,6 +966,7 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 					break nextattr
 				}
 			case nl.TCA_OPTIONS:
+				var pedit *nl.TcPedit
 				adata, err := nl.ParseRouteAttr(aattr.Value)
 				if err != nil {
 					return nil, err
@@ -1018,6 +1101,17 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						}
 					case "police":
 						parsePolice(adatum, action.(*PoliceAction))
+					case "pedit":
+						switch adatum.Attr.Type {
+						case nl.TCA_PEDIT_PARMS, nl.TCA_PEDIT_PARMS_EX:
+							pedit = nl.DeserializeTcPedit(adatum.Value)
+							toAttrs(&pedit.Sel.TcGen, action.Attrs())
+						case nl.TCA_PEDIT_KEYS_EX:
+							if pedit != nil {
+								pedit.KeysEx = nl.DeserializeTcPeditKeysEx(adatum.Value, int(pedit.Sel.NKeys))
+								parsePeditKeys(pedit, action.(*PeditAction))
+							}
+						}
 					}
 				}
 			case nl.TCA_ACT_STATS:

@@ -1274,9 +1274,10 @@ func (i IPProto) String() string {
 }
 
 const (
-	MaxOffs        = 128
-	SizeOfPeditSel = 24
-	SizeOfPeditKey = 24
+	MaxOffs          = 128
+	SizeOfPeditSel   = 24
+	SizeOfPeditKey   = 24
+	SizeOfPeditKeyEx = 4
 
 	TCA_PEDIT_KEY_EX_HTYPE = 1
 	TCA_PEDIT_KEY_EX_CMD   = 2
@@ -1320,24 +1321,68 @@ type TcPeditSel struct {
 	Flags uint8
 }
 
+// DeserializeTcPeditKey interprets the first SizeOfPeditKey bytes of b as a TcPeditKey and returns a pointer to it.
+// The byte slice b must be at least SizeOfPeditKey bytes long.
 func DeserializeTcPeditKey(b []byte) *TcPeditKey {
 	return (*TcPeditKey)(unsafe.Pointer(&b[0:SizeOfPeditKey][0]))
 }
 
-func DeserializeTcPedit(b []byte) (*TcPeditSel, []TcPeditKey) {
-	x := &TcPeditSel{}
-	copy((*(*[SizeOfPeditSel]byte)(unsafe.Pointer(x)))[:SizeOfPeditSel], b)
+// DeserializeTcPedit constructs a *TcPedit by reading a selector and its keys from b.
+// 
+// It reads the TcPeditSel from the first SizeOfPeditSel bytes, then reads sel.NKeys
+// consecutive TcPeditKey entries (SizeOfPeditKey each) and returns a TcPedit with
+// Sel and Keys populated. KeysEx and Extend are not set by this function.
+// 
+// The caller must provide b with at least SizeOfPeditSel + sel.NKeys*SizeOfPeditKey bytes.
+func DeserializeTcPedit(b []byte) *TcPedit {
+	sel := &TcPeditSel{}
+	copy((*(*[SizeOfPeditSel]byte)(unsafe.Pointer(sel)))[:SizeOfPeditSel], b)
 
 	var keys []TcPeditKey
 
-	next := SizeOfPeditKey
+	next := SizeOfPeditSel
 	var i uint8
-	for i = 0; i < x.NKeys; i++ {
+	for i = 0; i < sel.NKeys; i++ {
 		keys = append(keys, *DeserializeTcPeditKey(b[next:]))
 		next += SizeOfPeditKey
 	}
 
-	return x, keys
+	return &TcPedit{Sel: *sel, Keys: keys}
+}
+
+// DeserializeTcPeditKeysEx parses extended pedit key attributes from b and returns a slice
+// of length nkeys containing the decoded TcPeditKeyEx entries.
+// For each nested key attribute found, it extracts HTYPE and CMD and sets HeaderType and Cmd.
+// If attributes are missing or malformed for a key, that entry remains the zero value.
+func DeserializeTcPeditKeysEx(b []byte, nkeys int) []TcPeditKeyEx {
+	keysEx := make([]TcPeditKeyEx, nkeys)
+
+	attrs, err := ParseRouteAttr(b)
+	if err != nil {
+		return keysEx
+	}
+
+	for i, attr := range attrs {
+		if i >= nkeys {
+			break
+		}
+
+		keyAttrs, err := ParseRouteAttr(attr.Value)
+		if err != nil {
+			continue
+		}
+
+		for _, ka := range keyAttrs {
+			switch ka.Attr.Type {
+			case TCA_PEDIT_KEY_EX_HTYPE:
+				keysEx[i].HeaderType = PeditHeaderType(NativeEndian().Uint16(ka.Value[:2]))
+			case TCA_PEDIT_KEY_EX_CMD:
+				keysEx[i].Cmd = PeditCmd(NativeEndian().Uint16(ka.Value[:2]))
+			}
+		}
+	}
+
+	return keysEx
 }
 
 type TcPeditKey struct {
@@ -1662,4 +1707,106 @@ func (p *TcPedit) SetSrcPort(srcPort uint16, protocol uint8) {
 	p.Keys = append(p.Keys, tKey)
 	p.KeysEx = append(p.KeysEx, tKeyEx)
 	p.Sel.NKeys++
+}
+
+// ParsePeditEthKeys extracts source and destination Ethernet MAC addresses from a slice of TcPeditKey.
+// It assembles MAC bytes from keys whose Off fields are 0, 4, and 8 and returns the resulting
+// srcMac and dstMac. If the provided keys do not contain a complete 6-byte address for either
+// side, that return value will be nil.
+func ParsePeditEthKeys(keys []TcPeditKey) (srcMac, dstMac net.HardwareAddr) {
+	srcParts := make([]byte, 0, 6)
+	dstParts := make([]byte, 0, 6)
+
+	for _, key := range keys {
+		valBytes := make([]byte, 4)
+		NativeEndian().PutUint32(valBytes, key.Val)
+
+		switch key.Off {
+		case 0:
+			dstParts = append(dstParts, valBytes...)
+		case 4:
+			dstParts = append(dstParts, valBytes[0:2]...)
+			srcParts = append(srcParts, valBytes[2:4]...)
+		case 8:
+			srcParts = append(srcParts, valBytes...)
+		}
+	}
+
+	if len(srcParts) == 6 {
+		srcMac = net.HardwareAddr(srcParts)
+	}
+	if len(dstParts) == 6 {
+		dstMac = net.HardwareAddr(dstParts)
+	}
+
+	return srcMac, dstMac
+}
+
+// ParsePeditIP4Keys extracts IPv4 source and destination addresses from a slice of TcPeditKey.
+// It returns the address found at Off==12 as srcIP and the address found at Off==16 as dstIP; either return value is nil if the corresponding key is not present.
+func ParsePeditIP4Keys(keys []TcPeditKey) (srcIP, dstIP net.IP) {
+	for _, key := range keys {
+		valBytes := make([]byte, 4)
+		NativeEndian().PutUint32(valBytes, key.Val)
+
+		switch key.Off {
+		case 12:
+			srcIP = net.IP(valBytes)
+		case 16:
+			dstIP = net.IP(valBytes)
+		}
+	}
+
+	return srcIP, dstIP
+}
+
+// ParsePeditIP6Keys extracts IPv6 source and destination addresses from a slice of TcPeditKey entries.
+// ParsePeditIP6Keys looks for four consecutive keys whose Off values start at 8 for the source and 24 for the destination,
+// each key contributing a 32-bit segment (in native endianness) to form the 16-byte IPv6 address.
+// It returns the parsed srcIP and dstIP, or nil for any address that is missing or incomplete.
+func ParsePeditIP6Keys(keys []TcPeditKey) (srcIP, dstIP net.IP) {
+	// Helper to parse 4 consecutive keys for a complete IPv6 address
+	parseIPv6Addr := func(startIdx int) net.IP {
+		if startIdx+3 >= len(keys) {
+			return nil
+		}
+
+		ip := make(net.IP, 16)
+		baseOffset := keys[startIdx].Off
+
+		for j := 0; j < 4; j++ {
+			if keys[startIdx+j].Off != baseOffset+uint32(j*4) {
+				return nil
+			}
+			NativeEndian().PutUint32(ip[j*4:], keys[startIdx+j].Val)
+		}
+
+		return ip
+	}
+
+	for idx, key := range keys {
+		switch key.Off {
+		case 8:
+			srcIP = parseIPv6Addr(idx)
+		case 24:
+			dstIP = parseIPv6Addr(idx)
+		}
+	}
+
+	return srcIP, dstIP
+}
+
+// ParsePeditL4Keys extracts transport-layer source and destination ports from the first TcPeditKey.
+// If keys is empty both ports are zero.
+// It interprets the 32-bit Key.Val as: upper 16 bits = destination port, lower 16 bits = source port; both are returned after swapping byte order.
+func ParsePeditL4Keys(keys []TcPeditKey) (srcPort, dstPort uint16) {
+	if len(keys) == 0 {
+		return 0, 0
+	}
+
+	key := keys[0]
+	dstPort = Swap16(uint16(key.Val >> 16))
+	srcPort = Swap16(uint16(key.Val & 0xFFFF))
+
+	return srcPort, dstPort
 }
