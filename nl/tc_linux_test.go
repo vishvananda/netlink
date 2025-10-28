@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"net"
 	"testing"
+
+	"golang.org/x/sys/unix"
 )
 
 /* TcMsg */
@@ -170,4 +173,196 @@ func TestTcHtbCoptDeserializeSerialize(t *testing.T) {
 	safemsg := deserializeTcHtbCoptSafe(orig)
 	msg := DeserializeTcHtbCopt(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
+}
+
+func TestParsePeditEthKeys(t *testing.T) {
+	tests := []struct {
+		name   string
+		srcMAC net.HardwareAddr
+		dstMAC net.HardwareAddr
+	}{
+		{
+			name:   "Parse source MAC",
+			srcMAC: net.HardwareAddr{0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF},
+		},
+		{
+			name:   "Parse destination MAC",
+			dstMAC: net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+		{
+			name:   "Parse both MACs",
+			srcMAC: net.HardwareAddr{0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF},
+			dstMAC: net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pedit := &TcPedit{}
+			if tt.srcMAC != nil {
+				pedit.SetEthSrc(tt.srcMAC)
+			}
+			if tt.dstMAC != nil {
+				pedit.SetEthDst(tt.dstMAC)
+			}
+
+			srcMAC, dstMAC := ParsePeditEthKeys(pedit.Keys)
+
+			if !bytes.Equal(srcMAC, tt.srcMAC) {
+				t.Errorf("ParsePeditEthKeys() srcMAC = %v, want %v", srcMAC, tt.srcMAC)
+			}
+			if !bytes.Equal(dstMAC, tt.dstMAC) {
+				t.Errorf("ParsePeditEthKeys() dstMAC = %v, want %v", dstMAC, tt.dstMAC)
+			}
+		})
+	}
+}
+
+func TestParsePeditIP4Keys(t *testing.T) {
+	tests := []struct {
+		name  string
+		srcIP net.IP
+		dstIP net.IP
+	}{
+		{
+			name:  "Parse source IPv4",
+			srcIP: net.ParseIP("192.168.1.1"),
+		},
+		{
+			name:  "Parse destination IPv4",
+			dstIP: net.ParseIP("10.0.0.1"),
+		},
+		{
+			name:  "Parse both IPv4 addresses",
+			srcIP: net.ParseIP("192.168.1.1"),
+			dstIP: net.ParseIP("10.0.0.1"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pedit := &TcPedit{}
+			if tt.srcIP != nil {
+				pedit.SetIPv4Src(tt.srcIP)
+			}
+			if tt.dstIP != nil {
+				pedit.SetIPv4Dst(tt.dstIP)
+			}
+
+			srcIP, dstIP := ParsePeditIP4Keys(pedit.Keys)
+
+			if !srcIP.Equal(tt.srcIP) {
+				t.Errorf("ParsePeditIP4Keys() srcIP = %v, want %v", srcIP, tt.srcIP)
+			}
+			if !dstIP.Equal(tt.dstIP) {
+				t.Errorf("ParsePeditIP4Keys() dstIP = %v, want %v", dstIP, tt.dstIP)
+			}
+		})
+	}
+}
+
+func TestParsePeditIP6Keys(t *testing.T) {
+	tests := []struct {
+		name  string
+		srcIP net.IP
+		dstIP net.IP
+	}{
+		{
+			name:  "Parse source IPv6",
+			srcIP: net.ParseIP("2001:db8::1"),
+		},
+		{
+			name:  "Parse destination IPv6",
+			dstIP: net.ParseIP("fe80::1"),
+		},
+		{
+			name:  "Parse both IPv6 addresses",
+			srcIP: net.ParseIP("2001:db8::1"),
+			dstIP: net.ParseIP("fe80::1"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pedit := &TcPedit{}
+			if tt.srcIP != nil {
+				pedit.SetIPv6Src(tt.srcIP)
+			}
+			if tt.dstIP != nil {
+				pedit.SetIPv6Dst(tt.dstIP)
+			}
+
+			srcIP, dstIP := ParsePeditIP6Keys(pedit.Keys)
+
+			if !srcIP.Equal(tt.srcIP) {
+				t.Errorf("ParsePeditIP6Keys() srcIP = %v, want %v", srcIP, tt.srcIP)
+			}
+			if !dstIP.Equal(tt.dstIP) {
+				t.Errorf("ParsePeditIP6Keys() dstIP = %v, want %v", dstIP, tt.dstIP)
+			}
+		})
+	}
+}
+
+func TestParsePeditL4Keys(t *testing.T) {
+	tests := []struct {
+		name    string
+		srcPort uint16
+		dstPort uint16
+		proto   uint8
+	}{
+		{
+			name:    "Parse TCP source port",
+			srcPort: 8080,
+			proto:   unix.IPPROTO_TCP,
+		},
+		{
+			name:    "Parse TCP destination port",
+			dstPort: 80,
+			proto:   unix.IPPROTO_TCP,
+		},
+		{
+			name:    "Parse both TCP ports",
+			srcPort: 8080,
+			dstPort: 80,
+			proto:   unix.IPPROTO_TCP,
+		},
+		{
+			name:    "Parse UDP source port",
+			srcPort: 53,
+			proto:   unix.IPPROTO_UDP,
+		},
+		{
+			name:    "Parse UDP destination port",
+			dstPort: 5353,
+			proto:   unix.IPPROTO_UDP,
+		},
+		{
+			name:    "Parse both UDP ports",
+			srcPort: 53,
+			dstPort: 5353,
+			proto:   unix.IPPROTO_UDP,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pedit := &TcPedit{}
+			if tt.srcPort != 0 {
+				pedit.SetSrcPort(tt.srcPort, tt.proto)
+			}
+			if tt.dstPort != 0 {
+				pedit.SetDstPort(tt.dstPort, tt.proto)
+			}
+
+			srcPort, dstPort := ParsePeditL4Keys(pedit.Keys)
+
+			if srcPort != tt.srcPort {
+				t.Errorf("ParsePeditL4Keys() srcPort = %v, want %v", srcPort, tt.srcPort)
+			}
+			if dstPort != tt.dstPort {
+				t.Errorf("ParsePeditL4Keys() dstPort = %v, want %v", dstPort, tt.dstPort)
+			}
+		})
+	}
 }
