@@ -2768,3 +2768,60 @@ func TestRouteGetFIBMatchOption(t *testing.T) {
 		t.Fatalf("Unexpected flag %s returned", flag)
 	}
 }
+
+func TestRouteNHID(t *testing.T) {
+	t.Cleanup(setUpNetlinkTest(t))
+
+	// create dummy interface
+	if err := LinkAdd(&Dummy{LinkAttrs: LinkAttrs{Name: "dummy0"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	// get dummy interface
+	link0, err := LinkByName("dummy0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bring the interface up
+	if err = LinkSetUp(link0); err != nil {
+		t.Fatal(err)
+	}
+
+	// add a new IPv6 link-local nexthop
+	nh := &Nexthop{
+		ID:      1,
+		OIF:     uint32(link0.Attrs().Index),
+		Gateway: net.ParseIP("fe80::1"),
+	}
+	if err = NexthopAdd(nh); err != nil {
+		t.Fatal(err)
+	}
+
+	// IPv4 prefix with IPv6 link local nexthop
+	_, dst, err := net.ParseCIDR("10.0.0.0/24")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	route := Route{
+		Dst:  dst,
+		NHID: nh.ID,
+	}
+	if err = RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure we can retrieve the route we just added
+	routes, err := RouteListFiltered(FAMILY_V4, &Route{Dst: dst}, RT_FILTER_DST)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatalf("Expected 1 route, got %d", len(routes))
+	}
+
+	if routes[0].NHID != nh.ID {
+		t.Fatalf("Expected route NHID %d, got %d", nh.ID, routes[0].NHID)
+	}
+}
