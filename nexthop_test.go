@@ -12,6 +12,15 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func TestNexthopString(t *testing.T) {
+	var nh *Nexthop = nil
+	// Ensure calling String() does not panic with nil receiver
+	t.Log(nh.String())
+	// Ensure calling String() does not panic with empty fields
+	nh = &Nexthop{}
+	t.Log(nh.String())
+}
+
 func TestNexthopAddListDelReplace(t *testing.T) {
 	t.Cleanup(setUpNetlinkTest(t))
 

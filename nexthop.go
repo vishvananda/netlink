@@ -17,6 +17,9 @@ type Nexthop struct {
 }
 
 func (h *Nexthop) String() string {
+	if h == nil {
+		return "<nil>"
+	}
 	elems := []string{
 		"ID: " + strconv.FormatUint(uint64(h.ID), 10),
 		"Blackhole: " + strconv.FormatBool(h.Blackhole),
