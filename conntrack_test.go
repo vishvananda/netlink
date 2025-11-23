@@ -1541,6 +1541,8 @@ func TestConntrackDeleteV4(t *testing.T) {
 		t.Fatalf("failed to create netlink handle: %s", err)
 	}
 
+	ctZone := uint16(123)
+
 	flow := ConntrackFlow{
 		FamilyType: FAMILY_V4,
 		Forward: IPTuple{
@@ -1562,6 +1564,7 @@ func TestConntrackDeleteV4(t *testing.T) {
 		ProtoInfo: &ProtoInfoTCP{
 			State: nl.TCP_CONNTRACK_ESTABLISHED,
 		},
+		Zone: ctZone,
 	}
 
 	// Create the entry using the handle
@@ -1586,6 +1589,7 @@ func TestConntrackDeleteV4(t *testing.T) {
 			ConntrackOrigDstPort: flow.Forward.DstPort,
 		},
 		protoFilter: unix.IPPROTO_TCP,
+		zoneFilter:  &ctZone,
 	}
 	var match *ConntrackFlow
 	for _, f := range flows {
@@ -1645,6 +1649,8 @@ func TestConntrackDeleteV6(t *testing.T) {
 		t.Fatalf("failed to create netlink handle: %s", err)
 	}
 
+	ctZone := uint16(123)
+
 	flow := ConntrackFlow{
 		FamilyType: FAMILY_V6,
 		Forward: IPTuple{
@@ -1666,6 +1672,7 @@ func TestConntrackDeleteV6(t *testing.T) {
 		ProtoInfo: &ProtoInfoTCP{
 			State: nl.TCP_CONNTRACK_ESTABLISHED,
 		},
+		Zone: ctZone,
 	}
 
 	// Create the entry using the handle
@@ -1690,6 +1697,7 @@ func TestConntrackDeleteV6(t *testing.T) {
 			ConntrackOrigDstPort: flow.Forward.DstPort,
 		},
 		protoFilter: unix.IPPROTO_TCP,
+		zoneFilter:  &ctZone,
 	}
 	var match *ConntrackFlow
 	for _, f := range flows {
