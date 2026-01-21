@@ -404,3 +404,13 @@ func parseTcStats2(data []byte) (*ClassStatistics, error) {
 
 	return stats, nil
 }
+
+func parseTcFqXStats(data []byte) (*nl.TcFqQdStats, error) {
+	buf := &bytes.Buffer{}
+	buf.Write(data)
+	stats := &nl.TcFqQdStats{}
+	if err := binary.Read(buf, native, stats); err != nil {
+		return nil, err
+	}
+	return stats, nil
+}
