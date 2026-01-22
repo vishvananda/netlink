@@ -208,12 +208,16 @@ func (qdisc *Netem) Type() string {
 // Tbf is a classless qdisc that rate limits based on tokens
 type Tbf struct {
 	QdiscAttrs
-	Rate     uint64
-	Limit    uint32
-	Buffer   uint32
-	Peakrate uint64
-	Minburst uint32
-	// TODO: handle other settings
+	Limit        uint32 /* byte */
+	Rate         uint64 /* bytes per second */
+	Burst        uint32 /* byte */
+	BurstCell    uint32 /* byte */
+	Peakrate     uint64 /* bytes per second */
+	Minburst     uint32 /* byte */
+	MinburstCell uint32 /* byte */
+	Mpu          uint16 /* byte */
+	Overhead     uint16 /* byte */
+	Linklayer    int    /* nl.LINKLAYER_UNSPEC / nl.LINKLAYER_ETHERNET / nl.LINKLAYER_ATM */
 }
 
 func (qdisc *Tbf) Attrs() *QdiscAttrs {
