@@ -2338,6 +2338,10 @@ func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 			base.Name = string(attr.Value[:len(attr.Value)-1])
 		case unix.IFLA_MTU:
 			base.MTU = int(native.Uint32(attr.Value[0:4]))
+		case unix.IFLA_MIN_MTU:
+			base.MinMTU = int(native.Uint32(attr.Value[0:4]))
+		case unix.IFLA_MAX_MTU:
+			base.MaxMTU = int(native.Uint32(attr.Value[0:4]))
 		case unix.IFLA_PROMISCUITY:
 			base.Promisc = int(native.Uint32(attr.Value[0:4]))
 		case unix.IFLA_LINK:
