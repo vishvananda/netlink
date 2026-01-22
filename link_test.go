@@ -626,6 +626,9 @@ func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 	if actual.FlowBased != expected.FlowBased {
 		t.Fatal("Vxlan.FlowBased doesn't match")
 	}
+	if actual.VniFilter != expected.VniFilter {
+		t.Fatal("Vxlan.VniFilter doesn't match")
+	}
 	if actual.UDP6ZeroCSumTx != expected.UDP6ZeroCSumTx {
 		t.Fatal("Vxlan.UDP6ZeroCSumTx doesn't match")
 	}
@@ -2046,6 +2049,23 @@ func TestLinkAddDelVxlanFlowBased(t *testing.T) {
 		},
 		Learning:  false,
 		FlowBased: true,
+	}
+
+	testLinkAddDel(t, &vxlan)
+}
+
+func TestLinkAddDelVxlanVniFilter(t *testing.T) {
+	minKernelRequired(t, 5, 18)
+
+	t.Cleanup(setUpNetlinkTest(t))
+
+	vxlan := Vxlan{
+		LinkAttrs: LinkAttrs{
+			Name: "foo",
+		},
+		Learning:  false,
+		FlowBased: true,
+		VniFilter: true,
 	}
 
 	testLinkAddDel(t, &vxlan)
