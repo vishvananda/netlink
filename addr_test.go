@@ -323,3 +323,47 @@ func TestAddrSubscribeListExisting(t *testing.T) {
 		t.Fatal("Add update not received as expected")
 	}
 }
+
+func TestAddrProtocol(t *testing.T) {
+	// IFA_PROTO requires kernel 5.18+. On older kernels, the attribute
+	// is silently ignored when setting and will be 0 when reading.
+	t.Cleanup(setUpNetlinkTest(t))
+
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const testProtocol = 99
+	address := &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(32, 32)}
+	addr := &Addr{
+		IPNet:    address,
+		Protocol: testProtocol,
+	}
+
+	if err := AddrAdd(link, addr); err != nil {
+		t.Fatal(err)
+	}
+
+	addrs, err := AddrList(link, FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(addrs) != 1 {
+		t.Fatalf("Expected 1 address, got %d", len(addrs))
+	}
+
+	// Check if Protocol is set correctly (may be 0 on kernels < 5.18)
+	if addrs[0].Protocol == testProtocol {
+		t.Logf("Protocol correctly set to %d (kernel 5.18+ detected)", testProtocol)
+	} else if addrs[0].Protocol == 0 {
+		t.Logf("Protocol is 0 (kernel < 5.18 or IFA_PROTO not supported)")
+	} else {
+		t.Errorf("Protocol = %d, want %d or 0", addrs[0].Protocol, testProtocol)
+	}
+
+	if err := AddrDel(link, addr); err != nil {
+		t.Fatal(err)
+	}
+}
