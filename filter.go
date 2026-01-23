@@ -3,6 +3,7 @@ package netlink
 import (
 	"fmt"
 	"net"
+	"net/netip"
 )
 
 type Filter interface {
@@ -317,8 +318,8 @@ const (
 type TunnelKeyAction struct {
 	ActionAttrs
 	Action   TunnelKeyAct
-	SrcAddr  net.IP
-	DstAddr  net.IP
+	SrcAddr  netip.Addr
+	DstAddr  netip.Addr
 	KeyID    uint32
 	DestPort uint16
 }
@@ -491,8 +492,8 @@ type PeditAction struct {
 	Proto      uint8
 	SrcMacAddr net.HardwareAddr
 	DstMacAddr net.HardwareAddr
-	SrcIP      net.IP
-	DstIP      net.IP
+	SrcIP      netip.Addr
+	DstIP      netip.Addr
 	SrcPort    uint16
 	DstPort    uint16
 }

@@ -3,6 +3,7 @@ package netlink
 import (
 	"encoding/binary"
 	"net"
+	"net/netip"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -13,14 +14,14 @@ import (
 type IPSetEntry struct {
 	Comment  string
 	MAC      net.HardwareAddr
-	IP       net.IP
+	IP       netip.Addr
 	CIDR     uint8
 	Timeout  *uint32
 	Packets  *uint64
 	Bytes    *uint64
 	Protocol *uint8
 	Port     *uint16
-	IP2      net.IP
+	IP2      netip.Addr
 	CIDR2    uint8
 	IFace    string
 	Mark     *uint32
@@ -41,8 +42,8 @@ type IPSetResult struct {
 	Comment            string
 	MarkMask           uint32
 
-	IPFrom   net.IP
-	IPTo     net.IP
+	IPFrom   netip.Addr
+	IPTo     netip.Addr
 	PortFrom uint16
 	PortTo   uint16
 
@@ -68,8 +69,8 @@ type IpsetCreateOptions struct {
 
 	Family      uint8
 	Revision    uint8
-	IPFrom      net.IP
-	IPTo        net.IP
+	IPFrom      netip.Addr
+	IPTo        netip.Addr
 	PortFrom    uint16
 	PortTo      uint16
 	MaxElements uint32
@@ -252,16 +253,15 @@ func (h *Handle) IpsetDel(setname string, entry *IPSetEntry) error {
 	return h.ipsetAddDel(nl.IPSET_CMD_DEL, setname, entry)
 }
 
-func encodeIP(ip net.IP) (*nl.RtAttr, error) {
+func encodeIP(ip netip.Addr) (*nl.RtAttr, error) {
 	typ := int(nl.NLA_F_NET_BYTEORDER)
-	if ip4 := ip.To4(); ip4 != nil {
+	if ip.Is4() {
 		typ |= nl.IPSET_ATTR_IPADDR_IPV4
-		ip = ip4
 	} else {
 		typ |= nl.IPSET_ATTR_IPADDR_IPV6
 	}
 
-	return nl.NewRtAttr(typ, ip), nil
+	return nl.NewRtAttr(typ, ip.AsSlice()), nil
 }
 
 func buildEntryData(entry *IPSetEntry) (*nl.RtAttr, error) {
@@ -275,7 +275,7 @@ func buildEntryData(entry *IPSetEntry) (*nl.RtAttr, error) {
 		data.AddChild(&nl.Uint32Attribute{Type: nl.IPSET_ATTR_TIMEOUT | nl.NLA_F_NET_BYTEORDER, Value: *entry.Timeout})
 	}
 
-	if entry.IP != nil {
+	if entry.IP.IsValid() {
 		nestedData, err := encodeIP(entry.IP)
 		if err != nil {
 			return nil, err
@@ -291,7 +291,7 @@ func buildEntryData(entry *IPSetEntry) (*nl.RtAttr, error) {
 		data.AddChild(nl.NewRtAttr(nl.IPSET_ATTR_CIDR, nl.Uint8Attr(entry.CIDR)))
 	}
 
-	if entry.IP2 != nil {
+	if entry.IP2.IsValid() {
 		nestedData, err := encodeIP(entry.IP2)
 		if err != nil {
 			return nil, err
@@ -541,16 +541,18 @@ func (result *IPSetResult) parseAttrData(data []byte) {
 			for nested := range nl.ParseAttributes(attr.Value) {
 				switch nested.Type {
 				case nl.IPSET_ATTR_IP | nl.NLA_F_NET_BYTEORDER:
-					result.Entries = append(result.Entries, IPSetEntry{IP: nested.Value})
+					addr, _ := netip.AddrFromSlice(nested.Value)
+					result.Entries = append(result.Entries, IPSetEntry{IP: addr})
 				case nl.IPSET_ATTR_IP:
-					result.IPFrom = nested.Value
+					addr, _ := netip.AddrFromSlice(nested.Value)
+					result.IPFrom = addr
 				}
 			}
 		case nl.IPSET_ATTR_IP_TO | nl.NLA_F_NESTED:
 			for nested := range nl.ParseAttributes(attr.Value) {
 				switch nested.Type {
 				case nl.IPSET_ATTR_IP:
-					result.IPTo = nested.Value
+					result.IPTo, _ = netip.AddrFromSlice(nested.Value)
 				}
 			}
 		case nl.IPSET_ATTR_PORT_FROM | nl.NLA_F_NET_BYTEORDER:
@@ -591,21 +593,21 @@ func parseIPSetEntry(data []byte) (entry IPSetEntry) {
 		case nl.IPSET_ATTR_ETHER:
 			entry.MAC = net.HardwareAddr(attr.Value)
 		case nl.IPSET_ATTR_IP:
-			entry.IP = net.IP(attr.Value)
+			entry.IP, _ = netip.AddrFromSlice(attr.Value)
 		case nl.IPSET_ATTR_COMMENT:
 			entry.Comment = nl.BytesToString(attr.Value)
 		case nl.IPSET_ATTR_IP | nl.NLA_F_NESTED:
 			for attr := range nl.ParseAttributes(attr.Value) {
 				switch attr.Type {
 				case nl.IPSET_ATTR_IPADDR_IPV4, nl.IPSET_ATTR_IPADDR_IPV6:
-					entry.IP = net.IP(attr.Value)
+					entry.IP, _ = netip.AddrFromSlice(attr.Value)
 				}
 			}
 		case nl.IPSET_ATTR_IP2 | nl.NLA_F_NESTED:
 			for attr := range nl.ParseAttributes(attr.Value) {
 				switch attr.Type {
 				case nl.IPSET_ATTR_IPADDR_IPV4, nl.IPSET_ATTR_IPADDR_IPV6:
-					entry.IP2 = net.IP(attr.Value)
+					entry.IP2, _ = netip.AddrFromSlice(attr.Value)
 				}
 			}
 		case nl.IPSET_ATTR_CIDR:

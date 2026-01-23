@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"net"
+	"net/netip"
 	"time"
 
 	"github.com/vishvananda/netlink/nl"
@@ -255,11 +255,11 @@ func (*ProtoInfoDCCP) Protocol() string { return "dccp" }
 // For the time being, the structure below allows to parse and extract the base information of a flow
 type IPTuple struct {
 	Bytes    uint64
-	DstIP    net.IP
+	DstIP    netip.Addr
 	DstPort  uint16
 	Packets  uint64
 	Protocol uint8
-	SrcIP    net.IP
+	SrcIP    netip.Addr
 	SrcPort  uint16
 }
 
@@ -279,9 +279,9 @@ func (t *IPTuple) toNlData(family uint8) ([]*nl.RtAttr, error) {
 	}
 
 	ctTupleIP := nl.NewRtAttr(unix.NLA_F_NESTED|nl.CTA_TUPLE_IP, nil)
-	ctTupleIPSrc := nl.NewRtAttr(srcIPsFlag, t.SrcIP)
+	ctTupleIPSrc := nl.NewRtAttr(srcIPsFlag, t.SrcIP.AsSlice())
 	ctTupleIP.AddChild(ctTupleIPSrc)
-	ctTupleIPDst := nl.NewRtAttr(dstIPsFlag, t.DstIP)
+	ctTupleIPDst := nl.NewRtAttr(dstIPsFlag, t.DstIP.AsSlice())
 	ctTupleIP.AddChild(ctTupleIPDst)
 
 	ctTupleProto := nl.NewRtAttr(unix.NLA_F_NESTED|nl.CTA_TUPLE_PROTO, nil)
@@ -431,9 +431,9 @@ func parseIpTuple(reader *bytes.Reader, tpl *IPTuple) uint8 {
 		_, t, _, v := parseNfAttrTLV(reader)
 		switch t {
 		case nl.CTA_IP_V4_SRC, nl.CTA_IP_V6_SRC:
-			tpl.SrcIP = v
+			tpl.SrcIP, _ = netip.AddrFromSlice(v)
 		case nl.CTA_IP_V4_DST, nl.CTA_IP_V6_DST:
-			tpl.DstIP = v
+			tpl.DstIP, _ = netip.AddrFromSlice(v)
 		}
 	}
 	// Get total length of nested protocol-specific info.
@@ -752,7 +752,7 @@ type CustomConntrackFilter interface {
 }
 
 type ConntrackFilter struct {
-	ipNetFilter map[ConntrackFilterType]*net.IPNet
+	ipNetFilter map[ConntrackFilterType]netip.Prefix
 	portFilter  map[ConntrackFilterType]uint16
 	protoFilter uint8
 	labelFilter map[ConntrackFilterType][][]byte
@@ -760,12 +760,12 @@ type ConntrackFilter struct {
 }
 
 // AddIPNet adds a IP subnet to the conntrack filter
-func (f *ConntrackFilter) AddIPNet(tp ConntrackFilterType, ipNet *net.IPNet) error {
-	if ipNet == nil {
+func (f *ConntrackFilter) AddIPNet(tp ConntrackFilterType, ipNet netip.Prefix) error {
+	if !ipNet.IsValid() {
 		return fmt.Errorf("Filter attribute empty")
 	}
 	if f.ipNetFilter == nil {
-		f.ipNetFilter = make(map[ConntrackFilterType]*net.IPNet)
+		f.ipNetFilter = make(map[ConntrackFilterType]netip.Prefix)
 	}
 	if _, ok := f.ipNetFilter[tp]; ok {
 		return errors.New("Filter attribute already present")
@@ -775,8 +775,8 @@ func (f *ConntrackFilter) AddIPNet(tp ConntrackFilterType, ipNet *net.IPNet) err
 }
 
 // AddIP adds an IP to the conntrack filter
-func (f *ConntrackFilter) AddIP(tp ConntrackFilterType, ip net.IP) error {
-	if ip == nil {
+func (f *ConntrackFilter) AddIP(tp ConntrackFilterType, ip netip.Addr) error {
+	if !ip.IsValid() {
 		return fmt.Errorf("Filter attribute empty")
 	}
 	return f.AddIPNet(tp, NewIPNet(ip))

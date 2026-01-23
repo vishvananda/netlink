@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"syscall"
 	"unsafe"
 
@@ -164,16 +165,11 @@ func neighHandle(neigh *Neigh, req *nl.NetlinkRequest) error {
 	}
 	req.AddData(&msg)
 
-	ipData := neigh.IP.To4()
-	if ipData == nil {
-		ipData = neigh.IP.To16()
-	}
-
-	dstData := nl.NewRtAttr(NDA_DST, ipData)
+	dstData := nl.NewRtAttr(NDA_DST, neigh.IP.AsSlice())
 	req.AddData(dstData)
 
-	if neigh.LLIPAddr != nil {
-		llIPData := nl.NewRtAttr(NDA_LLADDR, neigh.LLIPAddr.To4())
+	if neigh.LLIPAddr.IsValid() {
+		llIPData := nl.NewRtAttr(NDA_LLADDR, neigh.LLIPAddr.AsSlice())
 		req.AddData(llIPData)
 	} else if neigh.HardwareAddr != nil {
 		hwData := nl.NewRtAttr(NDA_LLADDR, []byte(neigh.HardwareAddr))
@@ -322,19 +318,32 @@ func NeighDeserialize(m []byte) (*Neigh, error) {
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case NDA_DST:
-			neigh.IP = net.IP(attr.Value)
+			addr, ok := netip.AddrFromSlice(attr.Value)
+			if !ok {
+				return nil, fmt.Errorf("NDA_DST: invalid address")
+			}
+			neigh.IP = addr
 		case NDA_LLADDR:
 			// BUG: Is this a bug in the netlink library?
 			// #define RTA_LENGTH(len) (RTA_ALIGN(sizeof(struct rtattr)) + (len))
 			// #define RTA_PAYLOAD(rta) ((int)((rta)->rta_len) - RTA_LENGTH(0))
 			attrLen := attr.Attr.Len - unix.SizeofRtAttr
 			if attrLen == 4 {
-				neigh.LLIPAddr = net.IP(attr.Value)
+				addr, ok := netip.AddrFromSlice(attr.Value)
+				if !ok {
+					return nil, fmt.Errorf("NDA_LLADDR: invalid address")
+				}
+				neigh.LLIPAddr = addr
 			} else if attrLen == 16 {
 				// Can be IPv6 or FireWire HWAddr
 				link, err := LinkByIndex(neigh.LinkIndex)
 				if err == nil && link.Attrs().EncapType == "tunnel6" {
-					neigh.IP = net.IP(attr.Value)
+					addr, ok := netip.AddrFromSlice(attr.Value)
+					if !ok {
+						return nil, fmt.Errorf("NDA_LLADDR: invalid address")
+					}
+
+					neigh.IP = addr
 				} else {
 					neigh.HardwareAddr = net.HardwareAddr(attr.Value)
 				}

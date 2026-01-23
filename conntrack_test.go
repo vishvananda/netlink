@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"os/exec"
 	"runtime"
@@ -215,7 +216,7 @@ func TestConntrackTableList(t *testing.T) {
 	var found int
 	for _, flow := range flows {
 		if flow.Forward.Protocol == 17 &&
-			flow.Forward.DstIP.Equal(net.ParseIP("127.0.0.10")) &&
+			flow.Forward.DstIP == netip.MustParseAddr("127.0.0.10") &&
 			flow.Forward.DstPort == 3000 &&
 			(flow.Forward.SrcPort >= 2000 && flow.Forward.SrcPort <= 2005) {
 			found++
@@ -282,7 +283,7 @@ func TestConntrackTableFlush(t *testing.T) {
 	var found int
 	for _, flow := range flows {
 		if flow.Forward.Protocol == 17 &&
-			flow.Forward.DstIP.Equal(net.ParseIP("127.0.0.10")) &&
+			flow.Forward.DstIP == netip.MustParseAddr("127.0.0.10") &&
 			flow.Forward.DstPort == 4000 &&
 			(flow.Forward.SrcPort >= 3000 && flow.Forward.SrcPort <= 3005) {
 			found++
@@ -304,7 +305,7 @@ func TestConntrackTableFlush(t *testing.T) {
 	found = 0
 	for _, flow := range flows {
 		if flow.Forward.Protocol == 17 &&
-			flow.Forward.DstIP.Equal(net.ParseIP("127.0.0.10")) &&
+			flow.Forward.DstIP == netip.MustParseAddr("127.0.0.10") &&
 			flow.Forward.DstPort == 4000 &&
 			(flow.Forward.SrcPort >= 3000 && flow.Forward.SrcPort <= 3005) {
 			found++
@@ -356,13 +357,13 @@ func TestConntrackTableDelete(t *testing.T) {
 	var groupB int
 	for _, flow := range flows {
 		if flow.Forward.Protocol == 17 &&
-			flow.Forward.DstIP.Equal(net.ParseIP("127.0.0.10")) &&
+			flow.Forward.DstIP == netip.MustParseAddr("127.0.0.10") &&
 			flow.Forward.DstPort == 6000 &&
 			(flow.Forward.SrcPort >= 5000 && flow.Forward.SrcPort <= 5005) {
 			groupA++
 		}
 		if flow.Forward.Protocol == 17 &&
-			flow.Forward.DstIP.Equal(net.ParseIP("127.0.0.20")) &&
+			flow.Forward.DstIP == netip.MustParseAddr("127.0.0.20") &&
 			flow.Forward.DstPort == 8000 &&
 			(flow.Forward.SrcPort >= 7000 && flow.Forward.SrcPort <= 7005) {
 			groupB++
@@ -374,7 +375,7 @@ func TestConntrackTableDelete(t *testing.T) {
 
 	// Create a filter to erase groupB flows
 	filter := &ConntrackFilter{}
-	filter.AddIP(ConntrackOrigDstIP, net.ParseIP("127.0.0.20"))
+	filter.AddIP(ConntrackOrigDstIP, netip.MustParseAddr("127.0.0.20"))
 	filter.AddProtocol(17)
 	filter.AddPort(ConntrackOrigDstPort, 8000)
 
@@ -396,13 +397,13 @@ func TestConntrackTableDelete(t *testing.T) {
 	groupB = 0
 	for _, flow := range flows {
 		if flow.Forward.Protocol == 17 &&
-			flow.Forward.DstIP.Equal(net.ParseIP("127.0.0.10")) &&
+			flow.Forward.DstIP == netip.MustParseAddr("127.0.0.10") &&
 			flow.Forward.DstPort == 6000 &&
 			(flow.Forward.SrcPort >= 5000 && flow.Forward.SrcPort <= 5005) {
 			groupA++
 		}
 		if flow.Forward.Protocol == 17 &&
-			flow.Forward.DstIP.Equal(net.ParseIP("127.0.0.20")) &&
+			flow.Forward.DstIP == netip.MustParseAddr("127.0.0.20") &&
 			flow.Forward.DstPort == 8000 &&
 			(flow.Forward.SrcPort >= 7000 && flow.Forward.SrcPort <= 7005) {
 			groupB++
@@ -421,15 +422,15 @@ func TestConntrackFilter(t *testing.T) {
 	flowList = append(flowList, ConntrackFlow{
 		FamilyType: unix.AF_INET,
 		Forward: IPTuple{
-			SrcIP:    net.ParseIP("10.0.0.1"),
-			DstIP:    net.ParseIP("20.0.0.1"),
+			SrcIP:    netip.MustParseAddr("10.0.0.1"),
+			DstIP:    netip.MustParseAddr("20.0.0.1"),
 			SrcPort:  1000,
 			DstPort:  2000,
 			Protocol: 17,
 		},
 		Reverse: IPTuple{
-			SrcIP:    net.ParseIP("20.0.0.1"),
-			DstIP:    net.ParseIP("192.168.1.1"),
+			SrcIP:    netip.MustParseAddr("20.0.0.1"),
+			DstIP:    netip.MustParseAddr("192.168.1.1"),
 			SrcPort:  2000,
 			DstPort:  1000,
 			Protocol: 17,
@@ -438,15 +439,15 @@ func TestConntrackFilter(t *testing.T) {
 		ConntrackFlow{
 			FamilyType: unix.AF_INET,
 			Forward: IPTuple{
-				SrcIP:    net.ParseIP("10.0.0.2"),
-				DstIP:    net.ParseIP("20.0.0.2"),
+				SrcIP:    netip.MustParseAddr("10.0.0.2"),
+				DstIP:    netip.MustParseAddr("20.0.0.2"),
 				SrcPort:  5000,
 				DstPort:  6000,
 				Protocol: 6,
 			},
 			Reverse: IPTuple{
-				SrcIP:    net.ParseIP("20.0.0.2"),
-				DstIP:    net.ParseIP("192.168.1.1"),
+				SrcIP:    netip.MustParseAddr("20.0.0.2"),
+				DstIP:    netip.MustParseAddr("192.168.1.1"),
 				SrcPort:  6000,
 				DstPort:  5000,
 				Protocol: 6,
@@ -457,15 +458,15 @@ func TestConntrackFilter(t *testing.T) {
 		ConntrackFlow{
 			FamilyType: unix.AF_INET6,
 			Forward: IPTuple{
-				SrcIP:    net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"),
-				DstIP:    net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"),
+				SrcIP:    netip.MustParseAddr("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"),
+				DstIP:    netip.MustParseAddr("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"),
 				SrcPort:  1000,
 				DstPort:  2000,
 				Protocol: 132,
 			},
 			Reverse: IPTuple{
-				SrcIP:    net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"),
-				DstIP:    net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"),
+				SrcIP:    netip.MustParseAddr("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"),
+				DstIP:    netip.MustParseAddr("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"),
 				SrcPort:  2000,
 				DstPort:  1000,
 				Protocol: 132,
@@ -483,11 +484,11 @@ func TestConntrackFilter(t *testing.T) {
 
 	// Adding same attribute should fail
 	filter := &ConntrackFilter{}
-	err := filter.AddIP(ConntrackOrigSrcIP, net.ParseIP("10.0.0.1"))
+	err := filter.AddIP(ConntrackOrigSrcIP, netip.MustParseAddr("10.0.0.1"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if err := filter.AddIP(ConntrackOrigSrcIP, net.ParseIP("10.0.0.1")); err == nil {
+	if err := filter.AddIP(ConntrackOrigSrcIP, netip.MustParseAddr("10.0.0.1")); err == nil {
 		t.Fatalf("Error, it should fail adding same attribute to the filter")
 	}
 	err = filter.AddProtocol(6)
@@ -538,13 +539,13 @@ func TestConntrackFilter(t *testing.T) {
 
 	// SrcIP filter
 	filterV4 = &ConntrackFilter{}
-	err = filterV4.AddIP(ConntrackOrigSrcIP, net.ParseIP("10.0.0.1"))
+	err = filterV4.AddIP(ConntrackOrigSrcIP, netip.MustParseAddr("10.0.0.1"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	filterV6 = &ConntrackFilter{}
-	err = filterV6.AddIP(ConntrackOrigSrcIP, net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"))
+	err = filterV6.AddIP(ConntrackOrigSrcIP, netip.MustParseAddr("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -556,13 +557,13 @@ func TestConntrackFilter(t *testing.T) {
 
 	// DstIp filter
 	filterV4 = &ConntrackFilter{}
-	err = filterV4.AddIP(ConntrackOrigDstIP, net.ParseIP("20.0.0.1"))
+	err = filterV4.AddIP(ConntrackOrigDstIP, netip.MustParseAddr("20.0.0.1"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	filterV6 = &ConntrackFilter{}
-	err = filterV6.AddIP(ConntrackOrigDstIP, net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
+	err = filterV6.AddIP(ConntrackOrigDstIP, netip.MustParseAddr("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -574,13 +575,13 @@ func TestConntrackFilter(t *testing.T) {
 
 	// SrcIP for NAT
 	filterV4 = &ConntrackFilter{}
-	err = filterV4.AddIP(ConntrackReplySrcIP, net.ParseIP("20.0.0.1"))
+	err = filterV4.AddIP(ConntrackReplySrcIP, netip.MustParseAddr("20.0.0.1"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	filterV6 = &ConntrackFilter{}
-	err = filterV6.AddIP(ConntrackReplySrcIP, net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
+	err = filterV6.AddIP(ConntrackReplySrcIP, netip.MustParseAddr("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -592,13 +593,13 @@ func TestConntrackFilter(t *testing.T) {
 
 	// DstIP for NAT
 	filterV4 = &ConntrackFilter{}
-	err = filterV4.AddIP(ConntrackReplyDstIP, net.ParseIP("192.168.1.1"))
+	err = filterV4.AddIP(ConntrackReplyDstIP, netip.MustParseAddr("192.168.1.1"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	filterV6 = &ConntrackFilter{}
-	err = filterV6.AddIP(ConntrackReplyDstIP, net.ParseIP("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
+	err = filterV6.AddIP(ConntrackReplyDstIP, netip.MustParseAddr("dddd:dddd:dddd:dddd:dddd:dddd:dddd:dddd"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -610,13 +611,13 @@ func TestConntrackFilter(t *testing.T) {
 
 	// AnyIp for Nat
 	filterV4 = &ConntrackFilter{}
-	err = filterV4.AddIP(ConntrackReplyAnyIP, net.ParseIP("192.168.1.1"))
+	err = filterV4.AddIP(ConntrackReplyAnyIP, netip.MustParseAddr("192.168.1.1"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
 	filterV6 = &ConntrackFilter{}
-	err = filterV6.AddIP(ConntrackReplyAnyIP, net.ParseIP("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"))
+	err = filterV6.AddIP(ConntrackReplyAnyIP, netip.MustParseAddr("eeee:eeee:eeee:eeee:eeee:eeee:eeee:eeee"))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -1084,15 +1085,15 @@ func TestConntrackUpdateV4(t *testing.T) {
 	flow := ConntrackFlow{
 		FamilyType: FAMILY_V4,
 		Forward: IPTuple{
-			SrcIP:    net.IP{234, 234, 234, 234},
-			DstIP:    net.IP{123, 123, 123, 123},
+			SrcIP:    netip.MustParseAddr("234.234.234.234"),
+			DstIP:    netip.MustParseAddr("123.123.123.123"),
 			SrcPort:  48385,
 			DstPort:  53,
 			Protocol: unix.IPPROTO_TCP,
 		},
 		Reverse: IPTuple{
-			SrcIP:    net.IP{123, 123, 123, 123},
-			DstIP:    net.IP{234, 234, 234, 234},
+			SrcIP:    netip.MustParseAddr("123.123.123.123"),
+			DstIP:    netip.MustParseAddr("234.234.234.234"),
 			SrcPort:  53,
 			DstPort:  48385,
 			Protocol: unix.IPPROTO_TCP,
@@ -1122,7 +1123,7 @@ func TestConntrackUpdateV4(t *testing.T) {
 	}
 
 	filter := ConntrackFilter{
-		ipNetFilter: map[ConntrackFilterType]*net.IPNet{
+		ipNetFilter: map[ConntrackFilterType]netip.Prefix{
 			ConntrackOrigSrcIP:  NewIPNet(flow.Forward.SrcIP),
 			ConntrackOrigDstIP:  NewIPNet(flow.Forward.DstIP),
 			ConntrackReplySrcIP: NewIPNet(flow.Reverse.SrcIP),
@@ -1217,15 +1218,15 @@ func TestConntrackUpdateV6(t *testing.T) {
 	flow := ConntrackFlow{
 		FamilyType: FAMILY_V6,
 		Forward: IPTuple{
-			SrcIP:    net.ParseIP("2001:db8::68"),
-			DstIP:    net.ParseIP("2001:db9::32"),
+			SrcIP:    netip.MustParseAddr("2001:db8::68"),
+			DstIP:    netip.MustParseAddr("2001:db9::32"),
 			SrcPort:  48385,
 			DstPort:  53,
 			Protocol: unix.IPPROTO_TCP,
 		},
 		Reverse: IPTuple{
-			SrcIP:    net.ParseIP("2001:db9::32"),
-			DstIP:    net.ParseIP("2001:db8::68"),
+			SrcIP:    netip.MustParseAddr("2001:db9::32"),
+			DstIP:    netip.MustParseAddr("2001:db8::68"),
 			SrcPort:  53,
 			DstPort:  48385,
 			Protocol: unix.IPPROTO_TCP,
@@ -1255,7 +1256,7 @@ func TestConntrackUpdateV6(t *testing.T) {
 	}
 
 	filter := ConntrackFilter{
-		ipNetFilter: map[ConntrackFilterType]*net.IPNet{
+		ipNetFilter: map[ConntrackFilterType]netip.Prefix{
 			ConntrackOrigSrcIP:  NewIPNet(flow.Forward.SrcIP),
 			ConntrackOrigDstIP:  NewIPNet(flow.Forward.DstIP),
 			ConntrackReplySrcIP: NewIPNet(flow.Reverse.SrcIP),
@@ -1348,15 +1349,15 @@ func TestConntrackCreateV4(t *testing.T) {
 	flow := ConntrackFlow{
 		FamilyType: FAMILY_V4,
 		Forward: IPTuple{
-			SrcIP:    net.IP{234, 234, 234, 234},
-			DstIP:    net.IP{123, 123, 123, 123},
+			SrcIP:    netip.MustParseAddr("234.234.234.234"),
+			DstIP:    netip.MustParseAddr("123.123.123.123"),
 			SrcPort:  48385,
 			DstPort:  53,
 			Protocol: unix.IPPROTO_TCP,
 		},
 		Reverse: IPTuple{
-			SrcIP:    net.IP{123, 123, 123, 123},
-			DstIP:    net.IP{234, 234, 234, 234},
+			SrcIP:    netip.MustParseAddr("123.123.123.123"),
+			DstIP:    netip.MustParseAddr("234.234.234.234"),
 			SrcPort:  53,
 			DstPort:  48385,
 			Protocol: unix.IPPROTO_TCP,
@@ -1381,7 +1382,7 @@ func TestConntrackCreateV4(t *testing.T) {
 	}
 
 	filter := ConntrackFilter{
-		ipNetFilter: map[ConntrackFilterType]*net.IPNet{
+		ipNetFilter: map[ConntrackFilterType]netip.Prefix{
 			ConntrackOrigSrcIP:  NewIPNet(flow.Forward.SrcIP),
 			ConntrackOrigDstIP:  NewIPNet(flow.Forward.DstIP),
 			ConntrackReplySrcIP: NewIPNet(flow.Reverse.SrcIP),
@@ -1443,15 +1444,15 @@ func TestConntrackCreateV6(t *testing.T) {
 	flow := ConntrackFlow{
 		FamilyType: FAMILY_V6,
 		Forward: IPTuple{
-			SrcIP:    net.ParseIP("2001:db8::68"),
-			DstIP:    net.ParseIP("2001:db9::32"),
+			SrcIP:    netip.MustParseAddr("2001:db8::68"),
+			DstIP:    netip.MustParseAddr("2001:db9::32"),
 			SrcPort:  48385,
 			DstPort:  53,
 			Protocol: unix.IPPROTO_TCP,
 		},
 		Reverse: IPTuple{
-			SrcIP:    net.ParseIP("2001:db9::32"),
-			DstIP:    net.ParseIP("2001:db8::68"),
+			SrcIP:    netip.MustParseAddr("2001:db9::32"),
+			DstIP:    netip.MustParseAddr("2001:db8::68"),
 			SrcPort:  53,
 			DstPort:  48385,
 			Protocol: unix.IPPROTO_TCP,
@@ -1476,7 +1477,7 @@ func TestConntrackCreateV6(t *testing.T) {
 	}
 
 	filter := ConntrackFilter{
-		ipNetFilter: map[ConntrackFilterType]*net.IPNet{
+		ipNetFilter: map[ConntrackFilterType]netip.Prefix{
 			ConntrackOrigSrcIP:  NewIPNet(flow.Forward.SrcIP),
 			ConntrackOrigDstIP:  NewIPNet(flow.Forward.DstIP),
 			ConntrackReplySrcIP: NewIPNet(flow.Reverse.SrcIP),
@@ -1649,15 +1650,15 @@ func TestConntrackFlowToNlData(t *testing.T) {
 	flowV4 := ConntrackFlow{
 		FamilyType: FAMILY_V4,
 		Forward: IPTuple{
-			SrcIP:    net.IP{234, 234, 234, 234},
-			DstIP:    net.IP{123, 123, 123, 123},
+			SrcIP:    netip.MustParseAddr("234.234.234.234"),
+			DstIP:    netip.MustParseAddr("123.123.123.123"),
 			SrcPort:  48385,
 			DstPort:  53,
 			Protocol: unix.IPPROTO_TCP,
 		},
 		Reverse: IPTuple{
-			SrcIP:    net.IP{123, 123, 123, 123},
-			DstIP:    net.IP{234, 234, 234, 234},
+			SrcIP:    netip.MustParseAddr("123.123.123.123"),
+			DstIP:    netip.MustParseAddr("234.234.234.234"),
 			SrcPort:  53,
 			DstPort:  48385,
 			Protocol: unix.IPPROTO_TCP,
@@ -1672,15 +1673,15 @@ func TestConntrackFlowToNlData(t *testing.T) {
 	flowV6 := ConntrackFlow{
 		FamilyType: FAMILY_V6,
 		Forward: IPTuple{
-			SrcIP:    net.ParseIP("2001:db8::68"),
-			DstIP:    net.ParseIP("2001:db9::32"),
+			SrcIP:    netip.MustParseAddr("2001:db8::68"),
+			DstIP:    netip.MustParseAddr("2001:db9::32"),
 			SrcPort:  48385,
 			DstPort:  53,
 			Protocol: unix.IPPROTO_TCP,
 		},
 		Reverse: IPTuple{
-			SrcIP:    net.ParseIP("2001:db9::32"),
-			DstIP:    net.ParseIP("2001:db8::68"),
+			SrcIP:    netip.MustParseAddr("2001:db9::32"),
+			DstIP:    netip.MustParseAddr("2001:db8::68"),
 			SrcPort:  53,
 			DstPort:  48385,
 			Protocol: unix.IPPROTO_TCP,
@@ -1773,11 +1774,11 @@ func tuplesEqual(t1, t2 IPTuple) bool {
 		return false
 	}
 
-	if !t1.DstIP.Equal(t2.DstIP) {
+	if t1.DstIP != t2.DstIP {
 		return false
 	}
 
-	if !t1.SrcIP.Equal(t2.SrcIP) {
+	if t1.SrcIP != t2.SrcIP {
 		return false
 	}
 

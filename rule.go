@@ -2,7 +2,7 @@ package netlink
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 )
 
 // Rule represents a netlink rule.
@@ -15,8 +15,8 @@ type Rule struct {
 	Tos               uint
 	TunID             uint
 	Goto              int
-	Src               *net.IPNet
-	Dst               *net.IPNet
+	Src               netip.Prefix
+	Dst               netip.Prefix
 	Flow              int
 	IifName           string
 	OifName           string
@@ -33,12 +33,12 @@ type Rule struct {
 
 func (r Rule) String() string {
 	from := "all"
-	if r.Src != nil && r.Src.String() != "<nil>" {
+	if r.Src.IsValid() {
 		from = r.Src.String()
 	}
 
 	to := "all"
-	if r.Dst != nil && r.Dst.String() != "<nil>" {
+	if r.Dst.IsValid() {
 		to = r.Dst.String()
 	}
 

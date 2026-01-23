@@ -3,7 +3,7 @@ package netlink
 import (
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 	"time"
 	"unsafe"
 
@@ -53,7 +53,7 @@ type XfrmStateEncap struct {
 	Type            EncapType
 	SrcPort         int
 	DstPort         int
-	OriginalAddress net.IP
+	OriginalAddress netip.Addr
 }
 
 func (e XfrmStateEncap) String() string {
@@ -102,8 +102,8 @@ func (r XfrmReplayState) String() string {
 // XfrmState represents the state of an ipsec policy. It optionally
 // contains an XfrmStateAlgo for encryption and one for authentication.
 type XfrmState struct {
-	Dst           net.IP
-	Src           net.IP
+	Dst           netip.Addr
+	Src           netip.Addr
 	Proto         Proto
 	Mode          Mode
 	Spi           int
@@ -461,8 +461,8 @@ func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState
 		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
 		req.AddData(out)
 	}
-	if state.Src != nil {
-		out := nl.NewRtAttr(nl.XFRMA_SRCADDR, state.Src.To16())
+	if state.Src.IsValid() {
+		out := nl.NewRtAttr(nl.XFRMA_SRCADDR, state.Src.AsSlice())
 		req.AddData(out)
 	}
 

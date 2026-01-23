@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"net/netip"
+
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
@@ -299,7 +301,7 @@ func testLinkAddDel(t *testing.T, link Link) {
 			}
 
 			for i := range bond.ArpIpTargets {
-				if !bond.ArpIpTargets[i].Equal(other.ArpIpTargets[i]) {
+				if bond.ArpIpTargets[i] != other.ArpIpTargets[i] {
 					t.Fatalf("Got unexpected ArpIpTargets: %s, expected: %s",
 						other.ArpIpTargets[i], bond.ArpIpTargets[i])
 				}
@@ -441,7 +443,7 @@ func compareGeneve(t *testing.T, expected, actual *Geneve) {
 		t.Fatal("Geneve.Tos doesn't match")
 	}
 
-	if !actual.Remote.Equal(expected.Remote) {
+	if actual.Remote != expected.Remote {
 		t.Fatalf("Geneve.Remote is not equal: %s!=%s", actual.Remote, expected.Remote)
 	}
 
@@ -482,11 +484,11 @@ func compareGretap(t *testing.T, expected, actual *Gretap) {
 		t.Fatal("Gretap.EncapDport doesn't match")
 	}
 
-	if expected.Local != nil && !actual.Local.Equal(expected.Local) {
+	if expected.Local.IsValid() && actual.Local != expected.Local {
 		t.Fatal("Gretap.Local doesn't match")
 	}
 
-	if expected.Remote != nil && !actual.Remote.Equal(expected.Remote) {
+	if expected.Remote.IsValid() && actual.Remote != expected.Remote {
 		t.Fatal("Gretap.Remote doesn't match")
 	}
 
@@ -548,11 +550,11 @@ func compareGretun(t *testing.T, expected, actual *Gretun) {
 		t.Fatal("Gretun.OKey doesn't match")
 	}
 
-	if expected.Local != nil && !actual.Local.Equal(expected.Local) {
+	if expected.Local.IsValid() && actual.Local != expected.Local {
 		t.Fatal("Gretun.Local doesn't match")
 	}
 
-	if expected.Remote != nil && !actual.Remote.Equal(expected.Remote) {
+	if expected.Remote.IsValid() && actual.Remote != expected.Remote {
 		t.Fatal("Gretun.Remote doesn't match")
 	}
 
@@ -593,10 +595,10 @@ func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 	if actual.VxlanId != expected.VxlanId {
 		t.Fatal("Vxlan.VxlanId doesn't match")
 	}
-	if expected.SrcAddr != nil && !actual.SrcAddr.Equal(expected.SrcAddr) {
+	if expected.SrcAddr.IsValid() && actual.SrcAddr != expected.SrcAddr {
 		t.Fatal("Vxlan.SrcAddr doesn't match")
 	}
-	if expected.Group != nil && !actual.Group.Equal(expected.Group) {
+	if expected.Group.IsValid() && actual.Group != expected.Group {
 		t.Fatal("Vxlan.Group doesn't match")
 	}
 	if expected.TTL != -1 && actual.TTL != expected.TTL {
@@ -787,12 +789,12 @@ func TestLinkAddDelGeneve(t *testing.T) {
 	testLinkAddDel(t, &Geneve{
 		LinkAttrs: LinkAttrs{Name: "foo4", EncapType: "geneve"},
 		ID:        0x1000,
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Remote:    netip.MustParseAddr("127.0.0.1")})
 
 	testLinkAddDel(t, &Geneve{
 		LinkAttrs: LinkAttrs{Name: "foo6", EncapType: "geneve"},
 		ID:        0x1000,
-		Remote:    net.ParseIP("2001:db8:ef33::2")})
+		Remote:    netip.MustParseAddr("2001:db8:ef33::2")})
 }
 
 func TestLinkAddDelGeneveFlowBased(t *testing.T) {
@@ -810,7 +812,7 @@ func TestGeneveCompareToIP(t *testing.T) {
 
 	expected := &Geneve{
 		ID:     0x764332, // 23 bits
-		Remote: net.ParseIP("1.2.3.4"),
+		Remote: netip.MustParseAddr("1.2.3.4"),
 		Dport:  6081,
 	}
 
@@ -851,15 +853,15 @@ func TestLinkAddDelGretap(t *testing.T) {
 		IKey:      0x101,
 		OKey:      0x101,
 		PMtuDisc:  1,
-		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Local:     netip.MustParseAddr("127.0.0.1"),
+		Remote:    netip.MustParseAddr("127.0.0.1")})
 
 	testLinkAddDel(t, &Gretap{
 		LinkAttrs: LinkAttrs{Name: "foo6"},
 		IKey:      0x101,
 		OKey:      0x101,
-		Local:     net.ParseIP("2001:db8:abcd::1"),
-		Remote:    net.ParseIP("2001:db8:ef33::2")})
+		Local:     netip.MustParseAddr("2001:db8:abcd::1"),
+		Remote:    netip.MustParseAddr("2001:db8:ef33::2")})
 }
 
 func TestLinkAddDelGretun(t *testing.T) {
@@ -867,13 +869,13 @@ func TestLinkAddDelGretun(t *testing.T) {
 
 	testLinkAddDel(t, &Gretun{
 		LinkAttrs: LinkAttrs{Name: "foo4"},
-		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Local:     netip.MustParseAddr("127.0.0.1"),
+		Remote:    netip.MustParseAddr("127.0.0.1")})
 
 	testLinkAddDel(t, &Gretun{
 		LinkAttrs: LinkAttrs{Name: "foo6"},
-		Local:     net.ParseIP("2001:db8:abcd::1"),
-		Remote:    net.ParseIP("2001:db8:ef33::2")})
+		Local:     netip.MustParseAddr("2001:db8:abcd::1"),
+		Remote:    netip.MustParseAddr("2001:db8:ef33::2")})
 }
 
 func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
@@ -881,13 +883,13 @@ func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
 
 	testLinkAddDel(t, &Gretun{
 		LinkAttrs: LinkAttrs{Name: "foo"},
-		Local:     net.IPv4(127, 0, 0, 1),
+		Local:     netip.MustParseAddr("127.0.0.1"),
 		IKey:      1234,
 		OKey:      1234})
 
 	testLinkAddDel(t, &Gretun{
 		LinkAttrs: LinkAttrs{Name: "foo6"},
-		Local:     net.ParseIP("2001:db8:1234::4"),
+		Local:     netip.MustParseAddr("2001:db8:1234::4"),
 		IKey:      5678,
 		OKey:      7890})
 }
@@ -1384,10 +1386,10 @@ func TestLinkAddDelBond(t *testing.T) {
 			bond.AdActorSysPrio = 1
 			bond.AdUserPortKey = 1
 			bond.AdActorSystem, _ = net.ParseMAC("06:aa:bb:cc:dd:ee")
-			bond.ArpIpTargets = []net.IP{net.ParseIP("1.1.1.1"), net.ParseIP("1.1.1.2")}
+			bond.ArpIpTargets = []netip.Addr{netip.MustParseAddr("1.1.1.1"), netip.MustParseAddr("1.1.1.2")}
 		case "balance-tlb":
 			bond.TlbDynamicLb = 1
-			bond.ArpIpTargets = []net.IP{net.ParseIP("1.1.1.2"), net.ParseIP("1.1.1.1")}
+			bond.ArpIpTargets = []netip.Addr{netip.MustParseAddr("1.1.1.2"), netip.MustParseAddr("1.1.1.1")}
 		}
 		testLinkAddDel(t, bond)
 	}
@@ -2717,8 +2719,8 @@ func TestLinkAddDelIptun(t *testing.T) {
 	testLinkAddDel(t, &Iptun{
 		LinkAttrs: LinkAttrs{Name: "iptunfoo"},
 		PMtuDisc:  1,
-		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Local:     netip.MustParseAddr("127.0.0.1"),
+		Remote:    netip.MustParseAddr("127.0.0.1")})
 }
 
 func TestLinkAddDelIptunFlowBased(t *testing.T) {
@@ -2736,8 +2738,8 @@ func TestLinkAddDelIp6tnl(t *testing.T) {
 
 	testLinkAddDel(t, &Ip6tnl{
 		LinkAttrs: LinkAttrs{Name: "ip6tnltest"},
-		Local:     net.ParseIP("2001:db8::100"),
-		Remote:    net.ParseIP("2001:db8::200"),
+		Local:     netip.MustParseAddr("2001:db8::100"),
+		Remote:    netip.MustParseAddr("2001:db8::200"),
 	})
 }
 
@@ -2756,8 +2758,8 @@ func TestLinkAddDelSittun(t *testing.T) {
 	testLinkAddDel(t, &Sittun{
 		LinkAttrs: LinkAttrs{Name: "sittunfoo"},
 		PMtuDisc:  1,
-		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Local:     netip.MustParseAddr("127.0.0.1"),
+		Remote:    netip.MustParseAddr("127.0.0.1")})
 }
 
 func TestLinkAddDelVti(t *testing.T) {
@@ -2767,15 +2769,15 @@ func TestLinkAddDelVti(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "vtifoo"},
 		IKey:      0x101,
 		OKey:      0x101,
-		Local:     net.IPv4(127, 0, 0, 1),
-		Remote:    net.IPv4(127, 0, 0, 1)})
+		Local:     netip.MustParseAddr("127.0.0.1"),
+		Remote:    netip.MustParseAddr("127.0.0.1")})
 
 	testLinkAddDel(t, &Vti{
 		LinkAttrs: LinkAttrs{Name: "vtibar"},
 		IKey:      0x101,
 		OKey:      0x101,
-		Local:     net.IPv6loopback,
-		Remote:    net.IPv6loopback})
+		Local:     netip.MustParseAddr("::1"),
+		Remote:    netip.MustParseAddr("::1")})
 }
 
 func TestLinkSetGSOMaxSize(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"net"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -180,8 +180,8 @@ var (
 
 func getXfrmState(thread int) *XfrmState {
 	return &XfrmState{
-		Src:   net.IPv4(byte(192), byte(168), 1, byte(1+thread)),
-		Dst:   net.IPv4(byte(192), byte(168), 2, byte(1+thread)),
+		Src:   netip.AddrFrom4([4]byte{192, 168, 1, byte(1 + thread)}),
+		Dst:   netip.AddrFrom4([4]byte{192, 168, 2, byte(1 + thread)}),
 		Proto: XFRM_PROTO_AH,
 		Mode:  XFRM_MODE_TUNNEL,
 		Spi:   thread,
@@ -193,17 +193,19 @@ func getXfrmState(thread int) *XfrmState {
 }
 
 func getXfrmPolicy(thread int) *XfrmPolicy {
+	subnet, _ := netip.AddrFrom4([4]byte{10, 10, byte(thread), 0}).Prefix(24)
+
 	return &XfrmPolicy{
-		Src:     &net.IPNet{IP: net.IPv4(byte(10), byte(10), byte(thread), 0), Mask: []byte{255, 255, 255, 0}},
-		Dst:     &net.IPNet{IP: net.IPv4(byte(10), byte(10), byte(thread), 0), Mask: []byte{255, 255, 255, 0}},
+		Src:     subnet,
+		Dst:     subnet,
 		Proto:   17,
 		DstPort: 1234,
 		SrcPort: 5678,
 		Dir:     XFRM_DIR_OUT,
 		Tmpls: []XfrmPolicyTmpl{
 			{
-				Src:   net.IPv4(byte(192), byte(168), 1, byte(thread)),
-				Dst:   net.IPv4(byte(192), byte(168), 2, byte(thread)),
+				Src:   netip.AddrFrom4([4]byte{192, 168, 1, byte(thread)}),
+				Dst:   netip.AddrFrom4([4]byte{192, 168, 2, byte(thread)}),
 				Proto: XFRM_PROTO_ESP,
 				Mode:  XFRM_MODE_TUNNEL,
 			},

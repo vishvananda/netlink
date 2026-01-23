@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
@@ -1289,26 +1290,18 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	if vxlan.VtepDevIndex != 0 {
 		data.AddRtAttr(nl.IFLA_VXLAN_LINK, nl.Uint32Attr(uint32(vxlan.VtepDevIndex)))
 	}
-	if vxlan.SrcAddr != nil {
-		ip := vxlan.SrcAddr.To4()
-		if ip != nil {
-			data.AddRtAttr(nl.IFLA_VXLAN_LOCAL, []byte(ip))
+	if vxlan.SrcAddr.IsValid() {
+		if vxlan.SrcAddr.Is4() {
+			data.AddRtAttr(nl.IFLA_VXLAN_LOCAL, vxlan.SrcAddr.AsSlice())
 		} else {
-			ip = vxlan.SrcAddr.To16()
-			if ip != nil {
-				data.AddRtAttr(nl.IFLA_VXLAN_LOCAL6, []byte(ip))
-			}
+			data.AddRtAttr(nl.IFLA_VXLAN_LOCAL6, vxlan.SrcAddr.AsSlice())
 		}
 	}
-	if vxlan.Group != nil {
-		group := vxlan.Group.To4()
-		if group != nil {
-			data.AddRtAttr(nl.IFLA_VXLAN_GROUP, []byte(group))
+	if vxlan.Group.IsValid() {
+		if vxlan.Group.Is4() {
+			data.AddRtAttr(nl.IFLA_VXLAN_GROUP, vxlan.Group.AsSlice())
 		} else {
-			group = vxlan.Group.To16()
-			if group != nil {
-				data.AddRtAttr(nl.IFLA_VXLAN_GROUP6, []byte(group))
-			}
+			data.AddRtAttr(nl.IFLA_VXLAN_GROUP6, vxlan.Group.AsSlice())
 		}
 	}
 
@@ -1378,15 +1371,8 @@ func addBondAttrs(bond *Bond, linkInfo *nl.RtAttr) {
 	if bond.ArpIpTargets != nil {
 		msg := data.AddRtAttr(nl.IFLA_BOND_ARP_IP_TARGET, nil)
 		for i := range bond.ArpIpTargets {
-			ip := bond.ArpIpTargets[i].To4()
-			if ip != nil {
-				msg.AddRtAttr(i, []byte(ip))
-				continue
-			}
-			ip = bond.ArpIpTargets[i].To16()
-			if ip != nil {
-				msg.AddRtAttr(i, []byte(ip))
-			}
+			ip := bond.ArpIpTargets[i]
+			msg.AddRtAttr(i, ip.AsSlice())
 		}
 	}
 	if bond.ArpValidate >= 0 {
@@ -3056,13 +3042,13 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_VXLAN_LINK:
 			vxlan.VtepDevIndex = int(native.Uint32(datum.Value[0:4]))
 		case nl.IFLA_VXLAN_LOCAL:
-			vxlan.SrcAddr = net.IP(datum.Value[0:4])
+			vxlan.SrcAddr, _ = netip.AddrFromSlice(datum.Value[0:4])
 		case nl.IFLA_VXLAN_LOCAL6:
-			vxlan.SrcAddr = net.IP(datum.Value[0:16])
+			vxlan.SrcAddr, _ = netip.AddrFromSlice(datum.Value[0:16])
 		case nl.IFLA_VXLAN_GROUP:
-			vxlan.Group = net.IP(datum.Value[0:4])
+			vxlan.Group, _ = netip.AddrFromSlice(datum.Value[0:4])
 		case nl.IFLA_VXLAN_GROUP6:
-			vxlan.Group = net.IP(datum.Value[0:16])
+			vxlan.Group, _ = netip.AddrFromSlice(datum.Value[0:16])
 		case nl.IFLA_VXLAN_TTL:
 			vxlan.TTL = int(datum.Value[0])
 		case nl.IFLA_VXLAN_TOS:
@@ -3167,21 +3153,17 @@ func parseBondData(link Link, data []syscall.NetlinkRouteAttr) {
 	}
 }
 
-func parseBondArpIpTargets(value []byte) []net.IP {
+func parseBondArpIpTargets(value []byte) []netip.Addr {
 	data, err := nl.ParseRouteAttr(value)
 	if err != nil {
 		return nil
 	}
 
-	targets := []net.IP{}
+	targets := []netip.Addr{}
 	for i := range data {
-		target := net.IP(data[i].Value)
-		if ip := target.To4(); ip != nil {
-			targets = append(targets, ip)
-			continue
-		}
-		if ip := target.To16(); ip != nil {
-			targets = append(targets, ip)
+		addr, ok := netip.AddrFromSlice(data[i].Value)
+		if ok {
+			targets = append(targets, addr)
 		}
 	}
 
@@ -3360,11 +3342,11 @@ func addGeneveAttrs(geneve *Geneve, linkInfo *nl.RtAttr) {
 		data.AddRtAttr(nl.IFLA_GENEVE_COLLECT_METADATA, []byte{})
 	}
 
-	if ip := geneve.Remote; ip != nil {
-		if ip4 := ip.To4(); ip4 != nil {
-			data.AddRtAttr(nl.IFLA_GENEVE_REMOTE, ip.To4())
+	if ip := geneve.Remote; ip.IsValid() {
+		if ip.Is4() {
+			data.AddRtAttr(nl.IFLA_GENEVE_REMOTE, ip.AsSlice())
 		} else {
-			data.AddRtAttr(nl.IFLA_GENEVE_REMOTE6, []byte(ip))
+			data.AddRtAttr(nl.IFLA_GENEVE_REMOTE6, ip.AsSlice())
 		}
 	}
 
@@ -3403,7 +3385,7 @@ func parseGeneveData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_GENEVE_ID:
 			geneve.ID = native.Uint32(datum.Value[0:4])
 		case nl.IFLA_GENEVE_REMOTE, nl.IFLA_GENEVE_REMOTE6:
-			geneve.Remote = datum.Value
+			geneve.Remote, _ = netip.AddrFromSlice(datum.Value)
 		case nl.IFLA_GENEVE_PORT:
 			geneve.Dport = ntohs(datum.Value[0:2])
 		case nl.IFLA_GENEVE_TTL:
@@ -3434,18 +3416,12 @@ func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
 		return
 	}
 
-	if ip := gretap.Local; ip != nil {
-		if ip.To4() != nil {
-			ip = ip.To4()
-		}
-		data.AddRtAttr(nl.IFLA_GRE_LOCAL, []byte(ip))
+	if ip := gretap.Local; ip.IsValid() {
+		data.AddRtAttr(nl.IFLA_GRE_LOCAL, ip.AsSlice())
 	}
 
-	if ip := gretap.Remote; ip != nil {
-		if ip.To4() != nil {
-			ip = ip.To4()
-		}
-		data.AddRtAttr(nl.IFLA_GRE_REMOTE, []byte(ip))
+	if ip := gretap.Remote; ip.IsValid() {
+		data.AddRtAttr(nl.IFLA_GRE_REMOTE, ip.AsSlice())
 	}
 
 	if gretap.IKey != 0 {
@@ -3486,9 +3462,9 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_GRE_IKEY:
 			gre.OKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_LOCAL:
-			gre.Local = net.IP(datum.Value)
+			gre.Local, _ = netip.AddrFromSlice(datum.Value)
 		case nl.IFLA_GRE_REMOTE:
-			gre.Remote = net.IP(datum.Value)
+			gre.Remote, _ = netip.AddrFromSlice(datum.Value)
 		case nl.IFLA_GRE_ENCAP_SPORT:
 			gre.EncapSport = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_ENCAP_DPORT:
@@ -3522,18 +3498,12 @@ func addGretunAttrs(gre *Gretun, linkInfo *nl.RtAttr) {
 		return
 	}
 
-	if ip := gre.Local; ip != nil {
-		if ip.To4() != nil {
-			ip = ip.To4()
-		}
-		data.AddRtAttr(nl.IFLA_GRE_LOCAL, []byte(ip))
+	if ip := gre.Local; ip.IsValid() {
+		data.AddRtAttr(nl.IFLA_GRE_LOCAL, ip.AsSlice())
 	}
 
-	if ip := gre.Remote; ip != nil {
-		if ip.To4() != nil {
-			ip = ip.To4()
-		}
-		data.AddRtAttr(nl.IFLA_GRE_REMOTE, []byte(ip))
+	if ip := gre.Remote; ip.IsValid() {
+		data.AddRtAttr(nl.IFLA_GRE_REMOTE, ip.AsSlice())
 	}
 
 	if gre.IKey != 0 {
@@ -3571,9 +3541,9 @@ func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_GRE_OKEY:
 			gre.OKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_LOCAL:
-			gre.Local = net.IP(datum.Value)
+			gre.Local, _ = netip.AddrFromSlice(datum.Value)
 		case nl.IFLA_GRE_REMOTE:
-			gre.Remote = net.IP(datum.Value)
+			gre.Remote, _ = netip.AddrFromSlice(datum.Value)
 		case nl.IFLA_GRE_IFLAGS:
 			gre.IFlags = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_OFLAGS:
@@ -3642,14 +3612,12 @@ func addIptunAttrs(iptun *Iptun, linkInfo *nl.RtAttr) {
 		return
 	}
 
-	ip := iptun.Local.To4()
-	if ip != nil {
-		data.AddRtAttr(nl.IFLA_IPTUN_LOCAL, []byte(ip))
+	if iptun.Local.Is4() {
+		data.AddRtAttr(nl.IFLA_IPTUN_LOCAL, iptun.Local.AsSlice())
 	}
 
-	ip = iptun.Remote.To4()
-	if ip != nil {
-		data.AddRtAttr(nl.IFLA_IPTUN_REMOTE, []byte(ip))
+	if iptun.Remote.Is4() {
+		data.AddRtAttr(nl.IFLA_IPTUN_REMOTE, iptun.Remote.AsSlice())
 	}
 
 	if iptun.Link != 0 {
@@ -3670,9 +3638,9 @@ func parseIptunData(link Link, data []syscall.NetlinkRouteAttr) {
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.IFLA_IPTUN_LOCAL:
-			iptun.Local = net.IP(datum.Value[0:4])
+			iptun.Local, _ = netip.AddrFromSlice(datum.Value[0:4])
 		case nl.IFLA_IPTUN_REMOTE:
-			iptun.Remote = net.IP(datum.Value[0:4])
+			iptun.Remote, _ = netip.AddrFromSlice(datum.Value[0:4])
 		case nl.IFLA_IPTUN_TTL:
 			iptun.Ttl = uint8(datum.Value[0])
 		case nl.IFLA_IPTUN_TOS:
@@ -3708,14 +3676,12 @@ func addIp6tnlAttrs(ip6tnl *Ip6tnl, linkInfo *nl.RtAttr) {
 		data.AddRtAttr(nl.IFLA_IPTUN_LINK, nl.Uint32Attr(ip6tnl.Link))
 	}
 
-	ip := ip6tnl.Local.To16()
-	if ip != nil {
-		data.AddRtAttr(nl.IFLA_IPTUN_LOCAL, []byte(ip))
+	if ip6tnl.Local.Is6() {
+		data.AddRtAttr(nl.IFLA_IPTUN_LOCAL, ip6tnl.Local.AsSlice())
 	}
 
-	ip = ip6tnl.Remote.To16()
-	if ip != nil {
-		data.AddRtAttr(nl.IFLA_IPTUN_REMOTE, []byte(ip))
+	if ip6tnl.Remote.Is6() {
+		data.AddRtAttr(nl.IFLA_IPTUN_REMOTE, ip6tnl.Remote.AsSlice())
 	}
 
 	data.AddRtAttr(nl.IFLA_IPTUN_TTL, nl.Uint8Attr(ip6tnl.Ttl))
@@ -3735,9 +3701,9 @@ func parseIp6tnlData(link Link, data []syscall.NetlinkRouteAttr) {
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.IFLA_IPTUN_LOCAL:
-			ip6tnl.Local = net.IP(datum.Value[:16])
+			ip6tnl.Local, _ = netip.AddrFromSlice(datum.Value[:16])
 		case nl.IFLA_IPTUN_REMOTE:
-			ip6tnl.Remote = net.IP(datum.Value[:16])
+			ip6tnl.Remote, _ = netip.AddrFromSlice(datum.Value[:16])
 		case nl.IFLA_IPTUN_TTL:
 			ip6tnl.Ttl = datum.Value[0]
 		case nl.IFLA_IPTUN_TOS:
@@ -3771,14 +3737,12 @@ func addSittunAttrs(sittun *Sittun, linkInfo *nl.RtAttr) {
 		data.AddRtAttr(nl.IFLA_IPTUN_LINK, nl.Uint32Attr(sittun.Link))
 	}
 
-	ip := sittun.Local.To4()
-	if ip != nil {
-		data.AddRtAttr(nl.IFLA_IPTUN_LOCAL, []byte(ip))
+	if sittun.Local.Is4() {
+		data.AddRtAttr(nl.IFLA_IPTUN_LOCAL, sittun.Local.AsSlice())
 	}
 
-	ip = sittun.Remote.To4()
-	if ip != nil {
-		data.AddRtAttr(nl.IFLA_IPTUN_REMOTE, []byte(ip))
+	if sittun.Remote.Is4() {
+		data.AddRtAttr(nl.IFLA_IPTUN_REMOTE, sittun.Remote.AsSlice())
 	}
 
 	if sittun.Ttl > 0 {
@@ -3801,9 +3765,9 @@ func parseSittunData(link Link, data []syscall.NetlinkRouteAttr) {
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.IFLA_IPTUN_LOCAL:
-			sittun.Local = net.IP(datum.Value[0:4])
+			sittun.Local, _ = netip.AddrFromSlice(datum.Value[0:4])
 		case nl.IFLA_IPTUN_REMOTE:
-			sittun.Remote = net.IP(datum.Value[0:4])
+			sittun.Remote, _ = netip.AddrFromSlice(datum.Value[0:4])
 		case nl.IFLA_IPTUN_TTL:
 			sittun.Ttl = datum.Value[0]
 		case nl.IFLA_IPTUN_TOS:
@@ -3827,29 +3791,12 @@ func parseSittunData(link Link, data []syscall.NetlinkRouteAttr) {
 func addVtiAttrs(vti *Vti, linkInfo *nl.RtAttr) {
 	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
 
-	family := FAMILY_V4
-	if vti.Local.To4() == nil {
-		family = FAMILY_V6
+	if vti.Local.IsValid() {
+		data.AddRtAttr(nl.IFLA_VTI_LOCAL, vti.Local.AsSlice())
 	}
 
-	var ip net.IP
-
-	if family == FAMILY_V4 {
-		ip = vti.Local.To4()
-	} else {
-		ip = vti.Local
-	}
-	if ip != nil {
-		data.AddRtAttr(nl.IFLA_VTI_LOCAL, []byte(ip))
-	}
-
-	if family == FAMILY_V4 {
-		ip = vti.Remote.To4()
-	} else {
-		ip = vti.Remote
-	}
-	if ip != nil {
-		data.AddRtAttr(nl.IFLA_VTI_REMOTE, []byte(ip))
+	if vti.Remote.IsValid() {
+		data.AddRtAttr(nl.IFLA_VTI_REMOTE, vti.Remote.AsSlice())
 	}
 
 	if vti.Link != 0 {
@@ -3865,9 +3812,9 @@ func parseVtiData(link Link, data []syscall.NetlinkRouteAttr) {
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.IFLA_VTI_LOCAL:
-			vti.Local = net.IP(datum.Value)
+			vti.Local, _ = netip.AddrFromSlice(datum.Value)
 		case nl.IFLA_VTI_REMOTE:
-			vti.Remote = net.IP(datum.Value)
+			vti.Remote, _ = netip.AddrFromSlice(datum.Value)
 		case nl.IFLA_VTI_IKEY:
 			vti.IKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_VTI_OKEY:

@@ -5,6 +5,7 @@ package netlink
 
 import (
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/vishvananda/netns"
@@ -276,7 +277,7 @@ func (h *Handle) RouteDel(route *Route) error {
 	return ErrNotImplemented
 }
 
-func (h *Handle) RouteGet(destination net.IP) ([]Route, error) {
+func (h *Handle) RouteGet(destination netip.Addr) ([]Route, error) {
 	return nil, ErrNotImplemented
 }
 

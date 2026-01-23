@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"runtime"
 	"sync"
@@ -14,6 +13,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"net/netip"
 
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
@@ -67,14 +68,12 @@ func (e errDumpInterrupted) Is(target error) bool {
 	return target == unix.EINTR
 }
 
-// GetIPFamily returns the family type of a net.IP.
-func GetIPFamily(ip net.IP) int {
-	if len(ip) <= net.IPv4len {
+// GetIPFamily returns the family type of a netip.Addr.
+func GetIPFamily(ip netip.Addr) int {
+	if ip.Is4() {
 		return FAMILY_V4
 	}
-	if ip.To4() != nil {
-		return FAMILY_V4
-	}
+
 	return FAMILY_V6
 }
 
