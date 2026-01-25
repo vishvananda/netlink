@@ -2113,6 +2113,60 @@ func (h *Handle) LinkByIndex(index int) (Link, error) {
 	return execGetLink(req)
 }
 
+// LinkByIndexAndNsid finds a link by index in a different namespace and returns a pointer to the object
+func LinkByIndexAndNsid(index int, nsid int) (Link, error) {
+	return pkgHandle.LinkByIndexAndNsid(index, nsid)
+}
+
+// LinkByIndexAndNsid finds a link by index in a different namespace and returns a pointer to the object
+func (h *Handle) LinkByIndexAndNsid(index int, nsid int) (Link, error) {
+	req := h.newNetlinkRequest(unix.RTM_GETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(index)
+	req.AddData(msg)
+
+	attr := nl.NewRtAttr(unix.IFLA_TARGET_NETNSID, nl.Uint32Attr(uint32(nsid)))
+	req.AddData(attr)
+
+	if h.options.collectVFInfo {
+		attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+		req.AddData(attr)
+	}
+
+	return execGetLink(req)
+}
+
+// LinkByNameAndNsid finds a link by name in a different namespace and returns a pointer to the object
+func LinkByNameAndNsid(name string, nsid int) (Link, error) {
+	return pkgHandle.LinkByNameAndNsid(name, nsid)
+}
+
+// LinkByNameAndNsid finds a link by name in a different namespace and returns a pointer to the object
+func (h *Handle) LinkByNameAndNsid(name string, nsid int) (Link, error) {
+	req := h.newNetlinkRequest(unix.RTM_GETLINK, unix.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	req.AddData(msg)
+
+	attr := nl.NewRtAttr(unix.IFLA_TARGET_NETNSID, nl.Uint32Attr(uint32(nsid)))
+	req.AddData(attr)
+
+	if h.options.collectVFInfo {
+		attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
+		req.AddData(attr)
+	}
+
+	nameData := nl.NewRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(name))
+	if len(name) > 15 {
+		nameData = nl.NewRtAttr(unix.IFLA_ALT_IFNAME, nl.ZeroTerminated(name))
+	}
+	req.AddData(nameData)
+
+	link, err := execGetLink(req)
+	return link, err
+}
+
 func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 	msgs, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	if err != nil {
