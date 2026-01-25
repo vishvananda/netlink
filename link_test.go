@@ -2220,6 +2220,38 @@ func TestLinkByIndex(t *testing.T) {
 	}
 }
 
+func TestLinkByIndexAndNsid(t *testing.T) {
+	minKernelRequired(t, 4, 15)
+	t.Cleanup(setUpNetlinkTest(t))
+	nsId, linkIdx, linkName, cleanup := setUpNamespaceWithLink(t)
+	t.Cleanup(cleanup)
+
+	link, err := LinkByIndexAndNsid(linkIdx, nsId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().Name != linkName {
+		t.Fatal("did not get the correct link")
+	}
+}
+
+func TestLinkByNameAndNsid(t *testing.T) {
+	minKernelRequired(t, 4, 15)
+	t.Cleanup(setUpNetlinkTest(t))
+	nsId, linkIdx, linkName, cleanup := setUpNamespaceWithLink(t)
+	t.Cleanup(cleanup)
+
+	link, err := LinkByNameAndNsid(linkName, nsId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link.Attrs().Index != linkIdx {
+		t.Fatal("did not get the correct link")
+	}
+}
+
 func TestLinkSet(t *testing.T) {
 	t.Cleanup(setUpNetlinkTest(t))
 
