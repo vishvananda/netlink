@@ -202,6 +202,99 @@ func TestBridgeVlanTunnelInfo(t *testing.T) {
 	}
 }
 
+func TestBridgeVni(t *testing.T) {
+	minKernelRequired(t, 5, 18)
+	t.Cleanup(setUpNetlinkTest(t))
+
+	vxlanName := "vxlan0"
+
+	// ip link add vxlan0 type vxlan dstport 4789 nolearning external vnifilter
+	vxlan := &Vxlan{
+		LinkAttrs: LinkAttrs{Name: vxlanName},
+		Learning:  false,
+		FlowBased: true,
+		VniFilter: true,
+	}
+	if err := LinkAdd(vxlan); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName(vxlanName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bridge vni add dev vxlan0 vni 100
+	if err := BridgeVniAdd(link, 100); err != nil {
+		t.Fatal(err)
+	}
+
+	// bridge vni show
+	vniMap, err := BridgeVniList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	vnis := vniMap[int32(link.Attrs().Index)]
+	if len(vnis) != 1 {
+		t.Fatalf("expected 1 VNI, got %d", len(vnis))
+	}
+	if vnis[0].Vni != 100 {
+		t.Fatalf("expected VNI 100, got %d", vnis[0].Vni)
+	}
+	if vnis[0].VniEnd != 0 {
+		t.Fatalf("expected VniEnd 0 for single VNI, got %d", vnis[0].VniEnd)
+	}
+
+	// bridge vni del dev vxlan0 vni 100
+	if err := BridgeVniDel(link, 100); err != nil {
+		t.Fatal(err)
+	}
+
+	vniMap, err = BridgeVniList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	vnis = vniMap[int32(link.Attrs().Index)]
+	if len(vnis) != 0 {
+		t.Fatalf("expected 0 VNI entries after delete, got %d", len(vnis))
+	}
+
+	// bridge vni add dev vxlan0 vni 200-210
+	if err := BridgeVniAddRange(link, 200, 210); err != nil {
+		t.Fatal(err)
+	}
+
+	// bridge vni show
+	vniMap, err = BridgeVniList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	vnis = vniMap[int32(link.Attrs().Index)]
+	if len(vnis) != 1 {
+		t.Fatalf("expected 1 VNI range entry, got %d", len(vnis))
+	}
+	if vnis[0].Vni != 200 {
+		t.Fatalf("expected VNI start 200, got %d", vnis[0].Vni)
+	}
+	if vnis[0].VniEnd != 210 {
+		t.Fatalf("expected VNI end 210, got %d", vnis[0].VniEnd)
+	}
+
+	// bridge vni del dev vxlan0 vni 200-210
+	if err := BridgeVniDelRange(link, 200, 210); err != nil {
+		t.Fatal(err)
+	}
+
+	vniMap, err = BridgeVniList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	vnis = vniMap[int32(link.Attrs().Index)]
+	if len(vnis) != 0 {
+		t.Fatalf("expected 0 VNI entries after range delete, got %d", len(vnis))
+	}
+}
+
 func TestBridgeGroupFwdMask(t *testing.T) {
 	minKernelRequired(t, 4, 15) //minimal release for per-port group_fwd_mask
 	t.Cleanup(setUpNetlinkTest(t))
