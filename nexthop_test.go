@@ -8,8 +8,18 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 )
+
+func TestNexthopString(t *testing.T) {
+	var nh *Nexthop = nil
+	// Ensure calling String() does not panic with nil receiver
+	t.Log(nh.String())
+	// Ensure calling String() does not panic with empty fields
+	nh = &Nexthop{}
+	t.Log(nh.String())
+}
 
 func TestNexthopAddListDelReplace(t *testing.T) {
 	t.Cleanup(setUpNetlinkTest(t))
@@ -151,5 +161,62 @@ func TestNexthopAddListDelReplace(t *testing.T) {
 	}
 	if !resNH2.Gateway.Equal(nh2.Gateway) {
 		t.Fatalf("Nexthop Gateway mismatch: expected %s, got %s", nh2.Gateway, resNH2.Gateway)
+	}
+}
+
+func TestNexthopEncap(t *testing.T) {
+	t.Cleanup(setUpNetlinkTest(t))
+
+	// get loopback interface
+	loop, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// bring the interface up
+	if err = LinkSetUp(loop); err != nil {
+		t.Fatal(err)
+	}
+
+	nh := &Nexthop{
+		ID:  1,
+		OIF: uint32(loop.Attrs().Index),
+		Encap: &SEG6Encap{
+			Mode: nl.SEG6_IPTUN_MODE_ENCAP,
+			Segments: []net.IP{
+				net.ParseIP("2001:db8:1234::"),
+			},
+		},
+	}
+
+	if err = NexthopAdd(nh); err != nil {
+		t.Fatal(err)
+	}
+
+	nhs, err := NexthopList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(nhs) != 1 {
+		t.Fatalf("Expected 1 nexthop, got %d", len(nhs))
+	}
+
+	// Check we can read what we wrote
+	resNH := nhs[0]
+	if resNH.Encap == nil {
+		t.Fatal("Nexthop Encap is nil")
+	}
+	seg6Encap, ok := resNH.Encap.(*SEG6Encap)
+	if !ok {
+		t.Fatalf("Nexthop Encap is not SEG6Encap, got %T", resNH.Encap)
+	}
+	if seg6Encap.Mode != nl.SEG6_IPTUN_MODE_ENCAP {
+		t.Fatalf("Nexthop Encap Mode mismatch: expected %d, got %d", nl.SEG6_IPTUN_MODE_ENCAP, seg6Encap.Mode)
+	}
+	if len(seg6Encap.Segments) != 1 {
+		t.Fatalf("Expected 1 segment, got %d", len(seg6Encap.Segments))
+	}
+	if !seg6Encap.Segments[0].Equal(net.ParseIP("2001:db8:1234::")) {
+		t.Fatalf("Nexthop Encap Segment mismatch: expected %s, got %s", "2001:db8:1234::", seg6Encap.Segments[0])
 	}
 }
