@@ -2,6 +2,7 @@ package netlink
 
 import (
 	"errors"
+	"net"
 	"syscall"
 	"testing"
 
@@ -222,6 +223,88 @@ func TestVDPAGetDevConfigByName_Unknowm(t *testing.T) {
 	}
 }
 
+func TestVDPASetMAC(t *testing.T) {
+	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET, nl.VDPA_CMD_DEV_ATTR_SET)()
+	firstMac, _ := net.ParseMAC("02:11:22:33:44:68")
+	lastMacStr := "72:84:65:12:09:77"
+	lastMac, _ := net.ParseMAC(lastMacStr)
+	if err := createVDPATestDevWithParams(VDPANewDevParams{MACAddr: firstMac}); err != nil {
+		t.Fatalf("failed to create VDPA device: %v", err)
+	}
+	if err := VDPASetAttr(vdpaTestDeviceName, VDPANewDevParams{MACAddr: lastMac}); err != nil {
+		t.Fatalf("failed to set mac to VDPA device: %v", err)
+	}
+	dev, err := VDPAGetDevConfigByName(vdpaTestDeviceName)
+	if err != nil {
+		t.Fatalf("VDPAGetDevConfigByName failed: %v", err)
+	}
+	checkVDPADevConf(t, dev)
+	if dev.Name != vdpaTestDeviceName {
+		t.Fatalf("Invalid device received for Get call, expected: %s, actual: %s", vdpaTestDeviceName, dev.Name)
+	}
+	newMacStr := dev.Net.Cfg.MACAddr.String()
+	if newMacStr != lastMacStr {
+		t.Fatalf("mac address was not properly set. Expected: %s, actual: %s", lastMac, newMacStr)
+	}
+}
+
+func TestVDPASetMACWrongName(t *testing.T) {
+	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET, nl.VDPA_CMD_DEV_ATTR_SET)()
+	mac, _ := net.ParseMAC("72:84:65:12:09:77")
+	if err := createVDPATestDev(); err != nil {
+		t.Fatalf("failed to create VDPA device: %v", err)
+	}
+	err := VDPASetAttr("__unknown_device__", VDPANewDevParams{MACAddr: mac})
+	if !errors.Is(err, syscall.ENODEV) {
+		t.Fatalf("VDPASetAttr returned unexpected error setting mac to non existing device: %v", err)
+	}
+}
+
+func TestVDPASetEmptyParams(t *testing.T) {
+	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET, nl.VDPA_CMD_DEV_ATTR_SET)()
+	if err := createVDPATestDev(); err != nil {
+		t.Fatalf("failed to create VDPA device: %v", err)
+	}
+	err := VDPASetAttr(vdpaTestDeviceName, VDPANewDevParams{})
+	if err == nil {
+		t.Fatalf("VDPASetAttr did not return an error when params were empty: %v", err)
+	}
+}
+
+func TestVDPASetMTU(t *testing.T) {
+	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET, nl.VDPA_CMD_DEV_ATTR_SET)()
+	if err := createVDPATestDev(); err != nil {
+		t.Fatalf("failed to create VDPA device: %v", err)
+	}
+	err := VDPASetAttr(vdpaTestDeviceName, VDPANewDevParams{MTU: 3000})
+	if !errors.Is(err, syscall.ENOTSUP) {
+		t.Fatalf("VDPASetAttr returned an unexpected error setting mtu to vdpa device: %v", err)
+	}
+}
+
+func TestVDPASetMaxVQP(t *testing.T) {
+	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET, nl.VDPA_CMD_DEV_ATTR_SET)()
+	if err := createVDPATestDev(); err != nil {
+		t.Fatalf("failed to create VDPA device: %v", err)
+	}
+	err := VDPASetAttr(vdpaTestDeviceName, VDPANewDevParams{MaxVQP: 3000})
+	if !errors.Is(err, syscall.ENOTSUP) {
+		t.Fatalf("VDPASetAttr returned an unexpected error setting maxvqp to vdpa device: %v", err)
+	}
+}
+
+func TestVDPASetFeatures(t *testing.T) {
+	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET, nl.VDPA_CMD_DEV_ATTR_SET)()
+	if err := createVDPATestDev(); err != nil {
+		t.Fatalf("failed to create VDPA device: %v", err)
+	}
+	// Default vdpa_sim_net features without VIRTIO_NET_F_CTRL_MAC_ADDR
+	err := VDPASetAttr(vdpaTestDeviceName, VDPANewDevParams{Features: 13019316265})
+	if !errors.Is(err, syscall.ENOTSUP) {
+		t.Fatalf("VDPASetAttr returned an unexpected error setting features to vdpa device: %v", err)
+	}
+}
+
 func TestSetGetBits(t *testing.T) {
 	features := SetBits(0, VIRTIO_NET_F_CSUM, VIRTIO_NET_F_MQ)
 	if !IsBitSet(features, VIRTIO_NET_F_CSUM) || !IsBitSet(features, VIRTIO_NET_F_MQ) {
@@ -234,6 +317,10 @@ func TestSetGetBits(t *testing.T) {
 
 func createVDPATestDev() error {
 	return VDPANewDev(vdpaTestDeviceName, "", vdpaSimMGMTDev, VDPANewDevParams{})
+}
+
+func createVDPATestDevWithParams(params VDPANewDevParams) error {
+	return VDPANewDev(vdpaTestDeviceName, "", vdpaSimMGMTDev, params)
 }
 
 func checkVDPAMGMTDev(t *testing.T, d *VDPAMGMTDev) {
