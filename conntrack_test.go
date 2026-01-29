@@ -5,7 +5,6 @@ package netlink
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/cpu"
 	"golang.org/x/sys/unix"
 )
 
@@ -841,7 +841,7 @@ func TestConntrackFilter(t *testing.T) {
 }
 
 func TestParseRawData(t *testing.T) {
-	if nl.NativeEndian() == binary.BigEndian {
+	if cpu.IsBigEndian {
 		t.Skip("testdata expect little-endian test executor")
 	}
 	os.Setenv("TZ", "") // print timestamps in UTC
