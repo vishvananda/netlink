@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"testing"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 func TestBridgeVlan(t *testing.T) {
@@ -292,6 +294,133 @@ func TestBridgeVni(t *testing.T) {
 	vnis = vniMap[int32(link.Attrs().Index)]
 	if len(vnis) != 0 {
 		t.Fatalf("expected 0 VNI entries after range delete, got %d", len(vnis))
+	}
+}
+
+func setupBridgeWithTwoVxlans(t *testing.T) (*Bridge, *Vxlan, *Vxlan) {
+	t.Helper()
+
+	// ip link add br0 type bridge
+	bridge := &Bridge{LinkAttrs: LinkAttrs{Name: "br0"}}
+	if err := LinkAdd(bridge); err != nil {
+		t.Fatal(err)
+	}
+
+	// ip link add vxlan0 type vxlan dstport 4789 nolearning external local 10.0.1.1
+	vxlan0 := &Vxlan{
+		LinkAttrs: LinkAttrs{Name: "vxlan0"},
+		SrcAddr:   []byte("10.0.1.1"),
+		Learning:  false,
+		FlowBased: true,
+		Port:      4789,
+	}
+	if err := LinkAdd(vxlan0); err != nil {
+		t.Fatal(err)
+	}
+
+	// ip link add vxlan1 type vxlan dstport 4790 nolearning external local 10.0.1.1
+	vxlan1 := &Vxlan{
+		LinkAttrs: LinkAttrs{Name: "vxlan1"},
+		SrcAddr:   []byte("10.0.1.1"),
+		Learning:  false,
+		FlowBased: true,
+		Port:      4790,
+	}
+	if err := LinkAdd(vxlan1); err != nil {
+		t.Fatal(err)
+	}
+
+	// ip link set dev vxlan0 master br0
+	// ip link set dev vxlan1 master br0
+	for _, vxlan := range []*Vxlan{vxlan0, vxlan1} {
+		if err := LinkSetMaster(vxlan, bridge); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// ip link set br0 type bridge vlan_filtering 1
+	if err := BridgeSetVlanFiltering(bridge, true); err != nil {
+		t.Fatal(err)
+	}
+
+	// bridge link set dev vxlan0 vlan_tunnel on
+	// bridge link set dev vxlan1 vlan_tunnel on
+	for _, vxlan := range []*Vxlan{vxlan0, vxlan1} {
+		if err := LinkSetVlanTunnel(vxlan, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	return bridge, vxlan0, vxlan1
+}
+
+func TestBridgeVlanTunnelShowDev(t *testing.T) {
+	minKernelRequired(t, 4, 11)
+	t.Cleanup(setUpNetlinkTest(t))
+
+	if err := remountSysfs(); err != nil {
+		t.Fatal(err)
+	}
+
+	bridge, vxlan0, vxlan1 := setupBridgeWithTwoVxlans(t)
+
+	// bridge vlan add vid 10 dev vxlan0
+	if err := BridgeVlanAdd(vxlan0, 10, false, false, false, false); err != nil {
+		t.Fatal(err)
+	}
+	// bridge vlan add dev vxlan0 vid 10 tunnel_info id 100
+	if err := BridgeVlanAddTunnelInfo(vxlan0, 10, 100, false, false); err != nil {
+		t.Fatal(err)
+	}
+	// bridge vlan add vid 11 dev vxlan0
+	if err := BridgeVlanAdd(vxlan0, 11, false, false, false, false); err != nil {
+		t.Fatal(err)
+	}
+	// bridge vlan add dev vxlan0 vid 11 tunnel_info id 101
+	if err := BridgeVlanAddTunnelInfo(vxlan0, 11, 101, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	// bridge vlan add vid 20 dev vxlan1
+	if err := BridgeVlanAdd(vxlan1, 20, false, false, false, false); err != nil {
+		t.Fatal(err)
+	}
+	// bridge vlan add dev vxlan1 vid 20 tunnel_info id 200
+	if err := BridgeVlanAddTunnelInfo(vxlan1, 20, 200, false, false); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify vxlan0 returns only its tunnel infos
+	tis, err := BridgeVlanTunnelShowDev(vxlan0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tis) != 2 {
+		t.Fatalf("vxlan0: expected 2 tunnel infos, got %d: %v", len(tis), tis)
+	}
+	if tis[0] != (nl.TunnelInfo{Vid: 10, TunId: 100}) || tis[1] != (nl.TunnelInfo{Vid: 11, TunId: 101}) {
+		t.Fatalf("vxlan0: unexpected tunnel infos: %+v", tis)
+	}
+
+	// Verify vxlan1 returns only its tunnel infos
+	tis, err = BridgeVlanTunnelShowDev(vxlan1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tis) != 1 {
+		t.Fatalf("vxlan1: expected 1 tunnel info, got %d: %v", len(tis), tis)
+	}
+	if tis[0] != (nl.TunnelInfo{Vid: 20, TunId: 200}) {
+		t.Fatalf("vxlan1: unexpected tunnel info: %+v", tis)
+	}
+
+	// Verify bridge itself returns no tunnel infos
+	tis, err = BridgeVlanTunnelShowDev(bridge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tis) != 0 {
+		t.Fatalf("bridge: expected 0 tunnel infos, got %d: %v", len(tis), tis)
 	}
 }
 
