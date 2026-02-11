@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -262,6 +263,82 @@ func setUpNamedNetlinkTestWithKModule(t *testing.T, moduleNames ...string) (stri
 	}
 
 	return setUpNamedNetlinkTest(t)
+}
+
+func setUpNamespaceWithLink(t *testing.T) (nsId int, linkId int, linkName string, teardown tearDownNetlinkTest) {
+	skipUnlessRoot(t)
+	nsName, cleanupNs := setUpNamedNetlinkTest(t)
+
+	ok := false
+	defer func() {
+		if !ok {
+			cleanupNs()
+		}
+	}()
+
+	cmd := exec.Command("ip", "netns", "set", nsName, "auto")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		if strings.Contains(stderr.String(), "Invalid") {
+			t.Skip("iproute2 version is too old")
+		}
+
+		t.Fatalf("Failed to run: ip netns set %s auto", nsName)
+	}
+
+	// create a random name
+	rnd := make([]byte, 4)
+	if _, err := rand.Read(rnd); err != nil {
+		t.Fatal("failed creating random link name")
+	}
+	name := hex.EncodeToString(rnd)
+
+	if err := exec.Command("ip", "netns", "exec", nsName, "ip", "link", "add", name, "type", "dummy").Run(); err != nil {
+		t.Fatalf("Failed to run: ip netns exec %s ip link add %s type dummy", nsName, name)
+	}
+
+	cmd = exec.Command("ip", "netns", "exec", nsName, "ip", "--json", "link", "show", name)
+	var stdout bytes.Buffer
+	stderr.Reset()
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		if strings.Contains(stderr.String(), "unknown") {
+			t.Skip("iproute2 version is too old")
+		}
+
+		t.Fatalf("Failed to run: %s", cmd)
+	}
+
+	var ipOutput []struct {
+		Index int `json:"ifindex"`
+	}
+
+	err := json.Unmarshal(stdout.Bytes(), &ipOutput)
+	if err != nil {
+		t.Fatalf("Failed to parse json")
+	}
+
+	if len(ipOutput) != 1 {
+		t.Fatalf("failed to get created link")
+	}
+
+	ns, err := netns.GetFromName(nsName)
+	if err != nil {
+		t.Fatalf("getting ns: %v", err)
+	}
+
+	defer ns.Close()
+
+	nsid, err := GetNetNsIdByFd(int(ns))
+	if err != nil {
+		t.Fatalf("getting nsid: %v", err)
+	}
+
+	ok = true
+
+	return nsid, ipOutput[0].Index, name, cleanupNs
 }
 
 func remountSysfs() error {
