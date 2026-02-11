@@ -2240,6 +2240,49 @@ func TestLinkByIndex(t *testing.T) {
 	}
 }
 
+func TestOpenvSwitch(t *testing.T) {
+	skipUnlessRoot(t)
+	skipUnlessKModuleLoaded(t, "openvswitch")
+
+	// This test validates host OVS state, so it must not create an isolated netns
+	// via setUpNetlinkTest(), otherwise host OVS links will be invisible.
+	link, err := LinkByName("ovs-system")
+	if err != nil {
+		if _, ok := err.(LinkNotFoundError); ok {
+			t.Skip("ovs-system interface not found")
+		}
+		t.Fatal("Failed getting link: ", err)
+	}
+
+	ovsSystem, ok := link.(*OpenvSwitch)
+	if !ok {
+		t.Fatalf("unexpected link type: %T", link)
+	}
+
+	links, err := LinkList()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, l := range links {
+		if l.Attrs().Name == ovsSystem.Name {
+			if _, ok := l.(*OpenvSwitch); !ok {
+				t.Fatalf("unexpected link type: %T", l)
+			}
+		}
+
+		if l.Attrs().Slave != nil && l.Attrs().Slave.SlaveType() == "openvswitch" {
+			if _, ok := l.Attrs().Slave.(*OpenvSwitchSlave); !ok {
+				t.Fatalf("unexpected slave type: %T", l.Attrs().Slave)
+			}
+
+			if l.Attrs().MasterIndex != ovsSystem.Index {
+				t.Fatalf("Got unexpected master index: %d, expected: %d", l.Attrs().MasterIndex, ovsSystem.Index)
+			}
+		}
+	}
+}
+
 func TestLinkSet(t *testing.T) {
 	t.Cleanup(setUpNetlinkTest(t))
 
