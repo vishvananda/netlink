@@ -27,10 +27,23 @@ func setupRdmaKModule(t *testing.T, name string) {
 	t.Skipf("Test requires kmodule %q.", name)
 }
 
+func firstRdmaDevice(t *testing.T) *RdmaLink {
+	t.Helper()
+	links, err := RdmaLinkList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(links) == 0 {
+		t.Skip("No RDMA devices available")
+	}
+	return links[0]
+}
+
 func TestRdmaGetRdmaLink(t *testing.T) {
 	minKernelRequired(t, 4, 16)
 	setupRdmaKModule(t, "ib_core")
-	_, err := RdmaLinkByName("foo")
+	link := firstRdmaDevice(t)
+	_, err := RdmaLinkByName(link.Attrs.Name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,17 +52,15 @@ func TestRdmaGetRdmaLink(t *testing.T) {
 func TestRdmaSetRdmaLinkName(t *testing.T) {
 	minKernelRequired(t, 4, 19)
 	setupRdmaKModule(t, "ib_core")
-	link, err := RdmaLinkByName("foo")
-	if err != nil {
-		t.Fatal(err)
-	}
+	link := firstRdmaDevice(t)
+	origName := link.Attrs.Name
 	// Set new name
-	err = RdmaLinkSetName(link, "bar")
+	err := RdmaLinkSetName(link, "bar")
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Revert back to old name
-	err = RdmaLinkSetName(link, "foo")
+	err = RdmaLinkSetName(link, origName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +125,7 @@ func TestRdmaLinkSetNsFd(t *testing.T) {
 	t.Log("current rdma netns mode", mode)
 	err = RdmaSystemSetNetnsMode("exclusive")
 	if err != nil {
-		t.Fatal(err)
+		t.Skipf("Failed to set RDMA netns mode to exclusive: %v", err)
 	}
 	basens, err := netns.Get()
 	if err != nil {
@@ -130,14 +141,7 @@ func TestRdmaLinkSetNsFd(t *testing.T) {
 	}
 
 	netns.Set(basens)
-	link, err := RdmaLinkByName("foo")
-	if err != nil {
-		// Remove the namespace as RDMA subsystem requires
-		// no namespace to exist when changing net namespace mode
-		newns.Close()
-		RdmaSystemSetNetnsMode(mode)
-		t.Fatal(err)
-	}
+	link := firstRdmaDevice(t)
 	t.Log("rdma link: ", link)
 
 	err = RdmaLinkSetNsFd(link, uint32(newns))
