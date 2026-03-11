@@ -112,9 +112,10 @@ var nexthopAttrHandlers = map[uint16]struct {
 	encode func(*Nexthop) *nl.RtAttr
 	// decode decodes the corresponding attribute from RtAttr into Nexthop
 	// It must perform bounds check for the given attribute's data and does
-	// nothing if the attribute encoding is invalid.
-	decode func(*Nexthop, *nl.RtAttr)
-	// match reports whether the given Nexthop
+	// nothing if the attribute encoding is invalid. The third parameter is
+	// the read-only full list of RtAttr for possible multi-attribute
+	// decoding.
+	decode func(*Nexthop, *nl.RtAttr, []*nl.RtAttr)
 }{
 	unix.NHA_ID: {
 		encode: func(nh *Nexthop) *nl.RtAttr {
@@ -125,7 +126,7 @@ var nexthopAttrHandlers = map[uint16]struct {
 			}
 			return nil
 		},
-		decode: func(nh *Nexthop, attr *nl.RtAttr) {
+		decode: func(nh *Nexthop, attr *nl.RtAttr, _ []*nl.RtAttr) {
 			if len(attr.Data) < 4 {
 				return
 			}
@@ -139,7 +140,7 @@ var nexthopAttrHandlers = map[uint16]struct {
 			}
 			return nil
 		},
-		decode: func(nh *Nexthop, attr *nl.RtAttr) {
+		decode: func(nh *Nexthop, attr *nl.RtAttr, _ []*nl.RtAttr) {
 			nh.Blackhole = true
 		},
 	},
@@ -152,7 +153,7 @@ var nexthopAttrHandlers = map[uint16]struct {
 			}
 			return nil
 		},
-		decode: func(nh *Nexthop, attr *nl.RtAttr) {
+		decode: func(nh *Nexthop, attr *nl.RtAttr, _ []*nl.RtAttr) {
 			if len(attr.Data) < 4 {
 				return
 			}
@@ -169,11 +170,53 @@ var nexthopAttrHandlers = map[uint16]struct {
 			}
 			return nil
 		},
-		decode: func(nh *Nexthop, attr *nl.RtAttr) {
+		decode: func(nh *Nexthop, attr *nl.RtAttr, _ []*nl.RtAttr) {
 			if len(attr.Data) != 0 {
 				nh.Gateway = make(net.IP, len(attr.Data))
 				copy(nh.Gateway, attr.Data)
 			}
+		},
+	},
+	unix.NHA_ENCAP_TYPE: {
+		encode: func(nh *Nexthop) *nl.RtAttr {
+			if nh.Encap != nil {
+				b := make([]byte, 2)
+				native.PutUint16(b, uint16(nh.Encap.Type()))
+				return nl.NewRtAttr(unix.NHA_ENCAP_TYPE, b)
+			}
+			return nil
+		},
+	},
+	unix.NHA_ENCAP: {
+		encode: func(nh *Nexthop) *nl.RtAttr {
+			if nh.Encap != nil {
+				data, err := nh.Encap.Encode()
+				if err != nil {
+					return nil
+				}
+				return nl.NewRtAttr(unix.NHA_ENCAP|unix.NLA_F_NESTED, data)
+			}
+			return nil
+		},
+		decode: func(nh *Nexthop, attr *nl.RtAttr, allAttrs []*nl.RtAttr) {
+			typ := nl.LWTUNNEL_ENCAP_NONE
+			for _, a := range allAttrs {
+				if a.Type == unix.NHA_ENCAP_TYPE {
+					if len(a.Data) < 2 {
+						return
+					}
+					typ = int(native.Uint16(a.Data[0:2]))
+					break
+				}
+			}
+			if typ == nl.LWTUNNEL_ENCAP_NONE {
+				return
+			}
+			e, err := decodeEncap(typ, attr.Data)
+			if err != nil {
+				return
+			}
+			nh.Encap = e
 		},
 	},
 }
@@ -206,7 +249,7 @@ func decodeNexthopAttrs(nh *Nexthop, attrs []*nl.RtAttr) {
 		if !found || handler.decode == nil {
 			continue
 		}
-		handler.decode(nh, attr)
+		handler.decode(nh, attr, attrs)
 	}
 }
 
@@ -255,6 +298,8 @@ func prepareNewNexthop(nh *Nexthop, req *nl.NetlinkRequest, msg *nl.Nhmsg) error
 		unix.NHA_BLACKHOLE,
 		unix.NHA_OIF,
 		unix.NHA_GATEWAY,
+		unix.NHA_ENCAP_TYPE,
+		unix.NHA_ENCAP,
 	})...)
 
 	msg.Family = deriveFamilyFromNexthop(nh)
