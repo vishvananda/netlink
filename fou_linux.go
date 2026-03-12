@@ -6,7 +6,7 @@ package netlink
 import (
 	"encoding/binary"
 	"errors"
-	"net"
+	"net/netip"
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
@@ -189,9 +189,9 @@ func deserializeFouMsg(msg []byte) Fou {
 		case FOU_ATTR_TYPE:
 			fou.EncapType = int(attr.Value[0])
 		case FOU_ATTR_LOCAL_V4, FOU_ATTR_LOCAL_V6:
-			fou.Local = net.IP(attr.Value)
+			fou.Local, _ = netip.AddrFromSlice(attr.Value)
 		case FOU_ATTR_PEER_V4, FOU_ATTR_PEER_V6:
-			fou.Peer = net.IP(attr.Value)
+			fou.Peer, _ = netip.AddrFromSlice(attr.Value)
 		case FOU_ATTR_PEER_PORT:
 			fou.PeerPort = int(networkOrder.Uint16(attr.Value))
 		case FOU_ATTR_IFINDEX:

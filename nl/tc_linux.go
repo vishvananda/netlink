@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"net/netip"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -1487,8 +1488,10 @@ func (p *TcPedit) SetEthSrc(mac net.HardwareAddr) {
 	p.Sel.NKeys++
 }
 
-func (p *TcPedit) SetIPv6Src(ip6 net.IP) {
-	u32 := NativeEndian().Uint32(ip6[:4])
+func (p *TcPedit) SetIPv6Src(ip6 netip.Addr) {
+	ip6s := ip6.As16()
+
+	u32 := NativeEndian().Uint32(ip6s[:4])
 
 	tKey := TcPeditKey{}
 	tKeyEx := TcPeditKeyEx{}
@@ -1502,7 +1505,7 @@ func (p *TcPedit) SetIPv6Src(ip6 net.IP) {
 	p.KeysEx = append(p.KeysEx, tKeyEx)
 	p.Sel.NKeys++
 
-	u32 = NativeEndian().Uint32(ip6[4:8])
+	u32 = NativeEndian().Uint32(ip6s[4:8])
 	tKey = TcPeditKey{}
 	tKeyEx = TcPeditKeyEx{}
 
@@ -1516,7 +1519,7 @@ func (p *TcPedit) SetIPv6Src(ip6 net.IP) {
 
 	p.Sel.NKeys++
 
-	u32 = NativeEndian().Uint32(ip6[8:12])
+	u32 = NativeEndian().Uint32(ip6s[8:12])
 	tKey = TcPeditKey{}
 	tKeyEx = TcPeditKeyEx{}
 
@@ -1530,7 +1533,7 @@ func (p *TcPedit) SetIPv6Src(ip6 net.IP) {
 
 	p.Sel.NKeys++
 
-	u32 = NativeEndian().Uint32(ip6[12:16])
+	u32 = NativeEndian().Uint32(ip6s[12:16])
 	tKey = TcPeditKey{}
 	tKeyEx = TcPeditKeyEx{}
 
@@ -1545,24 +1548,25 @@ func (p *TcPedit) SetIPv6Src(ip6 net.IP) {
 	p.Sel.NKeys++
 }
 
-func (p *TcPedit) SetDstIP(ip net.IP) {
-	if ip.To4() != nil {
+func (p *TcPedit) SetDstIP(ip netip.Addr) {
+	if ip.Is4() {
 		p.SetIPv4Dst(ip)
 	} else {
 		p.SetIPv6Dst(ip)
 	}
 }
 
-func (p *TcPedit) SetSrcIP(ip net.IP) {
-	if ip.To4() != nil {
+func (p *TcPedit) SetSrcIP(ip netip.Addr) {
+	if ip.Is4() {
 		p.SetIPv4Src(ip)
 	} else {
 		p.SetIPv6Src(ip)
 	}
 }
 
-func (p *TcPedit) SetIPv6Dst(ip6 net.IP) {
-	u32 := NativeEndian().Uint32(ip6[:4])
+func (p *TcPedit) SetIPv6Dst(ip6 netip.Addr) {
+	ip6s := ip6.As16()
+	u32 := NativeEndian().Uint32(ip6s[:4])
 
 	tKey := TcPeditKey{}
 	tKeyEx := TcPeditKeyEx{}
@@ -1576,7 +1580,7 @@ func (p *TcPedit) SetIPv6Dst(ip6 net.IP) {
 	p.KeysEx = append(p.KeysEx, tKeyEx)
 	p.Sel.NKeys++
 
-	u32 = NativeEndian().Uint32(ip6[4:8])
+	u32 = NativeEndian().Uint32(ip6s[4:8])
 	tKey = TcPeditKey{}
 	tKeyEx = TcPeditKeyEx{}
 
@@ -1590,7 +1594,7 @@ func (p *TcPedit) SetIPv6Dst(ip6 net.IP) {
 
 	p.Sel.NKeys++
 
-	u32 = NativeEndian().Uint32(ip6[8:12])
+	u32 = NativeEndian().Uint32(ip6s[8:12])
 	tKey = TcPeditKey{}
 	tKeyEx = TcPeditKeyEx{}
 
@@ -1604,7 +1608,7 @@ func (p *TcPedit) SetIPv6Dst(ip6 net.IP) {
 
 	p.Sel.NKeys++
 
-	u32 = NativeEndian().Uint32(ip6[12:16])
+	u32 = NativeEndian().Uint32(ip6s[12:16])
 	tKey = TcPeditKey{}
 	tKeyEx = TcPeditKeyEx{}
 
@@ -1619,8 +1623,8 @@ func (p *TcPedit) SetIPv6Dst(ip6 net.IP) {
 	p.Sel.NKeys++
 }
 
-func (p *TcPedit) SetIPv4Src(ip net.IP) {
-	u32 := NativeEndian().Uint32(ip.To4())
+func (p *TcPedit) SetIPv4Src(ip netip.Addr) {
+	u32 := NativeEndian().Uint32(ip.AsSlice())
 
 	tKey := TcPeditKey{}
 	tKeyEx := TcPeditKeyEx{}
@@ -1635,8 +1639,8 @@ func (p *TcPedit) SetIPv4Src(ip net.IP) {
 	p.Sel.NKeys++
 }
 
-func (p *TcPedit) SetIPv4Dst(ip net.IP) {
-	u32 := NativeEndian().Uint32(ip.To4())
+func (p *TcPedit) SetIPv4Dst(ip netip.Addr) {
+	u32 := NativeEndian().Uint32(ip.AsSlice())
 
 	tKey := TcPeditKey{}
 	tKeyEx := TcPeditKeyEx{}

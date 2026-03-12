@@ -10,7 +10,7 @@ package netlink
 
 import (
 	"errors"
-	"net"
+	"net/netip"
 )
 
 var (
@@ -18,23 +18,20 @@ var (
 	ErrNotImplemented = errors.New("not implemented")
 )
 
-// ParseIPNet parses a string in ip/net format and returns a net.IPNet.
+// ParseIPNet parses a string in ip/net format and returns a netip.Prefix.
 // This is valuable because addresses in netlink are often IPNets and
 // ParseCIDR returns an IPNet with the IP part set to the base IP of the
 // range.
-func ParseIPNet(s string) (*net.IPNet, error) {
-	ip, ipNet, err := net.ParseCIDR(s)
-	if err != nil {
-		return nil, err
-	}
-	ipNet.IP = ip
-	return ipNet, nil
+func ParseIPNet(s string) (netip.Prefix, error) {
+	return netip.ParsePrefix(s)
 }
 
 // NewIPNet generates an IPNet from an ip address using a netmask of 32 or 128.
-func NewIPNet(ip net.IP) *net.IPNet {
-	if ip.To4() != nil {
-		return &net.IPNet{IP: ip, Mask: net.CIDRMask(32, 32)}
-	}
-	return &net.IPNet{IP: ip, Mask: net.CIDRMask(128, 128)}
+func NewIPNet(ip netip.Addr) netip.Prefix {
+	return netip.PrefixFrom(ip, ip.BitLen())
 }
+
+var (
+	v4zero = netip.MustParseAddr("0.0.0.0")
+	v6zero = netip.MustParseAddr("::0")
+)

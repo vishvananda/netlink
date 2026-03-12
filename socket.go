@@ -1,13 +1,13 @@
 package netlink
 
-import "net"
+import "net/netip"
 
 // SocketID identifies a single socket.
 type SocketID struct {
 	SourcePort      uint16
 	DestinationPort uint16
-	Source          net.IP
-	Destination     net.IP
+	Source          netip.Addr
+	Destination     netip.Addr
 	Interface       uint32
 	Cookie          [2]uint32
 }

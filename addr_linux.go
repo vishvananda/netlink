@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -29,7 +30,7 @@ const (
 //
 // If `addr` is an IPv4 address and the broadcast address is not given, it
 // will be automatically computed based on the IP mask if /30 or larger.
-// If `net.IPv4zero` is given as the broadcast address, broadcast is disabled.
+// If `0.0.0.0` is given as the broadcast address, broadcast is disabled.
 func AddrAdd(link Link, addr *Addr) error {
 	return pkgHandle.AddrAdd(link, addr)
 }
@@ -40,7 +41,7 @@ func AddrAdd(link Link, addr *Addr) error {
 //
 // If `addr` is an IPv4 address and the broadcast address is not given, it
 // will be automatically computed based on the IP mask if /30 or larger.
-// If `net.IPv4zero` is given as the broadcast address, broadcast is disabled.
+// If `0.0.0.0` is given as the broadcast address, broadcast is disabled.
 func (h *Handle) AddrAdd(link Link, addr *Addr) error {
 	req := h.newNetlinkRequest(unix.RTM_NEWADDR, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
 	return h.addrHandle(link, addr, req)
@@ -52,7 +53,7 @@ func (h *Handle) AddrAdd(link Link, addr *Addr) error {
 //
 // If `addr` is an IPv4 address and the broadcast address is not given, it
 // will be automatically computed based on the IP mask if /30 or larger.
-// If `net.IPv4zero` is given as the broadcast address, broadcast is disabled.
+// If `0.0.0.0` is given as the broadcast address, broadcast is disabled.
 func AddrReplace(link Link, addr *Addr) error {
 	return pkgHandle.AddrReplace(link, addr)
 }
@@ -63,7 +64,7 @@ func AddrReplace(link Link, addr *Addr) error {
 //
 // If `addr` is an IPv4 address and the broadcast address is not given, it
 // will be automatically computed based on the IP mask if /30 or larger.
-// If `net.IPv4zero` is given as the broadcast address, broadcast is disabled.
+// If `0.0.0.0` is given as the broadcast address, broadcast is disabled.
 func (h *Handle) AddrReplace(link Link, addr *Addr) error {
 	req := h.newNetlinkRequest(unix.RTM_NEWADDR, unix.NLM_F_CREATE|unix.NLM_F_REPLACE|unix.NLM_F_ACK)
 	return h.addrHandle(link, addr, req)
@@ -85,7 +86,7 @@ func (h *Handle) AddrDel(link Link, addr *Addr) error {
 }
 
 func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error {
-	family := nl.GetIPFamily(addr.IP)
+	family := nl.GetIPFamily(addr.Addr())
 	msg := nl.NewIfAddrmsg(family)
 	msg.Scope = uint8(addr.Scope)
 	if link == nil {
@@ -95,30 +96,22 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 		h.ensureIndex(base)
 		msg.Index = uint32(base.Index)
 	}
-	mask := addr.Mask
-	if addr.Peer != nil {
-		mask = addr.Peer.Mask
+
+	prefixlen := addr.Bits()
+	if addr.Peer.IsValid() {
+		prefixlen = addr.Peer.Bits()
 	}
-	prefixlen, masklen := mask.Size()
+
 	msg.Prefixlen = uint8(prefixlen)
 	req.AddData(msg)
 
-	var localAddrData []byte
-	if family == FAMILY_V4 {
-		localAddrData = addr.IP.To4()
-	} else {
-		localAddrData = addr.IP.To16()
-	}
+	localAddrData := addr.Addr().AsSlice()
 
 	localData := nl.NewRtAttr(unix.IFA_LOCAL, localAddrData)
 	req.AddData(localData)
 	var peerAddrData []byte
-	if addr.Peer != nil {
-		if family == FAMILY_V4 {
-			peerAddrData = addr.Peer.IP.To4()
-		} else {
-			peerAddrData = addr.Peer.IP.To16()
-		}
+	if addr.Peer.IsValid() {
+		peerAddrData = addr.Peer.Addr().AsSlice()
 	} else {
 		peerAddrData = localAddrData
 	}
@@ -141,20 +134,17 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 		// Automatically set the broadcast address if it is unset and the
 		// subnet is large enough to sensibly have one (/30 or larger).
 		// See: RFC 3021
-		if addr.Broadcast == nil && prefixlen < 31 {
-			calcBroadcast := make(net.IP, masklen/8)
+		if !addr.Broadcast.IsValid() && prefixlen < 31 {
+			mask := net.CIDRMask(prefixlen, 32)
+			calcBroadcast := [4]byte{}
 			for i := range localAddrData {
 				calcBroadcast[i] = localAddrData[i] | ^mask[i]
 			}
-			addr.Broadcast = calcBroadcast
+			addr.Broadcast = netip.AddrFrom4(calcBroadcast)
 		}
 
-		if net.IPv4zero.Equal(addr.Broadcast) {
-			addr.Broadcast = nil
-		}
-
-		if addr.Broadcast != nil {
-			req.AddData(nl.NewRtAttr(unix.IFA_BROADCAST, addr.Broadcast))
+		if addr.Broadcast.IsValid() {
+			req.AddData(nl.NewRtAttr(unix.IFA_BROADCAST, addr.Broadcast.AsSlice()))
 		}
 
 		if addr.Label != "" {
@@ -254,27 +244,37 @@ func parseAddr(m []byte) (addr Addr, family int, err error) {
 	family = int(msg.Family)
 	addr.LinkIndex = int(msg.Index)
 
-	var local, dst *net.IPNet
+	var local, dst netip.Prefix
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case unix.IFA_ADDRESS:
-			dst = &net.IPNet{
-				IP:   attr.Value,
-				Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
+			a, ok := netip.AddrFromSlice(attr.Value)
+			if !ok {
+				return Addr{}, 0, fmt.Errorf("IFA_ADDRESS: invalid address")
+			}
+			dst, err = a.Prefix(int(msg.Prefixlen))
+			if err != nil {
+				return Addr{}, 0, fmt.Errorf("IFA_ADDRESS: %w", err)
 			}
 		case unix.IFA_LOCAL:
+			a, ok := netip.AddrFromSlice(attr.Value)
+			if !ok {
+				return Addr{}, 0, fmt.Errorf("IFA_LOCAL: invalid address")
+			}
+
 			// iproute2 manual:
 			// If a peer address is specified, the local address
 			// cannot have a prefix length. The network prefix is
 			// associated with the peer rather than with the local
 			// address.
-			n := 8 * len(attr.Value)
-			local = &net.IPNet{
-				IP:   attr.Value,
-				Mask: net.CIDRMask(n, n),
-			}
+			local, _ = a.Prefix(a.BitLen())
 		case unix.IFA_BROADCAST:
-			addr.Broadcast = attr.Value
+			a, ok := netip.AddrFromSlice(attr.Value)
+			if !ok {
+				return Addr{}, 0, fmt.Errorf("IFA_BROADCAST: invalid address")
+			}
+
+			addr.Broadcast = a
 		case unix.IFA_LABEL:
 			addr.Label = string(attr.Value[:len(attr.Value)-1])
 		case unix.IFA_FLAGS:
@@ -297,15 +297,15 @@ func parseAddr(m []byte) (addr Addr, family int, err error) {
 	//
 	// But obviously, as there are IPv6 PtP addresses, too,
 	// IFA_LOCAL should also be handled for IPv6.
-	if local != nil {
-		if family == FAMILY_V4 && dst != nil && local.IP.Equal(dst.IP) {
-			addr.IPNet = dst
+	if local.IsValid() {
+		if family == FAMILY_V4 && dst.IsValid() && local.Addr() == dst.Addr() {
+			addr.Prefix = dst
 		} else {
-			addr.IPNet = local
+			addr.Prefix = local
 			addr.Peer = dst
 		}
 	} else {
-		addr.IPNet = dst
+		addr.Prefix = dst
 	}
 
 	addr.Scope = int(msg.Scope)
@@ -314,7 +314,7 @@ func parseAddr(m []byte) (addr Addr, family int, err error) {
 }
 
 type AddrUpdate struct {
-	LinkAddress net.IPNet
+	LinkAddress netip.Prefix
 	LinkIndex   int
 	Flags       int
 	Scope       int
@@ -438,7 +438,7 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					continue
 				}
 
-				ch <- AddrUpdate{LinkAddress: *addr.IPNet,
+				ch <- AddrUpdate{LinkAddress: addr.Prefix,
 					LinkIndex:   addr.LinkIndex,
 					NewAddr:     msgType == unix.RTM_NEWADDR,
 					Flags:       addr.Flags,

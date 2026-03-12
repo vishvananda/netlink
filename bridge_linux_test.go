@@ -3,6 +3,7 @@ package netlink
 import (
 	"fmt"
 	"io/ioutil"
+	"net/netip"
 	"testing"
 
 	"github.com/vishvananda/netlink/nl"
@@ -99,7 +100,7 @@ func TestBridgeVlanTunnelInfo(t *testing.T) {
 	// ip link add vxlan0 type vxlan dstport 4789 nolearning external local 10.0.1.1
 	vxlan := &Vxlan{
 		// local
-		SrcAddr:  []byte("10.0.1.1"),
+		SrcAddr:  netip.MustParseAddr("10.0.1.1"),
 		Learning: false,
 		// external
 		FlowBased: true,
