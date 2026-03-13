@@ -1319,12 +1319,10 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_VXLAN_RSC, boolAttr(vxlan.RSC))
 	data.AddRtAttr(nl.IFLA_VXLAN_L2MISS, boolAttr(vxlan.L2miss))
 	data.AddRtAttr(nl.IFLA_VXLAN_L3MISS, boolAttr(vxlan.L3miss))
+	data.AddRtAttr(nl.IFLA_VXLAN_UDP_CSUM, boolAttr(vxlan.UDPCSum))
 	data.AddRtAttr(nl.IFLA_VXLAN_UDP_ZERO_CSUM6_TX, boolAttr(vxlan.UDP6ZeroCSumTx))
 	data.AddRtAttr(nl.IFLA_VXLAN_UDP_ZERO_CSUM6_RX, boolAttr(vxlan.UDP6ZeroCSumRx))
 
-	if vxlan.UDPCSum {
-		data.AddRtAttr(nl.IFLA_VXLAN_UDP_CSUM, boolAttr(vxlan.UDPCSum))
-	}
 	if vxlan.GBP {
 		data.AddRtAttr(nl.IFLA_VXLAN_GBP, []byte{})
 	}
