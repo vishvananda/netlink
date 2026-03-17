@@ -4,7 +4,7 @@
 package netlink
 
 import (
-	"net"
+	"net/netip"
 	"os"
 	"testing"
 	"time"
@@ -53,33 +53,33 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 
 	// TODO: IFA_F_PERMANENT does not seem to be set by default on older kernels?
 	// TODO: IFA_F_OPTIMISTIC failing in CI. should we just skip that one check?
-	var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(32, 32)}
-	var peer = &net.IPNet{IP: net.IPv4(127, 0, 0, 3), Mask: net.CIDRMask(24, 32)}
+	address := netip.MustParsePrefix("127.0.0.2/32")
+	peer := netip.MustParsePrefix("127.0.0.3/24")
 	var addrTests = []addrTest{
 		{
-			name: "lo_uni_perm", addr: &Addr{IPNet: address},
-			expected: &Addr{IPNet: address, Label: "lo", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
+			name: "lo_uni_perm", addr: &Addr{Prefix: address},
+			expected: &Addr{Prefix: address, Label: "lo", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
 		},
 		{
-			name: "local_uni_perm", addr: &Addr{IPNet: address, Label: "local"},
-			expected: &Addr{IPNet: address, Label: "local", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
+			name: "local_uni_perm", addr: &Addr{Prefix: address, Label: "local"},
+			expected: &Addr{Prefix: address, Label: "local", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
 		},
 		{
-			name: "lo_uni_optimistic_perm", addr: &Addr{IPNet: address, Flags: unix.IFA_F_OPTIMISTIC}, canFail: true,
-			expected: &Addr{IPNet: address, Label: "lo", Flags: unix.IFA_F_OPTIMISTIC | unix.IFA_F_PERMANENT, Scope: unix.RT_SCOPE_UNIVERSE},
+			name: "lo_uni_optimistic_perm", addr: &Addr{Prefix: address, Flags: unix.IFA_F_OPTIMISTIC}, canFail: true,
+			expected: &Addr{Prefix: address, Label: "lo", Flags: unix.IFA_F_OPTIMISTIC | unix.IFA_F_PERMANENT, Scope: unix.RT_SCOPE_UNIVERSE},
 		},
 		{
 			// Is this a valid scenario for IPv4?
-			name: "lo_uni_optimistic_perm_dupe", addr: &Addr{IPNet: address, Flags: unix.IFA_F_OPTIMISTIC | unix.IFA_F_DADFAILED}, canFail: true,
-			expected: &Addr{IPNet: address, Label: "lo", Flags: unix.IFA_F_OPTIMISTIC | unix.IFA_F_DADFAILED | unix.IFA_F_PERMANENT, Scope: unix.RT_SCOPE_UNIVERSE},
+			name: "lo_uni_optimistic_perm_dupe", addr: &Addr{Prefix: address, Flags: unix.IFA_F_OPTIMISTIC | unix.IFA_F_DADFAILED}, canFail: true,
+			expected: &Addr{Prefix: address, Label: "lo", Flags: unix.IFA_F_OPTIMISTIC | unix.IFA_F_DADFAILED | unix.IFA_F_PERMANENT, Scope: unix.RT_SCOPE_UNIVERSE},
 		},
 		{
-			name: "lo_nullroute_perm", addr: &Addr{IPNet: address, Scope: unix.RT_SCOPE_NOWHERE},
-			expected: &Addr{IPNet: address, Label: "lo", Flags: unix.IFA_F_PERMANENT, Scope: unix.RT_SCOPE_NOWHERE},
+			name: "lo_nullroute_perm", addr: &Addr{Prefix: address, Scope: unix.RT_SCOPE_NOWHERE},
+			expected: &Addr{Prefix: address, Label: "lo", Flags: unix.IFA_F_PERMANENT, Scope: unix.RT_SCOPE_NOWHERE},
 		},
 		{
-			name: "lo_uni_perm_with_peer", addr: &Addr{IPNet: address, Peer: peer},
-			expected: &Addr{IPNet: address, Peer: peer, Label: "lo", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
+			name: "lo_uni_perm_with_peer", addr: &Addr{Prefix: address, Peer: peer},
+			expected: &Addr{Prefix: address, Peer: peer, Label: "lo", Scope: unix.RT_SCOPE_UNIVERSE, Flags: unix.IFA_F_PERMANENT},
 		},
 	}
 
@@ -127,7 +127,7 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 				tt.Fatalf("Address ifindex not set properly, got=%d, expected=%d", addrs[0].LinkIndex, ifindex)
 			}
 
-			if tt.expected.Peer != nil {
+			if tt.expected.Peer.IsValid() {
 				if !addrs[0].PeerEqual(*tt.expected) {
 					tt.Fatalf("Peer Address ip not set properly, got=%s, expected=%s", addrs[0].Peer, tt.expected.Peer)
 				}
@@ -173,8 +173,8 @@ func TestAddrAddReplace(t *testing.T) {
 	t.Cleanup(setUpNetlinkTest(t))
 
 	for _, nilLink := range []bool{false, true} {
-		var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
-		var addr = &Addr{IPNet: address}
+		var address = netip.MustParsePrefix("127.0.0.2/24")
+		var addr = &Addr{Prefix: address}
 
 		link, err := LinkByName("lo")
 		if err != nil {
@@ -234,12 +234,12 @@ func TestAddrAddReplace(t *testing.T) {
 	}
 }
 
-func expectAddrUpdate(ch <-chan AddrUpdate, add bool, dst net.IP) bool {
+func expectAddrUpdate(ch <-chan AddrUpdate, add bool, dst netip.Addr) bool {
 	for {
 		timeout := time.After(time.Minute)
 		select {
 		case update := <-ch:
-			if update.NewAddr == add && update.LinkAddress.IP.Equal(dst) {
+			if update.NewAddr == add && update.LinkAddress.Addr() == dst {
 				return true
 			}
 		case <-timeout:
@@ -279,7 +279,7 @@ func TestAddrSubscribeWithOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ip := net.IPv4(127, 0, 0, 1)
+	ip := netip.MustParseAddr("127.0.0.1")
 	if !expectAddrUpdate(ch, true, ip) {
 		t.Fatal("Add update not received as expected")
 	}
@@ -318,7 +318,7 @@ func TestAddrSubscribeListExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ip := net.IPv4(127, 0, 0, 1)
+	ip := netip.MustParseAddr("127.0.0.1")
 	if !expectAddrUpdate(ch, true, ip) {
 		t.Fatal("Add update not received as expected")
 	}

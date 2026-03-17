@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
@@ -63,33 +63,23 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 
 	var dstFamily uint8
 	var rtAttrs []*nl.RtAttr
-	if rule.Dst != nil && rule.Dst.IP != nil {
-		dstLen, _ := rule.Dst.Mask.Size()
+	if rule.Dst.IsValid() {
+		dstLen := rule.Dst.Bits()
 		msg.Dst_len = uint8(dstLen)
-		msg.Family = uint8(nl.GetIPFamily(rule.Dst.IP))
+		msg.Family = uint8(nl.GetIPFamily(rule.Dst.Addr()))
 		dstFamily = msg.Family
-		var dstData []byte
-		if msg.Family == unix.AF_INET {
-			dstData = rule.Dst.IP.To4()
-		} else {
-			dstData = rule.Dst.IP.To16()
-		}
+		dstData := rule.Dst.Addr().AsSlice()
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_DST, dstData))
 	}
 
-	if rule.Src != nil && rule.Src.IP != nil {
-		msg.Family = uint8(nl.GetIPFamily(rule.Src.IP))
+	if rule.Src.IsValid() {
+		msg.Family = uint8(nl.GetIPFamily(rule.Src.Addr()))
 		if dstFamily != 0 && dstFamily != msg.Family {
 			return fmt.Errorf("source and destination ip are not the same IP family")
 		}
-		srcLen, _ := rule.Src.Mask.Size()
+		srcLen := rule.Src.Bits()
 		msg.Src_len = uint8(srcLen)
-		var srcData []byte
-		if msg.Family == unix.AF_INET {
-			srcData = rule.Src.IP.To4()
-		} else {
-			srcData = rule.Src.IP.To16()
-		}
+		srcData := rule.Src.Addr().AsSlice()
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_SRC, srcData))
 	}
 
@@ -245,15 +235,17 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 			case unix.RTA_TABLE:
 				rule.Table = int(native.Uint32(attrs[j].Value[0:4]))
 			case nl.FRA_SRC:
-				rule.Src = &net.IPNet{
-					IP:   attrs[j].Value,
-					Mask: net.CIDRMask(int(msg.Src_len), 8*len(attrs[j].Value)),
+				addr, ok := netip.AddrFromSlice(attrs[j].Value)
+				if !ok {
+					return nil, fmt.Errorf("FRA_SRC: invalid address")
 				}
+				rule.Src, _ = addr.Prefix(int(msg.Src_len))
 			case nl.FRA_DST:
-				rule.Dst = &net.IPNet{
-					IP:   attrs[j].Value,
-					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attrs[j].Value)),
+				addr, ok := netip.AddrFromSlice(attrs[j].Value)
+				if !ok {
+					return nil, fmt.Errorf("FRA_SRC: invalid address")
 				}
+				rule.Dst, _ = addr.Prefix(int(msg.Dst_len))
 			case nl.FRA_FWMARK:
 				rule.Mark = native.Uint32(attrs[j].Value[0:4])
 			case nl.FRA_FWMASK:
@@ -297,10 +289,10 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 		if filter != nil {
 			switch {
 			case filterMask&RT_FILTER_SRC != 0 &&
-				(rule.Src == nil || rule.Src.String() != filter.Src.String()):
+				(!rule.Src.IsValid() || rule.Src.String() != filter.Src.String()):
 				continue
 			case filterMask&RT_FILTER_DST != 0 &&
-				(rule.Dst == nil || rule.Dst.String() != filter.Dst.String()):
+				(!rule.Dst.IsValid() || rule.Dst.String() != filter.Dst.String()):
 				continue
 			case filterMask&RT_FILTER_TABLE != 0 &&
 				filter.Table != unix.RT_TABLE_UNSPEC && rule.Table != filter.Table:
