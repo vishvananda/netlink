@@ -2,6 +2,7 @@ package netlink
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/vishvananda/netlink/nl"
@@ -13,7 +14,6 @@ import (
 var pkgHandle = &Handle{}
 
 type HandleOptions struct {
-	lookupByDump     bool
 	collectVFInfo    bool
 	retryInterrupted bool
 }
@@ -25,6 +25,8 @@ type HandleOptions struct {
 type Handle struct {
 	sockets map[int]*nl.SocketHandle
 	options HandleOptions
+
+	lookupByDump atomic.Bool
 }
 
 // DisableVFInfoCollection configures the handle to skip VF information fetching
