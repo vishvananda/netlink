@@ -13,7 +13,6 @@ import (
 var pkgHandle = &Handle{}
 
 type HandleOptions struct {
-	lookupByDump     bool
 	collectVFInfo    bool
 	retryInterrupted bool
 }
@@ -25,6 +24,8 @@ type HandleOptions struct {
 type Handle struct {
 	sockets map[int]*nl.SocketHandle
 	options HandleOptions
+
+	lookupByDump bool
 }
 
 // DisableVFInfoCollection configures the handle to skip VF information fetching
