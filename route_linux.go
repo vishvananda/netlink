@@ -1569,38 +1569,46 @@ func deserializeRoute(m []byte) (Route, error) {
 
 	if len(encap.Value) != 0 && len(encapType.Value) != 0 {
 		typ := int(native.Uint16(encapType.Value[0:2]))
-		var e Encap
-		switch typ {
-		case nl.LWTUNNEL_ENCAP_MPLS:
-			e = &MPLSEncap{}
-			if err := e.Decode(encap.Value); err != nil {
-				return route, err
-			}
-		case nl.LWTUNNEL_ENCAP_SEG6:
-			e = &SEG6Encap{}
-			if err := e.Decode(encap.Value); err != nil {
-				return route, err
-			}
-		case nl.LWTUNNEL_ENCAP_SEG6_LOCAL:
-			e = &SEG6LocalEncap{}
-			if err := e.Decode(encap.Value); err != nil {
-				return route, err
-			}
-		case nl.LWTUNNEL_ENCAP_BPF:
-			e = &BpfEncap{}
-			if err := e.Decode(encap.Value); err != nil {
-				return route, err
-			}
-		case nl.LWTUNNEL_ENCAP_IP6:
-			e = &IP6tnlEncap{}
-			if err := e.Decode(encap.Value); err != nil {
-				return route, err
-			}
+		e, err := decodeEncap(typ, encap.Value)
+		if err != nil {
+			return route, err
 		}
 		route.Encap = e
 	}
 
 	return route, nil
+}
+
+func decodeEncap(typ int, v []byte) (Encap, error) {
+	var e Encap
+	switch typ {
+	case nl.LWTUNNEL_ENCAP_MPLS:
+		e = &MPLSEncap{}
+		if err := e.Decode(v); err != nil {
+			return nil, err
+		}
+	case nl.LWTUNNEL_ENCAP_SEG6:
+		e = &SEG6Encap{}
+		if err := e.Decode(v); err != nil {
+			return nil, err
+		}
+	case nl.LWTUNNEL_ENCAP_SEG6_LOCAL:
+		e = &SEG6LocalEncap{}
+		if err := e.Decode(v); err != nil {
+			return nil, err
+		}
+	case nl.LWTUNNEL_ENCAP_BPF:
+		e = &BpfEncap{}
+		if err := e.Decode(v); err != nil {
+			return nil, err
+		}
+	case nl.LWTUNNEL_ENCAP_IP6:
+		e = &IP6tnlEncap{}
+		if err := e.Decode(v); err != nil {
+			return nil, err
+		}
+	}
+	return e, nil
 }
 
 // RouteGetOptions contains a set of options to use with
