@@ -2020,7 +2020,7 @@ func LinkByName(name string) (Link, error) {
 // filtering a dump of all link names. In this case, if the returned error is
 // [ErrDumpInterrupted] the result may be missing or outdated.
 func (h *Handle) LinkByName(name string) (Link, error) {
-	if h.options.lookupByDump {
+	if h.lookupByDump {
 		return h.linkByNameDump(name)
 	}
 
@@ -2029,7 +2029,7 @@ func (h *Handle) LinkByName(name string) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	req.AddData(msg)
 
-	if h.options.collectVFInfo {
+	if !h.options.DisableVFInfoCollection {
 		attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
 		req.AddData(attr)
 	}
@@ -2044,7 +2044,7 @@ func (h *Handle) LinkByName(name string) (Link, error) {
 	if err == unix.EINVAL {
 		// older kernels don't support looking up via IFLA_IFNAME
 		// so fall back to dumping all links
-		h.options.lookupByDump = true
+		h.lookupByDump = true
 		return h.linkByNameDump(name)
 	}
 
@@ -2068,7 +2068,7 @@ func LinkByAlias(alias string) (Link, error) {
 // filtering a dump of all link names. In this case, if the returned error is
 // [ErrDumpInterrupted] the result may be missing or outdated.
 func (h *Handle) LinkByAlias(alias string) (Link, error) {
-	if h.options.lookupByDump {
+	if h.lookupByDump {
 		return h.linkByAliasDump(alias)
 	}
 
@@ -2077,7 +2077,7 @@ func (h *Handle) LinkByAlias(alias string) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	req.AddData(msg)
 
-	if h.options.collectVFInfo {
+	if !h.options.DisableVFInfoCollection {
 		attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
 		req.AddData(attr)
 	}
@@ -2089,7 +2089,7 @@ func (h *Handle) LinkByAlias(alias string) (Link, error) {
 	if err == unix.EINVAL {
 		// older kernels don't support looking up via IFLA_IFALIAS
 		// so fall back to dumping all links
-		h.options.lookupByDump = true
+		h.lookupByDump = true
 		return h.linkByAliasDump(alias)
 	}
 
@@ -2108,7 +2108,7 @@ func (h *Handle) LinkByIndex(index int) (Link, error) {
 	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	msg.Index = int32(index)
 	req.AddData(msg)
-	if h.options.collectVFInfo {
+	if !h.options.DisableVFInfoCollection {
 		attr := nl.NewRtAttr(unix.IFLA_EXT_MASK, nl.Uint32Attr(nl.RTEXT_FILTER_VF))
 		req.AddData(attr)
 	}
