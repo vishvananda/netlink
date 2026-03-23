@@ -2,6 +2,7 @@ package netlink
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -12,6 +13,37 @@ import (
 
 // Empty handle used by the netlink package methods
 var pkgHandle = &Handle{}
+
+var configMu sync.Mutex
+var configDone bool
+
+// ConfigureHandle configures the default, package-wide netlink handle used by
+// the netlink package's global functions like [LinkList] and [AddrList] with
+// the given opts. It does not affect any existing or future [Handle] returned
+// by the library.
+//
+// This function is not safe to call concurrently with any netlink operations
+// using the global package handle. Invoke it from init() functions only.
+//
+// Returns an error if called more than once per process.
+func ConfigureHandle(opts HandleOptions) error {
+	configMu.Lock()
+	defer configMu.Unlock()
+
+	if configDone {
+		return fmt.Errorf("netlink package handle already configured")
+	}
+
+	h, err := NewHandleWithOptions(opts)
+	if err != nil {
+		return fmt.Errorf("creating handle: %w", err)
+	}
+
+	configDone = true
+	pkgHandle = h
+
+	return nil
+}
 
 // HandleOptions defines the options for creating a netlink Handle, allowing the
 // caller to customize its behaviour.
