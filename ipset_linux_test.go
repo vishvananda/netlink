@@ -439,6 +439,21 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 				Replace: false,
 			},
 		},
+		{
+			desc:     "Type-bitmap:port",
+			setname:  "my-test-ipset-bitmap-port",
+			typename: "bitmap:port",
+			options: IpsetCreateOptions{
+				Replace:  true,
+				Timeout:  &timeout,
+				PortFrom: 0,
+				PortTo:   1024,
+			},
+			entry: &IPSetEntry{
+				Port:    &port,
+				Replace: false,
+			},
+		},
 	}
 
 	for _, tC := range testCases {
@@ -517,11 +532,14 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 			}
 
 			if tC.entry.Port != nil {
-				if *result.Entries[0].Protocol != *tC.entry.Protocol {
-					t.Fatalf("expected protocol to be '%d', got '%d'", *tC.entry.Protocol, *result.Entries[0].Protocol)
-				}
 				if *result.Entries[0].Port != *tC.entry.Port {
 					t.Fatalf("expected port to be '%d', got '%d'", *tC.entry.Port, *result.Entries[0].Port)
+				}
+			}
+
+			if tC.entry.Protocol != nil {
+				if result.Entries[0].Protocol == nil || *result.Entries[0].Protocol != *tC.entry.Protocol {
+					t.Fatalf("expected protocol to be '%d', got '%v'", *tC.entry.Protocol, result.Entries[0].Protocol)
 				}
 			}
 
