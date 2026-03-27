@@ -3,6 +3,7 @@ package netlink
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"strconv"
 )
@@ -505,8 +506,8 @@ type Vxlan struct {
 	LinkAttrs
 	VxlanId        int
 	VtepDevIndex   int
-	SrcAddr        net.IP
-	Group          net.IP
+	SrcAddr        netip.Addr
+	Group          netip.Addr
 	TTL            int
 	TOS            int
 	Learning       bool
@@ -916,7 +917,7 @@ type Bond struct {
 	DownDelay       int
 	UseCarrier      int
 	ArpInterval     int
-	ArpIpTargets    []net.IP
+	ArpIpTargets    []netip.Addr
 	ArpValidate     BondArpValidate
 	ArpAllTargets   BondArpAllTargets
 	Primary         int
@@ -1092,7 +1093,7 @@ func (o *OpenvSwitchSlave) SlaveType() string {
 type Geneve struct {
 	LinkAttrs
 	ID                uint32 // vni
-	Remote            net.IP
+	Remote            netip.Addr
 	Ttl               uint8
 	Tos               uint8
 	Dport             uint16
@@ -1131,8 +1132,8 @@ type Gretap struct {
 	OKey       uint32
 	EncapSport uint16
 	EncapDport uint16
-	Local      net.IP
-	Remote     net.IP
+	Local      netip.Addr
+	Remote     netip.Addr
 	IFlags     uint16
 	OFlags     uint16
 	PMtuDisc   uint8
@@ -1157,7 +1158,7 @@ func (gretap *Gretap) Attrs() *LinkAttrs {
 }
 
 func (gretap *Gretap) Type() string {
-	if gretap.Local.To4() == nil {
+	if gretap.Local.Is6() {
 		return "ip6gretap"
 	}
 	return "gretap"
@@ -1169,8 +1170,8 @@ type Iptun struct {
 	Tos        uint8
 	PMtuDisc   uint8
 	Link       uint32
-	Local      net.IP
-	Remote     net.IP
+	Local      netip.Addr
+	Remote     netip.Addr
 	EncapSport uint16
 	EncapDport uint16
 	EncapType  uint16
@@ -1190,8 +1191,8 @@ func (iptun *Iptun) Type() string {
 type Ip6tnl struct {
 	LinkAttrs
 	Link       uint32
-	Local      net.IP
-	Remote     net.IP
+	Local      netip.Addr
+	Remote     netip.Addr
 	Ttl        uint8
 	Tos        uint8
 	Flags      uint32
@@ -1251,8 +1252,8 @@ type Sittun struct {
 	Tos        uint8
 	PMtuDisc   uint8
 	Proto      uint8
-	Local      net.IP
-	Remote     net.IP
+	Local      netip.Addr
+	Remote     netip.Addr
 	EncapLimit uint8
 	EncapType  uint16
 	EncapFlags uint16
@@ -1273,8 +1274,8 @@ type Vti struct {
 	IKey   uint32
 	OKey   uint32
 	Link   uint32
-	Local  net.IP
-	Remote net.IP
+	Local  netip.Addr
+	Remote netip.Addr
 }
 
 func (vti *Vti) Attrs() *LinkAttrs {
@@ -1282,7 +1283,7 @@ func (vti *Vti) Attrs() *LinkAttrs {
 }
 
 func (vti *Vti) Type() string {
-	if vti.Local.To4() == nil {
+	if vti.Local.Is6() {
 		return "vti6"
 	}
 	return "vti"
@@ -1295,8 +1296,8 @@ type Gretun struct {
 	OFlags     uint16
 	IKey       uint32
 	OKey       uint32
-	Local      net.IP
-	Remote     net.IP
+	Local      netip.Addr
+	Remote     netip.Addr
 	Ttl        uint8
 	Tos        uint8
 	PMtuDisc   uint8
@@ -1312,7 +1313,7 @@ func (gretun *Gretun) Attrs() *LinkAttrs {
 }
 
 func (gretun *Gretun) Type() string {
-	if gretun.Local.To4() == nil {
+	if gretun.Local.Is6() {
 		return "ip6gre"
 	}
 	return "gre"

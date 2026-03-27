@@ -2,7 +2,7 @@ package nl
 
 import (
 	"bytes"
-	"net"
+	"net/netip"
 	"unsafe"
 )
 
@@ -115,6 +115,11 @@ const (
 	__XFRMNLGRP_MAX   = 0x9
 )
 
+var (
+	v4zero = netip.MustParseAddr("0.0.0.0")
+	v6zero = netip.MustParseAddr("::0")
+)
+
 // typedef union {
 //   __be32    a4;
 //   __be32    a6[4];
@@ -122,44 +127,45 @@ const (
 
 type XfrmAddress [SizeofXfrmAddress]byte
 
-func (x *XfrmAddress) ToIP() net.IP {
+func (x *XfrmAddress) ToIP() netip.Addr {
 	var empty = [12]byte{}
-	ip := make(net.IP, net.IPv6len)
+
+	// ipv4
 	if bytes.Equal(x[4:16], empty[:]) {
-		ip[10] = 0xff
-		ip[11] = 0xff
-		copy(ip[12:16], x[0:4])
-	} else {
-		copy(ip[:], x[:])
+		addr, _ := netip.AddrFromSlice(x[0:4])
+		return addr
 	}
-	return ip
+
+	// ipv6
+	addr := netip.AddrFrom16(*x)
+	return addr
 }
 
 // family is only used when x and prefixlen are both 0
-func (x *XfrmAddress) ToIPNet(prefixlen uint8, family uint16) *net.IPNet {
+func (x *XfrmAddress) ToIPNet(prefixlen uint8, family uint16) netip.Prefix {
 	empty := [SizeofXfrmAddress]byte{}
 	if bytes.Equal(x[:], empty[:]) && prefixlen == 0 {
 		if family == FAMILY_V6 {
-			return &net.IPNet{IP: net.ParseIP("::"), Mask: net.CIDRMask(int(prefixlen), 128)}
+			return netip.PrefixFrom(v6zero, 128)
 		}
-		return &net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(int(prefixlen), 32)}
+		return netip.PrefixFrom(v4zero, 32)
 	}
 	ip := x.ToIP()
-	if GetIPFamily(ip) == FAMILY_V4 {
-		return &net.IPNet{IP: ip, Mask: net.CIDRMask(int(prefixlen), 32)}
+	if ip.Is4() {
+		return netip.PrefixFrom(ip, 32)
 	}
-	return &net.IPNet{IP: ip, Mask: net.CIDRMask(int(prefixlen), 128)}
+	return netip.PrefixFrom(ip, 128)
 }
 
-func (x *XfrmAddress) FromIP(ip net.IP) {
+func (x *XfrmAddress) FromIP(ip netip.Addr) {
 	var empty = [16]byte{}
-	if len(ip) < net.IPv4len {
+	if !ip.IsValid() {
 		copy(x[4:16], empty[:])
-	} else if GetIPFamily(ip) == FAMILY_V4 {
-		copy(x[0:4], ip.To4()[0:4])
+	} else if ip.Is4() {
+		copy(x[0:4], ip.AsSlice())
 		copy(x[4:16], empty[:12])
 	} else {
-		copy(x[0:16], ip.To16()[0:16])
+		copy(x[0:16], ip.AsSlice())
 	}
 }
 

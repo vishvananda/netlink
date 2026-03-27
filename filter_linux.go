@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/bits"
 	"net"
+	"net/netip"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -55,15 +57,11 @@ func (filter *U32) Type() string {
 type Flower struct {
 	FilterAttrs
 	ClassId         uint32
-	DestIP          net.IP
-	DestIPMask      net.IPMask
-	SrcIP           net.IP
-	SrcIPMask       net.IPMask
+	Dest            netip.Prefix
+	Src             netip.Prefix
 	EthType         uint16
-	EncDestIP       net.IP
-	EncDestIPMask   net.IPMask
-	EncSrcIP        net.IP
-	EncSrcIPMask    net.IPMask
+	EncDest         netip.Prefix
+	EncSrc          netip.Prefix
 	EncDestPort     uint16
 	EncKeyId        uint32
 	SrcMac          net.HardwareAddr
@@ -90,26 +88,18 @@ func (filter *Flower) Type() string {
 	return "flower"
 }
 
-func (filter *Flower) encodeIP(parent *nl.RtAttr, ip net.IP, mask net.IPMask, v4Type, v6Type int, v4MaskType, v6MaskType int) {
+func (filter *Flower) encodeIP(parent *nl.RtAttr, ip netip.Prefix, v4Type, v6Type int, v4MaskType, v6MaskType int) {
 	ipType := v4Type
 	maskType := v4MaskType
 
-	encodeMask := mask
-	if mask == nil {
-		encodeMask = net.CIDRMask(32, 32)
-	}
-	v4IP := ip.To4()
-	if v4IP == nil {
+	encodeMask := net.CIDRMask(ip.Bits(), ip.Addr().BitLen())
+
+	if ip.Addr().Is6() {
 		ipType = v6Type
 		maskType = v6MaskType
-		if mask == nil {
-			encodeMask = net.CIDRMask(128, 128)
-		}
-	} else {
-		ip = v4IP
 	}
 
-	parent.AddRtAttr(ipType, ip)
+	parent.AddRtAttr(ipType, ip.Addr().AsSlice())
 	parent.AddRtAttr(maskType, encodeMask)
 }
 
@@ -117,23 +107,23 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 	if filter.EthType != 0 {
 		parent.AddRtAttr(nl.TCA_FLOWER_KEY_ETH_TYPE, htons(filter.EthType))
 	}
-	if filter.SrcIP != nil {
-		filter.encodeIP(parent, filter.SrcIP, filter.SrcIPMask,
+	if filter.Src.IsValid() {
+		filter.encodeIP(parent, filter.Src,
 			nl.TCA_FLOWER_KEY_IPV4_SRC, nl.TCA_FLOWER_KEY_IPV6_SRC,
 			nl.TCA_FLOWER_KEY_IPV4_SRC_MASK, nl.TCA_FLOWER_KEY_IPV6_SRC_MASK)
 	}
-	if filter.DestIP != nil {
-		filter.encodeIP(parent, filter.DestIP, filter.DestIPMask,
+	if filter.Dest.IsValid() {
+		filter.encodeIP(parent, filter.Dest,
 			nl.TCA_FLOWER_KEY_IPV4_DST, nl.TCA_FLOWER_KEY_IPV6_DST,
 			nl.TCA_FLOWER_KEY_IPV4_DST_MASK, nl.TCA_FLOWER_KEY_IPV6_DST_MASK)
 	}
-	if filter.EncSrcIP != nil {
-		filter.encodeIP(parent, filter.EncSrcIP, filter.EncSrcIPMask,
+	if filter.EncSrc.IsValid() {
+		filter.encodeIP(parent, filter.EncSrc,
 			nl.TCA_FLOWER_KEY_ENC_IPV4_SRC, nl.TCA_FLOWER_KEY_ENC_IPV6_SRC,
 			nl.TCA_FLOWER_KEY_ENC_IPV4_SRC_MASK, nl.TCA_FLOWER_KEY_ENC_IPV6_SRC_MASK)
 	}
-	if filter.EncDestIP != nil {
-		filter.encodeIP(parent, filter.EncDestIP, filter.EncSrcIPMask,
+	if filter.EncDest.IsValid() {
+		filter.encodeIP(parent, filter.EncDest,
 			nl.TCA_FLOWER_KEY_ENC_IPV4_DST, nl.TCA_FLOWER_KEY_ENC_IPV6_DST,
 			nl.TCA_FLOWER_KEY_ENC_IPV4_DST_MASK, nl.TCA_FLOWER_KEY_ENC_IPV6_DST_MASK)
 	}
@@ -207,26 +197,55 @@ func (filter *Flower) encode(parent *nl.RtAttr) error {
 }
 
 func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
+	var srcIP, dstIP, encSrcIP, encDstIP netip.Addr
+	var srcLen, dstLen, encSrcLen, encDstLen int
+
+	maskLen := func(d []byte) (r int) {
+		for _, v := range d {
+			r += bits.OnesCount8(v)
+		}
+		return
+	}
+
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.TCA_FLOWER_KEY_ETH_TYPE:
 			filter.EthType = ntohs(datum.Value)
 		case nl.TCA_FLOWER_KEY_IPV4_SRC, nl.TCA_FLOWER_KEY_IPV6_SRC:
-			filter.SrcIP = datum.Value
+			addr, ok := netip.AddrFromSlice(datum.Value)
+			if !ok {
+				return fmt.Errorf("attr %d: invalid address", datum.Attr.Type)
+			}
+			srcIP = addr
 		case nl.TCA_FLOWER_KEY_IPV4_SRC_MASK, nl.TCA_FLOWER_KEY_IPV6_SRC_MASK:
-			filter.SrcIPMask = datum.Value
+			srcLen = maskLen(datum.Value)
 		case nl.TCA_FLOWER_KEY_IPV4_DST, nl.TCA_FLOWER_KEY_IPV6_DST:
-			filter.DestIP = datum.Value
+			addr, ok := netip.AddrFromSlice(datum.Value)
+			if !ok {
+				return fmt.Errorf("attr %d: invalid address", datum.Attr.Type)
+			}
+
+			dstIP = addr
 		case nl.TCA_FLOWER_KEY_IPV4_DST_MASK, nl.TCA_FLOWER_KEY_IPV6_DST_MASK:
-			filter.DestIPMask = datum.Value
+			dstLen = maskLen(datum.Value)
 		case nl.TCA_FLOWER_KEY_ENC_IPV4_SRC, nl.TCA_FLOWER_KEY_ENC_IPV6_SRC:
-			filter.EncSrcIP = datum.Value
+			addr, ok := netip.AddrFromSlice(datum.Value)
+			if !ok {
+				return fmt.Errorf("attr %d: invalid address", datum.Attr.Type)
+			}
+
+			encSrcIP = addr
 		case nl.TCA_FLOWER_KEY_ENC_IPV4_SRC_MASK, nl.TCA_FLOWER_KEY_ENC_IPV6_SRC_MASK:
-			filter.EncSrcIPMask = datum.Value
+			encSrcLen = maskLen(datum.Value)
 		case nl.TCA_FLOWER_KEY_ENC_IPV4_DST, nl.TCA_FLOWER_KEY_ENC_IPV6_DST:
-			filter.EncDestIP = datum.Value
+			addr, ok := netip.AddrFromSlice(datum.Value)
+			if !ok {
+				return fmt.Errorf("attr %d: invalid address", datum.Attr.Type)
+			}
+
+			encDstIP = addr
 		case nl.TCA_FLOWER_KEY_ENC_IPV4_DST_MASK, nl.TCA_FLOWER_KEY_ENC_IPV6_DST_MASK:
-			filter.EncDestIPMask = datum.Value
+			encDstLen = maskLen(datum.Value)
 		case nl.TCA_FLOWER_KEY_ENC_UDP_DST_PORT:
 			filter.EncDestPort = ntohs(datum.Value)
 		case nl.TCA_FLOWER_KEY_ENC_KEY_ID:
@@ -277,6 +296,36 @@ func (filter *Flower) decode(data []syscall.NetlinkRouteAttr) error {
 			filter.ClassId = native.Uint32(datum.Value)
 		}
 	}
+
+	var err error
+	if srcIP.IsValid() {
+		filter.Src, err = srcIP.Prefix(srcLen)
+		if err != nil {
+			return err
+		}
+	}
+
+	if dstIP.IsValid() {
+		filter.Dest, err = dstIP.Prefix(dstLen)
+		if err != nil {
+			return err
+		}
+	}
+
+	if encSrcIP.IsValid() {
+		filter.EncSrc, err = encSrcIP.Prefix(encSrcLen)
+		if err != nil {
+			return err
+		}
+	}
+
+	if encDstIP.IsValid() {
+		filter.EncDest, err = encDstIP.Prefix(encDstLen)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -698,17 +747,17 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_PARMS, tun.Serialize())
 			if action.Action == TCA_TUNNEL_KEY_SET {
 				aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_KEY_ID, htonl(action.KeyID))
-				if v4 := action.SrcAddr.To4(); v4 != nil {
-					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV4_SRC, v4[:])
-				} else if v6 := action.SrcAddr.To16(); v6 != nil {
-					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV6_SRC, v6[:])
+				if action.SrcAddr.Is4() {
+					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV4_SRC, action.SrcAddr.AsSlice())
+				} else if action.SrcAddr.Is6() {
+					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV6_SRC, action.SrcAddr.AsSlice())
 				} else {
 					return fmt.Errorf("invalid src addr %s for tunnel_key action", action.SrcAddr)
 				}
-				if v4 := action.DstAddr.To4(); v4 != nil {
-					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV4_DST, v4[:])
-				} else if v6 := action.DstAddr.To16(); v6 != nil {
-					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV6_DST, v6[:])
+				if action.DstAddr.Is4() {
+					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV4_DST, action.DstAddr.AsSlice())
+				} else if action.DstAddr.Is6() {
+					aopts.AddRtAttr(nl.TCA_TUNNEL_KEY_ENC_IPV6_DST, action.DstAddr.AsSlice())
 				} else {
 					return fmt.Errorf("invalid dst addr %s for tunnel_key action", action.DstAddr)
 				}
@@ -799,10 +848,10 @@ func EncodeActions(attr *nl.RtAttr, actions []Action) error {
 			if action.DstMacAddr != nil {
 				pedit.SetEthDst(action.DstMacAddr)
 			}
-			if action.SrcIP != nil {
+			if action.SrcIP.IsValid() {
 				pedit.SetSrcIP(action.SrcIP)
 			}
-			if action.DstIP != nil {
+			if action.DstIP.IsValid() {
 				pedit.SetDstIP(action.DstIP)
 			}
 			if action.SrcPort != 0 {
@@ -991,9 +1040,9 @@ func parseActions(tables []syscall.NetlinkRouteAttr) ([]Action, error) {
 						case nl.TCA_TUNNEL_KEY_ENC_KEY_ID:
 							action.(*TunnelKeyAction).KeyID = networkOrder.Uint32(adatum.Value[0:4])
 						case nl.TCA_TUNNEL_KEY_ENC_IPV6_SRC, nl.TCA_TUNNEL_KEY_ENC_IPV4_SRC:
-							action.(*TunnelKeyAction).SrcAddr = adatum.Value[:]
+							action.(*TunnelKeyAction).SrcAddr, _ = netip.AddrFromSlice(adatum.Value)
 						case nl.TCA_TUNNEL_KEY_ENC_IPV6_DST, nl.TCA_TUNNEL_KEY_ENC_IPV4_DST:
-							action.(*TunnelKeyAction).DstAddr = adatum.Value[:]
+							action.(*TunnelKeyAction).DstAddr, _ = netip.AddrFromSlice(adatum.Value)
 						case nl.TCA_TUNNEL_KEY_ENC_DST_PORT:
 							action.(*TunnelKeyAction).DestPort = ntohs(adatum.Value)
 						case nl.TCA_TUNNEL_KEY_TM:
