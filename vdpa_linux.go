@@ -168,6 +168,10 @@ func VDPAGetMGMTDevByBusAndName(bus, name string) (*VDPAMGMTDev, error) {
 	return pkgHandle.VDPAGetMGMTDevByBusAndName(bus, name)
 }
 
+func VDPASetAttr(name string, params VDPANewDevParams) error {
+	return pkgHandle.VDPASetAttr(name, params)
+}
+
 type vdpaNetlinkMessage []syscall.NetlinkRouteAttr
 
 func (id *vdpaDevID) parseIDAttribute(attr syscall.NetlinkRouteAttr) {
@@ -488,4 +492,31 @@ func (h *Handle) VDPAGetMGMTDevByBusAndName(bus, name string) (*VDPAMGMTDev, err
 		return nil, fmt.Errorf("mgmtdev not found")
 	}
 	return devs[0], nil
+}
+
+// VDPASetAttr sets other values to attributes of a VDPA device
+// Equivalent to: `vdpa dev set name <name> ...`
+func (h *Handle) VDPASetAttr(name string, params VDPANewDevParams) error {
+	attrs := []*nl.RtAttr{}
+
+	if len(params.MACAddr) != 0 {
+		attrs = append(attrs, nl.NewRtAttr(nl.VDPA_ATTR_DEV_NET_CFG_MACADDR, params.MACAddr))
+	}
+	if params.MaxVQP > 0 {
+		attrs = append(attrs, nl.NewRtAttr(nl.VDPA_ATTR_DEV_NET_CFG_MAX_VQP, nl.Uint16Attr(params.MaxVQP)))
+	}
+	if params.MTU > 0 {
+		attrs = append(attrs, nl.NewRtAttr(nl.VDPA_ATTR_DEV_NET_CFG_MTU, nl.Uint16Attr(params.MTU)))
+	}
+	if params.Features > 0 {
+		attrs = append(attrs, nl.NewRtAttr(nl.VDPA_ATTR_DEV_FEATURES, nl.Uint64Attr(params.Features)))
+	}
+
+	if len(attrs) == 0 {
+		return fmt.Errorf("parameters were not provided")
+	}
+	attrs = append(attrs, nl.NewRtAttr(nl.VDPA_ATTR_DEV_NAME, nl.ZeroTerminated(name)))
+
+	_, err := h.vdpaRequest(nl.VDPA_CMD_DEV_ATTR_SET, 0, attrs)
+	return err
 }
