@@ -10,7 +10,7 @@ import (
 )
 
 // Empty handle used by the netlink package methods
-var pkgHandle = &Handle{}
+var pkgHandle = &Handle{options: HandleOptions{collectVFInfo: true}}
 
 type HandleOptions struct {
 	lookupByDump  bool
