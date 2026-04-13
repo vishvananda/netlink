@@ -335,9 +335,9 @@ func TestAddrProtocol(t *testing.T) {
 	}
 
 	const testProtocol = 99
-	address := &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(32, 32)}
+	prefix := netip.PrefixFrom(netip.MustParseAddr("127.0.0.2"), 32)
 	addr := &Addr{
-		IPNet:    address,
+		Prefix:   prefix,
 		Protocol: testProtocol,
 	}
 

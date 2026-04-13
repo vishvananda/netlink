@@ -183,7 +183,11 @@ func (h *Handle) GTPPDPByMSAddress(link Link, addr netip.Addr) (*PDP, error) {
 	req.AddData(msg)
 	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_VERSION, nl.Uint32Attr(0)))
 	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_LINK, nl.Uint32Attr(uint32(link.Attrs().Index))))
-	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_MS_ADDRESS, addr.AsSlice()))
+	addr4 := addr.Unmap()
+	if !addr4.Is4() {
+		return nil, fmt.Errorf("GTP MS address must be IPv4: %s", addr)
+	}
+	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_MS_ADDRESS, addr4.AsSlice()))
 	return gtpPDPGet(req)
 }
 
@@ -204,8 +208,16 @@ func (h *Handle) GTPPDPAdd(link Link, pdp *PDP) error {
 	req.AddData(msg)
 	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_VERSION, nl.Uint32Attr(pdp.Version)))
 	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_LINK, nl.Uint32Attr(uint32(link.Attrs().Index))))
-	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_PEER_ADDRESS, pdp.PeerAddress.AsSlice()))
-	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_MS_ADDRESS, pdp.MSAddress.AsSlice()))
+	peerAddr := pdp.PeerAddress.Unmap()
+	if !peerAddr.Is4() {
+		return fmt.Errorf("GTP peer address must be IPv4: %s", pdp.PeerAddress)
+	}
+	msAddr := pdp.MSAddress.Unmap()
+	if !msAddr.Is4() {
+		return fmt.Errorf("GTP MS address must be IPv4: %s", pdp.MSAddress)
+	}
+	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_PEER_ADDRESS, peerAddr.AsSlice()))
+	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_MS_ADDRESS, msAddr.AsSlice()))
 
 	switch pdp.Version {
 	case 0:

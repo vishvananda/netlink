@@ -1241,7 +1241,7 @@ func LinkSetVXLANVtepDevIndex(link *Vxlan, ifIndex int) error {
 // LinkSetVXLANVtepDevIndex sets the VTEP device index of a VXLAN link device.
 // Equivalent to: `ip link set $link type [ dev $dev ]`
 func (h *Handle) LinkSetVXLANVtepDevIndex(link *Vxlan, ifIndex int) error {
-	if link.Group != nil && ifIndex == 0 {
+	if link.Group.IsValid() && ifIndex == 0 {
 		return fmt.Errorf("VTEP device index must be set when group address is set")
 	}
 

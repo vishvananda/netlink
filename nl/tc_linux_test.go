@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"net"
+	"net/netip"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -221,40 +222,40 @@ func TestParsePeditEthKeys(t *testing.T) {
 func TestParsePeditIP4Keys(t *testing.T) {
 	tests := []struct {
 		name  string
-		srcIP net.IP
-		dstIP net.IP
+		srcIP netip.Addr
+		dstIP netip.Addr
 	}{
 		{
 			name:  "Parse source IPv4",
-			srcIP: net.ParseIP("192.168.1.1"),
+			srcIP: netip.MustParseAddr("192.168.1.1"),
 		},
 		{
 			name:  "Parse destination IPv4",
-			dstIP: net.ParseIP("10.0.0.1"),
+			dstIP: netip.MustParseAddr("10.0.0.1"),
 		},
 		{
 			name:  "Parse both IPv4 addresses",
-			srcIP: net.ParseIP("192.168.1.1"),
-			dstIP: net.ParseIP("10.0.0.1"),
+			srcIP: netip.MustParseAddr("192.168.1.1"),
+			dstIP: netip.MustParseAddr("10.0.0.1"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pedit := &TcPedit{}
-			if tt.srcIP != nil {
+			if tt.srcIP.IsValid() {
 				pedit.SetIPv4Src(tt.srcIP)
 			}
-			if tt.dstIP != nil {
+			if tt.dstIP.IsValid() {
 				pedit.SetIPv4Dst(tt.dstIP)
 			}
 
 			srcIP, dstIP := ParsePeditIP4Keys(pedit.Keys)
 
-			if !srcIP.Equal(tt.srcIP) {
+			if srcIP != tt.srcIP {
 				t.Errorf("ParsePeditIP4Keys() srcIP = %v, want %v", srcIP, tt.srcIP)
 			}
-			if !dstIP.Equal(tt.dstIP) {
+			if dstIP != tt.dstIP {
 				t.Errorf("ParsePeditIP4Keys() dstIP = %v, want %v", dstIP, tt.dstIP)
 			}
 		})
@@ -264,40 +265,40 @@ func TestParsePeditIP4Keys(t *testing.T) {
 func TestParsePeditIP6Keys(t *testing.T) {
 	tests := []struct {
 		name  string
-		srcIP net.IP
-		dstIP net.IP
+		srcIP netip.Addr
+		dstIP netip.Addr
 	}{
 		{
 			name:  "Parse source IPv6",
-			srcIP: net.ParseIP("2001:db8::1"),
+			srcIP: netip.MustParseAddr("2001:db8::1"),
 		},
 		{
 			name:  "Parse destination IPv6",
-			dstIP: net.ParseIP("fe80::1"),
+			dstIP: netip.MustParseAddr("fe80::1"),
 		},
 		{
 			name:  "Parse both IPv6 addresses",
-			srcIP: net.ParseIP("2001:db8::1"),
-			dstIP: net.ParseIP("fe80::1"),
+			srcIP: netip.MustParseAddr("2001:db8::1"),
+			dstIP: netip.MustParseAddr("fe80::1"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pedit := &TcPedit{}
-			if tt.srcIP != nil {
+			if tt.srcIP.IsValid() {
 				pedit.SetIPv6Src(tt.srcIP)
 			}
-			if tt.dstIP != nil {
+			if tt.dstIP.IsValid() {
 				pedit.SetIPv6Dst(tt.dstIP)
 			}
 
 			srcIP, dstIP := ParsePeditIP6Keys(pedit.Keys)
 
-			if !srcIP.Equal(tt.srcIP) {
+			if srcIP != tt.srcIP {
 				t.Errorf("ParsePeditIP6Keys() srcIP = %v, want %v", srcIP, tt.srcIP)
 			}
-			if !dstIP.Equal(tt.dstIP) {
+			if dstIP != tt.dstIP {
 				t.Errorf("ParsePeditIP6Keys() dstIP = %v, want %v", dstIP, tt.dstIP)
 			}
 		})

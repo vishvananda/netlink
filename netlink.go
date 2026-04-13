@@ -18,16 +18,16 @@ var (
 	ErrNotImplemented = errors.New("not implemented")
 )
 
-// ParseIPNet parses a string in ip/net format and returns a netip.Prefix.
+// ParsePrefix parses a string in ip/net format and returns a netip.Prefix.
 // This is valuable because addresses in netlink are often IPNets and
 // ParseCIDR returns an IPNet with the IP part set to the base IP of the
 // range.
-func ParseIPNet(s string) (netip.Prefix, error) {
+func ParsePrefix(s string) (netip.Prefix, error) {
 	return netip.ParsePrefix(s)
 }
 
-// NewIPNet generates an IPNet from an ip address using a netmask of 32 or 128.
-func NewIPNet(ip netip.Addr) netip.Prefix {
+// NewPrefix generates a Prefix from an ip address using a netmask of 32 or 128.
+func NewPrefix(ip netip.Addr) netip.Prefix {
 	return netip.PrefixFrom(ip, ip.BitLen())
 }
 

@@ -141,20 +141,19 @@ func (x *XfrmAddress) ToIP() netip.Addr {
 	return addr
 }
 
-// family is only used when x and prefixlen are both 0
-func (x *XfrmAddress) ToIPNet(prefixlen uint8, family uint16) netip.Prefix {
+func (x *XfrmAddress) ToPrefix(prefixlen uint8, family uint16) netip.Prefix {
 	empty := [SizeofXfrmAddress]byte{}
-	if bytes.Equal(x[:], empty[:]) && prefixlen == 0 {
-		if family == FAMILY_V6 {
-			return netip.PrefixFrom(v6zero, 128)
+	if bytes.Equal(x[:], empty[:]) {
+		switch family {
+		case FAMILY_V4:
+			return netip.PrefixFrom(v4zero, int(prefixlen))
+		case FAMILY_V6:
+			return netip.PrefixFrom(v6zero, int(prefixlen))
+		default:
+			return netip.Prefix{}
 		}
-		return netip.PrefixFrom(v4zero, 32)
 	}
-	ip := x.ToIP()
-	if ip.Is4() {
-		return netip.PrefixFrom(ip, 32)
-	}
-	return netip.PrefixFrom(ip, 128)
+	return netip.PrefixFrom(x.ToIP(), int(prefixlen))
 }
 
 func (x *XfrmAddress) FromIP(ip netip.Addr) {

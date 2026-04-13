@@ -44,7 +44,7 @@ func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 	}
 
 	if !comparePolicies(policy, sp) {
-		t.Fatalf("unexpected policy returned")
+		t.Fatalf("unexpected policy returned.\nExpected: %v.\nGot %v", policy, sp)
 	}
 
 	// Modify the policy
@@ -85,7 +85,7 @@ func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 	}
 
 	if !comparePolicies(policy, sp) {
-		t.Fatalf("unexpected policy returned")
+		t.Fatalf("unexpected policy returned\nExpected: %v.\nGot %v", policy, sp)
 	}
 
 	if err = XfrmPolicyDel(policy); err != nil {
@@ -219,7 +219,7 @@ func comparePolicies(a, b *XfrmPolicy) bool {
 	}
 	// Do not check Index which is assigned by kernel
 	return a.Dir == b.Dir && a.Priority == b.Priority &&
-		a.Src == b.Src && a.Dst == b.Dst &&
+		comparePrefix(a.Src, b.Src) && comparePrefix(a.Dst, b.Dst) &&
 		a.Action == b.Action && a.Ifindex == b.Ifindex &&
 		a.Mark.Value == b.Mark.Value && a.Mark.Mask == b.Mark.Mask &&
 		a.Ifid == b.Ifid && compareTemplates(a.Tmpls, b.Tmpls)
@@ -240,9 +240,23 @@ func compareTemplates(a, b []XfrmPolicyTmpl) bool {
 	return true
 }
 
+func comparePrefix(a, b netip.Prefix) bool {
+	if a == b {
+		return true
+	}
+	// For unspecified src/dst parseXfrmPolicy returns a /0 prefix.
+	if (!a.IsValid() && b.Bits() == 0) || (!b.IsValid() && a.Bits() == 0) {
+		return true
+	}
+	if !a.IsValid() || !b.IsValid() {
+		return false
+	}
+	return a == b
+}
+
 func getPolicy() *XfrmPolicy {
-	src, _ := ParseIPNet("127.1.1.1/32")
-	dst, _ := ParseIPNet("127.1.1.2/32")
+	src, _ := ParsePrefix("127.1.1.1/32")
+	dst, _ := ParsePrefix("127.1.1.2/32")
 	policy := &XfrmPolicy{
 		Src:     src,
 		Dst:     dst,

@@ -25,9 +25,11 @@ func TestSocketGet(t *testing.T) {
 		switch v := a.(type) {
 		case *net.UDPAddr:
 			addr.IP, _ = netip.AddrFromSlice(v.IP)
+			addr.IP = addr.IP.Unmap()
 			addr.Port = v.Port
 		case *net.TCPAddr:
 			addr.IP, _ = netip.AddrFromSlice(v.IP)
+			addr.IP = addr.IP.Unmap()
 			addr.Port = v.Port
 		}
 		return addr

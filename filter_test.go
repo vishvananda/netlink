@@ -1829,17 +1829,17 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	if filter.EthType != flower.EthType {
 		t.Fatalf("Flower EthType doesn't match")
 	}
-	if filter.Dest != flower.Dest {
+	if filter.Dest.Masked() != flower.Dest.Masked() {
 		t.Fatalf("Flower DestIP doesn't match")
 	}
-	if filter.Src != flower.Src {
+	if filter.Src.Masked() != flower.Src.Masked() {
 		t.Fatalf("Flower SrcIP doesn't match")
 	}
 
-	if filter.EncDest != flower.EncDest {
+	if filter.EncDest.Masked() != flower.EncDest.Masked() {
 		t.Fatalf("Flower EncDestIP doesn't match")
 	}
-	if filter.EncSrc != flower.EncSrc {
+	if filter.EncSrc.Masked() != flower.EncSrc.Masked() {
 		t.Fatalf("Flower EncSrcIP doesn't match")
 	}
 	if filter.EncKeyId != flower.EncKeyId {
@@ -2186,7 +2186,7 @@ func TestFilterIPv6FlowerPedit(t *testing.T) {
 	if filter.EthType != flower.EthType {
 		t.Fatalf("Flower EthType doesn't match")
 	}
-	if filter.Dest != flower.Dest {
+	if filter.Dest.Masked() != flower.Dest.Masked() {
 		t.Fatalf("Flower DestIP doesn't match")
 	}
 

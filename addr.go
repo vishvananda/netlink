@@ -35,7 +35,7 @@ func ParseAddr(s string) (*Addr, error) {
 		s = parts[0]
 		label = parts[1]
 	}
-	m, err := ParseIPNet(s)
+	m, err := ParsePrefix(s)
 	if err != nil {
 		return nil, err
 	}

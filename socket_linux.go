@@ -53,8 +53,8 @@ func (r *socketRequest) Serialize() []byte {
 	native.PutUint32(b.Next(4), r.States)
 	networkOrder.PutUint16(b.Next(2), r.ID.SourcePort)
 	networkOrder.PutUint16(b.Next(2), r.ID.DestinationPort)
-	r.ID.Source, _ = netip.AddrFromSlice(b.Next(16))
-	r.ID.Destination, _ = netip.AddrFromSlice(b.Next(16))
+	copy(b.Next(16), r.ID.Source.AsSlice())
+	copy(b.Next(16), r.ID.Destination.AsSlice())
 	native.PutUint32(b.Next(4), r.ID.Interface)
 	native.PutUint32(b.Next(4), r.ID.Cookie[0])
 	native.PutUint32(b.Next(4), r.ID.Cookie[1])
@@ -185,8 +185,10 @@ func (h *Handle) SocketGet(local, remote net.Addr) (*Socket, error) {
 			return nil, ErrNotImplemented
 		}
 		localIP, _ = netip.AddrFromSlice(l.IP)
+		localIP = localIP.Unmap()
 		localPort = uint16(l.Port)
 		remoteIP, _ = netip.AddrFromSlice(r.IP)
+		remoteIP = remoteIP.Unmap()
 		remotePort = uint16(r.Port)
 		protocol = unix.IPPROTO_TCP
 	case *net.UDPAddr:
@@ -195,8 +197,10 @@ func (h *Handle) SocketGet(local, remote net.Addr) (*Socket, error) {
 			return nil, ErrNotImplemented
 		}
 		localIP, _ = netip.AddrFromSlice(l.IP)
+		localIP = localIP.Unmap()
 		localPort = uint16(l.Port)
 		remoteIP, _ = netip.AddrFromSlice(r.IP)
+		remoteIP = remoteIP.Unmap()
 		remotePort = uint16(r.Port)
 		protocol = unix.IPPROTO_UDP
 	default:

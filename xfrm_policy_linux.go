@@ -108,6 +108,9 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 		sel.PrefixlenD = uint8(policy.Dst.Bits())
 	}
 	if policy.Src.IsValid() {
+		if sel.Family == uint16(nl.FAMILY_V4) && policy.Src.Addr().Is6() {
+			sel.Family = uint16(nl.FAMILY_V6)
+		}
 		sel.Saddr.FromIP(policy.Src.Addr())
 		sel.PrefixlenS = uint8(policy.Src.Bits())
 	}
@@ -323,8 +326,8 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 
 	var policy XfrmPolicy
 
-	policy.Dst = msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, uint16(family))
-	policy.Src = msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, uint16(family))
+	policy.Dst = msg.Sel.Daddr.ToPrefix(msg.Sel.PrefixlenD, msg.Sel.Family)
+	policy.Src = msg.Sel.Saddr.ToPrefix(msg.Sel.PrefixlenS, msg.Sel.Family)
 	policy.Proto = Proto(msg.Sel.Proto)
 	policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
 	policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))

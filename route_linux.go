@@ -784,8 +784,7 @@ func (v *Via) Encode() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Write(buf, native, v.Addr)
-	if err != nil {
+	if _, err = buf.Write(v.Addr.AsSlice()); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -911,7 +910,7 @@ func (h *Handle) routeHandleIter(route *Route, req *nl.NetlinkRequest, msg *nl.R
 }
 
 func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
-	if req.NlMsghdr.Type != unix.RTM_GETROUTE && (!route.Dst.IsValid() || !route.Dst.IsValid()) && !route.Src.IsValid() && !route.Gw.IsValid() && route.MPLSDst == nil {
+	if req.NlMsghdr.Type != unix.RTM_GETROUTE && !route.Dst.IsValid() && !route.Src.IsValid() && !route.Gw.IsValid() && route.MPLSDst == nil {
 		return fmt.Errorf("either Dst.IP, Src.IP or Gw must be set")
 	}
 
@@ -1294,7 +1293,7 @@ func (h *Handle) RouteListFilteredIter(family int, filter *Route, filterMask uin
 				return true
 			case filterMask&RT_FILTER_DST != 0:
 				if filter.MPLSDst == nil || route.MPLSDst == nil || (*filter.MPLSDst) != (*route.MPLSDst) {
-					if filter.Dst.IsValid() {
+					if !filter.Dst.IsValid() {
 						filter.Dst = genZeroIPNet(family)
 					}
 					if route.Dst != filter.Dst {

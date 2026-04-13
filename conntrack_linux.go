@@ -809,7 +809,7 @@ func (f *ConntrackFilter) AddIP(tp ConntrackFilterType, ip netip.Addr) error {
 	if !ip.IsValid() {
 		return fmt.Errorf("Filter attribute empty")
 	}
-	return f.AddIPNet(tp, NewIPNet(ip))
+	return f.AddIPNet(tp, NewPrefix(ip))
 }
 
 // AddPort adds a Port to the conntrack filter if the Layer 4 protocol allows it

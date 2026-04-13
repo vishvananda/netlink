@@ -466,7 +466,9 @@ func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState
 		req.AddData(out)
 	}
 	if state.Src.IsValid() {
-		out := nl.NewRtAttr(nl.XFRMA_SRCADDR, state.Src.AsSlice())
+		var srcAddr nl.XfrmAddress
+		srcAddr.FromIP(state.Src)
+		out := nl.NewRtAttr(nl.XFRMA_SRCADDR, srcAddr[:])
 		req.AddData(out)
 	}
 
@@ -511,8 +513,8 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	lftToLimits(&msg.Lft, &state.Limits)
 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
 	state.Selector = &XfrmPolicy{
-		Dst:     msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, msg.Sel.Family),
-		Src:     msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, msg.Sel.Family),
+		Dst:     msg.Sel.Daddr.ToPrefix(msg.Sel.PrefixlenD, msg.Sel.Family),
+		Src:     msg.Sel.Saddr.ToPrefix(msg.Sel.PrefixlenS, msg.Sel.Family),
 		Proto:   Proto(msg.Sel.Proto),
 		DstPort: int(nl.Swap16(msg.Sel.Dport)),
 		SrcPort: int(nl.Swap16(msg.Sel.Sport)),

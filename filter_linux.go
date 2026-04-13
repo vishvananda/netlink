@@ -99,7 +99,7 @@ func (filter *Flower) encodeIP(parent *nl.RtAttr, ip netip.Prefix, v4Type, v6Typ
 		maskType = v6MaskType
 	}
 
-	parent.AddRtAttr(ipType, ip.Addr().AsSlice())
+	parent.AddRtAttr(ipType, ip.Masked().Addr().AsSlice())
 	parent.AddRtAttr(maskType, encodeMask)
 }
 
@@ -913,19 +913,19 @@ func parsePeditExtendedKeys(pedit *nl.TcPedit, action *PeditAction) {
 
 		case nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
 			srcIP, dstIP := nl.ParsePeditIP4Keys(keys)
-			if srcIP != nil {
+			if srcIP.IsValid() {
 				action.SrcIP = srcIP
 			}
-			if dstIP != nil {
+			if dstIP.IsValid() {
 				action.DstIP = dstIP
 			}
 
 		case nl.TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
 			srcIP, dstIP := nl.ParsePeditIP6Keys(keys)
-			if srcIP != nil {
+			if srcIP.IsValid() {
 				action.SrcIP = srcIP
 			}
-			if dstIP != nil {
+			if dstIP.IsValid() {
 				action.DstIP = dstIP
 			}
 

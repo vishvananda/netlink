@@ -1735,16 +1735,16 @@ func ParsePeditEthKeys(keys []TcPeditKey) (srcMac, dstMac net.HardwareAddr) {
 }
 
 // ParsePeditIP4Keys extracts IPv4 addresses from pedit keys
-func ParsePeditIP4Keys(keys []TcPeditKey) (srcIP, dstIP net.IP) {
+func ParsePeditIP4Keys(keys []TcPeditKey) (srcIP, dstIP netip.Addr) {
 	for _, key := range keys {
 		valBytes := make([]byte, 4)
 		NativeEndian().PutUint32(valBytes, key.Val)
 
 		switch key.Off {
 		case 12:
-			srcIP = net.IP(valBytes)
+			srcIP, _ = netip.AddrFromSlice(valBytes)
 		case 16:
-			dstIP = net.IP(valBytes)
+			dstIP, _ = netip.AddrFromSlice(valBytes)
 		}
 	}
 
@@ -1752,24 +1752,24 @@ func ParsePeditIP4Keys(keys []TcPeditKey) (srcIP, dstIP net.IP) {
 }
 
 // ParsePeditIP6Keys parses IPv6 header modifications
-func ParsePeditIP6Keys(keys []TcPeditKey) (srcIP, dstIP net.IP) {
+func ParsePeditIP6Keys(keys []TcPeditKey) (srcIP, dstIP netip.Addr) {
 	// Helper to parse 4 consecutive keys for a complete IPv6 address
-	parseIPv6Addr := func(startIdx int) net.IP {
+	parseIPv6Addr := func(startIdx int) netip.Addr {
 		if startIdx+3 >= len(keys) {
-			return nil
+			return netip.Addr{}
 		}
 
-		ip := make(net.IP, 16)
+		var raw [16]byte
 		baseOffset := keys[startIdx].Off
 
 		for j := 0; j < 4; j++ {
 			if keys[startIdx+j].Off != baseOffset+uint32(j*4) {
-				return nil
+				return netip.Addr{}
 			}
-			NativeEndian().PutUint32(ip[j*4:], keys[startIdx+j].Val)
+			NativeEndian().PutUint32(raw[j*4:], keys[startIdx+j].Val)
 		}
 
-		return ip
+		return netip.AddrFrom16(raw)
 	}
 
 	for idx, key := range keys {

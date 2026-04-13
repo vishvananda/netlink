@@ -310,7 +310,7 @@ func setupBridgeWithTwoVxlans(t *testing.T) (*Bridge, *Vxlan, *Vxlan) {
 	// ip link add vxlan0 type vxlan dstport 4789 nolearning external local 10.0.1.1
 	vxlan0 := &Vxlan{
 		LinkAttrs: LinkAttrs{Name: "vxlan0"},
-		SrcAddr:   []byte("10.0.1.1"),
+		SrcAddr:   netip.MustParseAddr("10.0.1.1"),
 		Learning:  false,
 		FlowBased: true,
 		Port:      4789,
@@ -322,7 +322,7 @@ func setupBridgeWithTwoVxlans(t *testing.T) (*Bridge, *Vxlan, *Vxlan) {
 	// ip link add vxlan1 type vxlan dstport 4790 nolearning external local 10.0.1.1
 	vxlan1 := &Vxlan{
 		LinkAttrs: LinkAttrs{Name: "vxlan1"},
-		SrcAddr:   []byte("10.0.1.1"),
+		SrcAddr:   netip.MustParseAddr("10.0.1.1"),
 		Learning:  false,
 		FlowBased: true,
 		Port:      4790,

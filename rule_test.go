@@ -674,9 +674,9 @@ func ruleExists(rules []Rule, rule Rule) bool {
 func ruleEquals(a, b Rule) bool {
 	return a.Table == b.Table &&
 		((!a.Src.IsValid() && !b.Src.IsValid()) ||
-			(a.Src.IsValid() && b.Src.IsValid() && a.Src.String() == b.Src.String())) &&
+			(a.Src.IsValid() && b.Src.IsValid() && a.Src.Masked().String() == b.Src.Masked().String())) &&
 		((!a.Dst.IsValid() && !b.Dst.IsValid()) ||
-			(a.Dst.IsValid() && b.Dst.IsValid() && a.Dst.String() == b.Dst.String())) &&
+			(a.Dst.IsValid() && b.Dst.IsValid() && a.Dst.Masked().String() == b.Dst.Masked().String())) &&
 		a.OifName == b.OifName &&
 		a.Priority == b.Priority &&
 		a.Family == b.Family &&

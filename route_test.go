@@ -202,7 +202,7 @@ func TestRoute6AddDel(t *testing.T) {
 	if k > 4 || (k == 4 && m > 4) {
 		foundExpires := false
 		for _, route := range routes {
-			if route.Dst.Addr() == dst.Addr() {
+			if route.Dst == dst {
 				if route.Expires > 0 && route.Expires <= 10 {
 					foundExpires = true
 				}
@@ -443,7 +443,7 @@ func TestRouteReplace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(routes) != 1 || routes[0].Src == ip {
+	if len(routes) != 1 || routes[0].Src != ip {
 		t.Fatal("Route not replaced properly")
 	}
 
@@ -500,7 +500,7 @@ func TestRouteAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(routes) != 2 || routes[1].Src == ip {
+	if len(routes) != 2 || routes[1].Src != ip {
 		t.Fatal("Route not append properly")
 	}
 
@@ -540,15 +540,14 @@ func TestRouteAddIncomplete(t *testing.T) {
 }
 
 // expectRouteUpdate returns whether the expected updated is received within one minute.
-func expectRouteUpdate(ch <-chan RouteUpdate, t, f uint16, dst netip.Addr) bool {
+func expectRouteUpdate(ch <-chan RouteUpdate, t, f uint16, dst netip.Prefix) bool {
 	for {
 		timeout := time.After(time.Minute)
 		select {
 		case update := <-ch:
 			if update.Type == t &&
 				update.NlFlags == f &&
-				update.Route.Dst.IsValid() &&
-				update.Route.Dst.Addr() == dst {
+				update.Route.Dst == dst {
 				return true
 			}
 		case <-timeout:
@@ -587,13 +586,13 @@ func TestRouteSubscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.Addr()) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.Addr()) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst) {
 		t.Fatal("Del update not received as expected")
 	}
 }
@@ -638,7 +637,7 @@ func TestRouteSubscribeWithOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.Addr()) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst) {
 		t.Fatal("Add update not received as expected")
 	}
 }
@@ -687,13 +686,13 @@ func TestRouteSubscribeAt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.Addr()) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := nh.RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.Addr()) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst) {
 		t.Fatal("Del update not received as expected")
 	}
 }
@@ -745,7 +744,7 @@ func TestRouteSubscribeListExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, 0, dst10.Addr()) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, 0, dst10) {
 		t.Fatal("Existing add update not received as expected")
 	}
 
@@ -757,19 +756,19 @@ func TestRouteSubscribeListExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst.Addr()) {
+	if !expectRouteUpdate(ch, unix.RTM_NEWROUTE, unix.NLM_F_EXCL|unix.NLM_F_CREATE, dst) {
 		t.Fatal("Add update not received as expected")
 	}
 	if err := nh.RouteDel(&route); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst.Addr()) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst) {
 		t.Fatal("Del update not received as expected")
 	}
 	if err := nh.RouteDel(&route10); err != nil {
 		t.Fatal(err)
 	}
-	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst10.Addr()) {
+	if !expectRouteUpdate(ch, unix.RTM_DELROUTE, 0, dst10) {
 		t.Fatal("Del update not received as expected")
 	}
 }
@@ -2233,64 +2232,73 @@ func TestRtoMinLockRouteAddDel(t *testing.T) {
 	}
 }
 
-func TestRouteViaAddDel(t *testing.T) {
+// TestRouteIPv6DstIPv4MappedGwAddDel is a regression test ensuring that an
+// IPv6 destination route with an IPv4-mapped IPv6 gateway (::ffff:x.x.x.x)
+// round-trips correctly. A dummy (non-loopback) interface is required because
+// the kernel drops the gateway for routes on the loopback interface.
+func TestRouteIPv6DstIPv4MappedGwAddDel(t *testing.T) {
 	minKernelRequired(t, 5, 4)
 	t.Cleanup(setUpNetlinkTest(t))
 
-	_, err := RouteList(nil, FAMILY_V4)
+	dummy := &Dummy{LinkAttrs: LinkAttrs{Name: "dummy"}}
+	if err := LinkAdd(dummy); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName(dummy.Attrs().Name)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	link, err := LinkByName("lo")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	if err := LinkSetUp(link); err != nil {
 		t.Fatal(err)
 	}
 
+	// Record existing routes (fe80::/64 may be auto-added on the dummy).
+	routes, err := RouteList(link, FAMILY_V6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nroutes := len(routes)
+
 	route := &Route{
 		LinkIndex: link.Attrs().Index,
-		Dst:       netip.MustParsePrefix("192.168.0.0/14"),
-		MultiPath: []*NexthopInfo{
-			{
-				LinkIndex: link.Attrs().Index,
-				Via: &Via{
-					AddrFamily: FAMILY_V6,
-					Addr:       netip.MustParseAddr("2001::1"),
-				},
-			},
-		},
+		Dst:       netip.MustParsePrefix("2001:db8:1::/48"),
+		Gw:        netip.MustParseAddr("::ffff:100.95.128.3"),
+		Flags:     int(FLAG_ONLINK),
 	}
-
 	if err := RouteAdd(route); err != nil {
 		t.Fatalf("route: %v, err: %v", route, err)
 	}
 
-	routes, err := RouteList(link, FAMILY_V4)
+	routes, err = RouteList(link, FAMILY_V6)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 1 {
+	if len(routes) != nroutes+1 {
 		t.Fatal("Route not added properly")
 	}
 
-	got := routes[0].Via
-	want := route.MultiPath[0].Via
-	if !want.Equal(got) {
-		t.Fatalf("Route Via attribute does not match; got: %s, want: %s", got, want)
+	var added *Route
+	for i := range routes {
+		if routes[i].Dst == route.Dst {
+			added = &routes[i]
+			break
+		}
+	}
+	if added == nil {
+		t.Fatal("Added route not found in list")
+	}
+	if got, want := added.Gw, route.Gw; got != want {
+		t.Fatalf("Route Gw does not match; got: %s, want: %s", got, want)
 	}
 
 	if err := RouteDel(route); err != nil {
 		t.Fatal(err)
 	}
-	routes, err = RouteList(link, FAMILY_V4)
+	routes, err = RouteList(link, FAMILY_V6)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 0 {
+	if len(routes) != nroutes {
 		t.Fatal("Route not removed properly")
 	}
 }
@@ -2590,14 +2598,14 @@ func TestRouteNHID(t *testing.T) {
 	nh := &Nexthop{
 		ID:      1,
 		OIF:     uint32(link0.Attrs().Index),
-		Gateway: net.ParseIP("fe80::1"),
+		Gateway: netip.MustParseAddr("fe80::1"),
 	}
 	if err = NexthopAdd(nh); err != nil {
 		t.Fatal(err)
 	}
 
 	// IPv4 prefix with IPv6 link local nexthop
-	_, dst, err := net.ParseCIDR("10.0.0.0/24")
+	dst, err := netip.ParsePrefix("10.0.0.0/24")
 	if err != nil {
 		t.Fatal(err)
 	}
