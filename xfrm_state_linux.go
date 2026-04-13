@@ -3,7 +3,7 @@ package netlink
 import (
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 	"time"
 	"unsafe"
 
@@ -53,7 +53,7 @@ type XfrmStateEncap struct {
 	Type            EncapType
 	SrcPort         int
 	DstPort         int
-	OriginalAddress net.IP
+	OriginalAddress netip.Addr
 }
 
 func (e XfrmStateEncap) String() string {
@@ -102,8 +102,8 @@ func (r XfrmReplayState) String() string {
 // XfrmState represents the state of an ipsec policy. It optionally
 // contains an XfrmStateAlgo for encryption and one for authentication.
 type XfrmState struct {
-	Dst           net.IP
-	Src           net.IP
+	Dst           netip.Addr
+	Src           netip.Addr
 	Proto         Proto
 	Mode          Mode
 	Spi           int
@@ -465,8 +465,10 @@ func (h *Handle) xfrmStateGetOrDelete(state *XfrmState, nlProto int) (*XfrmState
 		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
 		req.AddData(out)
 	}
-	if state.Src != nil {
-		out := nl.NewRtAttr(nl.XFRMA_SRCADDR, state.Src.To16())
+	if state.Src.IsValid() {
+		var srcAddr nl.XfrmAddress
+		srcAddr.FromIP(state.Src)
+		out := nl.NewRtAttr(nl.XFRMA_SRCADDR, srcAddr[:])
 		req.AddData(out)
 	}
 
@@ -511,8 +513,8 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	lftToLimits(&msg.Lft, &state.Limits)
 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
 	state.Selector = &XfrmPolicy{
-		Dst:     msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, msg.Sel.Family),
-		Src:     msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, msg.Sel.Family),
+		Dst:     msg.Sel.Daddr.ToPrefix(msg.Sel.PrefixlenD, msg.Sel.Family),
+		Src:     msg.Sel.Saddr.ToPrefix(msg.Sel.PrefixlenS, msg.Sel.Family),
 		Proto:   Proto(msg.Sel.Proto),
 		DstPort: int(nl.Swap16(msg.Sel.Dport)),
 		SrcPort: int(nl.Swap16(msg.Sel.Sport)),

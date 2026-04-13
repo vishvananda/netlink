@@ -3,7 +3,7 @@ package netlink
 import (
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 	"strings"
 	"syscall"
 
@@ -14,8 +14,8 @@ import (
 type PDP struct {
 	Version     uint32
 	TID         uint64
-	PeerAddress net.IP
-	MSAddress   net.IP
+	PeerAddress netip.Addr
+	MSAddress   netip.Addr
 	Flow        uint16
 	NetNSFD     uint32
 	ITEI        uint32
@@ -43,9 +43,17 @@ func (p *PDP) parseAttributes(attrs []syscall.NetlinkRouteAttr) error {
 		case nl.GENL_GTP_ATTR_TID:
 			p.TID = native.Uint64(a.Value)
 		case nl.GENL_GTP_ATTR_PEER_ADDRESS:
-			p.PeerAddress = net.IP(a.Value)
+			addr, ok := netip.AddrFromSlice(a.Value)
+			if !ok {
+				return fmt.Errorf("GENL_GTP_ATTR_PEER_ADDRESS: invalid address")
+			}
+			p.PeerAddress = addr
 		case nl.GENL_GTP_ATTR_MS_ADDRESS:
-			p.MSAddress = net.IP(a.Value)
+			addr, ok := netip.AddrFromSlice(a.Value)
+			if !ok {
+				return fmt.Errorf("GENL_GTP_ATTR_MS_ADDRESS: invalid address")
+			}
+			p.MSAddress = addr
 		case nl.GENL_GTP_ATTR_FLOW:
 			p.Flow = native.Uint16(a.Value)
 		case nl.GENL_GTP_ATTR_NET_NS_FD:
@@ -162,7 +170,7 @@ func GTPPDPByITEI(link Link, itei int) (*PDP, error) {
 	return pkgHandle.GTPPDPByITEI(link, itei)
 }
 
-func (h *Handle) GTPPDPByMSAddress(link Link, addr net.IP) (*PDP, error) {
+func (h *Handle) GTPPDPByMSAddress(link Link, addr netip.Addr) (*PDP, error) {
 	f, err := h.GenlFamilyGet(nl.GENL_GTP_NAME)
 	if err != nil {
 		return nil, err
@@ -175,11 +183,15 @@ func (h *Handle) GTPPDPByMSAddress(link Link, addr net.IP) (*PDP, error) {
 	req.AddData(msg)
 	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_VERSION, nl.Uint32Attr(0)))
 	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_LINK, nl.Uint32Attr(uint32(link.Attrs().Index))))
-	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_MS_ADDRESS, []byte(addr.To4())))
+	addr4 := addr.Unmap()
+	if !addr4.Is4() {
+		return nil, fmt.Errorf("GTP MS address must be IPv4: %s", addr)
+	}
+	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_MS_ADDRESS, addr4.AsSlice()))
 	return gtpPDPGet(req)
 }
 
-func GTPPDPByMSAddress(link Link, addr net.IP) (*PDP, error) {
+func GTPPDPByMSAddress(link Link, addr netip.Addr) (*PDP, error) {
 	return pkgHandle.GTPPDPByMSAddress(link, addr)
 }
 
@@ -196,8 +208,16 @@ func (h *Handle) GTPPDPAdd(link Link, pdp *PDP) error {
 	req.AddData(msg)
 	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_VERSION, nl.Uint32Attr(pdp.Version)))
 	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_LINK, nl.Uint32Attr(uint32(link.Attrs().Index))))
-	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_PEER_ADDRESS, []byte(pdp.PeerAddress.To4())))
-	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_MS_ADDRESS, []byte(pdp.MSAddress.To4())))
+	peerAddr := pdp.PeerAddress.Unmap()
+	if !peerAddr.Is4() {
+		return fmt.Errorf("GTP peer address must be IPv4: %s", pdp.PeerAddress)
+	}
+	msAddr := pdp.MSAddress.Unmap()
+	if !msAddr.Is4() {
+		return fmt.Errorf("GTP MS address must be IPv4: %s", pdp.MSAddress)
+	}
+	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_PEER_ADDRESS, peerAddr.AsSlice()))
+	req.AddData(nl.NewRtAttr(nl.GENL_GTP_ATTR_MS_ADDRESS, msAddr.AsSlice()))
 
 	switch pdp.Version {
 	case 0:

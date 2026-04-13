@@ -3,7 +3,7 @@ package netlink
 import (
 	"bytes"
 	"encoding/hex"
-	"net"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -90,8 +90,8 @@ func TestXfrmStateFlush(t *testing.T) {
 
 	state1 := getBaseState()
 	state2 := getBaseState()
-	state2.Src = net.ParseIP("127.1.0.1")
-	state2.Dst = net.ParseIP("127.1.0.2")
+	state2.Src = netip.MustParseAddr("127.1.0.1")
+	state2.Dst = netip.MustParseAddr("127.1.0.2")
 	state2.Proto = XFRM_PROTO_AH
 	state2.Mode = XFRM_MODE_TUNNEL
 	state2.Spi = 20
@@ -359,7 +359,7 @@ func TestXfrmStateWithOutputMarkAndMask(t *testing.T) {
 	}
 }
 func genStateSelectorForV6Payload() *XfrmPolicy {
-	_, wildcardV6Net, _ := net.ParseCIDR("::/0")
+	wildcardV6Net := netip.MustParsePrefix("::/0")
 	return &XfrmPolicy{
 		Src: wildcardV6Net,
 		Dst: wildcardV6Net,
@@ -367,7 +367,7 @@ func genStateSelectorForV6Payload() *XfrmPolicy {
 }
 
 func genStateSelectorForV4Payload() *XfrmPolicy {
-	_, wildcardV4Net, _ := net.ParseCIDR("0.0.0.0/0")
+	wildcardV4Net := netip.MustParsePrefix("0.0.0.0/0")
 	return &XfrmPolicy{
 		Src: wildcardV4Net,
 		Dst: wildcardV4Net,
@@ -377,8 +377,8 @@ func genStateSelectorForV4Payload() *XfrmPolicy {
 func getBaseState() *XfrmState {
 	return &XfrmState{
 		// Force 4 byte notation for the IPv4 addresses
-		Src:   net.ParseIP("127.0.0.1").To4(),
-		Dst:   net.ParseIP("127.0.0.2").To4(),
+		Src:   netip.MustParseAddr("127.0.0.1"),
+		Dst:   netip.MustParseAddr("127.0.0.2"),
 		Proto: XFRM_PROTO_ESP,
 		Mode:  XFRM_MODE_TUNNEL,
 		Spi:   1,
@@ -400,8 +400,8 @@ func getBaseState() *XfrmState {
 func getBaseStateV4oV6() *XfrmState {
 	return &XfrmState{
 		// Force 4 byte notation for the IPv4 addressesd
-		Src:   net.ParseIP("2001:dead::1").To16(),
-		Dst:   net.ParseIP("2001:beef::1").To16(),
+		Src:   netip.MustParseAddr("2001:dead::1"),
+		Dst:   netip.MustParseAddr("2001:beef::1"),
 		Proto: XFRM_PROTO_ESP,
 		Mode:  XFRM_MODE_TUNNEL,
 		Spi:   1,
@@ -424,8 +424,8 @@ func getBaseStateV4oV6() *XfrmState {
 func getBaseStateV6oV4() *XfrmState {
 	return &XfrmState{
 		// Force 4 byte notation for the IPv4 addressesd
-		Src:   net.ParseIP("192.168.1.1").To4(),
-		Dst:   net.ParseIP("192.168.2.2").To4(),
+		Src:   netip.MustParseAddr("192.168.1.1"),
+		Dst:   netip.MustParseAddr("192.168.2.2"),
 		Proto: XFRM_PROTO_ESP,
 		Mode:  XFRM_MODE_TUNNEL,
 		Spi:   1,
@@ -450,8 +450,8 @@ func getAeadState() *XfrmState {
 	k, _ := hex.DecodeString("d0562776bf0e75830ba3f7f8eb6c09b555aa1177")
 	return &XfrmState{
 		// Leave IPv4 addresses in Ipv4 in IPv6 notation
-		Src:   net.ParseIP("192.168.1.1"),
-		Dst:   net.ParseIP("192.168.2.2"),
+		Src:   netip.MustParseAddr("192.168.1.1"),
+		Dst:   netip.MustParseAddr("192.168.2.2"),
 		Proto: XFRM_PROTO_ESP,
 		Mode:  XFRM_MODE_TUNNEL,
 		Spi:   2,
@@ -484,7 +484,7 @@ func compareStates(a, b *XfrmState) bool {
 		}
 	}
 
-	return a.Src.Equal(b.Src) && a.Dst.Equal(b.Dst) &&
+	return a.Src == b.Src && a.Dst == b.Dst &&
 		a.Mode == b.Mode && a.Spi == b.Spi && a.Proto == b.Proto &&
 		a.Ifid == b.Ifid &&
 		compareAlgo(a.Auth, b.Auth) &&

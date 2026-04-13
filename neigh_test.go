@@ -5,6 +5,7 @@ package netlink
 
 import (
 	"net"
+	"net/netip"
 	"syscall"
 	"testing"
 	"time"
@@ -14,12 +15,12 @@ import (
 )
 
 type arpEntry struct {
-	ip  net.IP
+	ip  netip.Addr
 	mac net.HardwareAddr
 }
 
 type proxyEntry struct {
-	ip  net.IP
+	ip  netip.Addr
 	dev int
 }
 
@@ -33,7 +34,7 @@ func parseMAC(s string) net.HardwareAddr {
 
 func dumpContains(dump []Neigh, e arpEntry) bool {
 	for _, n := range dump {
-		if n.IP.Equal(e.ip) && (n.State&NUD_INCOMPLETE) == 0 {
+		if n.IP == e.ip && (n.State&NUD_INCOMPLETE) == 0 {
 			return true
 		}
 	}
@@ -42,7 +43,7 @@ func dumpContains(dump []Neigh, e arpEntry) bool {
 
 func dumpContainsNeigh(dump []Neigh, ne Neigh) bool {
 	for _, n := range dump {
-		if n.IP.Equal(ne.IP) && n.LLIPAddr.Equal(ne.LLIPAddr) {
+		if n.IP == ne.IP && n.LLIPAddr == ne.LLIPAddr {
 			return true
 		}
 	}
@@ -51,7 +52,7 @@ func dumpContainsNeigh(dump []Neigh, ne Neigh) bool {
 
 func dumpContainsState(dump []Neigh, e arpEntry, s uint16) bool {
 	for _, n := range dump {
-		if n.IP.Equal(e.ip) && uint16(n.State) == s {
+		if n.IP == e.ip && uint16(n.State) == s {
 			return true
 		}
 	}
@@ -60,7 +61,7 @@ func dumpContainsState(dump []Neigh, e arpEntry, s uint16) bool {
 
 func dumpContainsProxy(dump []Neigh, p proxyEntry) bool {
 	for _, n := range dump {
-		if n.IP.Equal(p.ip) && (n.LinkIndex == p.dev) && (n.Flags&NTF_PROXY) == NTF_PROXY {
+		if n.IP == p.ip && (n.LinkIndex == p.dev) && (n.Flags&NTF_PROXY) == NTF_PROXY {
 			return true
 		}
 	}
@@ -72,7 +73,7 @@ func TestNeighAddDelLLIPAddr(t *testing.T) {
 
 	dummy := Gretun{
 		LinkAttrs: LinkAttrs{Name: "neigh0"},
-		Local:     net.IPv4(127, 0, 0, 1),
+		Local:     netip.MustParseAddr("127.0.0.1"),
 		IKey:      1234,
 		OKey:      1234}
 	if err := LinkAdd(&dummy); err != nil {
@@ -83,8 +84,8 @@ func TestNeighAddDelLLIPAddr(t *testing.T) {
 	entry := Neigh{
 		LinkIndex: dummy.Index,
 		State:     NUD_PERMANENT,
-		IP:        net.IPv4(198, 51, 100, 2),
-		LLIPAddr:  net.IPv4(198, 51, 100, 1),
+		IP:        netip.MustParseAddr("198.51.100.2"),
+		LLIPAddr:  netip.MustParseAddr("198.51.100.1"),
 	}
 
 	err := NeighAdd(&entry)
@@ -124,11 +125,11 @@ func TestNeighAddDel(t *testing.T) {
 	ensureIndex(dummy.Attrs())
 
 	arpTable := []arpEntry{
-		{net.ParseIP("10.99.0.1"), parseMAC("aa:bb:cc:dd:00:01")},
-		{net.ParseIP("10.99.0.2"), parseMAC("aa:bb:cc:dd:00:02")},
-		{net.ParseIP("10.99.0.3"), parseMAC("aa:bb:cc:dd:00:03")},
-		{net.ParseIP("10.99.0.4"), parseMAC("aa:bb:cc:dd:00:04")},
-		{net.ParseIP("10.99.0.5"), parseMAC("aa:bb:cc:dd:00:05")},
+		{netip.MustParseAddr("10.99.0.1"), parseMAC("aa:bb:cc:dd:00:01")},
+		{netip.MustParseAddr("10.99.0.2"), parseMAC("aa:bb:cc:dd:00:02")},
+		{netip.MustParseAddr("10.99.0.3"), parseMAC("aa:bb:cc:dd:00:03")},
+		{netip.MustParseAddr("10.99.0.4"), parseMAC("aa:bb:cc:dd:00:04")},
+		{netip.MustParseAddr("10.99.0.5"), parseMAC("aa:bb:cc:dd:00:05")},
 	}
 
 	// Add the arpTable
@@ -199,11 +200,11 @@ func TestNeighAddDelProxy(t *testing.T) {
 	ensureIndex(dummy.Attrs())
 
 	proxyTable := []proxyEntry{
-		{net.ParseIP("10.99.0.1"), dummy.Index},
-		{net.ParseIP("10.99.0.2"), dummy.Index},
-		{net.ParseIP("10.99.0.3"), dummy.Index},
-		{net.ParseIP("10.99.0.4"), dummy.Index},
-		{net.ParseIP("10.99.0.5"), dummy.Index},
+		{netip.MustParseAddr("10.99.0.1"), dummy.Index},
+		{netip.MustParseAddr("10.99.0.2"), dummy.Index},
+		{netip.MustParseAddr("10.99.0.3"), dummy.Index},
+		{netip.MustParseAddr("10.99.0.4"), dummy.Index},
+		{netip.MustParseAddr("10.99.0.5"), dummy.Index},
 	}
 
 	// Add the proxyTable
@@ -271,8 +272,8 @@ func expectNeighUpdate(ch <-chan NeighUpdate, expected []NeighUpdate) bool {
 			for index, elem := range expected {
 				if update.Type == elem.Type &&
 					update.Neigh.State == elem.Neigh.State &&
-					update.Neigh.IP != nil &&
-					update.Neigh.IP.Equal(elem.Neigh.IP) {
+					update.Neigh.IP.IsValid() &&
+					update.Neigh.IP == elem.Neigh.IP {
 					toDelete = append(toDelete, index)
 				}
 			}
@@ -312,7 +313,7 @@ func TestNeighSubscribe(t *testing.T) {
 	entry := &Neigh{
 		LinkIndex:    dummy.Index,
 		State:        NUD_REACHABLE,
-		IP:           net.IPv4(10, 99, 0, 1),
+		IP:           netip.MustParseAddr("10.99.0.1"),
 		HardwareAddr: parseMAC("aa:bb:cc:dd:00:01"),
 	}
 
@@ -372,7 +373,7 @@ func TestNeighSubscribeWithOptions(t *testing.T) {
 	entry := &Neigh{
 		LinkIndex:    dummy.Index,
 		State:        NUD_REACHABLE,
-		IP:           net.IPv4(10, 99, 0, 1),
+		IP:           netip.MustParseAddr("10.99.0.1"),
 		HardwareAddr: parseMAC("aa:bb:cc:dd:00:01"),
 	}
 
@@ -426,7 +427,7 @@ func TestNeighSubscribeAt(t *testing.T) {
 	entry := &Neigh{
 		LinkIndex:    dummy.Index,
 		State:        NUD_REACHABLE,
-		IP:           net.IPv4(198, 51, 100, 1),
+		IP:           netip.MustParseAddr("198.51.100.1"),
 		HardwareAddr: parseMAC("aa:bb:cc:dd:00:01"),
 	}
 
@@ -483,7 +484,7 @@ func TestNeighSubscribeListExisting(t *testing.T) {
 	entry1 := &Neigh{
 		LinkIndex:    dummy.Index,
 		State:        NUD_REACHABLE,
-		IP:           net.IPv4(198, 51, 100, 1),
+		IP:           netip.MustParseAddr("198.51.100.1"),
 		HardwareAddr: parseMAC("aa:bb:cc:dd:00:01"),
 	}
 
@@ -492,7 +493,7 @@ func TestNeighSubscribeListExisting(t *testing.T) {
 		LinkIndex:    vxlani.Index,
 		State:        NUD_PERMANENT,
 		Flags:        NTF_SELF,
-		IP:           net.IPv4(198, 51, 100, 3),
+		IP:           netip.MustParseAddr("198.51.100.3"),
 		HardwareAddr: parseMAC("aa:bb:cc:dd:00:03"),
 	}
 
@@ -532,7 +533,7 @@ func TestNeighSubscribeListExisting(t *testing.T) {
 	entry2 := &Neigh{
 		LinkIndex:    dummy.Index,
 		State:        NUD_PERMANENT,
-		IP:           net.IPv4(198, 51, 100, 2),
+		IP:           netip.MustParseAddr("198.51.100.2"),
 		HardwareAddr: parseMAC("aa:bb:cc:dd:00:02"),
 	}
 
@@ -562,13 +563,13 @@ func TestNeighListExecuteStateFilter(t *testing.T) {
 
 	// Define some entries
 	reachArpTable := []arpEntry{
-		{net.ParseIP("198.51.100.1"), parseMAC("44:bb:cc:dd:00:01")},
-		{net.ParseIP("2001:db8::1"), parseMAC("66:bb:cc:dd:00:02")},
+		{netip.MustParseAddr("198.51.100.1"), parseMAC("44:bb:cc:dd:00:01")},
+		{netip.MustParseAddr("2001:db8::1"), parseMAC("66:bb:cc:dd:00:02")},
 	}
 
 	staleArpTable := []arpEntry{
-		{net.ParseIP("198.51.100.10"), parseMAC("44:bb:cc:dd:00:10")},
-		{net.ParseIP("2001:db8::10"), parseMAC("66:bb:cc:dd:00:10")},
+		{netip.MustParseAddr("198.51.100.10"), parseMAC("44:bb:cc:dd:00:10")},
+		{netip.MustParseAddr("2001:db8::10"), parseMAC("66:bb:cc:dd:00:10")},
 	}
 
 	entries := append(reachArpTable, staleArpTable...)

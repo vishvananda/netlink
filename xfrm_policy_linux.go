@@ -3,7 +3,7 @@ package netlink
 import (
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
@@ -62,8 +62,8 @@ func (a PolicyAction) String() string {
 // policy. These rules are matched with XfrmState to determine encryption
 // and authentication algorithms.
 type XfrmPolicyTmpl struct {
-	Dst      net.IP
-	Src      net.IP
+	Dst      netip.Addr
+	Src      netip.Addr
 	Proto    Proto
 	Mode     Mode
 	Spi      int
@@ -80,8 +80,8 @@ func (t XfrmPolicyTmpl) String() string {
 // and has a list of XfrmPolicyTmpls representing the base addresses of
 // the policy.
 type XfrmPolicy struct {
-	Dst      *net.IPNet
-	Src      *net.IPNet
+	Dst      netip.Prefix
+	Src      netip.Prefix
 	Proto    Proto
 	DstPort  int
 	SrcPort  int
@@ -102,16 +102,17 @@ func (p XfrmPolicy) String() string {
 
 func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 	sel.Family = uint16(nl.FAMILY_V4)
-	if policy.Dst != nil {
-		sel.Family = uint16(nl.GetIPFamily(policy.Dst.IP))
-		sel.Daddr.FromIP(policy.Dst.IP)
-		prefixlenD, _ := policy.Dst.Mask.Size()
-		sel.PrefixlenD = uint8(prefixlenD)
+	if policy.Dst.IsValid() {
+		sel.Family = uint16(nl.GetIPFamily(policy.Dst.Addr()))
+		sel.Daddr.FromIP(policy.Dst.Addr())
+		sel.PrefixlenD = uint8(policy.Dst.Bits())
 	}
-	if policy.Src != nil {
-		sel.Saddr.FromIP(policy.Src.IP)
-		prefixlenS, _ := policy.Src.Mask.Size()
-		sel.PrefixlenS = uint8(prefixlenS)
+	if policy.Src.IsValid() {
+		if sel.Family == uint16(nl.FAMILY_V4) && policy.Src.Addr().Is6() {
+			sel.Family = uint16(nl.FAMILY_V6)
+		}
+		sel.Saddr.FromIP(policy.Src.Addr())
+		sel.PrefixlenS = uint8(policy.Src.Bits())
 	}
 	sel.Proto = uint8(policy.Proto)
 	sel.Dport = nl.Swap16(uint16(policy.DstPort))
@@ -325,8 +326,8 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 
 	var policy XfrmPolicy
 
-	policy.Dst = msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, uint16(family))
-	policy.Src = msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, uint16(family))
+	policy.Dst = msg.Sel.Daddr.ToPrefix(msg.Sel.PrefixlenD, msg.Sel.Family)
+	policy.Src = msg.Sel.Saddr.ToPrefix(msg.Sel.PrefixlenS, msg.Sel.Family)
 	policy.Proto = Proto(msg.Sel.Proto)
 	policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
 	policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))
