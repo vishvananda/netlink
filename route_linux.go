@@ -929,7 +929,12 @@ func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.R
 		} else {
 			dstData = route.Dst.IP.To16()
 		}
-		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_DST, dstData))
+		shouldSkipDst := (route.Type == unix.RTN_UNREACHABLE ||
+			route.Type == unix.RTN_BLACKHOLE ||
+			route.Type == unix.RTN_PROHIBIT) && (dstLen == 0)
+		if !shouldSkipDst {
+			rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_DST, dstData))
+		}
 	} else if route.MPLSDst != nil {
 		family = nl.FAMILY_MPLS
 		msg.Dst_len = uint8(20)
