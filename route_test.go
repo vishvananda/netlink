@@ -184,6 +184,12 @@ func TestRouteUnreachableEmptyDst(t *testing.T) {
 				t.Fatalf("failed to add %s route with empty Dst.IP: %v", tc.name, err)
 			}
 
+			t.Cleanup(func() {
+				if err := RouteDel(route); err != nil {
+					t.Errorf("failed to delete route %s: %v", tc.name, err)
+				}
+			})
+
 			routes, err := RouteListFiltered(FAMILY_V4, &Route{Table: 100}, RT_FILTER_TABLE)
 			if err != nil {
 				t.Fatal(err)
@@ -198,10 +204,6 @@ func TestRouteUnreachableEmptyDst(t *testing.T) {
 			}
 			if !found {
 				t.Fatalf("%s route not found after adding", tc.name)
-			}
-
-			if err := RouteDel(route); err != nil {
-				t.Fatalf("failed to delete %s route: %v", tc.name, err)
 			}
 		})
 	}
