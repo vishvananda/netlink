@@ -112,6 +112,24 @@ func TestDevLinkGetAllPortList(t *testing.T) {
 	}
 }
 
+func TestDevLinkGetPortList(t *testing.T) {
+	minKernelRequired(t, 5, 4)
+	if bus == "" || device == "" {
+		t.Log("devlink bus and device are empty, skipping test")
+		t.SkipNow()
+	}
+
+	ports, err := DevLinkGetPortList(bus, device)
+	assert.NoError(t, err)
+
+	t.Log("devlink port count = ", len(ports))
+	for _, port := range ports {
+		assert.Equal(t, bus, port.BusName, "unexpected bus name in port")
+		assert.Equal(t, device, port.DeviceName, "unexpected device name in port")
+		logPort(t, port)
+	}
+}
+
 func TestDevLinkAddDelSfPort(t *testing.T) {
 	var addAttrs DevLinkPortAddAttrs
 	minKernelRequired(t, 5, 13)

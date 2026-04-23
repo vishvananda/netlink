@@ -587,6 +587,35 @@ func DevLinkGetAllPortList() ([]*DevlinkPort, error) {
 	return pkgHandle.DevLinkGetAllPortList()
 }
 
+// DevLinkGetPortList returns the devlink ports for the device identified by
+// bus and device (e.g. "pci", "0000:0c:00.0").  Unlike DevLinkGetAllPortList,
+// the kernel filters the dump to the target device, making this efficient on
+// systems with many SR-IOV VFs.
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
+func (h *Handle) DevLinkGetPortList(bus, device string) ([]*DevlinkPort, error) {
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PORT_GET, bus, device)
+	if err != nil {
+		return nil, err
+	}
+	req.Flags |= unix.NLM_F_DUMP
+	msgs, executeErr := req.Execute(unix.NETLINK_GENERIC, 0)
+	if executeErr != nil && !errors.Is(executeErr, ErrDumpInterrupted) {
+		return nil, executeErr
+	}
+	ports, err := parseDevLinkAllPortList(msgs)
+	if err != nil {
+		return nil, err
+	}
+	return ports, executeErr
+}
+
+// DevLinkGetPortList returns the devlink ports for the device identified by
+// bus and device (e.g. "pci", "0000:0c:00.0").
+func DevLinkGetPortList(bus, device string) ([]*DevlinkPort, error) {
+	return pkgHandle.DevLinkGetPortList(bus, device)
+}
+
 func parseDevlinkPortMsg(msgs [][]byte) (*DevlinkPort, error) {
 	m := msgs[0]
 	attrs, err := nl.ParseRouteAttr(m[nl.SizeofGenlmsg:])
