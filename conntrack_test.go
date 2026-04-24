@@ -24,6 +24,7 @@ func CheckErrorFail(t *testing.T, err error) {
 		t.Fatalf("Fatal Error: %s", err)
 	}
 }
+
 func CheckError(t *testing.T, err error) {
 	if err != nil {
 		t.Errorf("Error: %s", err)
@@ -149,12 +150,21 @@ func nsCreateAndEnter(t *testing.T) (*netns.NsHandle, *netns.NsHandle, *Handle) 
 	return &origns, &ns, h
 }
 
-func applyFilter(flowList []ConntrackFlow, ipv4Filter *ConntrackFilter, ipv6Filter *ConntrackFilter) (ipv4Match, ipv6Match uint) {
+func applyFilter(flowList []ConntrackFlow, filter *ConntrackFilter) (matches uint) {
 	for _, flow := range flowList {
-		if ipv4Filter.MatchConntrackFlow(&flow) == true {
+		if filter.MatchConntrackFlow(&flow) {
+			matches++
+		}
+	}
+	return matches
+}
+
+func applyFilterv4v6(flowList []ConntrackFlow, ipv4Filter *ConntrackFilter, ipv6Filter *ConntrackFilter) (ipv4Match, ipv6Match uint) {
+	for _, flow := range flowList {
+		if ipv4Filter.MatchConntrackFlow(&flow) {
 			ipv4Match++
 		}
-		if ipv6Filter.MatchConntrackFlow(&flow) == true {
+		if ipv6Filter.MatchConntrackFlow(&flow) {
 			ipv6Match++
 		}
 	}
@@ -451,6 +461,8 @@ func TestConntrackFilter(t *testing.T) {
 				DstPort:  5000,
 				Protocol: 6,
 			},
+			Status: ConntrackStatusSrcNATDone | ConntrackStatusConfirmed |
+				ConntrackStatusAssured | ConntrackStatusSeenReply,
 			Labels: []byte{0, 0, 0, 0, 3, 4, 61, 141, 207, 170, 2, 0, 0, 0, 0, 0},
 			Zone:   200,
 		},
@@ -474,7 +486,7 @@ func TestConntrackFilter(t *testing.T) {
 		})
 
 	// Empty filter
-	v4Match, v6Match := applyFilter(flowList, &ConntrackFilter{}, &ConntrackFilter{})
+	v4Match, v6Match := applyFilterv4v6(flowList, &ConntrackFilter{}, &ConntrackFilter{})
 	if v4Match > 0 || v6Match > 0 {
 		t.Fatalf("Error, empty filter cannot match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -518,6 +530,28 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Error, it should fail adding a port filter with a wrong protocol")
 	}
 
+	// Status filter
+	filterStatus := &ConntrackFilter{}
+	err = filterStatus.AddStatus(ConntrackMatchStatus, ConntrackStatusAssured)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	matches := applyFilter(flowList, filterStatus)
+	if matches != 1 {
+		t.Fatalf("Error, there should be 1 match, got: %d", matches)
+	}
+
+	// Anti-status filter
+	filterStatus = &ConntrackFilter{}
+	err = filterStatus.AddStatus(ConntrackUnmatchStatus, ConntrackStatusAssured)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	matches = applyFilter(flowList, filterStatus)
+	if matches != 2 {
+		t.Fatalf("Error, there should be 2 match, got: %d", matches)
+	}
+
 	// Proto filter
 	filterV4 := &ConntrackFilter{}
 	err = filterV4.AddProtocol(6)
@@ -531,7 +565,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
 		t.Fatalf("Error, there should be only 1 match for TCP:%d, UDP:%d", v4Match, v6Match)
 	}
@@ -549,7 +583,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -567,7 +601,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -585,7 +619,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -603,7 +637,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 0 {
 		t.Fatalf("Error, there should be an exact match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -621,7 +655,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 1 {
 		t.Fatalf("Error, there should be an exact match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -647,7 +681,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 1 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -673,7 +707,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 1 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -699,7 +733,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 1 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -725,7 +759,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 0 {
 		t.Fatalf("Error, there should be an exact match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -751,7 +785,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 1 {
 		t.Fatalf("Error, there should be an exact match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -776,7 +810,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -802,7 +836,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 1 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -823,7 +857,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 1 || v6Match != 0 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -834,7 +868,7 @@ func TestConntrackFilter(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	filterV6 = &ConntrackFilter{}
-	v4Match, v6Match = applyFilter(flowList, filterV4, filterV6)
+	v4Match, v6Match = applyFilterv4v6(flowList, filterV4, filterV6)
 	if v4Match != 2 || v6Match != 0 {
 		t.Fatalf("Error, there should be only 1 match, v4:%d, v6:%d", v4Match, v6Match)
 	}
@@ -935,8 +969,9 @@ func TestParseRawData(t *testing.T) {
 				22, 134, 80, 142, 230, 127, 74, 166,
 				/* >> CTA_LABELS */
 				20, 0, 22, 0,
-				0, 0, 0, 0, 5, 0, 18, 172, 66, 2, 1, 0, 0, 0, 0, 0},
-			expConntrackFlow: "udp\t17 src=192.168.0.10 dst=192.168.0.3 sport=48385 dport=53 packets=1 bytes=55\t" +
+				0, 0, 0, 0, 5, 0, 18, 172, 66, 2, 1, 0, 0, 0, 0, 0,
+			},
+			expConntrackFlow: "udp\t17 src=192.168.0.10 dst=192.168.0.3 sport=48385 dport=53 packets=1 bytes=55 " +
 				"src=192.168.0.3 dst=192.168.0.10 sport=53 dport=48385 packets=1 bytes=71 mark=0x5 labels=0x00000000050012ac4202010000000000 " +
 				"start=2021-06-07 13:41:30.39632247 +0000 UTC stop=1970-01-01 00:00:00 +0000 UTC timeout=32(sec)",
 		},
@@ -1033,10 +1068,11 @@ func TestParseRawData(t *testing.T) {
 				16, 0, 20, 128,
 				/* >>>> CTA_TIMESTAMP_START */
 				12, 0, 1, 0,
-				22, 134, 80, 175, 134, 10, 182, 221},
-			expConntrackFlow: "tcp\t6 src=192.168.0.10 dst=192.168.77.73 sport=42625 dport=3333 packets=11 bytes=1914\t" +
-				"src=192.168.77.73 dst=192.168.0.10 sport=3333 dport=42625 packets=10 bytes=1858 mark=0x5 zone=100 " +
-				"start=2021-06-07 13:43:50.511990493 +0000 UTC stop=1970-01-01 00:00:00 +0000 UTC timeout=152(sec)",
+				22, 134, 80, 175, 134, 10, 182, 221,
+			},
+			expConntrackFlow: "tcp\t6 src=192.168.0.10 dst=192.168.77.73 sport=42625 dport=3333 packets=11 bytes=1914 " +
+				"src=192.168.77.73 dst=192.168.0.10 sport=3333 dport=42625 packets=10 bytes=1858 [ASSURED] " +
+				"mark=0x5 zone=100 start=2021-06-07 13:43:50.511990493 +0000 UTC stop=1970-01-01 00:00:00 +0000 UTC timeout=152(sec)",
 		},
 	}
 
@@ -1100,6 +1136,7 @@ func TestConntrackUpdateV4(t *testing.T) {
 		// No point checking equivalence of timeout, but value must
 		// be reasonable to allow for a potentially slow subsequent read.
 		TimeOut: 100,
+		Status:  ConntrackStatusConfirmed,
 		Mark:    12,
 		ProtoInfo: &ProtoInfoTCP{
 			State: nl.TCP_CONNTRACK_SYN_SENT2,
@@ -1152,13 +1189,14 @@ func TestConntrackUpdateV4(t *testing.T) {
 	checkProtoInfosEqual(t, flow.ProtoInfo, match.ProtoInfo)
 
 	// Change the conntrack and update the kernel entry.
+	flow.Status |= ConntrackStatusAssured | ConntrackStatusSeenReply
 	flow.Mark = 10
 	flow.ProtoInfo = &ProtoInfoTCP{
 		State: nl.TCP_CONNTRACK_ESTABLISHED,
 	}
 	err = h.ConntrackUpdate(ConntrackTable, nl.FAMILY_V4, &flow)
 	if err != nil {
-		t.Fatalf("failed to update conntrack with new mark: %s", err)
+		t.Fatalf("failed to update conntrack with new mark and status: %s", err)
 	}
 
 	// Look for updated conntrack.
@@ -1233,6 +1271,7 @@ func TestConntrackUpdateV6(t *testing.T) {
 		// No point checking equivalence of timeout, but value must
 		// be reasonable to allow for a potentially slow subsequent read.
 		TimeOut: 100,
+		Status:  ConntrackStatusConfirmed,
 		Mark:    12,
 		ProtoInfo: &ProtoInfoTCP{
 			State: nl.TCP_CONNTRACK_SYN_SENT2,
@@ -1285,6 +1324,7 @@ func TestConntrackUpdateV6(t *testing.T) {
 	checkProtoInfosEqual(t, flow.ProtoInfo, match.ProtoInfo)
 
 	// Change the conntrack and update the kernel entry.
+	flow.Status |= ConntrackStatusAssured | ConntrackStatusSeenReply
 	flow.Mark = 10
 	flow.ProtoInfo = &ProtoInfoTCP{
 		State: nl.TCP_CONNTRACK_ESTABLISHED,
@@ -1364,6 +1404,7 @@ func TestConntrackCreateV4(t *testing.T) {
 		// No point checking equivalence of timeout, but value must
 		// be reasonable to allow for a potentially slow subsequent read.
 		TimeOut: 100,
+		Status:  ConntrackStatusConfirmed,
 		Mark:    12,
 		ProtoInfo: &ProtoInfoTCP{
 			State: nl.TCP_CONNTRACK_ESTABLISHED,
@@ -1768,6 +1809,7 @@ func TestConntrackLabels(t *testing.T) {
 		// No point checking equivalence of timeout, but value must
 		// be reasonable to allow for a potentially slow subsequent read.
 		TimeOut: 100,
+		Status:  ConntrackStatusConfirmed,
 		Mark:    12,
 		Labels:  []byte{0, 0, 0, 0, 3, 4, 61, 141, 207, 170, 2, 0, 0, 0, 0, 0},
 		ProtoInfo: &ProtoInfoTCP{
@@ -1879,6 +1921,7 @@ func TestConntrackFlowToNlData(t *testing.T) {
 			Protocol: unix.IPPROTO_TCP,
 		},
 		Mark:    5,
+		Status:  ConntrackStatusConfirmed | ConntrackStatusAssured | ConntrackStatusSeenReply,
 		Labels:  []byte{0, 0, 0, 0, 3, 4, 61, 141, 207, 170, 2, 0, 0, 0, 0, 0},
 		TimeOut: 10,
 		ProtoInfo: &ProtoInfoTCP{
@@ -1902,6 +1945,7 @@ func TestConntrackFlowToNlData(t *testing.T) {
 			Protocol: unix.IPPROTO_TCP,
 		},
 		Mark:    5,
+		Status:  ConntrackStatusConfirmed | ConntrackStatusAssured | ConntrackStatusSeenReply,
 		Labels:  []byte{0, 0, 0, 0, 3, 4, 61, 141, 207, 170, 2, 0, 0, 0, 0, 0},
 		TimeOut: 10,
 		ProtoInfo: &ProtoInfoTCP{
@@ -1941,10 +1985,16 @@ func TestConntrackFlowToNlData(t *testing.T) {
 }
 
 func checkFlowsEqual(t *testing.T, f1, f2 *ConntrackFlow) {
+	t.Helper()
+
 	// No point checking timeout as it will differ between reads.
 	// Timestart and timestop may also differ.
 	if f1.FamilyType != f2.FamilyType {
 		t.Logf("Conntrack flow FamilyTypes differ. Tuple1: %d, Tuple2: %d.\n", f1.FamilyType, f2.FamilyType)
+		t.Fail()
+	}
+	if f1.Status != f2.Status {
+		t.Logf("Conntrack flow Statuses differ. Tuple1: %#b, Tuple2: %#b.\n", f1.Status, f2.Status)
 		t.Fail()
 	}
 	if f1.Mark != f2.Mark {
@@ -1967,6 +2017,8 @@ func checkFlowsEqual(t *testing.T, f1, f2 *ConntrackFlow) {
 }
 
 func checkProtoInfosEqual(t *testing.T, p1, p2 ProtoInfo) {
+	t.Helper()
+
 	t.Logf("Checking protoinfo fields equal:\n\t p1: %+v\n\t p2: %+v", p1, p2)
 	if !protoInfosEqual(p1, p2) {
 		t.Logf("Protoinfo structs differ: P1: %+v, P2: %+v", p1, p2)
