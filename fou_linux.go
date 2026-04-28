@@ -88,8 +88,16 @@ func (h *Handle) FouAdd(f Fou) error {
 		nl.NewRtAttr(FOU_ATTR_PORT, bp),
 		nl.NewRtAttr(FOU_ATTR_TYPE, []byte{uint8(f.EncapType)}),
 		nl.NewRtAttr(FOU_ATTR_AF, []byte{uint8(f.Family)}),
-		nl.NewRtAttr(FOU_ATTR_IPPROTO, []byte{uint8(f.Protocol)}),
 	}
+
+	// Only add FOU_ATTR_IPPROTO if a non-zero protocol is specified.
+	// This ensures compatibility with modern kernels since the fix
+	// for CVE-2026-23083.
+	if f.Protocol > 0 {
+		attrs = append(attrs,
+			nl.NewRtAttr(FOU_ATTR_IPPROTO, []byte{uint8(f.Protocol)}))
+	}
+
 	raw := []byte{FOU_CMD_ADD, 1, 0, 0}
 	for _, a := range attrs {
 		raw = append(raw, a.Serialize()...)

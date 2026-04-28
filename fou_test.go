@@ -130,3 +130,50 @@ func TestFouAddDel(t *testing.T) {
 		t.Fatalf("expected 0 fou, got %d", len(list))
 	}
 }
+
+// Repeat the Add/Delete test, but simulating the GUE case,
+// which doesn't explicitly specify a protocol.
+func TestFouAddDelGUE(t *testing.T) {
+	minKernelRequired(t, 3, 18)
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "fou"))
+
+	fou := Fou{
+		Port:      5556,
+		Family:    FAMILY_V4,
+		EncapType: FOU_ENCAP_GUE,
+	}
+
+	if err := FouAdd(fou); err != nil {
+		t.Fatal(err)
+	}
+
+	list, err := FouList(FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(list) != 1 {
+		t.Fatalf("expected 1 fou, got %d", len(list))
+	}
+
+	if list[0].EncapType != FOU_ENCAP_GUE {
+		t.Errorf("expected encaptype %d, got %d", FOU_ENCAP_GUE, list[0].EncapType)
+	}
+
+	if list[0].Protocol != 0 {
+		t.Errorf("expected protocol 0, got %d", list[0].Protocol)
+	}
+
+	if err := FouDel(Fou{Port: fou.Port, Family: fou.Family}); err != nil {
+		t.Fatal(err)
+	}
+
+	list, err = FouList(FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(list) != 0 {
+		t.Fatalf("expected 0 fou, got %d", len(list))
+	}
+}
