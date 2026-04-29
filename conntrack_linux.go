@@ -351,18 +351,24 @@ type ConntrackFlow struct {
 	ProtoInfo  ProtoInfo
 }
 
-func (s *ConntrackFlow) statusStrings() (orig, repl string) {
+func (s *ConntrackFlow) statusStrings() (s1, s2 string) {
 	if s.Status&ConntrackStatusSeenReply == 0 {
-		orig = "[UNREPLIED] "
+		s1 = "[UNREPLIED] "
 	}
-	if s.Status&ConntrackStatusHWOffload != 0 {
-		repl = "[HW_OFFLOAD] "
-	} else if s.Status&ConntrackStatusOffload != 0 {
-		repl = "[OFFLOAD] "
-	} else if s.Status&ConntrackStatusAssured != 0 {
-		repl = "[ASSURED] "
+
+	var annotation string
+	switch {
+	case s.Status&ConntrackStatusHWOffload != 0:
+		annotation = ", HW_OFFLOAD"
+	case s.Status&ConntrackStatusOffload != 0:
+		annotation = ", OFFLOAD"
+	case s.Status&ConntrackStatusAssured != 0:
+		annotation = ", ASSURED"
 	}
-	return
+
+	s2 = fmt.Sprintf("[status=%#b%s] ", s.Status, annotation)
+
+	return s1, s2
 }
 
 func (s *ConntrackFlow) String() string {
