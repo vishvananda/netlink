@@ -130,3 +130,48 @@ func TestFouAddDel(t *testing.T) {
 		t.Fatalf("expected 0 fou, got %d", len(list))
 	}
 }
+
+func TestFouAddDelGUE(t *testing.T) {
+	minKernelRequired(t, 3, 18)
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "fou"))
+
+	// GUE with Protocol=0 must succeed on all kernels (including ≥ 6.x which
+	// rejects FOU_ATTR_IPPROTO when encap type is GUE).
+	gue := Fou{
+		Port:      5556,
+		Family:    FAMILY_V4,
+		EncapType: FOU_ENCAP_GUE,
+	}
+	if err := FouAdd(gue); err != nil {
+		t.Fatalf("FouAdd GUE: %v", err)
+	}
+
+	list, err := FouList(FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 fou entry, got %d", len(list))
+	}
+	if list[0].Port != gue.Port {
+		t.Errorf("expected port %d, got %d", gue.Port, list[0].Port)
+	}
+	if list[0].EncapType != FOU_ENCAP_GUE {
+		t.Errorf("expected encaptype GUE (%d), got %d", FOU_ENCAP_GUE, list[0].EncapType)
+	}
+	if list[0].Protocol != 0 {
+		t.Errorf("expected protocol 0 for GUE, got %d", list[0].Protocol)
+	}
+
+	if err := FouDel(Fou{Port: gue.Port, Family: gue.Family}); err != nil {
+		t.Fatalf("FouDel GUE: %v", err)
+	}
+
+	list, err = FouList(FAMILY_V4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("expected 0 fou entries after delete, got %d", len(list))
+	}
+}
