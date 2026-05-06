@@ -2,7 +2,7 @@ package netlink
 
 import (
 	"errors"
-	"net"
+	"net/netip"
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
@@ -161,18 +161,18 @@ var nexthopAttrHandlers = map[uint16]struct {
 	},
 	unix.NHA_GATEWAY: {
 		encode: func(nh *Nexthop) *nl.RtAttr {
-			if nh.Gateway != nil {
-				if gw4 := nh.Gateway.To4(); gw4 != nil {
-					return nl.NewRtAttr(unix.NHA_GATEWAY, gw4)
-				}
-				return nl.NewRtAttr(unix.NHA_GATEWAY, nh.Gateway)
+			if nh.Gateway.IsValid() {
+				return nl.NewRtAttr(unix.NHA_GATEWAY, nh.Gateway.AsSlice())
 			}
 			return nil
 		},
 		decode: func(nh *Nexthop, attr *nl.RtAttr) {
 			if len(attr.Data) != 0 {
-				nh.Gateway = make(net.IP, len(attr.Data))
-				copy(nh.Gateway, attr.Data)
+				addr, ok := netip.AddrFromSlice(attr.Data)
+				if !ok {
+					return
+				}
+				nh.Gateway = addr
 			}
 		},
 	},
@@ -233,7 +233,7 @@ func parseNhmsg(m []byte) (*Nexthop, error) {
 }
 
 func deriveFamilyFromNexthop(nh *Nexthop) uint8 {
-	if nh.Gateway == nil || nh.Gateway.To4() != nil {
+	if nh.Gateway.Is4() {
 		return FAMILY_V4
 	}
 	return FAMILY_V6

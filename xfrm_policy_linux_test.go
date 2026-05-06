@@ -1,12 +1,9 @@
 package netlink
 
 import (
-	"bytes"
-	"net"
+	"net/netip"
 	"testing"
 )
-
-const zeroCIDR = "0.0.0.0/0"
 
 func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 	t.Cleanup(setUpNetlinkTest(t))
@@ -47,7 +44,7 @@ func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 	}
 
 	if !comparePolicies(policy, sp) {
-		t.Fatalf("unexpected policy returned")
+		t.Fatalf("unexpected policy returned.\nExpected: %v.\nGot %v", policy, sp)
 	}
 
 	// Modify the policy
@@ -76,8 +73,8 @@ func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 	}
 
 	// Src and dst are not mandatory field. Creation should succeed
-	policy.Src = nil
-	policy.Dst = nil
+	policy.Src = netip.Prefix{}
+	policy.Dst = netip.Prefix{}
 	if err = XfrmPolicyAdd(policy); err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +85,7 @@ func TestXfrmPolicyAddUpdateDel(t *testing.T) {
 	}
 
 	if !comparePolicies(policy, sp) {
-		t.Fatalf("unexpected policy returned")
+		t.Fatalf("unexpected policy returned\nExpected: %v.\nGot %v", policy, sp)
 	}
 
 	if err = XfrmPolicyDel(policy); err != nil {
@@ -222,7 +219,7 @@ func comparePolicies(a, b *XfrmPolicy) bool {
 	}
 	// Do not check Index which is assigned by kernel
 	return a.Dir == b.Dir && a.Priority == b.Priority &&
-		compareIPNet(a.Src, b.Src) && compareIPNet(a.Dst, b.Dst) &&
+		comparePrefix(a.Src, b.Src) && comparePrefix(a.Dst, b.Dst) &&
 		a.Action == b.Action && a.Ifindex == b.Ifindex &&
 		a.Mark.Value == b.Mark.Value && a.Mark.Mask == b.Mark.Mask &&
 		a.Ifid == b.Ifid && compareTemplates(a.Tmpls, b.Tmpls)
@@ -234,7 +231,7 @@ func compareTemplates(a, b []XfrmPolicyTmpl) bool {
 	}
 	for i, ta := range a {
 		tb := b[i]
-		if !ta.Dst.Equal(tb.Dst) || !ta.Src.Equal(tb.Src) || ta.Spi != tb.Spi ||
+		if ta.Dst != tb.Dst || ta.Src != tb.Src || ta.Spi != tb.Spi ||
 			ta.Mode != tb.Mode || ta.Reqid != tb.Reqid || ta.Proto != tb.Proto ||
 			ta.Optional != tb.Optional {
 			return false
@@ -243,23 +240,23 @@ func compareTemplates(a, b []XfrmPolicyTmpl) bool {
 	return true
 }
 
-func compareIPNet(a, b *net.IPNet) bool {
+func comparePrefix(a, b netip.Prefix) bool {
 	if a == b {
 		return true
 	}
-	// For unspecified src/dst parseXfrmPolicy would set the zero address cidr
-	if (a == nil && b.String() == zeroCIDR) || (b == nil && a.String() == zeroCIDR) {
+	// For unspecified src/dst parseXfrmPolicy returns a /0 prefix.
+	if (!a.IsValid() && b.Bits() == 0) || (!b.IsValid() && a.Bits() == 0) {
 		return true
 	}
-	if a == nil || b == nil {
+	if !a.IsValid() || !b.IsValid() {
 		return false
 	}
-	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
+	return a == b
 }
 
 func getPolicy() *XfrmPolicy {
-	src, _ := ParseIPNet("127.1.1.1/32")
-	dst, _ := ParseIPNet("127.1.1.2/32")
+	src, _ := ParsePrefix("127.1.1.1/32")
+	dst, _ := ParsePrefix("127.1.1.2/32")
 	policy := &XfrmPolicy{
 		Src:     src,
 		Dst:     dst,
@@ -274,8 +271,8 @@ func getPolicy() *XfrmPolicy {
 		Priority: 10,
 	}
 	tmpl := XfrmPolicyTmpl{
-		Src:   net.ParseIP("127.0.0.1"),
-		Dst:   net.ParseIP("127.0.0.2"),
+		Src:   netip.MustParseAddr("127.0.0.1"),
+		Dst:   netip.MustParseAddr("127.0.0.2"),
 		Proto: XFRM_PROTO_ESP,
 		Mode:  XFRM_MODE_TUNNEL,
 		Spi:   0x1bcdef99,

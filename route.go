@@ -2,7 +2,7 @@ package netlink
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 	"strings"
 )
 
@@ -64,9 +64,9 @@ type Route struct {
 	LinkIndex        int
 	ILinkIndex       int
 	Scope            Scope
-	Dst              *net.IPNet
-	Src              net.IP
-	Gw               net.IP
+	Dst              netip.Prefix
+	Src              netip.Addr
+	Gw               netip.Addr
 	MultiPath        []*NexthopInfo
 	Protocol         RouteProtocol
 	Priority         int
@@ -144,9 +144,9 @@ func (r Route) Equal(x Route) bool {
 	return r.LinkIndex == x.LinkIndex &&
 		r.ILinkIndex == x.ILinkIndex &&
 		r.Scope == x.Scope &&
-		ipNetEqual(r.Dst, x.Dst) &&
-		r.Src.Equal(x.Src) &&
-		r.Gw.Equal(x.Gw) &&
+		r.Dst == x.Dst &&
+		r.Src == x.Src &&
+		r.Gw == x.Gw &&
 		nexthopInfoSlice(r.MultiPath).Equal(x.MultiPath) &&
 		r.Protocol == x.Protocol &&
 		r.Priority == x.Priority &&
@@ -192,7 +192,7 @@ type RouteUpdate struct {
 type NexthopInfo struct {
 	LinkIndex int
 	Hops      int
-	Gw        net.IP
+	Gw        netip.Addr
 	Flags     int
 	NewDst    Destination
 	Encap     Encap
@@ -220,7 +220,7 @@ func (n *NexthopInfo) String() string {
 func (n NexthopInfo) Equal(x NexthopInfo) bool {
 	return n.LinkIndex == x.LinkIndex &&
 		n.Hops == x.Hops &&
-		n.Gw.Equal(x.Gw) &&
+		n.Gw == x.Gw &&
 		n.Flags == x.Flags &&
 		(n.NewDst == x.NewDst || (n.NewDst != nil && n.NewDst.Equal(x.NewDst))) &&
 		(n.Encap == x.Encap || (n.Encap != nil && n.Encap.Equal(x.Encap)))
@@ -241,17 +241,4 @@ func (n nexthopInfoSlice) Equal(x []*NexthopInfo) bool {
 		}
 	}
 	return true
-}
-
-// ipNetEqual returns true iff both IPNet are equal
-func ipNetEqual(ipn1 *net.IPNet, ipn2 *net.IPNet) bool {
-	if ipn1 == ipn2 {
-		return true
-	}
-	if ipn1 == nil || ipn2 == nil {
-		return false
-	}
-	m1, _ := ipn1.Mask.Size()
-	m2, _ := ipn2.Mask.Size()
-	return m1 == m2 && ipn1.IP.Equal(ipn2.IP)
 }

@@ -2,7 +2,7 @@ package netlink
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -11,7 +11,7 @@ type Nexthop struct {
 	ID        uint32
 	Blackhole bool
 	OIF       uint32
-	Gateway   net.IP
+	Gateway   netip.Addr
 	Protocol  RouteProtocol
 }
 

@@ -4,7 +4,7 @@
 package netlink
 
 import (
-	"net"
+	"net/netip"
 	"testing"
 )
 
@@ -54,11 +54,11 @@ func TestFouDeserializeMsg(t *testing.T) {
 		t.Errorf("expected encap type %d, got %d", FOU_ENCAP_GUE, fou.EncapType)
 	}
 
-	if expected := net.IPv4(1, 2, 3, 4); !fou.Local.Equal(expected) {
+	if expected := netip.MustParseAddr("1.2.3.4"); fou.Local != expected {
 		t.Errorf("expected local %v, got %v", expected, fou.Local)
 	}
 
-	if expected := net.IPv4(5, 6, 7, 8); !fou.Peer.Equal(expected) {
+	if expected := netip.MustParseAddr("5.6.7.8"); fou.Peer != expected {
 		t.Errorf("expected peer %v, got %v", expected, fou.Peer)
 	}
 

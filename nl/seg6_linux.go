@@ -3,7 +3,7 @@ package nl
 import (
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 )
 
 type IPv6SrHdr struct {
@@ -15,7 +15,7 @@ type IPv6SrHdr struct {
 	flags        uint8
 	reserved     uint16
 
-	Segments []net.IP
+	Segments []netip.Addr
 }
 
 func (s1 *IPv6SrHdr) Equal(s2 IPv6SrHdr) bool {
@@ -23,7 +23,7 @@ func (s1 *IPv6SrHdr) Equal(s2 IPv6SrHdr) bool {
 		return false
 	}
 	for i := range s1.Segments {
-		if !s1.Segments[i].Equal(s2.Segments[i]) {
+		if s1.Segments[i] != s2.Segments[i] {
 			return false
 		}
 	}
@@ -53,7 +53,7 @@ const (
 	SEG6_IPTUNNEL_MAX = __SEG6_IPTUNNEL_MAX - 1
 )
 
-func EncodeSEG6Encap(mode int, segments []net.IP) ([]byte, error) {
+func EncodeSEG6Encap(mode int, segments []netip.Addr) ([]byte, error) {
 	nsegs := len(segments) // nsegs: number of segments
 	if nsegs == 0 {
 		return nil, errors.New("EncodeSEG6Encap: No Segment in srh")
@@ -70,12 +70,12 @@ func EncodeSEG6Encap(mode int, segments []net.IP) ([]byte, error) {
 	// srh.reserved: Defined as "Tag" in draft-ietf-6man-segment-routing-header-07
 	native.PutUint16(b[10:], 0) // srh.reserved
 	for _, netIP := range segments {
-		b = append(b, netIP...) // srh.Segments
+		b = append(b, netIP.AsSlice()...) // srh.Segments
 	}
 	return b, nil
 }
 
-func DecodeSEG6Encap(buf []byte) (int, []net.IP, error) {
+func DecodeSEG6Encap(buf []byte) (int, []netip.Addr, error) {
 	native := NativeEndian()
 	mode := int(native.Uint32(buf))
 	srh := IPv6SrHdr{
@@ -93,13 +93,17 @@ func DecodeSEG6Encap(buf []byte) (int, []net.IP, error) {
 		return mode, nil, err
 	}
 	for len(buf) > 0 {
-		srh.Segments = append(srh.Segments, net.IP(buf[:16]))
+		addr, ok := netip.AddrFromSlice(buf[:16])
+		if !ok {
+			return 0, nil, fmt.Errorf("segments: invalid addr")
+		}
+		srh.Segments = append(srh.Segments, addr)
 		buf = buf[16:]
 	}
 	return mode, srh.Segments, nil
 }
 
-func DecodeSEG6Srh(buf []byte) ([]net.IP, error) {
+func DecodeSEG6Srh(buf []byte) ([]netip.Addr, error) {
 	native := NativeEndian()
 	srh := IPv6SrHdr{
 		nextHdr:      buf[0],
@@ -116,12 +120,16 @@ func DecodeSEG6Srh(buf []byte) ([]net.IP, error) {
 		return nil, err
 	}
 	for len(buf) > 0 {
-		srh.Segments = append(srh.Segments, net.IP(buf[:16]))
+		addr, ok := netip.AddrFromSlice(buf[:16])
+		if !ok {
+			return nil, fmt.Errorf("segments: invalid addr")
+		}
+		srh.Segments = append(srh.Segments, addr)
 		buf = buf[16:]
 	}
 	return srh.Segments, nil
 }
-func EncodeSEG6Srh(segments []net.IP) ([]byte, error) {
+func EncodeSEG6Srh(segments []netip.Addr) ([]byte, error) {
 	nsegs := len(segments) // nsegs: number of segments
 	if nsegs == 0 {
 		return nil, errors.New("EncodeSEG6Srh: No Segments")
@@ -137,7 +145,7 @@ func EncodeSEG6Srh(segments []net.IP) ([]byte, error) {
 	// srh.reserved: Defined as "Tag" in draft-ietf-6man-segment-routing-header-07
 	native.PutUint16(b[6:], 0) // srh.reserved
 	for _, netIP := range segments {
-		b = append(b, netIP...) // srh.Segments
+		b = append(b, netIP.AsSlice()...) // srh.Segments
 	}
 	return b, nil
 }

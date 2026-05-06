@@ -3,7 +3,10 @@
 
 package netlink
 
-import "net"
+import (
+	"net"
+	"net/netip"
+)
 
 func LinkSetUp(link Link) error {
 	return ErrNotImplemented
@@ -217,7 +220,7 @@ func RouteDel(route *Route) error {
 	return ErrNotImplemented
 }
 
-func RouteGet(destination net.IP) ([]Route, error) {
+func RouteGet(destination netip.Addr) ([]Route, error) {
 	return nil, ErrNotImplemented
 }
 

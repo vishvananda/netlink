@@ -4,7 +4,7 @@
 package netlink
 
 import (
-	"net"
+	"net/netip"
 	"slices"
 	"testing"
 
@@ -42,10 +42,7 @@ func TestNexthopAddListDelReplace(t *testing.T) {
 	}
 
 	// Assign ip address to dummy interface
-	if err = AddrAdd(link0, &Addr{IPNet: &net.IPNet{
-		IP:   net.ParseIP("10.0.0.2"),
-		Mask: net.CIDRMask(24, 32),
-	}}); err != nil {
+	if err = AddrAdd(link0, &Addr{Prefix: netip.PrefixFrom(netip.MustParseAddr("10.0.0.2"), 24)}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -59,7 +56,7 @@ func TestNexthopAddListDelReplace(t *testing.T) {
 		// Auto assign ID
 		ID:       0,
 		OIF:      uint32(link0.Attrs().Index),
-		Gateway:  net.ParseIP("fe80::1234:5678:9abc:def0"),
+		Gateway:  netip.MustParseAddr("fe80::1234:5678:9abc:def0"),
 		Protocol: unix.RTPROT_BGP,
 	}
 
@@ -103,7 +100,7 @@ func TestNexthopAddListDelReplace(t *testing.T) {
 	if resNH1.OIF != nh1.OIF {
 		t.Fatalf("Nexthop OIF mismatch: expected %d, got %d", nh1.OIF, resNH1.OIF)
 	}
-	if !resNH1.Gateway.Equal(nh1.Gateway) {
+	if resNH1.Gateway != nh1.Gateway {
 		t.Fatalf("Nexthop Gateway mismatch: expected %s, got %s", nh1.Gateway, resNH1.Gateway)
 	}
 	if resNH1.Protocol != nh1.Protocol {
@@ -128,7 +125,7 @@ func TestNexthopAddListDelReplace(t *testing.T) {
 		ID:       resNH1.ID,
 		Protocol: unix.RTPROT_STATIC,
 		OIF:      uint32(link0.Attrs().Index),
-		Gateway:  net.ParseIP("10.0.0.1"),
+		Gateway:  netip.MustParseAddr("10.0.0.1"),
 	}
 	if err = NexthopReplace(nh2); err != nil {
 		t.Fatal(err)
@@ -149,7 +146,7 @@ func TestNexthopAddListDelReplace(t *testing.T) {
 	if resNH2.OIF != nh2.OIF {
 		t.Fatalf("Nexthop OIF mismatch: expected %d, got %d", nh2.OIF, resNH2.OIF)
 	}
-	if !resNH2.Gateway.Equal(nh2.Gateway) {
+	if resNH2.Gateway != nh2.Gateway {
 		t.Fatalf("Nexthop Gateway mismatch: expected %s, got %s", nh2.Gateway, resNH2.Gateway)
 	}
 }
