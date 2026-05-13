@@ -178,6 +178,10 @@ func ruleHandle(rule *Rule, req *nl.NetlinkRequest) error {
 		req.AddData(nl.NewRtAttr(nl.FRA_PROTOCOL, nl.Uint8Attr(rule.Protocol)))
 	}
 
+	if rule.L3mdev > 0 {
+		req.AddData(nl.NewRtAttr(nl.FRA_L3MDEV, nl.Uint8Attr(rule.L3mdev)))
+	}
+
 	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
 	return err
 }
@@ -239,6 +243,7 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 		rule.Invert = msg.Flags&FibRuleInvert > 0
 		rule.Family = int(msg.Family)
 		rule.Tos = uint(msg.Tos)
+		rule.Type = msg.Type
 
 		for j := range attrs {
 			switch attrs[j].Attr.Type {
@@ -291,6 +296,8 @@ func (h *Handle) RuleListFiltered(family int, filter *Rule, filterMask uint64) (
 				rule.UIDRange = NewRuleUIDRange(native.Uint32(attrs[j].Value[0:4]), native.Uint32(attrs[j].Value[4:8]))
 			case nl.FRA_PROTOCOL:
 				rule.Protocol = uint8(attrs[j].Value[0])
+			case nl.FRA_L3MDEV:
+				rule.L3mdev = uint8(attrs[j].Value[0])
 			}
 		}
 
@@ -334,16 +341,6 @@ func (pr *RuleUIDRange) toRtAttrData() []byte {
 	native.PutUint32(b[0], pr.Start)
 	native.PutUint32(b[1], pr.End)
 	return bytes.Join(b, []byte{})
-}
-
-func ptrEqual(a, b *uint32) bool {
-	if a == b {
-		return true
-	}
-	if (a == nil) || (b == nil) {
-		return false
-	}
-	return *a == *b
 }
 
 func (r Rule) typeString() string {
