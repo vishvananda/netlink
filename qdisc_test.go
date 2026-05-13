@@ -25,9 +25,9 @@ func TestTbfAddDel(t *testing.T) {
 			Handle:    MakeHandle(1, 0),
 			Parent:    HANDLE_ROOT,
 		},
-		Rate:   131072,
-		Limit:  1220703,
-		Buffer: 16793,
+		Rate:  131072,
+		Limit: 1220703,
+		Burst: 4096,
 	}
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
@@ -49,7 +49,7 @@ func TestTbfAddDel(t *testing.T) {
 	if tbf.Limit != qdisc.Limit {
 		t.Fatal("Limit doesn't match")
 	}
-	if tbf.Buffer != qdisc.Buffer {
+	if tbf.Burst != Xmitsize(qdisc.Rate, Xmittime(qdisc.Rate, qdisc.Burst)) {
 		t.Fatal("Buffer doesn't match")
 	}
 	if err := QdiscDel(qdisc); err != nil {
@@ -257,7 +257,7 @@ func TestTbfAddHtbReplaceDel(t *testing.T) {
 		QdiscAttrs: attrs,
 		Rate:       131072,
 		Limit:      1220703,
-		Buffer:     16793,
+		Burst:      4096,
 	}
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
@@ -279,7 +279,7 @@ func TestTbfAddHtbReplaceDel(t *testing.T) {
 	if tbf.Limit != qdisc.Limit {
 		t.Fatal("Limit doesn't match")
 	}
-	if tbf.Buffer != qdisc.Buffer {
+	if tbf.Burst != Xmitsize(qdisc.Rate, Xmittime(qdisc.Rate, qdisc.Burst)) {
 		t.Fatal("Buffer doesn't match")
 	}
 	// Replace
@@ -347,7 +347,7 @@ func TestTbfAddTbfChangeDel(t *testing.T) {
 		QdiscAttrs: attrs,
 		Rate:       131072,
 		Limit:      1220703,
-		Buffer:     16793,
+		Burst:      4096,
 	}
 	if err := QdiscAdd(qdisc); err != nil {
 		t.Fatal(err)
@@ -369,7 +369,7 @@ func TestTbfAddTbfChangeDel(t *testing.T) {
 	if tbf.Limit != qdisc.Limit {
 		t.Fatal("Limit doesn't match")
 	}
-	if tbf.Buffer != qdisc.Buffer {
+	if tbf.Burst != Xmitsize(qdisc.Rate, Xmittime(qdisc.Rate, qdisc.Burst)) {
 		t.Fatal("Buffer doesn't match")
 	}
 	// Change
@@ -396,7 +396,7 @@ func TestTbfAddTbfChangeDel(t *testing.T) {
 	if tbf.Limit != qdisc.Limit {
 		t.Fatal("Limit doesn't match")
 	}
-	if tbf.Buffer != qdisc.Buffer {
+	if tbf.Burst != Xmitsize(qdisc.Rate, Xmittime(qdisc.Rate, qdisc.Burst)) {
 		t.Fatal("Buffer doesn't match")
 	}
 
