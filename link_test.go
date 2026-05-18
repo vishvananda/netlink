@@ -707,6 +707,57 @@ func compareBareUDP(t *testing.T, expected, actual *BareUDP) {
 	}
 }
 
+func TestLinkDeserializeMTULimits(t *testing.T) {
+	const (
+		mtu    uint32 = 1500
+		minMTU uint32 = 68
+		maxMTU uint32 = 9000
+	)
+
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = 42
+
+	raw := append([]byte{}, msg.Serialize()...)
+	raw = append(raw,
+		nl.NewRtAttr(unix.IFLA_IFNAME,
+			nl.ZeroTerminated("foo")).Serialize()...)
+	raw = append(raw,
+		nl.NewRtAttr(unix.IFLA_MTU,
+			nl.Uint32Attr(mtu)).Serialize()...)
+	raw = append(raw,
+		nl.NewRtAttr(unix.IFLA_MIN_MTU,
+			nl.Uint32Attr(minMTU)).Serialize()...)
+	raw = append(raw,
+		nl.NewRtAttr(unix.IFLA_MAX_MTU,
+			nl.Uint32Attr(maxMTU)).Serialize()...)
+
+	link, err := LinkDeserialize(nil, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link == nil {
+		t.Fatal("link is nil")
+	}
+
+	attrs := link.Attrs()
+
+	if attrs.MTU != int(mtu) {
+		t.Fatalf("unexpected MTU: got=%d want=%d",
+			attrs.MTU, mtu)
+	}
+
+	if attrs.MinMTU != int(minMTU) {
+		t.Fatalf("unexpected MinMTU: got=%d want=%d",
+			attrs.MinMTU, minMTU)
+	}
+
+	if attrs.MaxMTU != int(maxMTU) {
+		t.Fatalf("unexpected MaxMTU: got=%d want=%d",
+			attrs.MaxMTU, maxMTU)
+	}
+}
+
 func TestLinkAddDelWithIndex(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
