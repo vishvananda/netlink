@@ -919,14 +919,7 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 	if err != nil {
 		return nil, nil, err
 	}
-	var (
-		deadline time.Time
-		fromAddr *unix.SockaddrNetlink
-		rb       [RECEIVE_BUFFER_SIZE]byte
-		nr       int
-		from     unix.Sockaddr
-		innerErr error
-	)
+	var deadline time.Time
 	receiveTimeout := atomic.LoadInt64(&s.receiveTimeout)
 	if receiveTimeout != 0 {
 		deadline = time.Now().Add(time.Duration(receiveTimeout))
@@ -934,13 +927,7 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 	if err := s.file.SetReadDeadline(deadline); err != nil {
 		return nil, nil, err
 	}
-	err = rawConn.Read(func(fd uintptr) (done bool) {
-		nr, from, innerErr = unix.Recvfrom(int(fd), rb[:], 0)
-		return innerErr != unix.EWOULDBLOCK
-	})
-	if innerErr != nil {
-		return nil, nil, innerErr
-	}
+	nl, from, err := receiveNetlinkMessages(rawConn)
 	if err != nil {
 		// The timeout was previously implemented using SO_RCVTIMEO on a blocking
 		// socket. So, continue to return EAGAIN when the timeout is reached.
@@ -953,17 +940,17 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 	if !ok {
 		return nil, nil, fmt.Errorf("Error converting to netlink sockaddr")
 	}
+	return nl, fromAddr, nil
+}
+
+func parseNetlinkMessage(rb []byte, nr int) ([]syscall.NetlinkMessage, error) {
 	if nr < unix.NLMSG_HDRLEN {
-		return nil, nil, fmt.Errorf("Got short response from netlink")
+		return nil, fmt.Errorf("Got short response from netlink")
 	}
 	msgLen := nlmAlignOf(nr)
 	rb2 := make([]byte, msgLen)
-	copy(rb2, rb[:msgLen])
-	nl, err := syscall.ParseNetlinkMessage(rb2)
-	if err != nil {
-		return nil, nil, err
-	}
-	return nl, fromAddr, nil
+	copy(rb2, rb[:nr])
+	return syscall.ParseNetlinkMessage(rb2)
 }
 
 // SetSendTimeout allows to set a send timeout on the socket
