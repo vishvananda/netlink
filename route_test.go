@@ -2529,6 +2529,101 @@ func TestRouteViaAddDel(t *testing.T) {
 	}
 }
 
+// TestRouteMultiPathViaIPv4Mapped verifies that adding a Multipath route
+// with a 16-byte IPv4-mapped address is correctly normalized to 4 bytes
+// during encoding, preventing kernel invalid gateway rejections.
+func TestRouteMultiPathViaIPv4Mapped(t *testing.T) {
+	minKernelRequired(t, 5, 4)
+	t.Cleanup(setUpNetlinkTest(t))
+
+	link, err := LinkByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	buggyViaIP := net.ParseIP("1.1.1.1")
+	if len(buggyViaIP) != 16 {
+		t.Fatalf("expected a 16-byte IP object for the test, but got %d bytes", len(buggyViaIP))
+	}
+
+	dst := &net.IPNet{
+		IP:   net.IPv4(192, 168, 99, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+
+	route := &Route{
+		LinkIndex: link.Attrs().Index,
+		Dst:       dst,
+		MultiPath: []*NexthopInfo{
+			{
+				LinkIndex: link.Attrs().Index,
+				Flags:     int(FLAG_ONLINK),
+				Via: &Via{
+					AddrFamily: FAMILY_V4,
+					Addr:       buggyViaIP, // intentionally trying to send the 16-byte IP to the Kernel
+				},
+			},
+		},
+	}
+
+	if err := RouteAdd(route); err != nil {
+		t.Fatalf("RouteAdd should handle 16-byte IPv4 Via addresses: %v", err)
+	}
+
+	routes, err := RouteListFiltered(FAMILY_V4, &Route{Dst: dst}, RT_FILTER_DST)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatal("Route was not added to the kernel properly")
+	}
+
+	if err := RouteDel(route); err != nil {
+		t.Fatal(err)
+	}
+
+	routesAfterDel, err := RouteListFiltered(FAMILY_V4, &Route{Dst: dst}, RT_FILTER_DST)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routesAfterDel) != 0 {
+		t.Fatal("Route was not deleted from the kernel properly")
+	}
+}
+
+// TestViaEncodeIPv4Mapped verifies that a 16-byte IPv4-mapped address
+// is correctly compressed and encoded into a strictly 6-byte slice
+// (2 bytes for AddrFamily + 4 bytes for the IPv4 address).
+func TestViaEncodeIPv4Mapped(t *testing.T) {
+	via := &Via{
+		AddrFamily: FAMILY_V4,
+		Addr:       net.ParseIP("1.1.1.1"),
+	}
+
+	b, err := via.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(b) != 6 {
+		t.Fatalf("expected encoded Via length to be 6 bytes, got %d", len(b))
+	}
+
+	gotFamily := int(native.Uint16(b[0:2]))
+	if gotFamily != FAMILY_V4 {
+		t.Fatalf("unexpected address family; got %d, want %d", gotFamily, FAMILY_V4)
+	}
+
+	gotAddr := net.IP(b[2:6])
+	wantAddr := net.IPv4(1, 1, 1, 1)
+	if !gotAddr.Equal(wantAddr) {
+		t.Fatalf("unexpected IPv4 address; got %s, want %s", gotAddr, wantAddr)
+	}
+}
+
 func TestRouteUIDOption(t *testing.T) {
 	t.Cleanup(setUpNetlinkTest(t))
 
