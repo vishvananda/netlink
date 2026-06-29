@@ -12,7 +12,7 @@ import (
 )
 
 // Empty handle used by the netlink package methods
-var pkgHandle = &Handle{}
+var pkgHandle = &Handle{options: HandleOptions{collectVFInfo: true}}
 
 var configMu sync.Mutex
 var configDone bool
