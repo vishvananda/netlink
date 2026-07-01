@@ -57,10 +57,6 @@ type HandleOptions struct {
 	// number of times if they fail with EINTR before finally returning
 	// [ErrDumpInterrupted].
 	RetryInterrupted bool
-
-	// NetNS specifies the network namespace to operate on. If not set, the
-	// current network namespace will be used.
-	NetNS *netns.NsHandle
 }
 
 // Handle is a handle for the netlink requests on a
@@ -111,7 +107,7 @@ func (h *Handle) SupportsNetlinkFamily(nlFamily int) bool {
 // supports will be automatically added.
 func NewHandle(nlFamilies ...int) (*Handle, error) {
 	none := netns.None()
-	return newHandle(none, HandleOptions{NetNS: &none}, nlFamilies...)
+	return newHandle(none, none, HandleOptions{}, nlFamilies...)
 }
 
 // SetSocketTimeout sets the send and receive timeout for each socket in the
@@ -189,21 +185,27 @@ func (h *Handle) SetStrictCheck(state bool) error {
 // specified by ns. If ns=netns.None(), current network namespace
 // will be assumed
 func NewHandleAt(ns netns.NsHandle, nlFamilies ...int) (*Handle, error) {
-	return newHandle(netns.None(), HandleOptions{NetNS: &ns}, nlFamilies...)
+	return newHandle(ns, netns.None(), HandleOptions{}, nlFamilies...)
 }
 
 // NewHandleAtFrom works as NewHandle but allows client to specify the
 // new and the origin netns Handle.
 func NewHandleAtFrom(newNs, curNs netns.NsHandle) (*Handle, error) {
-	return newHandle(curNs, HandleOptions{NetNS: &newNs})
+	return newHandle(newNs, curNs, HandleOptions{})
 }
 
 // NewHandleWithOptions returns a Handle created using the specified options.
 func NewHandleWithOptions(opts HandleOptions, nlFamilies ...int) (*Handle, error) {
-	return newHandle(netns.None(), opts, nlFamilies...)
+	return newHandle(netns.None(), netns.None(), opts, nlFamilies...)
 }
 
-func newHandle(curNs netns.NsHandle, opts HandleOptions, nlFamilies ...int) (*Handle, error) {
+// NewHandleAtWithOptions returns a Handle created using the specified options
+// in the specified network namespace.
+func NewHandleAtWithOptions(ns netns.NsHandle, opts HandleOptions, nlFamilies ...int) (*Handle, error) {
+	return newHandle(ns, netns.None(), opts, nlFamilies...)
+}
+
+func newHandle(newNs, curNs netns.NsHandle, opts HandleOptions, nlFamilies ...int) (*Handle, error) {
 	h := &Handle{
 		sockets: map[int]*nl.SocketHandle{},
 		options: opts,
@@ -211,11 +213,6 @@ func newHandle(curNs netns.NsHandle, opts HandleOptions, nlFamilies ...int) (*Ha
 	fams := nl.SupportedNlFamilies
 	if len(nlFamilies) != 0 {
 		fams = nlFamilies
-	}
-
-	newNs := netns.None()
-	if opts.NetNS != nil {
-		newNs = *opts.NetNS
 	}
 
 	for _, f := range fams {
