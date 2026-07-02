@@ -81,12 +81,6 @@ func setUpNetlinkTest(t testing.TB) tearDownNetlinkTest {
 		runtime.UnlockOSThread()
 		t.Fatal("Failed to create new namespace:", err)
 	}
-	// Reinitialize the package-level handle in this namespace
-	if pkgHandle != nil {
-		// ensure all sockets from the previous Handle are closed
-		_ = pkgHandle.Close()
-	}
-	pkgHandle = &Handle{}
 
 	return func() {
 		// Close the new namespace handle
