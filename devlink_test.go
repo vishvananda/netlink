@@ -200,7 +200,7 @@ func init() {
 }
 
 func TestDevlinkGetDeviceInfoByNameAsMap(t *testing.T) {
-	info, err := pkgHandle.DevlinkGetDeviceInfoByNameAsMap("pci", "0000:00:00.0", mockDevlinkInfoGetter)
+	info, err := pkgHandle().DevlinkGetDeviceInfoByNameAsMap("pci", "0000:00:00.0", mockDevlinkInfoGetter)
 	assert.NoError(t, err)
 
 	testInfo := devlinkTestInfoParesd()
@@ -210,7 +210,7 @@ func TestDevlinkGetDeviceInfoByNameAsMap(t *testing.T) {
 }
 
 func TestDevlinkGetDeviceInfoByName(t *testing.T) {
-	info, err := pkgHandle.DevlinkGetDeviceInfoByName("pci", "0000:00:00.0", mockDevlinkInfoGetter)
+	info, err := pkgHandle().DevlinkGetDeviceInfoByName("pci", "0000:00:00.0", mockDevlinkInfoGetter)
 	assert.NoError(t, err)
 
 	testInfo := parseInfoData(devlinkTestInfoParesd())
@@ -218,12 +218,12 @@ func TestDevlinkGetDeviceInfoByName(t *testing.T) {
 }
 
 func TestDevlinkGetDeviceInfoByNameAsMapFail(t *testing.T) {
-	_, err := pkgHandle.DevlinkGetDeviceInfoByNameAsMap("pci", "0000:00:00.0", mockDevlinkInfoGetterEmpty)
+	_, err := pkgHandle().DevlinkGetDeviceInfoByNameAsMap("pci", "0000:00:00.0", mockDevlinkInfoGetterEmpty)
 	assert.Error(t, err)
 }
 
 func TestDevlinkGetDeviceInfoByNameFail(t *testing.T) {
-	_, err := pkgHandle.DevlinkGetDeviceInfoByName("pci", "0000:00:00.0", mockDevlinkInfoGetterEmpty)
+	_, err := pkgHandle().DevlinkGetDeviceInfoByName("pci", "0000:00:00.0", mockDevlinkInfoGetterEmpty)
 	assert.Error(t, err)
 }
 

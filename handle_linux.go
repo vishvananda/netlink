@@ -11,19 +11,20 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Empty handle used by the netlink package methods
-var pkgHandle = &Handle{}
-
 var configMu sync.Mutex
 var configDone bool
 
-// ConfigureHandle configures the default, package-wide netlink handle used by
-// the netlink package's global functions like [LinkList] and [AddrList] with
-// the given opts. It does not affect any existing or future [Handle] returned
-// by the library.
+// pkgOptions holds the options configured via [ConfigureHandle] for use by
+// the package-level global functions.
+var pkgOptions HandleOptions
+
+// ConfigureHandle configures the options used by the netlink package's global
+// functions like [LinkList] and [AddrList]. It does not affect any existing or
+// future [Handle] returned by [NewHandle] and friends; those need to be
+// configured explicitly and don't inherit from this configuration.
 //
-// This function is not safe to call concurrently with any netlink operations
-// using the global package handle. Invoke it from init() functions only.
+// The global functions always open a fresh socket in the caller's current
+// network namespace on each call.
 //
 // Returns an error if called more than once per process.
 func ConfigureHandle(opts HandleOptions) error {
@@ -34,15 +35,17 @@ func ConfigureHandle(opts HandleOptions) error {
 		return fmt.Errorf("netlink package handle already configured")
 	}
 
-	h, err := NewHandleWithOptions(opts)
-	if err != nil {
-		return fmt.Errorf("creating handle: %w", err)
-	}
-
 	configDone = true
-	pkgHandle = h
+	pkgOptions = opts
 
 	return nil
+}
+
+// pkgHandle returns a socket-less Handle initialized with the package-level
+// options. It is used by global package functions; each call opens its own
+// sockets in the caller's current network namespace.
+func pkgHandle() *Handle {
+	return &Handle{options: pkgOptions}
 }
 
 // HandleOptions defines the options for creating a netlink Handle, allowing the
@@ -248,7 +251,9 @@ func (h *Handle) Delete() {
 func (h *Handle) newNetlinkRequest(proto, flags int) *nl.NetlinkRequest {
 	// Do this so that package API still use nl package variable nextSeqNr
 	if h.sockets == nil {
-		return nl.NewNetlinkRequest(proto, flags)
+		req := nl.NewNetlinkRequest(proto, flags)
+		req.RetryInterrupted = h.options.RetryInterrupted
+		return req
 	}
 	return &nl.NetlinkRequest{
 		NlMsghdr: unix.NlMsghdr{
