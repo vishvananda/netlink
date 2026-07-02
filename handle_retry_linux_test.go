@@ -55,9 +55,16 @@ func TestExecuteIterRetryInterruptedRetriesDumpInterrupted(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Now that we have verified that ExecuteIter can be interrupted, create a new
+	// handle with RetryInterrupted enabled and verify that it eventually succeeds.
+	dumpHandle, err = NewHandleWithOptions(HandleOptions{RetryInterrupted: true}, unix.NETLINK_ROUTE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { dumpHandle.Close() })
+
 	// RouteListFiltered uses the same ExecuteIter path. Exercise it directly
 	// because link dumps trigger NLM_F_DUMP_INTR more reliably in a test netns.
-	dumpHandle.RetryInterrupted()
 	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); {
 		err := executeIterLinkDump(dumpHandle)
 		switch {

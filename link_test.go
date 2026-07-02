@@ -3672,7 +3672,7 @@ func TestLinkSetBondSlaveQueueId(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := pkgHandle.LinkSetBondSlaveQueueId(slave, 1); err != nil {
+	if err := LinkSetBondSlaveQueueId(slave, 1); err != nil {
 		t.Fatal(err)
 	}
 }
