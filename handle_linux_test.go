@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -19,18 +20,13 @@ func TestSetGetSocketTimeout(t *testing.T) {
 }
 
 func TestConfigureHandle(t *testing.T) {
-	orig := pkgHandle
-	origDone := configDone
 	t.Cleanup(func() {
-		configMu.Lock()
-		defer configMu.Unlock()
-
-		pkgHandle = orig
-		configDone = origDone
+		pkgOptions = HandleOptions{}
+		oncePkgOptions = sync.Once{}
 	})
 
 	assert.NoError(t, ConfigureHandle(HandleOptions{DisableVFInfoCollection: true}))
-	assert.NotEqual(t, orig, pkgHandle)
-	assert.NoError(t, pkgHandle.Close())
+	assert.True(t, pkgOptions.DisableVFInfoCollection)
+
 	assert.Error(t, ConfigureHandle(HandleOptions{}))
 }

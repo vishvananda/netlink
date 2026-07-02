@@ -1088,7 +1088,7 @@ func BenchmarkRouteListFilteredNew(b *testing.B) {
 	b.ReportAllocs()
 	var routes []Route
 	for i := 0; i < b.N; i++ {
-		routes, err = pkgHandle.RouteListFiltered(FAMILY_V4, &Route{
+		routes, err = RouteListFiltered(FAMILY_V4, &Route{
 			LinkIndex: link.Attrs().Index,
 		}, RT_FILTER_OIF)
 		if err != nil {
