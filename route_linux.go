@@ -919,12 +919,33 @@ func (h *Handle) routeHandleIter(route *Route, req *nl.NetlinkRequest, msg *nl.R
 	return req.ExecuteIter(unix.NETLINK_ROUTE, 0, f)
 }
 
+// gwIPFamily returns the IP family to use for a gateway address on the given
+// route. A v4-mapped IPv6 gateway (::ffff:a.b.c.d, 16 bytes) reports FAMILY_V4
+// but is a valid V6 nexthop, so it is conformed to V6 only when the caller
+// explicitly requested a V6 route via route.Family. This makes the behavior
+// opt-in rather than silently reinterpreting an ambiguous address, and
+// requiring 16 bytes leaves an explicit 4-byte IPv4 gateway reporting V4.
+func gwIPFamily(route *Route, gw net.IP) int {
+	gwFamily := nl.GetIPFamily(gw)
+	if route.Family == FAMILY_V6 && gwFamily == FAMILY_V4 && len(gw) == net.IPv6len {
+		return FAMILY_V6
+	}
+	return gwFamily
+}
+
 func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 	if req.NlMsghdr.Type != unix.RTM_GETROUTE && (route.Dst == nil || route.Dst.IP == nil) && route.Src == nil && route.Gw == nil && route.MPLSDst == nil {
 		return fmt.Errorf("either Dst.IP, Src.IP or Gw must be set")
 	}
 
 	family := -1
+	if route.Family != 0 {
+		// AF_UNSPEC (0) means unset. Honor an explicitly requested family so
+		// that ambiguous addresses (e.g. a v4-mapped IPv6 gateway, which is
+		// byte-identical to its IPv4 form as a net.IP) are encoded for the
+		// intended family even when no destination pins it down.
+		family = route.Family
+	}
 	var rtAttrs []*nl.RtAttr
 
 	if route.Dst != nil && route.Dst.IP != nil {
@@ -996,7 +1017,7 @@ func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.R
 	}
 
 	if route.Gw != nil {
-		gwFamily := nl.GetIPFamily(route.Gw)
+		gwFamily := gwIPFamily(route, route.Gw)
 		if family != -1 && family != gwFamily {
 			return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
 		}
@@ -1030,7 +1051,7 @@ func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.R
 			}
 			children := []nl.NetlinkRequestData{}
 			if nh.Gw != nil {
-				gwFamily := nl.GetIPFamily(nh.Gw)
+				gwFamily := gwIPFamily(route, nh.Gw)
 				if family != -1 && family != gwFamily {
 					return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
 				}

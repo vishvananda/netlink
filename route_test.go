@@ -2977,3 +2977,183 @@ func TestRouteNHID(t *testing.T) {
 		t.Fatalf("Expected route NHID %d, got %d", nh.ID, routes[0].NHID)
 	}
 }
+
+// findRtAttr returns the Data of the first top-level RtAttr of the given type
+// in req, failing the test if it is absent.
+func findRtAttr(t *testing.T, req *nl.NetlinkRequest, attrType uint16) []byte {
+	t.Helper()
+	for _, d := range req.Data {
+		if attr, ok := d.(*nl.RtAttr); ok && attr.Type == attrType {
+			return attr.Data
+		}
+	}
+	t.Fatalf("attribute type %d not found in request", attrType)
+	return nil
+}
+
+// TestPrepareRouteReqV4MappedV6Gateway verifies that a v4-mapped IPv6 gateway
+// (::ffff:a.b.c.d) is encoded as a 16-byte AF_INET6 nexthop when the caller
+// opts in by setting route.Family to FAMILY_V6. As a net.IP the gateway is
+// byte-identical to its IPv4 form, so GetIPFamily reports FAMILY_V4; the
+// explicit family is what enables the V6 encoding. This does not need a live
+// netlink socket: prepareRouteReq only builds the request.
+func TestPrepareRouteReqV4MappedV6Gateway(t *testing.T) {
+	gw := net.ParseIP("::ffff:192.0.2.1")
+	_, v6dst, err := net.ParseCIDR("2001:db8::/64")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range []struct {
+		name  string
+		route *Route
+	}{
+		{
+			name:  "explicit V6 family, no destination",
+			route: &Route{Family: FAMILY_V6, Gw: gw},
+		},
+		{
+			name:  "explicit V6 family with v6 destination",
+			route: &Route{Family: FAMILY_V6, Dst: v6dst, Gw: gw},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req := nl.NewNetlinkRequest(unix.RTM_NEWROUTE, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+			msg := nl.NewRtMsg()
+
+			if err := (&Handle{}).prepareRouteReq(tt.route, req, msg); err != nil {
+				t.Fatalf("prepareRouteReq: %v", err)
+			}
+
+			if msg.Family != unix.AF_INET6 {
+				t.Fatalf("msg.Family = %d, want AF_INET6 (%d)", msg.Family, unix.AF_INET6)
+			}
+
+			gwData := findRtAttr(t, req, unix.RTA_GATEWAY)
+			if len(gwData) != net.IPv6len {
+				t.Fatalf("RTA_GATEWAY length = %d, want %d", len(gwData), net.IPv6len)
+			}
+			if !net.IP(gwData).Equal(gw) {
+				t.Fatalf("RTA_GATEWAY = %v, want %v", net.IP(gwData), gw)
+			}
+		})
+	}
+}
+
+// TestPrepareRouteReqV4MappedV6GatewayMultiPath is the multipath analogue of
+// TestPrepareRouteReqV4MappedV6Gateway: a v4-mapped IPv6 gateway carried in a
+// MultiPath NexthopInfo must be encoded as a 16-byte AF_INET6 nexthop when the
+// caller opts in via route.Family, matching the direct Route.Gw behavior.
+func TestPrepareRouteReqV4MappedV6GatewayMultiPath(t *testing.T) {
+	gw := net.ParseIP("::ffff:192.0.2.1")
+	_, v6dst, err := net.ParseCIDR("2001:db8::/64")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	route := &Route{
+		Family: FAMILY_V6,
+		Dst:    v6dst,
+		MultiPath: []*NexthopInfo{
+			{LinkIndex: 1, Gw: gw},
+		},
+	}
+
+	req := nl.NewNetlinkRequest(unix.RTM_NEWROUTE, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+	msg := nl.NewRtMsg()
+
+	if err := (&Handle{}).prepareRouteReq(route, req, msg); err != nil {
+		t.Fatalf("prepareRouteReq: %v", err)
+	}
+
+	if msg.Family != unix.AF_INET6 {
+		t.Fatalf("msg.Family = %d, want AF_INET6 (%d)", msg.Family, unix.AF_INET6)
+	}
+
+	// Descend into the nested RTA_MULTIPATH -> RtNexthop -> RTA_GATEWAY.
+	mp := findRtAttr(t, req, unix.RTA_MULTIPATH)
+	if len(mp) < unix.SizeofRtNexthop {
+		t.Fatalf("RTA_MULTIPATH too short: %d bytes", len(mp))
+	}
+	nh := nl.DeserializeRtNexthop(mp)
+	attrs, err := nl.ParseRouteAttr(mp[unix.SizeofRtNexthop:int(nh.RtNexthop.Len)])
+	if err != nil {
+		t.Fatalf("ParseRouteAttr: %v", err)
+	}
+	var gwData []byte
+	for _, attr := range attrs {
+		if attr.Attr.Type == unix.RTA_GATEWAY {
+			gwData = attr.Value
+		}
+	}
+	if gwData == nil {
+		t.Fatal("RTA_GATEWAY not found in multipath nexthop")
+	}
+	if len(gwData) != net.IPv6len {
+		t.Fatalf("RTA_GATEWAY length = %d, want %d", len(gwData), net.IPv6len)
+	}
+	if !net.IP(gwData).Equal(gw) {
+		t.Fatalf("RTA_GATEWAY = %v, want %v", net.IP(gwData), gw)
+	}
+}
+
+// TestPrepareRouteReqV4MappedV6GatewayRequiresFamily verifies that the conform
+// is opt-in: without an explicit route.Family, a v4-mapped gateway even
+// alongside a V6 destination is treated as FAMILY_V4 and rejected, exactly as
+// it was before v4-mapped nexthops were supported.
+func TestPrepareRouteReqV4MappedV6GatewayRequiresFamily(t *testing.T) {
+	_, dst, err := net.ParseCIDR("2001:db8::/64")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := nl.NewNetlinkRequest(unix.RTM_NEWROUTE, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+	msg := nl.NewRtMsg()
+
+	route := &Route{Dst: dst, Gw: net.ParseIP("::ffff:192.0.2.1")}
+	if err := (&Handle{}).prepareRouteReq(route, req, msg); err == nil {
+		t.Fatal("expected an error for a v4-mapped gateway without Family set, got nil")
+	}
+}
+
+// TestPrepareRouteReqV4GatewayUnaffected guards against regressing the common
+// case: a plain IPv4 gateway must still be encoded as a 4-byte AF_INET nexthop.
+func TestPrepareRouteReqV4GatewayUnaffected(t *testing.T) {
+	_, dst, err := net.ParseCIDR("192.0.2.0/24")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gw := net.ParseIP("192.0.2.1")
+
+	req := nl.NewNetlinkRequest(unix.RTM_NEWROUTE, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+	msg := nl.NewRtMsg()
+
+	if err := (&Handle{}).prepareRouteReq(&Route{Dst: dst, Gw: gw}, req, msg); err != nil {
+		t.Fatalf("prepareRouteReq: %v", err)
+	}
+
+	if msg.Family != unix.AF_INET {
+		t.Fatalf("msg.Family = %d, want AF_INET (%d)", msg.Family, unix.AF_INET)
+	}
+
+	gwData := findRtAttr(t, req, unix.RTA_GATEWAY)
+	if len(gwData) != net.IPv4len {
+		t.Fatalf("RTA_GATEWAY length = %d, want %d", len(gwData), net.IPv4len)
+	}
+}
+
+// TestPrepareRouteReqExplicitV4GatewayOnV6Route verifies that even with an
+// explicit V6 family, a 4-byte IPv4 gateway is not conformed to V6: the conform
+// requires a 16-byte slice, so a deliberately 4-byte address ("I really meant
+// IPv4") still errors rather than being silently reinterpreted as a mapped
+// nexthop.
+func TestPrepareRouteReqExplicitV4GatewayOnV6Route(t *testing.T) {
+	gw := net.ParseIP("192.0.2.1").To4() // explicit 4-byte IPv4
+
+	req := nl.NewNetlinkRequest(unix.RTM_NEWROUTE, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+	msg := nl.NewRtMsg()
+
+	if err := (&Handle{}).prepareRouteReq(&Route{Family: FAMILY_V6, Gw: gw}, req, msg); err == nil {
+		t.Fatal("expected an error for a 4-byte IPv4 gateway on a V6 route, got nil")
+	}
+}
