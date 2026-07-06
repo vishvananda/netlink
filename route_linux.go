@@ -366,7 +366,7 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 				case nl.SEG6_LOCAL_FLV_LCNODE_FN_BITS:
 					flavors.LcNodeFnBits = flvAttr.Value[0]
 				default:
-					err = fmt.Errorf("seg6local flavors decode: unknown attribute: Type %d", flvAttr.Attr)
+					err = fmt.Errorf("seg6local flavors decode: unknown attribute: Type %d", flvAttr.Attr.Type)
 				}
 			}
 			e.Flavors = flavors
