@@ -14,10 +14,37 @@ const (
 	SEG6_LOCAL_OIF
 	SEG6_LOCAL_BPF
 	SEG6_LOCAL_VRFTABLE
+	SEG6_LOCAL_COUNTERS
+	SEG6_LOCAL_FLAVORS
 	__SEG6_LOCAL_MAX
 )
 const (
 	SEG6_LOCAL_MAX = __SEG6_LOCAL_MAX
+)
+
+// seg6local flavors (SEG6_LOCAL_FLAVORS nested attributes)
+const (
+	SEG6_LOCAL_FLV_UNSPEC = iota
+	SEG6_LOCAL_FLV_OPERATION
+	SEG6_LOCAL_FLV_LCBLOCK_BITS
+	SEG6_LOCAL_FLV_LCNODE_FN_BITS
+	__SEG6_LOCAL_FLV_MAX
+)
+const (
+	SEG6_LOCAL_FLV_MAX = __SEG6_LOCAL_FLV_MAX - 1
+)
+
+// seg6local flavor operations
+const (
+	SEG6_LOCAL_FLV_OP_UNSPEC = iota
+	SEG6_LOCAL_FLV_OP_PSP
+	SEG6_LOCAL_FLV_OP_USP
+	SEG6_LOCAL_FLV_OP_USD
+	SEG6_LOCAL_FLV_OP_NEXT_CSID
+	__SEG6_LOCAL_FLV_OP_MAX
+)
+const (
+	SEG6_LOCAL_FLV_OP_MAX = __SEG6_LOCAL_FLV_OP_MAX - 1
 )
 
 // seg6local actions
@@ -77,6 +104,20 @@ func SEG6LocalActionString(action int) string {
 		return "End.AM"
 	case SEG6_LOCAL_ACTION_END_BPF:
 		return "End.BPF"
+	}
+	return "unknown"
+}
+
+func SEG6LocalFlavorOperationString(op int) string {
+	switch op {
+	case SEG6_LOCAL_FLV_OP_PSP:
+		return "PSP"
+	case SEG6_LOCAL_FLV_OP_USP:
+		return "USP"
+	case SEG6_LOCAL_FLV_OP_USD:
+		return "USD"
+	case SEG6_LOCAL_FLV_OP_NEXT_CSID:
+		return "NEXT-CSID"
 	}
 	return "unknown"
 }
