@@ -68,14 +68,14 @@ func (h *Handle) bridgeVlanTunnelShowBy(ifindex int32) ([]nl.TunnelInfo, error) 
 			case unix.IFLA_AF_SPEC:
 				nestedAttrs, err := nl.ParseRouteAttr(attr.Value)
 				if err != nil {
-					return nil, fmt.Errorf("failed to parse nested attr %v", err)
+					return nil, fmt.Errorf("failed to parse nested attr %w", err)
 				}
 				for _, nestAttr := range nestedAttrs {
 					switch nestAttr.Attr.Type {
 					case nl.IFLA_BRIDGE_VLAN_TUNNEL_INFO:
 						ret, err = parseTunnelInfo(&nestAttr, ret)
 						if err != nil {
-							return nil, fmt.Errorf("failed to parse tunnelinfo %v", err)
+							return nil, fmt.Errorf("failed to parse tunnelinfo %w", err)
 						}
 					}
 				}
@@ -93,7 +93,7 @@ func (h *Handle) bridgeVlanTunnelShowBy(ifindex int32) ([]nl.TunnelInfo, error) 
 func parseTunnelInfo(nestAttr *syscall.NetlinkRouteAttr, results []nl.TunnelInfo) ([]nl.TunnelInfo, error) {
 	tunnelInfos, err := nl.ParseRouteAttr(nestAttr.Value)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse nested attr %v", err)
+		return nil, fmt.Errorf("failed to parse nested attr %w", err)
 	}
 	var tunnelId uint32
 	var vid uint16
@@ -169,7 +169,7 @@ func (h *Handle) BridgeVlanList() (map[int32][]*nl.BridgeVlanInfo, error) {
 				//nested attr
 				nestAttrs, err := nl.ParseRouteAttr(attr.Value)
 				if err != nil {
-					return nil, fmt.Errorf("failed to parse nested attr %v", err)
+					return nil, fmt.Errorf("failed to parse nested attr %w", err)
 				}
 				for _, nestAttr := range nestAttrs {
 					switch nestAttr.Attr.Type {
@@ -434,7 +434,7 @@ func (h *Handle) BridgeVniList() (map[int32][]*nl.BridgeVniInfo, error) {
 			if attr.Attr.Type&nl.NLA_TYPE_MASK == nl.VXLAN_VNIFILTER_ENTRY {
 				vniInfo, err := nl.DeserializeBridgeVniInfo(attr.Value)
 				if err != nil {
-					return nil, fmt.Errorf("failed to parse vni info: %v", err)
+					return nil, fmt.Errorf("failed to parse vni info: %w", err)
 				}
 				ret[ifindex] = append(ret[ifindex], vniInfo)
 			}
