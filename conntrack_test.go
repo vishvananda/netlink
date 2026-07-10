@@ -5,6 +5,7 @@ package netlink
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -256,6 +257,106 @@ func TestConntrackTableList(t *testing.T) {
 
 	// Switch back to the original namespace
 	netns.Set(*origns)
+}
+
+// TestConntrackTableListByZone creates IPv4 conntrack entries zoned in both
+// directions, in the original direction only, in the reply direction only and
+// in another zone, and verifies that a zone-filtered table dump returns exactly
+// the first three.
+func TestConntrackTableListByZone(t *testing.T) {
+	requiredModules := []string{"nf_conntrack", "nf_conntrack_netlink"}
+	k, m, err := KernelVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Conntrack l3proto was unified since 4.19.
+	// https://github.com/torvalds/linux/commit/a0ae2562c6c4b2721d9fddba63b7286c13517d9f
+	if k < 4 || k == 4 && m < 19 {
+		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
+	}
+
+	// Implicitly skips the test if not root.
+	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
+	t.Cleanup(teardown)
+
+	ns, err := netns.GetFromName(nsStr)
+	if err != nil {
+		t.Fatalf("couldn't get handle to generated namespace: %s", err)
+	}
+
+	h, err := NewHandleAt(ns, nl.FAMILY_V4)
+	if err != nil {
+		t.Fatalf("failed to create netlink handle: %s", err)
+	}
+
+	zone := uint16(1234)
+	newFlow := func(srcPort uint16) ConntrackFlow {
+		return ConntrackFlow{
+			FamilyType: FAMILY_V4,
+			Forward: IPTuple{
+				SrcIP:    net.IP{234, 234, 234, 234},
+				DstIP:    net.IP{123, 123, 123, 123},
+				SrcPort:  srcPort,
+				DstPort:  53,
+				Protocol: unix.IPPROTO_TCP,
+			},
+			Reverse: IPTuple{
+				SrcIP:    net.IP{123, 123, 123, 123},
+				DstIP:    net.IP{234, 234, 234, 234},
+				SrcPort:  53,
+				DstPort:  srcPort,
+				Protocol: unix.IPPROTO_TCP,
+			},
+			TimeOut: 100,
+			Status:  ConntrackStatusConfirmed,
+			ProtoInfo: &ProtoInfoTCP{
+				State: nl.TCP_CONNTRACK_SYN_SENT2,
+			},
+		}
+	}
+
+	// The kernel reports a zone that applies to both directions as CTA_ZONE
+	// and a zone of a single direction as CTA_TUPLE_ZONE in that tuple.
+	bothDirs := newFlow(48385)
+	bothDirs.Zone = zone
+	origDir := newFlow(48386)
+	origDir.Forward.Zone = zone
+	replyDir := newFlow(48387)
+	replyDir.Reverse.Zone = zone
+	otherZone := newFlow(48388)
+	otherZone.Zone = zone + 1
+
+	want := map[uint16]*ConntrackFlow{
+		bothDirs.Forward.SrcPort: &bothDirs,
+		origDir.Forward.SrcPort:  &origDir,
+		replyDir.Forward.SrcPort: &replyDir,
+	}
+	for _, flow := range []*ConntrackFlow{&bothDirs, &origDir, &replyDir, &otherZone} {
+		err := h.ConntrackCreate(ConntrackTable, nl.FAMILY_V4, flow)
+		// Kernels built without CONFIG_NF_CONNTRACK_ZONES reject zoned flows.
+		if errors.Is(err, unix.EOPNOTSUPP) {
+			t.Skipf("conntrack zones are not supported: %s", err)
+		}
+		if err != nil {
+			t.Fatalf("failed to insert conntrack %s: %s", flow, err)
+		}
+	}
+
+	flows, err := h.ConntrackTableListByZone(ConntrackTable, zone)
+	if err != nil {
+		t.Fatalf("failed to list conntracks in zone %d: %s", zone, err)
+	}
+	if len(flows) != len(want) {
+		t.Fatalf("got %d conntrack entries in zone %d, want %d", len(flows), zone, len(want))
+	}
+	for _, got := range flows {
+		flow, ok := want[got.Forward.SrcPort]
+		if !ok {
+			t.Fatalf("unexpected conntrack entry in zone %d: %s", zone, got)
+		}
+		checkFlowsEqual(t, flow, got)
+		checkProtoInfosEqual(t, flow.ProtoInfo, got.ProtoInfo)
+	}
 }
 
 // TestConntrackTableFlush test the conntrack table flushing
@@ -2001,6 +2102,10 @@ func checkFlowsEqual(t *testing.T, f1, f2 *ConntrackFlow) {
 		t.Logf("Conntrack flow Marks differ. Tuple1: %d, Tuple2: %d.\n", f1.Mark, f2.Mark)
 		t.Fail()
 	}
+	if f1.Zone != f2.Zone {
+		t.Logf("Conntrack flow Zones differ. Tuple1: %d, Tuple2: %d.\n", f1.Zone, f2.Zone)
+		t.Fail()
+	}
 	if !tuplesEqual(f1.Forward, f2.Forward) {
 		t.Logf("Forward tuples mismatch. Tuple1 forward flow: %+v, Tuple2 forward flow: %+v.\n", f1.Forward, f2.Forward)
 		t.Fail()
@@ -2062,6 +2167,10 @@ func tuplesEqual(t1, t2 IPTuple) bool {
 	}
 
 	if t1.Protocol != t2.Protocol {
+		return false
+	}
+
+	if t1.Zone != t2.Zone {
 		return false
 	}
 
