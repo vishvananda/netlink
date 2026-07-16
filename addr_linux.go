@@ -322,6 +322,7 @@ type AddrUpdate struct {
 	Scope       int
 	PreferedLft int
 	ValidLft    int
+	Protocol    int
 	NewAddr     bool // true=added false=deleted
 }
 
@@ -446,7 +447,8 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					Flags:       addr.Flags,
 					Scope:       addr.Scope,
 					PreferedLft: addr.PreferedLft,
-					ValidLft:    addr.ValidLft}
+					ValidLft:    addr.ValidLft,
+					Protocol:    addr.Protocol}
 			}
 		}
 	}()
