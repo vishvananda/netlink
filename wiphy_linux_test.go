@@ -10,6 +10,25 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func TestWiphySetNsFdRejectsNegativeArguments(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		wiphy int
+		fd    int
+		want  string
+	}{
+		{name: "negative wiphy", wiphy: -1, fd: 42, want: "wiphy index must be non-negative: -1"},
+		{name: "negative namespace fd", wiphy: 7, fd: -1, want: "network namespace fd must be non-negative: -1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := (&Handle{}).WiphySetNsFd(tc.wiphy, tc.fd)
+			if err == nil || err.Error() != tc.want {
+				t.Fatalf("unexpected error: got %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestNewWiphySetNsFdRequest(t *testing.T) {
 	const (
 		family = 0x23

@@ -4,6 +4,8 @@
 package netlink
 
 import (
+	"fmt"
+
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 )
@@ -27,6 +29,13 @@ func WiphySetNsFd(wiphy, fd int) error {
 // WiphySetNsFd moves a wireless PHY to the network namespace specified by fd.
 // All interfaces associated with the wiphy must be down before it can be moved.
 func (h *Handle) WiphySetNsFd(wiphy, fd int) error {
+	if wiphy < 0 {
+		return fmt.Errorf("wiphy index must be non-negative: %d", wiphy)
+	}
+	if fd < 0 {
+		return fmt.Errorf("network namespace fd must be non-negative: %d", fd)
+	}
+
 	family, err := h.GenlFamilyGet(nl80211GenlName)
 	if err != nil {
 		return err
