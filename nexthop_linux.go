@@ -2,6 +2,7 @@ package netlink
 
 import (
 	"errors"
+	"fmt"
 	"net"
 
 	"github.com/vishvananda/netlink/nl"
@@ -9,13 +10,10 @@ import (
 )
 
 const (
-	// sizeofNexthopGrp is the size of struct nexthop_grp from
-	// Linux uapi/linux/nexthop.h: u32 id, u8 weight, u8 resvd1, u16 resvd2.
+	// sizeofNexthopGrp is size of single nexhthop group member
 	sizeofNexthopGrp = 8
 
-	// nexthopResGroupUserHZ converts resilient group timer values between
-	// seconds (used in NexthopResGroup) and the clock_t ticks expected on
-	// the wire. USER_HZ is fixed at 100 in the Linux userspace ABI.
+	// nexthopResGroupUserHZ is the userspace clock ticks per second
 	nexthopResGroupUserHZ = 100
 )
 
@@ -170,15 +168,14 @@ var nexthopAttrHandlers = map[uint16]struct {
 			nh.OIF = native.Uint32(attr.Data[0:4])
 		},
 	},
-		unix.NHA_GROUP: {
+	unix.NHA_GROUP: {
 		encode: func(nh *Nexthop) *nl.RtAttr {
 			if len(nh.Group) == 0 {
 				return nil
 			}
 			b := make([]byte, sizeofNexthopGrp*len(nh.Group))
 			for i, entry := range nh.Group {
-				// The kernel interprets the on-wire weight as
-				// "actual weight - 1", valid range 1-256.
+				// Kernel interprets one weight wire = actual weight - 1
 				w := entry.Weight
 				if w == 0 {
 					w = 1

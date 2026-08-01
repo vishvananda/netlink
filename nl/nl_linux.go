@@ -48,6 +48,7 @@ const (
 	NHA_RES_GROUP_UNBALANCED_TIME  // u64: Time out of balance (read-only for dumps)
 )
 
+// NHA_RES_GROUP_PAD is padding attribute
 const NHA_RES_GROUP_PAD = NHA_RES_GROUP_UNSPEC
 
 // SupportedNlFamilies contains the list of netlink families this netlink package supports
