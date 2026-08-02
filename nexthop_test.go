@@ -13,7 +13,7 @@ import (
 
 func TestNexthopGroupMemberAndResilientGroupTypes(t *testing.T) {
 	member := NexthopGroupMember{ID: 1, Weight: 3}
-	group := &NexthopResilientGroupAttrs{Buckets: 8, IdleTimer: 30}
+	group := &NexthopResilientGroup{Buckets: 8, IdleTimer: 30}
 
 	if member.ID != 1 || member.Weight != 3 {
 		t.Fatalf("unexpected member values: %+v", member)
