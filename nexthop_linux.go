@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	// sizeofNexthopGrp is size of single nexhthop group member
-	sizeofNexthopGrp = 8
+	// sizeofNexthopGroupMember is the size of a single nexthop group member.
+	sizeofNexthopGroupMember = 8
 
-	// nexthopResGroupUserHZ is the userspace clock ticks per second
-	nexthopResGroupUserHZ = 100
+	// nexthopResilientGroupUserHz is the userspace clock ticks per second.
+	nexthopResilientGroupUserHz = 100
 )
 
 // NexthopAdd will add a nexthop to the system.
@@ -173,7 +173,7 @@ var nexthopAttrHandlers = map[uint16]struct {
 			if len(nh.Group) == 0 {
 				return nil
 			}
-			b := make([]byte, sizeofNexthopGrp*len(nh.Group))
+			b := make([]byte, sizeofNexthopGroupMember*len(nh.Group))
 			for i, entry := range nh.Group {
 				// Kernel interprets one weight wire = actual weight - 1
 				w := entry.Weight
@@ -182,7 +182,7 @@ var nexthopAttrHandlers = map[uint16]struct {
 				} else if w > 256 {
 					w = 256
 				}
-				off := i * sizeofNexthopGrp
+				off := i * sizeofNexthopGroupMember
 				native.PutUint32(b[off:off+4], entry.ID)
 				b[off+4] = uint8(w - 1)
 			}
@@ -190,8 +190,8 @@ var nexthopAttrHandlers = map[uint16]struct {
 		},
 		decode: func(nh *Nexthop, attr *nl.RtAttr) {
 			nh.Group = nil
-			for off := 0; off+sizeofNexthopGrp <= len(attr.Data); off += sizeofNexthopGrp {
-				nh.Group = append(nh.Group, NexthopGroupMpath{
+			for off := 0; off+sizeofNexthopGroupMember <= len(attr.Data); off += sizeofNexthopGroupMember {
+				nh.Group = append(nh.Group, NexthopGroupMember{
 					ID:     native.Uint32(attr.Data[off : off+4]),
 					Weight: uint16(attr.Data[off+4]) + 1,
 				})
@@ -216,25 +216,25 @@ var nexthopAttrHandlers = map[uint16]struct {
 	},
 	nl.NHA_RES_GROUP: {
 		encode: func(nh *Nexthop) *nl.RtAttr {
-			if nh.ResGroup == nil {
+			if nh.ResilientGroup == nil {
 				return nil
 			}
 			// Strict netlink validation requires the NLA_F_NESTED
 			// flag on nested attributes.
 			attr := nl.NewRtAttr(nl.NHA_RES_GROUP|int(nl.NLA_F_NESTED), nil)
-			if nh.ResGroup.Buckets > 0 {
+			if nh.ResilientGroup.Buckets > 0 {
 				b := make([]byte, 2)
-				native.PutUint16(b, nh.ResGroup.Buckets)
+				native.PutUint16(b, nh.ResilientGroup.Buckets)
 				attr.AddRtAttr(nl.NHA_RES_GROUP_BUCKETS, b)
 			}
-			if nh.ResGroup.IdleTimer > 0 {
+			if nh.ResilientGroup.IdleTimer > 0 {
 				b := make([]byte, 4)
-				native.PutUint32(b, nh.ResGroup.IdleTimer*nexthopResGroupUserHZ)
+				native.PutUint32(b, nh.ResilientGroup.IdleTimer*nexthopResilientGroupUserHz)
 				attr.AddRtAttr(nl.NHA_RES_GROUP_IDLE_TIMER, b)
 			}
-			if nh.ResGroup.UnbalancedTimer > 0 {
+			if nh.ResilientGroup.UnbalancedTimer > 0 {
 				b := make([]byte, 4)
-				native.PutUint32(b, nh.ResGroup.UnbalancedTimer*nexthopResGroupUserHZ)
+				native.PutUint32(b, nh.ResilientGroup.UnbalancedTimer*nexthopResilientGroupUserHz)
 				attr.AddRtAttr(nl.NHA_RES_GROUP_UNBALANCED_TIMER, b)
 			}
 			return attr
@@ -244,7 +244,7 @@ var nexthopAttrHandlers = map[uint16]struct {
 			if err != nil {
 				return
 			}
-			res := &NexthopResGroup{}
+			res := &NexthopResilientGroup{}
 			for _, a := range nested {
 				switch a.Attr.Type & nl.NLA_TYPE_MASK {
 				case nl.NHA_RES_GROUP_BUCKETS:
@@ -253,19 +253,19 @@ var nexthopAttrHandlers = map[uint16]struct {
 					}
 				case nl.NHA_RES_GROUP_IDLE_TIMER:
 					if len(a.Value) >= 4 {
-						res.IdleTimer = native.Uint32(a.Value[0:4]) / nexthopResGroupUserHZ
+						res.IdleTimer = native.Uint32(a.Value[0:4]) / nexthopResilientGroupUserHz
 					}
 				case nl.NHA_RES_GROUP_UNBALANCED_TIMER:
 					if len(a.Value) >= 4 {
-						res.UnbalancedTimer = native.Uint32(a.Value[0:4]) / nexthopResGroupUserHZ
+						res.UnbalancedTimer = native.Uint32(a.Value[0:4]) / nexthopResilientGroupUserHz
 					}
 				case nl.NHA_RES_GROUP_UNBALANCED_TIME:
 					if len(a.Value) >= 8 {
-						res.UnbalancedTime = native.Uint64(a.Value[0:8]) / nexthopResGroupUserHZ
+						res.UnbalancedTime = native.Uint64(a.Value[0:8]) / nexthopResilientGroupUserHz
 					}
 				}
 			}
-			nh.ResGroup = res
+			nh.ResilientGroup = res
 		},
 	},
 	unix.NHA_GATEWAY: {
@@ -352,8 +352,8 @@ func deriveFamilyFromNexthop(nh *Nexthop) uint8 {
 }
 
 func prepareNewNexthop(nh *Nexthop, req *nl.NetlinkRequest, msg *nl.Nhmsg) error {
-	if nh.ResGroup != nil && nh.GroupType != NEXTHOP_GRP_TYPE_RES {
-		return fmt.Errorf("nexthop: ResGroup requires GroupType to be NEXTHOP_GRP_TYPE_RES")
+	if nh.ResilientGroup != nil && nh.GroupType != NEXTHOP_GRP_TYPE_RES {
+		return fmt.Errorf("nexthop: ResilientGroup requires GroupType to be NEXTHOP_GRP_TYPE_RES")
 	}
 	if nh.GroupType != NEXTHOP_GRP_TYPE_MPATH && len(nh.Group) == 0 {
 		return fmt.Errorf("nexthop: GroupType is set but Group is empty")

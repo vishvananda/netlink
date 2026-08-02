@@ -1,16 +1,21 @@
 //go:build linux
 // +build linux
 
-// Resilient nexthop group creates a resilient group of nexthops.
+// Multipath nexthop group creates a nexthop group without the resilient
+// (NEXTHOP_GRP_TYPE_RES) support.
 // The library provides the equivalent feature like commandline below:
 //
 // ip nexthop add id 1 via 10.0.0.1 dev eth0
 // ip nexthop add id 2 via 10.0.0.2 dev eth0
-// ip nexthop add id 100 group 1/2 type res buckets 8 idle_timer 60 unbalanced_timer 300
+// ip nexthop add id 100 group 1/2
+//
+// A group created without an explicit group type is a multi-path (mpath)
+// nexthop group. Weight of each member can be specified with the ":" suffix,
+// e.g. 10.0.0.1:2 for a weight of 2.
 
 // Usage
-// sudo resilient-nexthop-group -dev eth0 -gw 10.0.0.1,10.0.0.2
-// sudo resilient-nexthop-group -dev eth0 -gw 10.0.0.1 -cleanup
+// sudo nexthop-group -dev eth0 -gw 10.0.0.1,10.0.0.2
+// sudo nexthop-group -dev eth0 -gw 10.0.0.1 -cleanup
 
 package main
 
@@ -26,14 +31,11 @@ import (
 )
 
 var (
-	dev             = flag.String("dev", "", "interface the members of nexthop points to")
-	gateways        = flag.String("gw", "", "comma separated list of gateways for the nexthop group")
-	groupID         = flag.Uint("group-id", 100, "nexthop group ID")
-	memberBaseID    = flag.Uint("members-base-id", 1, "base ID for the members of the nexthop group")
-	buckets         = flag.Uint("buckets", 8, "number of buckets for the resilient nexthop group")
-	idleTimer       = flag.Uint("idle-timer", 60, "idle timer for the resilient nexthop group in seconds")
-	unbalancedTimer = flag.Uint("unbalanced-timer", 60, "unbalanced timer for the resilient nexthop group in seconds")
-	cleanup         = flag.Bool("cleanup", false, "cleanup the nexthop group and its members")
+	dev          = flag.String("dev", "", "interface the members of nexthop group points to")
+	gateways     = flag.String("gw", "", "comma separated list of gateways for the nexthop group")
+	groupID      = flag.Uint("group-id", 100, "nexthop group ID")
+	memberBaseID = flag.Uint("members-base-id", 1, "base ID for the members of the nexthop group")
+	cleanup      = flag.Bool("cleanup", false, "cleanup the nexthop group and its members")
 )
 
 func main() {
@@ -86,17 +88,11 @@ func main() {
 	}
 
 	nhg := &netlink.Nexthop{
-		ID:        uint32(*groupID),
-		Group:     group,
-		GroupType: netlink.NEXTHOP_GRP_TYPE_RES,
-		ResilientGroup: &netlink.NexthopResilientGroup{
-			Buckets:         uint16(*buckets),
-			IdleTimer:       uint32(*idleTimer),
-			UnbalancedTimer: uint32(*unbalancedTimer),
-		},
+		ID:    uint32(*groupID),
+		Group: group,
 	}
 	if err := netlink.NexthopReplace(nhg); err != nil {
-		log.Fatalf("failed to add resilient nexthop group: %v", err)
+		log.Fatalf("failed to add multipath nexthop group: %v", err)
 	}
 	log.Println(describeGroup(nhg))
 }
@@ -104,9 +100,9 @@ func main() {
 func cleanupNexthops(members []member) {
 	group := &netlink.Nexthop{ID: uint32(*groupID)}
 	if err := netlink.NexthopDel(group); err != nil {
-		log.Fatalf("failed to delete resilient nexthop group %d: %v", *groupID, err)
+		log.Fatalf("failed to delete multipath nexthop group %d: %v", *groupID, err)
 	}
-	log.Printf("deleted resilient nexthop group %d", *groupID)
+	log.Printf("deleted multipath nexthop group %d", *groupID)
 
 	for i := range members {
 		id := uint32(*memberBaseID) + uint32(i)
@@ -160,11 +156,5 @@ func describeGroup(nh *netlink.Nexthop) string {
 	for _, entry := range nh.Group {
 		entries = append(entries, fmt.Sprintf("%d", entry.ID))
 	}
-
-	desc := fmt.Sprintf("Nexthop group ID: %d, Members: [%s]", nh.ID, strings.Join(entries, ", "))
-	if nh.ResilientGroup != nil {
-		desc += fmt.Sprintf(", Buckets: %d, IdleTimer: %d, UnbalancedTimer: %d, UnbalancedTime: %d",
-			nh.ResilientGroup.Buckets, nh.ResilientGroup.IdleTimer, nh.ResilientGroup.UnbalancedTimer, nh.ResilientGroup.UnbalancedTime)
-	}
-	return desc
+	return fmt.Sprintf("Nexthop group ID: %d, Type: mpath, Members: [%s]", nh.ID, strings.Join(entries, ", "))
 }
