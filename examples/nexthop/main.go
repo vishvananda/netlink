@@ -68,8 +68,7 @@ func main() {
 
 func buildNexthop(link netlink.Link) (*netlink.Nexthop, error) {
 	nh := &netlink.Nexthop{
-		ID:  uint32(*id),
-		OIF: uint32(link.Attrs().Index),
+		ID: uint32(*id),
 	}
 
 	if *blackhole {
@@ -77,6 +76,7 @@ func buildNexthop(link netlink.Link) (*netlink.Nexthop, error) {
 		return nh, nil
 	}
 
+	nh.OIF = uint32(link.Attrs().Index)
 	if *gateway == "" {
 		return nil, fmt.Errorf("gateway (-gw) is required unless -blackhole is set")
 	}
