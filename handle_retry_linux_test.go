@@ -57,9 +57,17 @@ func TestExecuteIterRetryInterruptedRetriesDumpInterrupted(t *testing.T) {
 
 	// RouteListFiltered uses the same ExecuteIter path. Exercise it directly
 	// because link dumps trigger NLM_F_DUMP_INTR more reliably in a test netns.
-	dumpHandle.RetryInterrupted()
+	retryHandle, err := NewHandleWithOptions(
+		HandleOptions{RetryInterrupted: true},
+		unix.NETLINK_ROUTE,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { retryHandle.Close() })
+
 	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); {
-		err := executeIterLinkDump(dumpHandle)
+		err := executeIterLinkDump(retryHandle)
 		switch {
 		case err == ErrDumpInterrupted:
 			t.Fatalf("raw ErrDumpInterrupted escaped; ExecuteIter did not retry")
