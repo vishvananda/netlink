@@ -398,7 +398,7 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 			msgs, from, err := s.Receive()
 			if err != nil {
 				if cberr != nil {
-					cberr(fmt.Errorf("Receive failed: %v",
+					cberr(fmt.Errorf("Receive failed: %w",
 						err))
 				}
 				return
@@ -419,7 +419,7 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 						continue
 					}
 					if cberr != nil {
-						cberr(fmt.Errorf("error message: %v",
+						cberr(fmt.Errorf("error message: %w",
 							syscall.Errno(-error)))
 					}
 					continue
@@ -435,7 +435,7 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 				addr, _, err := parseAddr(m.Data)
 				if err != nil {
 					if cberr != nil {
-						cberr(fmt.Errorf("could not parse address: %v", err))
+						cberr(fmt.Errorf("could not parse address: %w", err))
 					}
 					continue
 				}

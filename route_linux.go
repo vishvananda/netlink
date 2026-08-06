@@ -552,7 +552,7 @@ func (e *BpfEncap) Decode(buf []byte) error {
 	native := nl.NativeEndian()
 	attrs, err := nl.ParseRouteAttr(buf)
 	if err != nil {
-		return fmt.Errorf("lwt bpf decode: failed parsing attribute. err: %v", err)
+		return fmt.Errorf("lwt bpf decode: failed parsing attribute. err: %w", err)
 	}
 	for _, attr := range attrs {
 		if int(attr.Attr.Type) < 1 {
@@ -1013,7 +1013,7 @@ func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.R
 	if route.Via != nil {
 		buf, err := route.Via.Encode()
 		if err != nil {
-			return fmt.Errorf("failed to encode RTA_VIA: %v", err)
+			return fmt.Errorf("failed to encode RTA_VIA: %w", err)
 		}
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(unix.RTA_VIA, buf))
 	}
@@ -1847,7 +1847,7 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 			msgs, from, err := s.Receive()
 			if err != nil {
 				if cberr != nil {
-					cberr(fmt.Errorf("Receive failed: %v",
+					cberr(fmt.Errorf("Receive failed: %w",
 						err))
 				}
 				return
@@ -1871,7 +1871,7 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 						continue
 					}
 					if cberr != nil {
-						cberr(fmt.Errorf("error message: %v",
+						cberr(fmt.Errorf("error message: %w",
 							syscall.Errno(-error)))
 					}
 					continue
