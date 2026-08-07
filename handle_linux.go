@@ -58,8 +58,15 @@ type HandleOptions struct {
 	// [ErrDumpInterrupted].
 	RetryInterrupted bool
 
-	// NetNS specifies the network namespace to operate on. If not set, the
-	// current network namespace will be used.
+	// NetNS specifies the network namespace in which the Handle's persistent
+	// netlink sockets are created. A persistent socket remains bound to its
+	// creation namespace even if the calling OS thread later changes namespaces.
+	//
+	// When NetNS is non-nil, persistent sockets are created in that namespace.
+	// When NetNS is nil, persistent sockets are created in the calling OS thread's
+	// current namespace when the Handle is created. A socketless Handle instead
+	// creates a temporary socket for each operation in the calling OS thread's
+	// current namespace when the operation is executed.
 	NetNS *netns.NsHandle
 }
 
@@ -199,7 +206,13 @@ func NewHandleAtFrom(newNs, curNs netns.NsHandle) (*Handle, error) {
 }
 
 // NewHandleWithOptions returns a Handle created using the specified options.
+// If DisableVFInfoCollection is the only option set and no netlink families are
+// specified, the returned Handle creates a socket for each request in the
+// caller's current network namespace instead of keeping persistent sockets.
 func NewHandleWithOptions(opts HandleOptions, nlFamilies ...int) (*Handle, error) {
+	if opts.DisableVFInfoCollection && !opts.RetryInterrupted && opts.NetNS == nil && len(nlFamilies) == 0 {
+		return &Handle{options: opts}, nil
+	}
 	return newHandle(netns.None(), opts, nlFamilies...)
 }
 
