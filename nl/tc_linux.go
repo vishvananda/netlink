@@ -1001,6 +1001,24 @@ const (
 	TCA_FQ_HORIZON_DROP       // drop packets beyond horizon, or cap their EDT
 )
 
+type TcFqQdStats struct {
+	GcFlows             uint64
+	HighPrioPackets     uint64
+	TcpRetrans          uint64
+	Throttled           uint64
+	FlowsPlimit         uint64
+	PktsTooLong         uint64
+	AllocationErrors    uint64
+	TimeNextDelayedFlow int64
+	Flows               uint32
+	InactiveFlows       uint32
+	ThrottledFlows      uint32
+	UnthrottleLatencyNs uint32
+	CeMark              uint64 // packets above ce_threshold
+	HorizonDrops        uint64
+	HorizonCaps         uint64
+}
+
 const (
 	TCA_FQ_CODEL_UNSPEC = iota
 	TCA_FQ_CODEL_TARGET

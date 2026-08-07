@@ -498,6 +498,16 @@ func (h *Handle) QdiscList(link Link) ([]Qdisc, error) {
 					return nil, err
 				}
 				base.Statistics = (*QdiscStatistics)(s)
+			case nl.TCA_XSTATS:
+				switch qdisc.Type() {
+				case "fq":
+					fq := qdisc.(*Fq)
+					s, err := parseTcFqXStats(attr.Value)
+					if err != nil {
+						return nil, err
+					}
+					fq.Stats = s
+				}
 			}
 		}
 		*qdisc.Attrs() = base

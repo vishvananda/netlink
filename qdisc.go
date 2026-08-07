@@ -3,6 +3,8 @@ package netlink
 import (
 	"fmt"
 	"math"
+
+	"github.com/vishvananda/netlink/nl"
 )
 
 const (
@@ -310,6 +312,8 @@ type Fq struct {
 	LowRateThreshold  uint32
 	Horizon           uint32
 	HorizonDropPolicy uint8
+
+	Stats *nl.TcFqQdStats
 }
 
 func (fq *Fq) String() string {
