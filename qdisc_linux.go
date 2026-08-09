@@ -252,6 +252,11 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		}
 		// Gilbert-Elliot loss model. Mutually exclusive with the basic
 		// Loss/LossCorr model: the kernel selects whichever was supplied.
+		// NLA_F_NESTED is set here on the way in, matching iproute2's
+		// tc/q_netem.c; on the way out, however, the kernel's own
+		// dump_loss_model() builds this attribute with
+		// nla_nest_start_noflag(), so the flag bit is absent when this
+		// same attribute is read back below in parseNetemData.
 		if qdisc.GELossP > 0 {
 			gemodel := nl.TcNetemGemodel{}
 			gemodel.P = qdisc.GELossP
@@ -666,7 +671,7 @@ func parseNetemData(qdisc Qdisc, value []byte) error {
 			rate = nl.DeserializeTcNetemRate(datum.Value)
 		case nl.TCA_NETEM_RATE64:
 			rate64 = native.Uint64(datum.Value)
-		case nl.TCA_NETEM_LOSS | unix.NLA_F_NESTED:
+		case nl.TCA_NETEM_LOSS:
 			lossData, err := nl.ParseRouteAttr(datum.Value)
 			if err != nil {
 				return err
