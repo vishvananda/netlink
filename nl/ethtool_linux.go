@@ -2,7 +2,7 @@ package nl
 
 // Constants for the "ethtool" generic netlink family, mirroring
 // include/uapi/linux/ethtool_netlink_generated.h. Only the subset used for
-// ring parameters and RSS configuration is defined here.
+// feature, ring parameter, and RSS configuration is defined here.
 
 const (
 	ETHTOOL_GENL_NAME    = "ethtool"
@@ -12,10 +12,12 @@ const (
 // ethtool message commands. Values are explicit because RSS_SET was appended
 // to the UAPI after RSS_GET.
 const (
-	ETHTOOL_MSG_RINGS_GET = 15
-	ETHTOOL_MSG_RINGS_SET = 16
-	ETHTOOL_MSG_RSS_GET   = 38
-	ETHTOOL_MSG_RSS_SET   = 48
+	ETHTOOL_MSG_FEATURES_GET = 11
+	ETHTOOL_MSG_FEATURES_SET = 12
+	ETHTOOL_MSG_RINGS_GET    = 15
+	ETHTOOL_MSG_RINGS_SET    = 16
+	ETHTOOL_MSG_RSS_GET      = 38
+	ETHTOOL_MSG_RSS_SET      = 48
 )
 
 // Common request header attributes.
@@ -25,6 +27,38 @@ const (
 	ETHTOOL_A_HEADER_DEV_NAME
 	ETHTOOL_A_HEADER_FLAGS
 	ETHTOOL_A_HEADER_PHY_INDEX
+)
+
+// Generic bitset attributes.
+const (
+	ETHTOOL_A_BITSET_UNSPEC = iota
+	ETHTOOL_A_BITSET_NOMASK
+	ETHTOOL_A_BITSET_SIZE
+	ETHTOOL_A_BITSET_BITS
+	ETHTOOL_A_BITSET_VALUE
+	ETHTOOL_A_BITSET_MASK
+)
+
+const (
+	ETHTOOL_A_BITSET_BITS_UNSPEC = iota
+	ETHTOOL_A_BITSET_BITS_BIT
+)
+
+const (
+	ETHTOOL_A_BITSET_BIT_UNSPEC = iota
+	ETHTOOL_A_BITSET_BIT_INDEX
+	ETHTOOL_A_BITSET_BIT_NAME
+	ETHTOOL_A_BITSET_BIT_VALUE
+)
+
+// Feature attributes.
+const (
+	ETHTOOL_A_FEATURES_UNSPEC = iota
+	ETHTOOL_A_FEATURES_HEADER
+	ETHTOOL_A_FEATURES_HW
+	ETHTOOL_A_FEATURES_WANTED
+	ETHTOOL_A_FEATURES_ACTIVE
+	ETHTOOL_A_FEATURES_NOCHANGE
 )
 
 // Ring parameter attributes.
