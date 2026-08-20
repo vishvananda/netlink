@@ -1389,9 +1389,73 @@ func deserializeRoute(m []byte) (Route, error) {
 	for _, attr := range attrs {
 		switch attr.Attr.Type {
 		case unix.RTA_GATEWAY:
-			route.Gw = net.IP(attr.Value)
+			// Validate gateway address length matches address family.
+			// For special routes (blackhole, unreachable, prohibit), allow empty/malformed gateway.
+			// Reject undersized attributes for standard routes; clamp oversized; allocate independent storage.
+			gwValue := attr.Value
+			expectedLen := 0
+			if msg.Family == nl.FAMILY_V4 {
+				expectedLen = 4
+			} else if msg.Family == nl.FAMILY_V6 {
+				expectedLen = 16
+			}
+
+			// For special route types, allow empty/undersized gateway.
+			isSpecialRoute := msg.Type == unix.RTN_BLACKHOLE ||
+				msg.Type == unix.RTN_UNREACHABLE ||
+				msg.Type == unix.RTN_PROHIBIT
+
+			if !isSpecialRoute && expectedLen > 0 {
+				if len(gwValue) < expectedLen {
+					return route, fmt.Errorf("invalid RTA_GATEWAY length %d for family %d", len(gwValue), msg.Family)
+				}
+				if len(gwValue) > expectedLen {
+					gwValue = gwValue[:expectedLen]
+				}
+				// Allocate independent copy to break kernel buffer reference
+				gwCopy := make(net.IP, expectedLen)
+				copy(gwCopy, gwValue)
+				route.Gw = gwCopy
+			} else if len(gwValue) > 0 {
+				// Special route or unknown family: just copy what we have
+				gwCopy := make(net.IP, len(gwValue))
+				copy(gwCopy, gwValue)
+				route.Gw = gwCopy
+			}
 		case unix.RTA_PREFSRC:
-			route.Src = net.IP(attr.Value)
+			// Validate source address length matches address family.
+			// For special routes (blackhole, unreachable, prohibit), allow empty/malformed source.
+			// Reject undersized attributes for standard routes; clamp oversized; allocate independent storage.
+			srcValue := attr.Value
+			expectedLen := 0
+			if msg.Family == nl.FAMILY_V4 {
+				expectedLen = 4
+			} else if msg.Family == nl.FAMILY_V6 {
+				expectedLen = 16
+			}
+
+			// For special route types, allow empty/undersized source.
+			isSpecialRoute := msg.Type == unix.RTN_BLACKHOLE ||
+				msg.Type == unix.RTN_UNREACHABLE ||
+				msg.Type == unix.RTN_PROHIBIT
+
+			if !isSpecialRoute && expectedLen > 0 {
+				if len(srcValue) < expectedLen {
+					return route, fmt.Errorf("invalid RTA_PREFSRC length %d for family %d", len(srcValue), msg.Family)
+				}
+				if len(srcValue) > expectedLen {
+					srcValue = srcValue[:expectedLen]
+				}
+				// Allocate independent copy to break kernel buffer reference
+				srcCopy := make(net.IP, expectedLen)
+				copy(srcCopy, srcValue)
+				route.Src = srcCopy
+			} else if len(srcValue) > 0 {
+				// Special route or unknown family: just copy what we have
+				srcCopy := make(net.IP, len(srcValue))
+				copy(srcCopy, srcValue)
+				route.Src = srcCopy
+			}
 		case unix.RTA_DST:
 			if msg.Family == nl.FAMILY_MPLS {
 				stack := nl.DecodeMPLSStack(attr.Value)
@@ -1400,9 +1464,45 @@ func deserializeRoute(m []byte) (Route, error) {
 				}
 				route.MPLSDst = &stack[0]
 			} else {
-				route.Dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
+				// Special routes (blackhole, unreachable, prohibit) may have empty or malformed RTA_DST.
+				// Only validate address length for standard routes that require valid destinations.
+				ipValue := attr.Value
+				expectedLen := 0
+				if msg.Family == nl.FAMILY_V4 {
+					expectedLen = 4
+				} else if msg.Family == nl.FAMILY_V6 {
+					expectedLen = 16
+				}
+
+				// For special route types, allow empty/undersized destination.
+				// For standard routes, enforce address family width.
+				isSpecialRoute := msg.Type == unix.RTN_BLACKHOLE ||
+					msg.Type == unix.RTN_UNREACHABLE ||
+					msg.Type == unix.RTN_PROHIBIT
+
+				if !isSpecialRoute && expectedLen > 0 && len(ipValue) < expectedLen {
+					return route, fmt.Errorf("invalid RTA_DST length %d for family %d", len(ipValue), msg.Family)
+				}
+
+				// Clamp oversized payload to expected address length
+				if expectedLen > 0 && len(ipValue) > expectedLen {
+					ipValue = ipValue[:expectedLen]
+				}
+
+				// Allocate independent IP and use address-family-based mask width
+				// Handle empty destination case (special routes)
+				if len(ipValue) == 0 {
+					route.Dst = &net.IPNet{
+						IP:   net.IP{},
+						Mask: net.IPMask{},
+					}
+				} else {
+					ipCopy := make(net.IP, len(ipValue))
+					copy(ipCopy, ipValue)
+					route.Dst = &net.IPNet{
+						IP:   ipCopy,
+						Mask: net.CIDRMask(int(msg.Dst_len), 8*len(ipCopy)),
+					}
 				}
 			}
 		case unix.RTA_OIF:
