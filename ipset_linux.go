@@ -470,13 +470,15 @@ func getIpsetDefaultRevision(typename string, featureFlags uint32) uint8 {
 
 func ipsetExecute(req *nl.NetlinkRequest) (msgs [][]byte, err error) {
 	msgs, err = req.Execute(unix.NETLINK_NETFILTER, 0)
+	return msgs, ipsetError(err)
+}
 
-	if err != nil {
-		if errno := int(err.(syscall.Errno)); errno >= nl.IPSET_ERR_PRIVATE {
-			err = nl.IPSetError(uintptr(errno))
-		}
+func ipsetError(err error) error {
+	errno, ok := err.(syscall.Errno)
+	if !ok || int(errno) < nl.IPSET_ERR_PRIVATE {
+		return err
 	}
-	return
+	return nl.IPSetError(uintptr(errno))
 }
 
 func ipsetUnserialize(msgs [][]byte) (result IPSetResult) {
