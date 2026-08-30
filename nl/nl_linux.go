@@ -178,6 +178,9 @@ func NewIfInfomsg(family int) *IfInfomsg {
 }
 
 func DeserializeIfInfomsg(b []byte) *IfInfomsg {
+	if len(b) < unix.SizeofIfInfomsg {
+		return nil
+	}
 	return (*IfInfomsg)(unsafe.Pointer(&b[0:unix.SizeofIfInfomsg][0]))
 }
 
