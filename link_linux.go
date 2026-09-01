@@ -1493,47 +1493,48 @@ func (h *Handle) linkModify(link Link, flags int) error {
 		}
 
 		queues := tuntap.Queues
-
-		var fds []*os.File
-		var req ifReq
-		copy(req.Name[:15], base.Name)
-
-		req.Flags = uint16(tuntap.Flags)
+		flags := uint16(tuntap.Flags)
 
 		if queues == 0 { //Legacy compatibility
 			queues = 1
 			if tuntap.Flags == 0 {
-				req.Flags = uint16(TUNTAP_DEFAULTS)
+				flags = uint16(TUNTAP_DEFAULTS)
 			}
 		} else {
 			// For best peformance set Flags to TUNTAP_MULTI_QUEUE_DEFAULTS | TUNTAP_VNET_HDR
 			// when a) KVM has support for this ABI and
 			//      b) the value of the flag is queryable using the TUNGETIFF ioctl
 			if tuntap.Flags == 0 {
-				req.Flags = uint16(TUNTAP_MULTI_QUEUE_DEFAULTS)
+				flags = uint16(TUNTAP_MULTI_QUEUE_DEFAULTS)
 			}
 		}
+		flags |= uint16(tuntap.Mode)
 
-		req.Flags |= uint16(tuntap.Mode)
+		req, err := unix.NewIfreq(base.Name)
+		if err != nil {
+			return fmt.Errorf("tuntap name %q is invalid: %w", base.Name, err)
+		}
+		req.SetUint16(flags)
+
+		var fds []*os.File
 		const TUN = "/dev/net/tun"
 		for i := 0; i < queues; i++ {
-			localReq := req
+			iterReq := *req
 			fd, err := unix.Open(TUN, os.O_RDWR|syscall.O_CLOEXEC, 0)
 			if err != nil {
 				cleanupFds(fds)
 				return err
 			}
 
-			_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.TUNSETIFF), uintptr(unsafe.Pointer(&localReq)))
-			if errno != 0 {
+			if err := unix.IoctlIfreq(fd, unix.TUNSETIFF, &iterReq); err != nil {
 				// close the new fd
 				unix.Close(fd)
 				// and the already opened ones
 				cleanupFds(fds)
-				return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed [%d], errno %v", i, errno)
+				return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed [%d]: %w", i, err)
 			}
 
-			_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TUNSETOWNER, uintptr(tuntap.Owner))
+			_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TUNSETOWNER, uintptr(tuntap.Owner))
 			if errno != 0 {
 				cleanupFds(fds)
 				return fmt.Errorf("Tuntap IOCTL TUNSETOWNER failed [%d], errno %v", i, errno)
@@ -1574,14 +1575,14 @@ func (h *Handle) linkModify(link Link, flags int) error {
 			fds = append(fds, file)
 
 			// 1) we only care for the name of the first tap in the multi queue set
-			// 2) if the original name was empty, the localReq has now the actual name
+			// 2) if the original name was empty, iterReq has now the actual name
 			//
 			// In addition:
 			// This ensures that the link name is always identical to what the kernel returns.
 			// Not only in case of an empty name, but also when using name templates.
 			// e.g. when the provided name is "tap%d", the kernel replaces %d with the next available number.
 			if i == 0 {
-				link.Attrs().Name = strings.Trim(string(localReq.Name[:]), "\x00")
+				link.Attrs().Name = strings.Trim(iterReq.Name(), "\x00")
 			}
 
 		}
