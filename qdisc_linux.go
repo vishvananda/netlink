@@ -178,21 +178,47 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		}
 		options = nl.NewRtAttr(nl.TCA_OPTIONS, tcmap.Serialize())
 	case *Tbf:
+		if qdisc.Linklayer == nl.LINKLAYER_UNSPEC {
+			qdisc.Linklayer = nl.LINKLAYER_ETHERNET
+		}
 		opt := nl.TcTbfQopt{}
-		opt.Rate.Rate = uint32(qdisc.Rate)
-		opt.Peakrate.Rate = uint32(qdisc.Peakrate)
 		opt.Limit = qdisc.Limit
-		opt.Buffer = qdisc.Buffer
-		options.AddRtAttr(nl.TCA_TBF_PARMS, opt.Serialize())
+		if opt.Limit == 0 {
+			return fmt.Errorf("tbf: Limit is required")
+		}
 		if qdisc.Rate >= uint64(1<<32) {
+			opt.Rate.Rate = ^uint32(0)
 			options.AddRtAttr(nl.TCA_TBF_RATE64, nl.Uint64Attr(qdisc.Rate))
+		} else {
+			opt.Rate.Rate = uint32(qdisc.Rate)
 		}
 		if qdisc.Peakrate >= uint64(1<<32) {
+			opt.Peakrate.Rate = ^uint32(0)
 			options.AddRtAttr(nl.TCA_TBF_PRATE64, nl.Uint64Attr(qdisc.Peakrate))
+		} else {
+			opt.Peakrate.Rate = uint32(qdisc.Peakrate)
 		}
-		if qdisc.Peakrate > 0 {
+		options.AddRtAttr(nl.TCA_TBF_BURST, nl.Uint32Attr(qdisc.Burst))
+		opt.Buffer = Xmittime(uint64(opt.Rate.Rate), qdisc.Burst)
+		opt.Rate.Mpu = qdisc.Mpu
+		opt.Rate.Overhead = qdisc.Overhead
+		rtab, err := calcTbfRtable(&opt.Rate, qdisc.Minburst, qdisc.BurstCell, qdisc.Linklayer)
+		if err != nil {
+			return err
+		}
+		options.AddRtAttr(nl.TCA_TBF_RTAB, rtab[0:])
+		if opt.Peakrate.Rate > 0 {
 			options.AddRtAttr(nl.TCA_TBF_PBURST, nl.Uint32Attr(qdisc.Minburst))
+			opt.Mtu = Xmittime(uint64(opt.Peakrate.Rate), qdisc.Minburst)
+			opt.Peakrate.Mpu = qdisc.Mpu
+			opt.Peakrate.Overhead = qdisc.Overhead
+			ptab, err := calcTbfRtable(&opt.Peakrate, qdisc.Minburst, qdisc.MinburstCell, qdisc.Linklayer)
+			if err != nil {
+				return err
+			}
+			options.AddRtAttr(nl.TCA_TBF_PTAB, ptab[0:])
 		}
+		options.AddRtAttr(nl.TCA_TBF_PARMS, opt.Serialize())
 	case *Htb:
 		opt := nl.TcHtbGlob{}
 		opt.Version = qdisc.Version
@@ -658,24 +684,105 @@ func parseNetemData(qdisc Qdisc, value []byte) error {
 	return nil
 }
 
+func calcTbfRtable(rate *nl.TcRateSpec, mtu uint32, cell uint32, linklayer int) ([1024]byte, error) {
+	bps := rate.Rate
+	mpu := rate.Mpu
+	var sz uint
+	var i uint32
+	var token uint32
+	var cellLog uint32
+	var rtab [256]uint32
+	var byteTab [1024]byte
+	var mtuToken uint32
+
+	if mtu == 0 {
+		mtu = 2047
+	}
+	mtuToken = Xmittime(uint64(bps), mtu)
+	if cell > 0 {
+		_cellLog := -1
+		for i = 0; i < 32; i++ {
+			if (1 << i) == cell {
+				_cellLog = int(i)
+				break
+			}
+		}
+		if _cellLog == -1 {
+			return byteTab, fmt.Errorf("invalid cell value %d", cell)
+		}
+		cellLog = uint32(_cellLog)
+	} else {
+		cellLog = 0
+		for mtu>>cellLog > 255 {
+			cellLog++
+		}
+	}
+	for {
+		for i = 0; i < 256; i++ {
+			sz = AdjustSize(uint((i+1)<<uint32(cellLog)), uint(mpu), linklayer)
+			token = Xmittime(uint64(bps), uint32(sz))
+			rtab[i] = token
+			native.PutUint32(byteTab[i<<2:i<<2+4], token)
+		}
+		// avoid "max_size" bug
+		// from https://github.com/torvalds/linux/commit/b757c9336d63f94c6b57532bb4e8651d8b28786f
+		// end  https://github.com/torvalds/linux/commit/cc106e441a63bec3b1cb72948df82ea15945c449
+		if cellLog > 0 {
+			for i = 0; i < 256; i++ {
+				if rtab[i] > mtuToken {
+					break
+				}
+			}
+			maxSize := i<<cellLog - 1
+			maxSizeToken := Xmittime(uint64(bps), maxSize)
+			if maxSizeToken >= mtuToken {
+				cellLog--
+			} else {
+				break
+			}
+		}
+	}
+	rate.CellAlign = -1
+	rate.CellLog = uint8(cellLog)
+	rate.Linklayer = uint8(linklayer & nl.TC_LINKLAYER_MASK)
+	return byteTab, nil
+}
+
 func parseTbfData(qdisc Qdisc, data []syscall.NetlinkRouteAttr) error {
 	tbf := qdisc.(*Tbf)
+	rate64 := uint64(0)
+	prate64 := uint64(0)
+	var opt *nl.TcTbfQopt
 	for _, datum := range data {
 		switch datum.Attr.Type {
 		case nl.TCA_TBF_PARMS:
-			opt := nl.DeserializeTcTbfQopt(datum.Value)
-			tbf.Rate = uint64(opt.Rate.Rate)
-			tbf.Peakrate = uint64(opt.Peakrate.Rate)
-			tbf.Limit = opt.Limit
-			tbf.Buffer = opt.Buffer
+			opt = nl.DeserializeTcTbfQopt(datum.Value)
 		case nl.TCA_TBF_RATE64:
-			tbf.Rate = native.Uint64(datum.Value[0:8])
+			rate64 = native.Uint64(datum.Value[0:8])
 		case nl.TCA_TBF_PRATE64:
-			tbf.Peakrate = native.Uint64(datum.Value[0:8])
-		case nl.TCA_TBF_PBURST:
-			tbf.Minburst = native.Uint32(datum.Value[0:4])
+			prate64 = native.Uint64(datum.Value[0:8])
 		}
 	}
+	tbf.Limit = opt.Limit
+	if rate64 > 0 {
+		tbf.Rate = rate64
+	} else {
+		tbf.Rate = uint64(opt.Rate.Rate)
+	}
+	if prate64 > 0 {
+		tbf.Peakrate = prate64
+	} else {
+		tbf.Peakrate = uint64(opt.Peakrate.Rate)
+	}
+	tbf.Burst = Xmitsize(tbf.Rate, opt.Buffer)
+	tbf.BurstCell = 1 << opt.Rate.CellLog
+	if tbf.Peakrate > 0 {
+		tbf.Minburst = Xmitsize(tbf.Peakrate, opt.Mtu)
+		tbf.MinburstCell = 1 << opt.Peakrate.CellLog
+	}
+	tbf.Mpu = opt.Rate.Mpu
+	tbf.Overhead = opt.Rate.Overhead
+	tbf.Linklayer = int(opt.Rate.Linklayer & nl.TC_LINKLAYER_MASK)
 	return nil
 }
 
