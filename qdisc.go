@@ -163,6 +163,17 @@ type NetemQdiscAttrs struct {
 	CorruptProb   float32 // in %
 	CorruptCorr   float32 // in %
 	Rate64        uint64
+	// GELossP, GELossR, GELossH and GELossK1 configure the Gilbert-Elliot
+	// two-state loss model (percentages in [0, 100]), an alternative to
+	// Loss/LossCorr for modeling bursty, correlated packet loss. They are
+	// mutually exclusive with Loss/LossCorr: the kernel applies only one
+	// loss model, selected by whether GELossP is set. Unlike the `tc`
+	// command line, GELossH and GELossK1 are not pre-complemented: they
+	// map directly onto the kernel's tc_netem_gemodel h/k1 fields.
+	GELossP  float32 // in %
+	GELossR  float32 // in %
+	GELossH  float32 // in %
+	GELossK1 float32 // in %
 }
 
 func (q NetemQdiscAttrs) String() string {
@@ -188,6 +199,10 @@ type Netem struct {
 	CorruptProb   uint32
 	CorruptCorr   uint32
 	Rate64        uint64
+	GELossP       uint32
+	GELossR       uint32
+	GELossH       uint32
+	GELossK1      uint32
 }
 
 func (netem *Netem) String() string {

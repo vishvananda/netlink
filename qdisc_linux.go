@@ -62,6 +62,11 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 	corruptCorr = Percentage2u32(nattrs.CorruptCorr)
 	rate64 = nattrs.Rate64
 
+	geLossP := Percentage2u32(nattrs.GELossP)
+	geLossR := Percentage2u32(nattrs.GELossR)
+	geLossH := Percentage2u32(nattrs.GELossH)
+	geLossK1 := Percentage2u32(nattrs.GELossK1)
+
 	return &Netem{
 		QdiscAttrs:    attrs,
 		Latency:       latency,
@@ -78,6 +83,10 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 		CorruptProb:   corruptProb,
 		CorruptCorr:   corruptCorr,
 		Rate64:        rate64,
+		GELossP:       geLossP,
+		GELossR:       geLossR,
+		GELossH:       geLossH,
+		GELossK1:      geLossK1,
 	}
 }
 
@@ -240,6 +249,22 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 		reorder.Correlation = qdisc.ReorderCorr
 		if reorder.Probability > 0 {
 			options.AddRtAttr(nl.TCA_NETEM_REORDER, reorder.Serialize())
+		}
+		// Gilbert-Elliot loss model. Mutually exclusive with the basic
+		// Loss/LossCorr model: the kernel selects whichever was supplied.
+		// NLA_F_NESTED is set here on the way in, matching iproute2's
+		// tc/q_netem.c; on the way out, however, the kernel's own
+		// dump_loss_model() builds this attribute with
+		// nla_nest_start_noflag(), so the flag bit is absent when this
+		// same attribute is read back below in parseNetemData.
+		if qdisc.GELossP > 0 {
+			gemodel := nl.TcNetemGemodel{}
+			gemodel.P = qdisc.GELossP
+			gemodel.R = qdisc.GELossR
+			gemodel.H = qdisc.GELossH
+			gemodel.K1 = qdisc.GELossK1
+			loss := options.AddRtAttr(nl.TCA_NETEM_LOSS|unix.NLA_F_NESTED, nil)
+			loss.AddRtAttr(nl.NETEM_LOSS_GE, gemodel.Serialize())
 		}
 		// Rate
 		if qdisc.Rate64 > 0 {
@@ -646,6 +671,20 @@ func parseNetemData(qdisc Qdisc, value []byte) error {
 			rate = nl.DeserializeTcNetemRate(datum.Value)
 		case nl.TCA_NETEM_RATE64:
 			rate64 = native.Uint64(datum.Value)
+		case nl.TCA_NETEM_LOSS:
+			lossData, err := nl.ParseRouteAttr(datum.Value)
+			if err != nil {
+				return err
+			}
+			for _, lossDatum := range lossData {
+				if lossDatum.Attr.Type == nl.NETEM_LOSS_GE {
+					opt := nl.DeserializeTcNetemGemodel(lossDatum.Value)
+					netem.GELossP = opt.P
+					netem.GELossR = opt.R
+					netem.GELossH = opt.H
+					netem.GELossK1 = opt.K1
+				}
+			}
 		}
 	}
 	if rate != nil {
