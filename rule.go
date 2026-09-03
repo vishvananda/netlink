@@ -25,7 +25,7 @@ type Rule struct {
 	Invert            bool
 	Dport             *RulePortRange
 	Sport             *RulePortRange
-	IPProto           int
+	IPProto           int // IPProto is represented as uint8 in the kernel and will be truncated before sending
 	UIDRange          *RuleUIDRange
 	Protocol          uint8
 	Type              uint8
