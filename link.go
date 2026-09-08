@@ -420,6 +420,10 @@ func (n *Netkit) SetPeerAttrs(Attrs *LinkAttrs) {
 	n.peerLinkAttrs = *Attrs
 }
 
+func (n *Netkit) PeerAttrs() *LinkAttrs {
+	return &n.peerLinkAttrs
+}
+
 type Netkit struct {
 	LinkAttrs
 	Mode            NetkitMode
