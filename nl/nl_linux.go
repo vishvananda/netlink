@@ -756,6 +756,36 @@ func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 	return s, nil
 }
 
+// NewNetlinkSocketFromFd wraps an already open netlink socket.
+// Unlike the other constructors it never calls bind().
+// This allows netlink to be used where binding is not permitted (notably, Android).
+// On success the socket takes ownership of fd and switches it to non-blocking mode.
+// On error fd is left untouched and still belongs to the caller.
+func NewNetlinkSocketFromFd(fd int) (*NetlinkSocket, error) {
+	domain, err := unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_DOMAIN)
+	if err != nil {
+		return nil, err
+	}
+	if domain != unix.AF_NETLINK {
+		return nil, fmt.Errorf("fd %d is not a netlink socket", fd)
+	}
+	if err := unix.SetNonblock(fd, true); err != nil {
+		return nil, err
+	}
+	s := &NetlinkSocket{
+		fd:   int32(fd),
+		file: os.NewFile(uintptr(fd), "netlink"),
+	}
+	s.lsa.Family = unix.AF_NETLINK
+
+	if EnableErrorMessageReporting {
+		// ignore error, it's non-critical
+		_ = s.SetExtAck(true)
+	}
+
+	return s, nil
+}
+
 // GetNetlinkSocketAt opens a netlink socket in the network namespace newNs
 // and positions the thread back into the network namespace specified by curNs,
 // when done. If curNs is close, the function derives the current namespace and

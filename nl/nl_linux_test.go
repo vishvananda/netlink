@@ -97,6 +97,60 @@ func TestIfSocketCloses(t *testing.T) {
 	}
 }
 
+func TestNewNetlinkSocketFromFd(t *testing.T) {
+	fd, err := unix.Socket(unix.AF_NETLINK, unix.SOCK_RAW|unix.SOCK_CLOEXEC, unix.NETLINK_ROUTE)
+	if err != nil {
+		t.Fatalf("Error creating the socket: %v", err)
+	}
+	nlSock, err := NewNetlinkSocketFromFd(fd)
+	if err != nil {
+		unix.Close(fd)
+		t.Fatalf("Error wrapping the socket: %v", err)
+	}
+	defer nlSock.Close()
+
+	// Nothing has bound the socket, so it has no port id yet.
+	pid, err := nlSock.GetPid()
+	if err != nil {
+		t.Fatalf("GetPid failed: %v", err)
+	}
+	if pid != 0 {
+		t.Fatalf("Expected an unbound socket, got port id %d", pid)
+	}
+
+	// A dump over the unbound socket must still complete. Every host has at least the
+	// loopback addresses.
+	req := NewNetlinkRequest(unix.RTM_GETADDR, unix.NLM_F_DUMP)
+	req.AddData(NewIfAddrmsg(unix.AF_UNSPEC))
+	req.Sockets = map[int]*SocketHandle{unix.NETLINK_ROUTE: {Socket: nlSock}}
+	msgs, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWADDR)
+	if err != nil {
+		t.Fatalf("RTM_GETADDR dump failed: %v", err)
+	}
+	if len(msgs) == 0 {
+		t.Fatal("RTM_GETADDR dump returned no addresses")
+	}
+
+	// The kernel autobinds on the first send.
+	pid, err = nlSock.GetPid()
+	if err != nil {
+		t.Fatalf("GetPid failed: %v", err)
+	}
+	if pid == 0 {
+		t.Fatal("Expected the kernel to assign a port id on send")
+	}
+
+	// Anything that is not a netlink socket is rejected and left open for the caller.
+	ufd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, 0)
+	if err != nil {
+		t.Fatalf("Error creating the udp socket: %v", err)
+	}
+	defer unix.Close(ufd)
+	if _, err := NewNetlinkSocketFromFd(ufd); err == nil {
+		t.Fatal("Expected a non-netlink fd to be rejected")
+	}
+}
+
 func TestReceiveTimeout(t *testing.T) {
 	nlSock, err := getNetlinkSocket(unix.NETLINK_ROUTE)
 	if err != nil {
