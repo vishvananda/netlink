@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vishvananda/netlink/nl"
+	"golang.org/x/sys/unix"
 )
 
 func TestSetGetSocketTimeout(t *testing.T) {
@@ -16,6 +18,37 @@ func TestSetGetSocketTimeout(t *testing.T) {
 
 	if val := GetSocketTimeout(); val != timeout {
 		t.Fatalf("Unexpected socket timeout value: got=%v, expected=%v", val, timeout)
+	}
+}
+
+func TestNewHandleFromSockets(t *testing.T) {
+	fd, err := unix.Socket(unix.AF_NETLINK, unix.SOCK_RAW|unix.SOCK_CLOEXEC, unix.NETLINK_ROUTE)
+	if err != nil {
+		t.Fatalf("Error creating the socket: %v", err)
+	}
+	s, err := nl.NewNetlinkSocketFromFd(fd)
+	if err != nil {
+		unix.Close(fd)
+		t.Fatalf("Error wrapping the socket: %v", err)
+	}
+
+	h := NewHandleFromSockets(map[int]*nl.SocketHandle{unix.NETLINK_ROUTE: {Socket: s}}, HandleOptions{})
+	defer h.Close()
+
+	if !h.SupportsNetlinkFamily(unix.NETLINK_ROUTE) {
+		t.Fatal("Expected the handle to report NETLINK_ROUTE support")
+	}
+	if err := h.SetSocketTimeout(time.Second); err != nil {
+		t.Fatalf("SetSocketTimeout failed: %v", err)
+	}
+
+	// The socket was never bound. Every host has at least the loopback addresses.
+	addrs, err := h.AddrList(nil, FAMILY_ALL)
+	if err != nil {
+		t.Fatalf("AddrList over the unbound socket failed: %v", err)
+	}
+	if len(addrs) == 0 {
+		t.Fatal("AddrList returned no addresses")
 	}
 }
 
