@@ -52,6 +52,33 @@ func TestNewHandleFromSockets(t *testing.T) {
 	}
 }
 
+func TestNewHandleFromSocketsIgnoresNilEntries(t *testing.T) {
+	h := NewHandleFromSockets(map[int]*nl.SocketHandle{
+		unix.NETLINK_ROUTE:   nil,
+		unix.NETLINK_GENERIC: {Socket: nil},
+	}, HandleOptions{})
+	defer h.Close()
+
+	if h.SupportsNetlinkFamily(unix.NETLINK_ROUTE) {
+		t.Fatal("Expected a nil SocketHandle to be treated as unmapped")
+	}
+	if h.SupportsNetlinkFamily(unix.NETLINK_GENERIC) {
+		t.Fatal("Expected a SocketHandle with a nil Socket to be treated as unmapped")
+	}
+	if err := h.SetSocketTimeout(time.Second); err != nil {
+		t.Fatalf("SetSocketTimeout failed: %v", err)
+	}
+
+	// Unmapped families fall back to a short-lived socket.
+	addrs, err := h.AddrList(nil, FAMILY_ALL)
+	if err != nil {
+		t.Fatalf("AddrList via the fallback socket failed: %v", err)
+	}
+	if len(addrs) == 0 {
+		t.Fatal("AddrList returned no addresses")
+	}
+}
+
 func TestConfigureHandle(t *testing.T) {
 	t.Cleanup(func() {
 		pkgOptions = HandleOptions{}
