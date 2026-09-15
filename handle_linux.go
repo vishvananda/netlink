@@ -215,9 +215,21 @@ func NewHandleAtWithOptions(ns netns.NsHandle, opts HandleOptions, nlFamilies ..
 //	s, err := nl.NewNetlinkSocketFromFd(fd)
 //	h := netlink.NewHandleFromSockets(map[int]*nl.SocketHandle{unix.NETLINK_ROUTE: {Socket: s}}, netlink.HandleOptions{})
 //	addrs, err := h.AddrList(nil, netlink.FAMILY_ALL)
+//
+// Entries whose SocketHandle or Socket is nil are ignored, so their families are treated as
+// unmapped and use the short-lived fallback.
 func NewHandleFromSockets(sockets map[int]*nl.SocketHandle, opts HandleOptions) *Handle {
+	var owned map[int]*nl.SocketHandle
+	if sockets != nil {
+		owned = make(map[int]*nl.SocketHandle, len(sockets))
+		for family, sh := range sockets {
+			if sh != nil && sh.Socket != nil {
+				owned[family] = sh
+			}
+		}
+	}
 	return &Handle{
-		sockets: sockets,
+		sockets: owned,
 		options: opts,
 	}
 }
