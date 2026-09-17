@@ -63,6 +63,7 @@ func TestIfInfomsgDeserializeSerialize(t *testing.T) {
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
 
+// TestIfSocketCloses checks that closing a socket unblocks a pending Receive with EAGAIN.
 func TestIfSocketCloses(t *testing.T) {
 	nlSock, err := Subscribe(unix.NETLINK_ROUTE, unix.RTNLGRP_NEIGH)
 	if err != nil {
@@ -97,6 +98,8 @@ func TestIfSocketCloses(t *testing.T) {
 	}
 }
 
+// TestNewNetlinkSocketFromFd checks that a wrapped fd is left unbound until the first send,
+// that a dump over it completes, and that a non-netlink fd is rejected and left open.
 func TestNewNetlinkSocketFromFd(t *testing.T) {
 	fd, err := unix.Socket(unix.AF_NETLINK, unix.SOCK_RAW|unix.SOCK_CLOEXEC, unix.NETLINK_ROUTE)
 	if err != nil {
@@ -151,6 +154,7 @@ func TestNewNetlinkSocketFromFd(t *testing.T) {
 	}
 }
 
+// TestReceiveTimeout checks that Receive returns EAGAIN once the receive timeout expires.
 func TestReceiveTimeout(t *testing.T) {
 	nlSock, err := getNetlinkSocket(unix.NETLINK_ROUTE)
 	if err != nil {

@@ -234,6 +234,9 @@ func NewHandleFromSockets(sockets map[int]*nl.SocketHandle, opts HandleOptions) 
 	}
 }
 
+// newHandle opens a socket for each requested netlink family in the network namespace newNs and
+// returns a Handle that owns them. curNs is the namespace to switch back to when done; if it is
+// closed, the current namespace is used. Without nlFamilies every supported family is opened.
 func newHandle(newNs, curNs netns.NsHandle, opts HandleOptions, nlFamilies ...int) (*Handle, error) {
 	h := &Handle{
 		sockets: map[int]*nl.SocketHandle{},

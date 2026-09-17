@@ -729,6 +729,8 @@ type NetlinkSocket struct {
 	sync.Mutex
 }
 
+// getNetlinkSocket opens a new non-blocking netlink socket for protocol, binds it and enables
+// extended ACK reporting when EnableErrorMessageReporting is set.
 func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 	fd, err := unix.Socket(unix.AF_NETLINK, unix.SOCK_RAW|unix.SOCK_CLOEXEC, protocol)
 	if err != nil {

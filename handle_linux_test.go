@@ -10,6 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// TestSetGetSocketTimeout checks that a timeout set on the package-level handle is read back unchanged.
 func TestSetGetSocketTimeout(t *testing.T) {
 	timeout := 10 * time.Second
 	if err := SetSocketTimeout(10 * time.Second); err != nil {
@@ -21,6 +22,8 @@ func TestSetGetSocketTimeout(t *testing.T) {
 	}
 }
 
+// TestNewHandleFromSockets checks that a Handle built on a caller-supplied, never-bound socket
+// reports the family as supported and can complete a dump over it.
 func TestNewHandleFromSockets(t *testing.T) {
 	fd, err := unix.Socket(unix.AF_NETLINK, unix.SOCK_RAW|unix.SOCK_CLOEXEC, unix.NETLINK_ROUTE)
 	if err != nil {
@@ -52,6 +55,8 @@ func TestNewHandleFromSockets(t *testing.T) {
 	}
 }
 
+// TestNewHandleFromSocketsIgnoresNilEntries checks that nil map entries are dropped so their
+// families fall back to a short-lived socket instead of dereferencing nil.
 func TestNewHandleFromSocketsIgnoresNilEntries(t *testing.T) {
 	h := NewHandleFromSockets(map[int]*nl.SocketHandle{
 		unix.NETLINK_ROUTE:   nil,
@@ -79,6 +84,8 @@ func TestNewHandleFromSocketsIgnoresNilEntries(t *testing.T) {
 	}
 }
 
+// TestConfigureHandle checks that ConfigureHandle applies the options to the package-level handle
+// and that it can only be called once.
 func TestConfigureHandle(t *testing.T) {
 	t.Cleanup(func() {
 		pkgOptions = HandleOptions{}
