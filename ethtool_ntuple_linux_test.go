@@ -156,6 +156,92 @@ func TestRxFlowSerializeTCP4(t *testing.T) {
 	}
 }
 
+// TestRxFlowSerializeTCPUDP6 verifies the ethtool_tcpip6_spec layout for both
+// supported IPv6 transport protocols. The source mask is a /64 prefix while
+// the destination and ports use exact-match masks.
+func TestRxFlowSerializeTCPUDP6(t *testing.T) {
+	srcIP := net.ParseIP("2001:db8:1234:5678::")
+	dstIP := net.ParseIP("2001:db8::5")
+	srcMask := net.IP(net.CIDRMask(64, 128))
+	dstMask := net.IP(net.CIDRMask(128, 128))
+	fields := TCPIP6Fields{
+		SrcIP:       srcIP,
+		SrcIPMask:   srcMask,
+		DstIP:       dstIP,
+		DstIPMask:   dstMask,
+		SrcPort:     12345,
+		SrcPortMask: 0xffff,
+		DstPort:     443,
+		DstPortMask: 0xffff,
+	}
+	tests := []struct {
+		name     string
+		match    NetDevRxFlowMatch
+		flowType uint32
+	}{
+		{name: "TCP6", match: TCP6Flow{fields}, flowType: TCP_V6_FLOW},
+		{name: "UDP6", match: UDP6Flow{fields}, flowType: UDP_V6_FLOW},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			val, mask := test.match.serialize()
+			nfc := ethtoolRxnfc{
+				cmd: ETHTOOL_SRXCLSRLINS,
+				fs: ethtoolRxFlowSpec{
+					flowType:   test.match.flowType(),
+					hU:         val,
+					mU:         mask,
+					ringCookie: 5,
+					location:   RX_CLS_LOC_ANY,
+				},
+			}
+			for _, layout := range ethtoolRxnfcLayoutTests {
+				t.Run(layout.name, func(t *testing.T) {
+					b, err := serializeEthtoolRxnfc(&nfc, layout.layout, 0)
+					if err != nil {
+						t.Fatal(err)
+					}
+					fsOff := ethtoolRxnfcFlowSpecOffset
+					hUOff := fsOff + ethtoolRxFlowSpecHUOffset
+					mUOff := fsOff + ethtoolRxFlowSpecMUOffset
+
+					if got := native.Uint32(b[fsOff:]); got != test.flowType {
+						t.Errorf("flow_type = %#x, want %#x", got, test.flowType)
+					}
+					if got := b[hUOff : hUOff+16]; !bytes.Equal(got, srcIP.To16()) {
+						t.Errorf("ip6src bytes = %v, want %v", got, srcIP.To16())
+					}
+					if got := b[hUOff+16 : hUOff+32]; !bytes.Equal(got, dstIP.To16()) {
+						t.Errorf("ip6dst bytes = %v, want %v", got, dstIP.To16())
+					}
+					if got := b[hUOff+32 : hUOff+34]; !bytes.Equal(got, []byte{0x30, 0x39}) {
+						t.Errorf("psrc bytes = %v, want [48 57]", got)
+					}
+					if got := b[hUOff+34 : hUOff+36]; !bytes.Equal(got, []byte{0x01, 0xbb}) {
+						t.Errorf("pdst bytes = %v, want [1 187]", got)
+					}
+					if got := b[mUOff : mUOff+16]; !bytes.Equal(got, srcMask) {
+						t.Errorf("ip6src mask = %v, want %v", got, srcMask)
+					}
+					if got := b[mUOff+16 : mUOff+32]; !bytes.Equal(got, dstMask) {
+						t.Errorf("ip6dst mask = %v, want %v", got, dstMask)
+					}
+					if got := b[mUOff+32 : mUOff+36]; !bytes.Equal(got, []byte{0xff, 0xff, 0xff, 0xff}) {
+						t.Errorf("port masks = %v, want all-ones", got)
+					}
+					if got := native.Uint64(b[fsOff+layout.ringCookieOffset:]); got != 5 {
+						t.Errorf("ring_cookie = %d, want 5", got)
+					}
+					if got := native.Uint32(b[fsOff+layout.locationOffset:]); got != RX_CLS_LOC_ANY {
+						t.Errorf("location = %#x, want %#x", got, RX_CLS_LOC_ANY)
+					}
+				})
+			}
+		})
+	}
+}
+
 // TestRxFlowSerializeEther checks the ETHER_FLOW matcher used by the KubeVirt
 // AF_XDP example (steer by destination MAC).
 func TestRxFlowSerializeEther(t *testing.T) {
@@ -243,6 +329,8 @@ func TestParseNetDevRxFlowLocations(t *testing.T) {
 
 func TestValidateNetDevRxFlowMatch(t *testing.T) {
 	var nilEtherFlow *EtherFlow
+	var nilTCP6Flow *TCP6Flow
+	var nilUDP6Flow *UDP6Flow
 	tests := []struct {
 		name  string
 		match NetDevRxFlowMatch
@@ -270,8 +358,34 @@ func TestValidateNetDevRxFlowMatch(t *testing.T) {
 			}},
 		},
 		{
+			name: "IPv4 value in TCP6 flow",
+			match: TCP6Flow{TCPIP6Fields{
+				DstIP: net.IPv4(192, 0, 2, 1),
+			}},
+		},
+		{
+			name: "IPv4 mask in UDP6 flow",
+			match: UDP6Flow{TCPIP6Fields{
+				DstIPMask: net.IPv4(255, 255, 255, 0),
+			}},
+		},
+		{
+			name: "IPv4-mapped value in TCP6 flow",
+			match: TCP6Flow{TCPIP6Fields{
+				DstIP: net.ParseIP("::ffff:192.0.2.1"),
+			}},
+		},
+		{
 			name:  "typed nil matcher",
 			match: nilEtherFlow,
+		},
+		{
+			name:  "typed nil TCP6 matcher",
+			match: nilTCP6Flow,
+		},
+		{
+			name:  "typed nil UDP6 matcher",
+			match: nilUDP6Flow,
 		},
 	}
 	for _, tt := range tests {
@@ -282,7 +396,19 @@ func TestValidateNetDevRxFlowMatch(t *testing.T) {
 		})
 	}
 
-	valid := []NetDevRxFlowMatch{EtherFlow{}, TCP4Flow{}, UDP4Flow{}}
+	valid := []NetDevRxFlowMatch{
+		EtherFlow{},
+		TCP4Flow{},
+		UDP4Flow{},
+		TCP6Flow{TCPIP6Fields{
+			DstIP:     net.ParseIP("2001:db8::1"),
+			DstIPMask: net.IP(net.CIDRMask(64, 128)),
+		}},
+		UDP6Flow{TCPIP6Fields{
+			SrcIP:     net.ParseIP("2001:db8::2"),
+			SrcIPMask: net.IP(net.CIDRMask(128, 128)),
+		}},
+	}
 	for _, match := range valid {
 		if err := validateNetDevRxFlowMatch(match); err != nil {
 			t.Errorf("valid matcher %T was rejected: %v", match, err)
@@ -310,22 +436,36 @@ func TestValidateNetDevName(t *testing.T) {
 func TestRxFlowInsertReachesDriver(t *testing.T) {
 	t.Cleanup(setUpNetlinkTestWithLoopback(t))
 
-	location, err := NetDevRxFlowInsert("lo", NetDevRxFlow{
-		Match:    TCP4Flow{TCPIP4Fields{DstPort: 80, DstPortMask: 0xffff}},
-		Queue:    0,
-		Location: RX_CLS_LOC_ANY,
-	})
-	switch {
-	case err == nil:
-		t.Cleanup(func() {
-			if err := NetDevRxFlowDelete("lo", location); err != nil {
-				t.Errorf("failed to delete inserted rxnfc rule %d: %v", location, err)
+	tests := []struct {
+		name  string
+		match NetDevRxFlowMatch
+	}{
+		{name: "TCP4", match: TCP4Flow{TCPIP4Fields{DstPort: 80, DstPortMask: 0xffff}}},
+		{name: "UDP4", match: UDP4Flow{TCPIP4Fields{DstPort: 53, DstPortMask: 0xffff}}},
+		{name: "TCP6", match: TCP6Flow{TCPIP6Fields{DstPort: 80, DstPortMask: 0xffff}}},
+		{name: "UDP6", match: UDP6Flow{TCPIP6Fields{DstPort: 53, DstPortMask: 0xffff}}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			location, err := NetDevRxFlowInsert("lo", NetDevRxFlow{
+				Match:    test.match,
+				Queue:    0,
+				Location: RX_CLS_LOC_ANY,
+			})
+			switch {
+			case err == nil:
+				t.Cleanup(func() {
+					if err := NetDevRxFlowDelete("lo", location); err != nil {
+						t.Errorf("failed to delete inserted rxnfc rule %d: %v", location, err)
+					}
+				})
+				t.Logf("rxnfc insert on lo unexpectedly succeeded at location %d", location)
+			case errors.Is(err, syscall.EOPNOTSUPP), errors.Is(err, syscall.ENOTSUP):
+				t.Logf("rxnfc insert reached driver and was declined as expected: %v", err)
+			default:
+				t.Fatalf("rxnfc insert failed with an unexpected error (possible malformed ioctl): %v", err)
 			}
 		})
-		t.Logf("rxnfc insert on lo unexpectedly succeeded at location %d", location)
-	case errors.Is(err, syscall.EOPNOTSUPP), errors.Is(err, syscall.ENOTSUP):
-		t.Logf("rxnfc insert reached driver and was declined as expected: %v", err)
-	default:
-		t.Fatalf("rxnfc insert failed with an unexpected error (possible malformed ioctl): %v", err)
 	}
 }
