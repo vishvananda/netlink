@@ -1753,7 +1753,10 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		t.Fatal("Qdisc is the wrong type")
 	}
 
-	testMask := net.CIDRMask(24, 32)
+	srcMask := net.CIDRMask(24, 32)
+	destMask := net.CIDRMask(16, 32)
+	encSrcMask := net.CIDRMask(8, 32)
+	encDestMask := net.CIDRMask(28, 32)
 	srcMac, err := net.ParseMAC("2C:54:91:88:C9:E3")
 	if err != nil {
 		t.Fatal(err)
@@ -1774,14 +1777,14 @@ func TestFilterFlowerAddDel(t *testing.T) {
 			Protocol:  unix.ETH_P_ALL,
 		},
 		DestIP:        net.ParseIP("1.0.0.1"),
-		DestIPMask:    testMask,
+		DestIPMask:    destMask,
 		SrcIP:         net.ParseIP("2.0.0.1"),
-		SrcIPMask:     testMask,
+		SrcIPMask:     srcMask,
 		EthType:       unix.ETH_P_IP,
 		EncDestIP:     net.ParseIP("3.0.0.1"),
-		EncDestIPMask: testMask,
+		EncDestIPMask: encDestMask,
 		EncSrcIP:      net.ParseIP("4.0.0.1"),
-		EncSrcIPMask:  testMask,
+		EncSrcIPMask:  encSrcMask,
 		EncDestPort:   8472,
 		EncKeyId:      1234,
 		SrcMac:        srcMac,
@@ -1840,10 +1843,10 @@ func TestFilterFlowerAddDel(t *testing.T) {
 		t.Fatalf("Flower SrcIP doesn't match")
 	}
 
-	if !reflect.DeepEqual(filter.DestIPMask, testMask) {
+	if !reflect.DeepEqual(flower.DestIPMask, destMask) {
 		t.Fatalf("Flower DestIPMask doesn't match")
 	}
-	if !reflect.DeepEqual(filter.SrcIPMask, testMask) {
+	if !reflect.DeepEqual(flower.SrcIPMask, srcMask) {
 		t.Fatalf("Flower SrcIPMask doesn't match")
 	}
 
@@ -1853,10 +1856,10 @@ func TestFilterFlowerAddDel(t *testing.T) {
 	if !filter.EncSrcIP.Equal(flower.EncSrcIP) {
 		t.Fatalf("Flower EncSrcIP doesn't match")
 	}
-	if !reflect.DeepEqual(filter.EncDestIPMask, testMask) {
+	if !reflect.DeepEqual(flower.EncDestIPMask, encDestMask) {
 		t.Fatalf("Flower EncDestIPMask doesn't match")
 	}
-	if !reflect.DeepEqual(filter.EncSrcIPMask, testMask) {
+	if !reflect.DeepEqual(flower.EncSrcIPMask, encSrcMask) {
 		t.Fatalf("Flower EncSrcIPMask doesn't match")
 	}
 	if filter.EncKeyId != flower.EncKeyId {
@@ -2210,7 +2213,7 @@ func TestFilterIPv6FlowerPedit(t *testing.T) {
 		t.Fatalf("Flower DestIP doesn't match")
 	}
 
-	if !reflect.DeepEqual(filter.DestIPMask, testMask) {
+	if !reflect.DeepEqual(flower.DestIPMask, testMask) {
 		t.Fatalf("Flower DestIPMask doesn't match")
 	}
 
