@@ -2141,6 +2141,9 @@ func execGetLink(req *nl.NetlinkRequest) (Link, error) {
 // a link object.
 func LinkDeserialize(hdr *unix.NlMsghdr, m []byte) (Link, error) {
 	msg := nl.DeserializeIfInfomsg(m)
+	if msg == nil {
+		return nil, fmt.Errorf("got short ifinfomsg from netlink")
+	}
 
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
 	if err != nil {
@@ -2663,6 +2666,9 @@ func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-c
 					continue
 				}
 				ifmsg := nl.DeserializeIfInfomsg(m.Data)
+				if ifmsg == nil {
+					continue
+				}
 				header := unix.NlMsghdr(m.Header)
 				link, err := LinkDeserialize(&header, m.Data)
 				if err != nil {
