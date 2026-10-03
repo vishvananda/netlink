@@ -223,7 +223,7 @@ func TestConntrackTableList(t *testing.T) {
 
 	// Check that it is able to find the 5 flows created
 	var found int
-	for _, flow := range flows {
+	checkFlow := func(flow *ConntrackFlow) bool {
 		if flow.Forward.Protocol == 17 &&
 			flow.Forward.DstIP.Equal(net.ParseIP("127.0.0.10")) &&
 			flow.Forward.DstPort == 3000 &&
@@ -245,9 +245,22 @@ func TestConntrackTableList(t *testing.T) {
 		if flow.Forward.Bytes == 0 && flow.Forward.Packets == 0 && flow.Reverse.Bytes == 0 && flow.Reverse.Packets == 0 {
 			t.Error("No traffic statistics are collected")
 		}
+		return true
+	}
+
+	for _, flow := range flows {
+		checkFlow(flow)
 	}
 	if found != 5 {
 		t.Fatalf("Found only %d flows over 5", found)
+	}
+
+	// Now check that the Iter version works the same way
+	found = 0
+	err = h.ConntrackTableListIter(ConntrackTable, unix.AF_INET, checkFlow)
+	CheckErrorFail(t, err)
+	if found != 5 {
+		t.Fatalf("Found only %d flows over 5 (iter version)", found)
 	}
 
 	// Give a try also to the IPv6 version
