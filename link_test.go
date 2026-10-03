@@ -3424,6 +3424,22 @@ func TestLinkByAliasWhenLinkIsNotFound(t *testing.T) {
 	}
 }
 
+func TestLinkAddTuntapNameTooLong(t *testing.T) {
+	// unix.NewIfreq rejects names of IFNAMSIZ bytes or more before any
+	// ioctl, so this does not need CAP_NET_ADMIN or a netns.
+	tap := &Tuntap{
+		LinkAttrs: LinkAttrs{Name: strings.Repeat("x", unix.IFNAMSIZ)},
+		Mode:      TUNTAP_MODE_TAP,
+	}
+	err := LinkAdd(tap)
+	if err == nil {
+		t.Fatal("LinkAdd succeeded for a name that does not fit in IFNAMSIZ")
+	}
+	if !errors.Is(err, unix.EINVAL) {
+		t.Fatalf("LinkAdd error = %v, want EINVAL from unix.NewIfreq", err)
+	}
+}
+
 func TestLinkAddDelTuntap(t *testing.T) {
 	t.Cleanup(setUpNetlinkTest(t))
 
