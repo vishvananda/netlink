@@ -1530,19 +1530,19 @@ func (h *Handle) linkModify(link Link, flags int) error {
 				unix.Close(fd)
 				// and the already opened ones
 				cleanupFds(fds)
-				return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed [%d], errno %v", i, errno)
+				return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed [%d], errno %w", i, errno)
 			}
 
 			_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TUNSETOWNER, uintptr(tuntap.Owner))
 			if errno != 0 {
 				cleanupFds(fds)
-				return fmt.Errorf("Tuntap IOCTL TUNSETOWNER failed [%d], errno %v", i, errno)
+				return fmt.Errorf("Tuntap IOCTL TUNSETOWNER failed [%d], errno %w", i, errno)
 			}
 
 			_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TUNSETGROUP, uintptr(tuntap.Group))
 			if errno != 0 {
 				cleanupFds(fds)
-				return fmt.Errorf("Tuntap IOCTL TUNSETGROUP failed [%d], errno %v", i, errno)
+				return fmt.Errorf("Tuntap IOCTL TUNSETGROUP failed [%d], errno %w", i, errno)
 			}
 
 			// Set the tun device to non-blocking before use. The below comment
@@ -1566,7 +1566,7 @@ func (h *Handle) linkModify(link Link, flags int) error {
 			err = unix.SetNonblock(fd, true)
 			if err != nil {
 				cleanupFds(fds)
-				return fmt.Errorf("Tuntap set to non-blocking failed [%d], err %v", i, err)
+				return fmt.Errorf("Tuntap set to non-blocking failed [%d], err %w", i, err)
 			}
 
 			// create the file from the file descriptor and store it
@@ -1590,10 +1590,10 @@ func (h *Handle) linkModify(link Link, flags int) error {
 			name := file.Name()
 			conn, err := file.SyscallConn()
 			if err != nil {
-				return fmt.Errorf("SyscallConn() failed on %s: %v", name, err)
+				return fmt.Errorf("SyscallConn() failed on %s: %w", name, err)
 			}
 			if err := conn.Control(f); err != nil {
-				return fmt.Errorf("Failed to get file descriptor for %s: %v", name, err)
+				return fmt.Errorf("Failed to get file descriptor for %s: %w", name, err)
 			}
 			return nil
 		}
@@ -1608,7 +1608,7 @@ func (h *Handle) linkModify(link Link, flags int) error {
 			}
 			if errno != 0 {
 				cleanupFds(fds)
-				return fmt.Errorf("Tuntap IOCTL TUNSETPERSIST failed, errno %v", errno)
+				return fmt.Errorf("Tuntap IOCTL TUNSETPERSIST failed, errno %w", errno)
 			}
 		}
 
@@ -2633,7 +2633,7 @@ func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-c
 			msgs, from, err := s.Receive()
 			if err != nil {
 				if cberr != nil {
-					cberr(fmt.Errorf("Receive failed: %v",
+					cberr(fmt.Errorf("Receive failed: %w",
 						err))
 				}
 				return
@@ -2657,7 +2657,7 @@ func linkSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-c
 						continue
 					}
 					if cberr != nil {
-						cberr(fmt.Errorf("error message: %v",
+						cberr(fmt.Errorf("error message: %w",
 							syscall.Errno(-error)))
 					}
 					continue
@@ -4086,7 +4086,7 @@ func ioctlBondSlave(cmd uintptr, link Link, master *Bond) error {
 	ifreq := newIocltSlaveReq(link.Attrs().Name, master.Attrs().Name)
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), cmd, uintptr(unsafe.Pointer(ifreq)))
 	if errno != 0 {
-		return fmt.Errorf("errno=%v", errno)
+		return fmt.Errorf("errno=%w", errno)
 	}
 	return nil
 }
@@ -4097,7 +4097,7 @@ func ioctlBondSlave(cmd uintptr, link Link, master *Bond) error {
 func LinkSetBondSlaveActive(link Link, master *Bond) error {
 	err := ioctlBondSlave(unix.SIOCBONDCHANGEACTIVE, link, master)
 	if err != nil {
-		return fmt.Errorf("Failed to set slave %q active in %q, %v", link.Attrs().Name, master.Attrs().Name, err)
+		return fmt.Errorf("Failed to set slave %q active in %q, %w", link.Attrs().Name, master.Attrs().Name, err)
 	}
 	return nil
 }
@@ -4106,7 +4106,7 @@ func LinkSetBondSlaveActive(link Link, master *Bond) error {
 func LinkSetBondSlave(link Link, master *Bond) error {
 	err := ioctlBondSlave(unix.SIOCBONDENSLAVE, link, master)
 	if err != nil {
-		return fmt.Errorf("Failed to enslave %q to %q, %v", link.Attrs().Name, master.Attrs().Name, err)
+		return fmt.Errorf("Failed to enslave %q to %q, %w", link.Attrs().Name, master.Attrs().Name, err)
 	}
 	return nil
 }
@@ -4115,7 +4115,7 @@ func LinkSetBondSlave(link Link, master *Bond) error {
 func LinkDelBondSlave(link Link, master *Bond) error {
 	err := ioctlBondSlave(unix.SIOCBONDRELEASE, link, master)
 	if err != nil {
-		return fmt.Errorf("Failed to del slave %q from %q, %v", link.Attrs().Name, master.Attrs().Name, err)
+		return fmt.Errorf("Failed to del slave %q from %q, %w", link.Attrs().Name, master.Attrs().Name, err)
 	}
 	return nil
 }
@@ -4177,7 +4177,7 @@ func VethPeerIndex(link *Veth) (int, error) {
 	ifreq, sSet := newIocltStringSetReq(link.Name)
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), SIOCETHTOOL, uintptr(unsafe.Pointer(ifreq)))
 	if errno != 0 {
-		return -1, fmt.Errorf("SIOCETHTOOL request for %q failed, errno=%v", link.Attrs().Name, errno)
+		return -1, fmt.Errorf("SIOCETHTOOL request for %q failed, errno=%w", link.Attrs().Name, errno)
 	}
 
 	stats := ethtoolStats{
@@ -4193,7 +4193,7 @@ func VethPeerIndex(link *Veth) (int, error) {
 	ifreq.Data = uintptr(unsafe.Pointer(&buffer[0]))
 	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), SIOCETHTOOL, uintptr(unsafe.Pointer(ifreq)))
 	if errno != 0 {
-		return -1, fmt.Errorf("SIOCETHTOOL request for %q failed, errno=%v", link.Attrs().Name, errno)
+		return -1, fmt.Errorf("SIOCETHTOOL request for %q failed, errno=%w", link.Attrs().Name, errno)
 	}
 
 	vstats, err := vethStatsDeserialize(buffer)

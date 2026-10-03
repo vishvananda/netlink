@@ -810,13 +810,13 @@ func executeInNetns(newNs, curNs netns.NsHandle) (func(), error) {
 		if !curNs.IsOpen() {
 			if curNs, err = netns.Get(); err != nil {
 				restore()
-				return nil, fmt.Errorf("could not get current namespace while creating netlink socket: %v", err)
+				return nil, fmt.Errorf("could not get current namespace while creating netlink socket: %w", err)
 			}
 			closeNs = curNs.Close
 		}
 		if err := netns.Set(newNs); err != nil {
 			restore()
-			return nil, fmt.Errorf("failed to set into network namespace %d while creating netlink socket: %v", newNs, err)
+			return nil, fmt.Errorf("failed to set into network namespace %d while creating netlink socket: %w", newNs, err)
 		}
 		moveBack = netns.Set
 	}
