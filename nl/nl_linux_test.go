@@ -63,6 +63,32 @@ func TestIfInfomsgDeserializeSerialize(t *testing.T) {
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
 
+func TestParseNetlinkMessageCopiesReceivedBytes(t *testing.T) {
+	const payloadLen = 3
+	nr := unix.NLMSG_HDRLEN + payloadLen
+	rb := make([]byte, RECEIVE_BUFFER_SIZE)
+	native := NativeEndian()
+	native.PutUint32(rb[0:4], uint32(nr))
+	native.PutUint16(rb[4:6], 0x10)
+	native.PutUint16(rb[6:8], 0)
+	native.PutUint32(rb[8:12], 1)
+	native.PutUint32(rb[12:16], 2)
+	copy(rb[unix.NLMSG_HDRLEN:nr], []byte{1, 2, 3})
+
+	msgs, err := parseNetlinkMessage(rb, nr)
+	if err != nil {
+		t.Fatalf("ParseNetlinkMessage failed: %v", err)
+	}
+	if len(msgs) != 1 {
+		t.Fatalf("Expected 1 message, got %d", len(msgs))
+	}
+
+	copy(rb[unix.NLMSG_HDRLEN:nr], []byte{5, 6, 7})
+	if !bytes.Equal(msgs[0].Data, []byte{1, 2, 3}) {
+		t.Fatalf("Message data references receive buffer, got %v", msgs[0].Data)
+	}
+}
+
 func TestIfSocketCloses(t *testing.T) {
 	nlSock, err := Subscribe(unix.NETLINK_ROUTE, unix.RTNLGRP_NEIGH)
 	if err != nil {
