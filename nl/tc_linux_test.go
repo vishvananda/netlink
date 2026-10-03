@@ -175,6 +175,36 @@ func TestTcHtbCoptDeserializeSerialize(t *testing.T) {
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
 
+/* TcNetemGemodel */
+func (msg *TcNetemGemodel) write(b []byte) {
+	native := NativeEndian()
+	native.PutUint32(b[0:4], msg.P)
+	native.PutUint32(b[4:8], msg.R)
+	native.PutUint32(b[8:12], msg.H)
+	native.PutUint32(b[12:16], msg.K1)
+}
+
+func (msg *TcNetemGemodel) serializeSafe() []byte {
+	length := SizeofTcNetemGemodel
+	b := make([]byte, length)
+	msg.write(b)
+	return b
+}
+
+func deserializeTcNetemGemodelSafe(b []byte) *TcNetemGemodel {
+	var msg = TcNetemGemodel{}
+	binary.Read(bytes.NewReader(b[0:SizeofTcNetemGemodel]), NativeEndian(), &msg)
+	return &msg
+}
+
+func TestTcNetemGemodelDeserializeSerialize(t *testing.T) {
+	var orig = make([]byte, SizeofTcNetemGemodel)
+	rand.Read(orig)
+	safemsg := deserializeTcNetemGemodelSafe(orig)
+	msg := DeserializeTcNetemGemodel(orig)
+	testDeserializeSerialize(t, orig, safemsg, msg)
+}
+
 func TestParsePeditEthKeys(t *testing.T) {
 	tests := []struct {
 		name   string

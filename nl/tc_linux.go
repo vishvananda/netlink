@@ -116,6 +116,7 @@ const (
 	SizeofTcNetemCorr    = 0x0c
 	SizeofTcNetemReorder = 0x08
 	SizeofTcNetemCorrupt = 0x08
+	SizeofTcNetemGemodel = 0x10
 	SizeOfTcNetemRate    = 0x10
 	SizeofTcTbfQopt      = 2*SizeofTcRateSpec + 0x0c
 	SizeofTcHtbCopt      = 2*SizeofTcRateSpec + 0x14
@@ -287,6 +288,16 @@ const (
 	TCA_NETEM_MAX = TCA_NETEM_RATE64
 )
 
+// Sub-attributes nested inside TCA_NETEM_LOSS, selecting the correlated
+// packet loss model applied by netem. NETEM_LOSS_GI (4-state) is not
+// implemented by this package; only NETEM_LOSS_GE (Gilbert-Elliot) is.
+const (
+	NETEM_LOSS_UNSPEC = iota
+	NETEM_LOSS_GI
+	NETEM_LOSS_GE
+	NETEM_LOSS_MAX = NETEM_LOSS_GE
+)
+
 // struct tc_netem_qopt {
 //	__u32	latency;	/* added delay (us) */
 //	__u32   limit;		/* fifo limit (packets) */
@@ -383,6 +394,40 @@ func DeserializeTcNetemCorrupt(b []byte) *TcNetemCorrupt {
 
 func (x *TcNetemCorrupt) Serialize() []byte {
 	return (*(*[SizeofTcNetemCorrupt]byte)(unsafe.Pointer(x)))[:]
+}
+
+// struct tc_netem_gemodel {
+//  __u32 p;
+//  __u32 r;
+//  __u32 h;
+//  __u32 k1;
+// };
+//
+// Fields hold the raw kernel-scaled percentages (0 to ~MaxUint32) of the
+// Gilbert-Elliot two-state loss model, as documented in
+// net/sched/sch_netem.c: P is the Good -> Bad transition probability, R is
+// the Bad -> Good transition probability, H is the loss probability while
+// in the Bad state, and K1 is the loss probability while in the Good
+// state. Note this differs from the `tc` command line, which asks for
+// "1-H" and "1-K" and performs the complement internally before handing
+// the values to the kernel; this struct mirrors the kernel ABI directly.
+type TcNetemGemodel struct {
+	P  uint32
+	R  uint32
+	H  uint32
+	K1 uint32
+}
+
+func (msg *TcNetemGemodel) Len() int {
+	return SizeofTcNetemGemodel
+}
+
+func DeserializeTcNetemGemodel(b []byte) *TcNetemGemodel {
+	return (*TcNetemGemodel)(unsafe.Pointer(&b[0:SizeofTcNetemGemodel][0]))
+}
+
+func (x *TcNetemGemodel) Serialize() []byte {
+	return (*(*[SizeofTcNetemGemodel]byte)(unsafe.Pointer(x)))[:]
 }
 
 // TcNetemRate is a struct that represents the rate of a netem qdisc
