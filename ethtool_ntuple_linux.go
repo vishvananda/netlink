@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"runtime"
@@ -40,6 +41,14 @@ const (
 // ETHTOOL_RX_FLOW_SPEC_RING masks the queue index out of ring_cookie (the low
 // 32 bits); bits 32-39 hold an optional VF id which we leave zero.
 const ethtoolRxFlowSpecRing = 0x00000000FFFFFFFF
+
+// Flags ORed into ethtoolRxFlowSpec.flowType (FLOW_EXT, FLOW_MAC_EXT and
+// FLOW_RSS in include/uapi/linux/ethtool.h).
+const (
+	ethtoolFlowExt    = 0x80000000
+	ethtoolFlowMACExt = 0x40000000
+	ethtoolFlowRSS    = 0x20000000
+)
 
 // NetDevRxFlow is a typed RX flow steering rule. Match identifies the flow to
 // match and supplies both the value (h_u) and mask (m_u) halves of the rule.
@@ -315,7 +324,10 @@ func validateIPv4(field string, ip net.IP) error {
 }
 
 func validateIPv6(field string, ip net.IP) error {
-	if len(ip) != 0 && (ip.To16() == nil || ip.To4() != nil) {
+	if ip.To4() != nil {
+		return fmt.Errorf("netlink: %s does not support IPv4 or IPv4-mapped IPv6 addresses", field)
+	}
+	if len(ip) != 0 && ip.To16() == nil {
 		return fmt.Errorf("netlink: %s must be an IPv6 address", field)
 	}
 	return nil
@@ -499,6 +511,135 @@ func parseNetDevRxFlowLocations(buf []byte, layout ethtoolRxnfcLayout, capacity 
 		locs[i] = native.Uint32(buf[off : off+4])
 	}
 	return locs, nil
+}
+
+// NetDevRxFlowGet returns the RX flow steering rule at the given location on
+// dev. If the rule uses a flow type, match field, extension or action that
+// NetDevRxFlow cannot represent, the returned error wraps ErrNotImplemented.
+// Equivalent to: ethtool --show-ntuple <dev> rule <location>
+func NetDevRxFlowGet(dev string, location uint32) (*NetDevRxFlow, error) {
+	nfc := ethtoolRxnfc{
+		cmd: ETHTOOL_GRXCLSRULE,
+		fs:  ethtoolRxFlowSpec{location: location},
+	}
+	if err := ethtoolRxnfcIoctl(dev, &nfc); err != nil {
+		return nil, err
+	}
+	return parseNetDevRxFlow(&nfc.fs)
+}
+
+func parseNetDevRxFlow(fs *ethtoolRxFlowSpec) (*NetDevRxFlow, error) {
+	if fs.flowType&ethtoolFlowRSS != 0 {
+		return nil, fmt.Errorf("netlink: RX flow rule %d targets an RSS context: %w",
+			fs.location, ErrNotImplemented)
+	}
+	// Drop, wake-on-LAN and VF actions set bits above the queue index.
+	if fs.ringCookie&^ethtoolRxFlowSpecRing != 0 {
+		return nil, fmt.Errorf("netlink: RX flow rule %d action %#x is not a queue: %w",
+			fs.location, fs.ringCookie, ErrNotImplemented)
+	}
+	// ethtool_flow_ext stores h_dest at bytes 2:8 and VLAN/data at 8:20.
+	// Only masks enabled by their corresponding extension flag are significant.
+	if fs.flowType&ethtoolFlowMACExt != 0 && !allZero(fs.mExt[2:8]) ||
+		fs.flowType&ethtoolFlowExt != 0 && !allZero(fs.mExt[8:]) {
+		return nil, fmt.Errorf("netlink: RX flow rule %d uses flow extensions: %w",
+			fs.location, ErrNotImplemented)
+	}
+
+	var match NetDevRxFlowMatch
+	switch fs.flowType &^ (ethtoolFlowExt | ethtoolFlowMACExt) {
+	case ETHER_FLOW:
+		match = EtherFlow{
+			DstMAC:     macFromBytes(fs.hU[0:6]),
+			SrcMAC:     macFromBytes(fs.hU[6:12]),
+			EthProto:   networkOrder.Uint16(fs.hU[12:14]),
+			DstMACMask: macFromBytes(fs.mU[0:6]),
+			SrcMACMask: macFromBytes(fs.mU[6:12]),
+			ProtoMask:  networkOrder.Uint16(fs.mU[12:14]),
+		}
+	case TCP_V4_FLOW:
+		match = TCP4Flow{parseTCPIP4Fields(&fs.hU, &fs.mU)}
+	case UDP_V4_FLOW:
+		match = UDP4Flow{parseTCPIP4Fields(&fs.hU, &fs.mU)}
+	case TCP_V6_FLOW:
+		match = TCP6Flow{parseTCPIP6Fields(&fs.hU, &fs.mU)}
+	case UDP_V6_FLOW:
+		match = UDP6Flow{parseTCPIP6Fields(&fs.hU, &fs.mU)}
+	default:
+		return nil, fmt.Errorf("netlink: RX flow rule %d has unsupported flow type %#x: %w",
+			fs.location, fs.flowType, ErrNotImplemented)
+	}
+
+	if err := validateNetDevRxFlowMatch(match); err != nil {
+		return nil, fmt.Errorf("netlink: RX flow rule %d has unsupported match: %w: %w",
+			fs.location, err, ErrNotImplemented)
+	}
+
+	// Serializing the decoded mask reproduces the kernel's mask only if no
+	// field outside the typed matcher, such as the IPv4 TOS or IPv6 traffic
+	// class, takes part in the match.
+	if _, mask := match.serialize(); mask != fs.mU {
+		return nil, fmt.Errorf("netlink: RX flow rule %d matches fields that %T does not support: %w",
+			fs.location, match, ErrNotImplemented)
+	}
+
+	return &NetDevRxFlow{
+		Match:    match,
+		Queue:    uint32(fs.ringCookie),
+		Location: fs.location,
+	}, nil
+}
+
+func parseTCPIP4Fields(val, mask *[52]byte) TCPIP4Fields {
+	return TCPIP4Fields{
+		SrcIP:       ipFromBytes(val[0:4]),
+		DstIP:       ipFromBytes(val[4:8]),
+		SrcPort:     networkOrder.Uint16(val[8:10]),
+		DstPort:     networkOrder.Uint16(val[10:12]),
+		SrcIPMask:   ipFromBytes(mask[0:4]),
+		DstIPMask:   ipFromBytes(mask[4:8]),
+		SrcPortMask: networkOrder.Uint16(mask[8:10]),
+		DstPortMask: networkOrder.Uint16(mask[10:12]),
+	}
+}
+
+func parseTCPIP6Fields(val, mask *[52]byte) TCPIP6Fields {
+	return TCPIP6Fields{
+		SrcIP:       ipFromBytes(val[0:16]),
+		DstIP:       ipFromBytes(val[16:32]),
+		SrcPort:     networkOrder.Uint16(val[32:34]),
+		DstPort:     networkOrder.Uint16(val[34:36]),
+		SrcIPMask:   ipFromBytes(mask[0:16]),
+		DstIPMask:   ipFromBytes(mask[16:32]),
+		SrcPortMask: networkOrder.Uint16(mask[32:34]),
+		DstPortMask: networkOrder.Uint16(mask[34:36]),
+	}
+}
+
+// macFromBytes and ipFromBytes return nil for an all-zero field, which
+// serializes the same way, so fields left unset on insert are also unset on
+// get.
+func macFromBytes(b []byte) net.HardwareAddr {
+	if allZero(b) {
+		return nil
+	}
+	return net.HardwareAddr(bytes.Clone(b))
+}
+
+func ipFromBytes(b []byte) net.IP {
+	if allZero(b) {
+		return nil
+	}
+	return net.IP(bytes.Clone(b))
+}
+
+func allZero(b []byte) bool {
+	for _, c := range b {
+		if c != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // ethtoolRxnfcIoctl runs SIOCETHTOOL with a fixed-size ethtool_rxnfc argument.
