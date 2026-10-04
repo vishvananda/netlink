@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"net"
+	"reflect"
 	"syscall"
 	"testing"
 )
@@ -376,6 +377,12 @@ func TestValidateNetDevRxFlowMatch(t *testing.T) {
 			}},
 		},
 		{
+			name: "invalid IPv6 length",
+			match: TCP6Flow{TCPIP6Fields{
+				DstIP: net.IP{1, 2, 3},
+			}},
+		},
+		{
 			name:  "typed nil matcher",
 			match: nilEtherFlow,
 		},
@@ -427,12 +434,9 @@ func TestValidateNetDevName(t *testing.T) {
 	}
 }
 
-// TestRxFlowInsertReachesDriver confirms the ioctl is well-formed and dispatched
-// to the driver. On a host without rxnfc support (e.g. loopback), the
-// kernel returns EOPNOTSUPP - which proves the request reached the driver rather
-// than being malformed. A nil error is also accepted and cleaned up.
-// netdevsim does NOT implement rxnfc, so a full insert->list->delete round trip
-// requires real hardware (bnxt/gve) and is not run here.
+// TestRxFlowInsertReachesDriver checks the unsupported-device error path.
+// Loopback has no rxnfc operations, so the kernel may reject the request before
+// reading the full buffer. This does not validate the ioctl layout.
 func TestRxFlowInsertReachesDriver(t *testing.T) {
 	t.Cleanup(setUpNetlinkTestWithLoopback(t))
 
@@ -462,9 +466,203 @@ func TestRxFlowInsertReachesDriver(t *testing.T) {
 				})
 				t.Logf("rxnfc insert on lo unexpectedly succeeded at location %d", location)
 			case errors.Is(err, syscall.EOPNOTSUPP), errors.Is(err, syscall.ENOTSUP):
-				t.Logf("rxnfc insert reached driver and was declined as expected: %v", err)
+				t.Logf("rxnfc insert on lo is unsupported as expected: %v", err)
 			default:
-				t.Fatalf("rxnfc insert failed with an unexpected error (possible malformed ioctl): %v", err)
+				t.Fatalf("rxnfc insert failed with an unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// TestParseNetDevRxFlow decodes rules encoded the same way NetDevRxFlowInsert
+// encodes them. Every field has a distinct value so a field decoded from the
+// wrong offset fails the comparison, and unset fields must decode as nil.
+func TestParseNetDevRxFlow(t *testing.T) {
+	srcMAC, _ := net.ParseMAC("02:00:00:00:00:02")
+	dstMAC, _ := net.ParseMAC("02:00:00:00:00:01")
+	ip4Fields := TCPIP4Fields{
+		SrcIP:       net.IP{192, 0, 2, 0},
+		SrcIPMask:   net.IP(net.CIDRMask(24, 32)),
+		DstIP:       net.IP{198, 51, 100, 7},
+		DstIPMask:   net.IP(net.CIDRMask(32, 32)),
+		SrcPort:     12345,
+		SrcPortMask: 0xff00,
+		DstPort:     4420,
+		DstPortMask: 0xffff,
+	}
+	ip6Fields := TCPIP6Fields{
+		SrcIP:       net.ParseIP("2001:db8:1234:5678::"),
+		SrcIPMask:   net.IP(net.CIDRMask(64, 128)),
+		DstIP:       net.ParseIP("2001:db8::5"),
+		DstIPMask:   net.IP(net.CIDRMask(128, 128)),
+		SrcPort:     23456,
+		SrcPortMask: 0xfff0,
+		DstPort:     443,
+		DstPortMask: 0xffff,
+	}
+	matches := []NetDevRxFlowMatch{
+		EtherFlow{
+			SrcMAC: srcMAC, SrcMACMask: net.HardwareAddr{0xff, 0xff, 0xff, 0, 0, 0},
+			DstMAC: dstMAC, DstMACMask: net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0},
+			EthProto: 0x86dd, ProtoMask: 0xff00,
+		},
+		TCP4Flow{ip4Fields},
+		UDP4Flow{ip4Fields},
+		TCP6Flow{ip6Fields},
+		UDP6Flow{ip6Fields},
+		TCP4Flow{TCPIP4Fields{
+			DstIP:       net.IP{198, 51, 100, 7},
+			DstIPMask:   net.IP(net.CIDRMask(32, 32)),
+			DstPort:     80,
+			DstPortMask: 0xffff,
+		}},
+	}
+	for i, match := range matches {
+		want := &NetDevRxFlow{Match: match, Queue: uint32(60 + i), Location: uint32(i)}
+		val, mask := match.serialize()
+		got, err := parseNetDevRxFlow(&ethtoolRxFlowSpec{
+			flowType:   match.flowType(),
+			hU:         val,
+			mU:         mask,
+			ringCookie: uint64(want.Queue),
+			location:   want.Location,
+		})
+		if err != nil {
+			t.Fatalf("%T: %v", match, err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("decoded %+v, want %+v", got, want)
+		}
+	}
+}
+
+func TestParseNetDevRxFlowNotImplemented(t *testing.T) {
+	val, mask := TCP4Flow{TCPIP4Fields{DstPort: 80, DstPortMask: 0xffff}}.serialize()
+	valid := ethtoolRxFlowSpec{flowType: TCP_V4_FLOW, hU: val, mU: mask, ringCookie: 3}
+
+	tests := []struct {
+		name   string
+		modify func(*ethtoolRxFlowSpec)
+	}{
+		{"RSS context", func(fs *ethtoolRxFlowSpec) { fs.flowType |= ethtoolFlowRSS }},
+		{"drop action", func(fs *ethtoolRxFlowSpec) { fs.ringCookie = ^uint64(0) }},
+		{"wake-on-LAN action", func(fs *ethtoolRxFlowSpec) { fs.ringCookie = ^uint64(1) }},
+		{"VF action", func(fs *ethtoolRxFlowSpec) { fs.ringCookie = 1<<32 | 3 }},
+		{"VLAN extension", func(fs *ethtoolRxFlowSpec) {
+			fs.flowType |= ethtoolFlowExt
+			networkOrder.PutUint16(fs.mExt[10:12], 0x0fff)
+		}},
+		{"VLAN EtherType extension", func(fs *ethtoolRxFlowSpec) {
+			fs.flowType |= ethtoolFlowExt
+			networkOrder.PutUint16(fs.mExt[8:10], 0xffff)
+		}},
+		{"MAC extension", func(fs *ethtoolRxFlowSpec) {
+			fs.flowType |= ethtoolFlowMACExt
+			fs.mExt[2] = 0xff
+		}},
+		{"last MAC extension byte", func(fs *ethtoolRxFlowSpec) {
+			fs.flowType |= ethtoolFlowMACExt
+			fs.mExt[7] = 0xff
+		}},
+		{"user-defined extension", func(fs *ethtoolRxFlowSpec) {
+			fs.flowType |= ethtoolFlowExt
+			fs.mExt[12] = 0xff
+		}},
+		{"last user-defined extension byte", func(fs *ethtoolRxFlowSpec) {
+			fs.flowType |= ethtoolFlowExt
+			fs.mExt[19] = 0xff
+		}},
+		{"IPv4 TOS", func(fs *ethtoolRxFlowSpec) { fs.mU[12] = 0xff }},
+		{"IPv6 traffic class", func(fs *ethtoolRxFlowSpec) {
+			*fs = ethtoolRxFlowSpec{flowType: TCP_V6_FLOW, ringCookie: 3}
+			fs.mU[36] = 0xff
+		}},
+		{"IPv4 user flow", func(fs *ethtoolRxFlowSpec) { fs.flowType = 0x0d }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := valid
+			tt.modify(&fs)
+			if _, err := parseNetDevRxFlow(&fs); !errors.Is(err, ErrNotImplemented) {
+				t.Fatalf("error = %v, want ErrNotImplemented", err)
+			}
+		})
+	}
+}
+
+func TestParseNetDevRxFlowIgnoredExtensions(t *testing.T) {
+	match := TCP4Flow{TCPIP4Fields{DstPort: 80, DstPortMask: 0xffff}}
+	val, mask := match.serialize()
+	tests := []struct {
+		name       string
+		flags      uint32
+		maskOffset int
+	}{
+		{"unflagged MAC mask", 0, 2},
+		{"unflagged VLAN mask", 0, 10},
+		{"FLOW_EXT with inactive MAC mask", ethtoolFlowExt, 6},
+		{"FLOW_MAC_EXT with inactive VLAN mask", ethtoolFlowMACExt, 10},
+		{"FLOW_MAC_EXT with inactive data mask", ethtoolFlowMACExt, 12},
+		{"extension padding", ethtoolFlowExt | ethtoolFlowMACExt, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := ethtoolRxFlowSpec{flowType: TCP_V4_FLOW | tt.flags, hU: val, mU: mask, ringCookie: 3}
+			fs.mExt[tt.maskOffset] = 0xff
+			fs.mExt[tt.maskOffset+1] = 0xff
+			got, err := parseNetDevRxFlow(&fs)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := &NetDevRxFlow{Match: match, Queue: 3}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("decoded %+v, want %+v", got, want)
+			}
+		})
+	}
+}
+
+func TestParseNetDevRxFlowMappedIPv6(t *testing.T) {
+	tests := []struct {
+		name     string
+		flowType uint32
+		offset   int
+	}{
+		{"TCP6 source", TCP_V6_FLOW, 0},
+		{"TCP6 destination", TCP_V6_FLOW, 16},
+		{"UDP6 source", UDP_V6_FLOW, 0},
+		{"UDP6 destination", UDP_V6_FLOW, 16},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := ethtoolRxFlowSpec{flowType: tt.flowType, ringCookie: 3}
+			copy(fs.hU[tt.offset:tt.offset+16], net.ParseIP("::ffff:192.0.2.1").To16())
+			copy(fs.mU[tt.offset:tt.offset+16], net.CIDRMask(128, 128))
+			if _, err := parseNetDevRxFlow(&fs); !errors.Is(err, ErrNotImplemented) {
+				t.Fatalf("error = %v, want ErrNotImplemented", err)
+			}
+		})
+	}
+}
+
+// TestRxFlowGetUnsupported checks error propagation for devices without rxnfc
+// operations. It does not validate the ioctl commands or buffer layout.
+func TestRxFlowGetUnsupported(t *testing.T) {
+	t.Cleanup(setUpNetlinkTestWithLoopback(t))
+
+	tests := []struct {
+		name string
+		get  func() error
+	}{
+		{"rule", func() error {
+			_, err := NetDevRxFlowGet("lo", 0)
+			return err
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.get(); !errors.Is(err, syscall.EOPNOTSUPP) && !errors.Is(err, syscall.ENOTSUP) {
+				t.Fatalf("rxnfc get on lo returned %v, want EOPNOTSUPP", err)
 			}
 		})
 	}
