@@ -662,11 +662,98 @@ func TestRxFlowGetUnsupported(t *testing.T) {
 			_, err := NetDevRxFlowGet("lo", 0)
 			return err
 		}},
+		{"table", func() error {
+			_, err := NetDevRxFlowTableGet("lo")
+			return err
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := tt.get(); !errors.Is(err, syscall.EOPNOTSUPP) && !errors.Is(err, syscall.ENOTSUP) {
 				t.Fatalf("rxnfc get on lo returned %v, want EOPNOTSUPP", err)
+			}
+		})
+	}
+}
+
+func TestParseNetDevRxFlowTable(t *testing.T) {
+	tests := []struct {
+		data uint64
+		want NetDevRxFlowTable
+	}{
+		{data: 1024, want: NetDevRxFlowTable{Rules: 3, Size: 1024}},
+		{data: 0x12345, want: NetDevRxFlowTable{Rules: 3, Size: 0x12345}},
+		{data: uint64(RX_CLS_LOC_SPECIAL) | 256, want: NetDevRxFlowTable{Rules: 3, Size: 256, SpecialLocations: true}},
+		{data: 0, want: NetDevRxFlowTable{Rules: 3}},
+	}
+	for _, tt := range tests {
+		nfc := ethtoolRxnfc{data: tt.data, ruleCntOrRssCtx: 3}
+		if got := parseNetDevRxFlowTable(&nfc); *got != tt.want {
+			t.Errorf("data %#x: got %+v, want %+v", tt.data, *got, tt.want)
+		}
+	}
+}
+
+func TestNetDevRxFlowTableGet(t *testing.T) {
+	tests := []struct {
+		name       string
+		countData  uint64
+		countRules uint32
+		listRules  uint32
+		list       bool
+		failCmd    uint32
+		ioctlErr   error
+		want       NetDevRxFlowTable
+	}{
+		{name: "size from count", countData: 0x12345, countRules: 3,
+			want: NetDevRxFlowTable{Rules: 3, Size: 0x12345}},
+		{name: "automatic locations", countData: uint64(RX_CLS_LOC_SPECIAL) | 256, countRules: 3,
+			want: NetDevRxFlowTable{Rules: 3, Size: 256, SpecialLocations: true}},
+		{name: "automatic locations without size", countData: uint64(RX_CLS_LOC_SPECIAL), countRules: 3, listRules: 3, list: true,
+			want: NetDevRxFlowTable{Rules: 3, Size: 0x12345, SpecialLocations: true}},
+		{name: "size from list", countRules: 3, listRules: 3, list: true,
+			want: NetDevRxFlowTable{Rules: 3, Size: 0x12345}},
+		{name: "empty table", list: true,
+			want: NetDevRxFlowTable{Size: 0x12345}},
+		{name: "successful shorter list", countRules: 3, listRules: 1, list: true,
+			want: NetDevRxFlowTable{Rules: 1, Size: 0x12345}},
+		{name: "count error", failCmd: ETHTOOL_GRXCLSRLCNT, ioctlErr: syscall.EOPNOTSUPP},
+		{name: "list returns EINVAL", countRules: 3, list: true, failCmd: ETHTOOL_GRXCLSRLALL, ioctlErr: syscall.EINVAL},
+		{name: "rules added between calls", countRules: 3, list: true, failCmd: ETHTOOL_GRXCLSRLALL, ioctlErr: syscall.EMSGSIZE},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var cmds []uint32
+			got, err := netDevRxFlowTableGet(func(nfc *ethtoolRxnfc) error {
+				cmds = append(cmds, nfc.cmd)
+				if nfc.cmd == tt.failCmd {
+					return tt.ioctlErr
+				}
+				switch nfc.cmd {
+				case ETHTOOL_GRXCLSRLCNT:
+					nfc.data, nfc.ruleCntOrRssCtx = tt.countData, tt.countRules
+				case ETHTOOL_GRXCLSRLALL:
+					if nfc.ruleCntOrRssCtx != tt.countRules {
+						t.Fatalf("requested rule count = %d, want %d", nfc.ruleCntOrRssCtx, tt.countRules)
+					}
+					nfc.data, nfc.ruleCntOrRssCtx = 0x12345, tt.listRules
+				default:
+					t.Fatalf("unexpected ioctl command %#x", nfc.cmd)
+				}
+				return nil
+			})
+			wantCmds := []uint32{ETHTOOL_GRXCLSRLCNT}
+			if tt.list {
+				wantCmds = append(wantCmds, ETHTOOL_GRXCLSRLALL)
+			}
+			if !reflect.DeepEqual(cmds, wantCmds) {
+				t.Fatalf("ioctl commands = %v, want %v", cmds, wantCmds)
+			}
+			if !errors.Is(err, tt.ioctlErr) {
+				t.Fatalf("error = %v, want %v", err, tt.ioctlErr)
+			}
+			if err == nil && (got == nil || *got != tt.want) {
+				t.Fatalf("table = %+v, want %+v", got, tt.want)
 			}
 		})
 	}
