@@ -45,6 +45,12 @@ const (
 // 32 bits); bits 32-39 hold an optional VF id which we leave zero.
 const ethtoolRxFlowSpecRing = 0x00000000FFFFFFFF
 
+// Special ring_cookie actions from include/uapi/linux/ethtool.h.
+const (
+	ethtoolRxClsFlowDisc = 0xffffffffffffffff // RX_CLS_FLOW_DISC (discard)
+	ethtoolRxClsFlowWake = 0xfffffffffffffffe // RX_CLS_FLOW_WAKE (Wake-on-LAN)
+)
+
 // Flags ORed into ethtoolRxFlowSpec.flowType (FLOW_EXT, FLOW_MAC_EXT and
 // FLOW_RSS in include/uapi/linux/ethtool.h).
 const (
@@ -55,13 +61,12 @@ const (
 
 // NetDevRxFlow is a typed RX flow steering rule. Match identifies the flow to
 // match and supplies both the value (h_u) and mask (m_u) halves of the rule.
-// Queue is the target RX queue index that matching packets are delivered to
-// (the "action").
+// Action describes what happens to matching packets.
 type NetDevRxFlow struct {
 	// Match is the flow matcher; its concrete type selects the flow type.
 	Match NetDevRxFlowMatch
-	// Queue is the destination RX queue index for matching packets.
-	Queue uint32
+	// Action is applied to matching packets.
+	Action NetDevRxFlowAction
 	// Location is the rule slot. Use RX_CLS_LOC_ANY to let the kernel pick;
 	// on insert the chosen location is returned.
 	Location uint32
@@ -439,8 +444,8 @@ func validateTCPIP6Fields(flowType string, fields TCPIP6Fields) error {
 }
 
 // NetDevRxFlowInsert inserts (or updates) an RX flow steering rule on dev,
-// directing matching packets to flow.Queue. It returns the rule location the
-// kernel assigned. Requires CAP_NET_ADMIN.
+// directing matching packets to flow.Action.Queue. Other actions are not yet
+// supported. It returns the rule location the kernel assigned. Requires CAP_NET_ADMIN.
 // Equivalent to: ethtool --config-ntuple <dev> flow-type ... action <queue>
 func NetDevRxFlowInsert(dev string, flow NetDevRxFlow) (uint32, error) {
 	if flow.Match == nil {
@@ -449,6 +454,10 @@ func NetDevRxFlowInsert(dev string, flow NetDevRxFlow) (uint32, error) {
 	if err := validateNetDevRxFlowMatch(flow.Match); err != nil {
 		return 0, err
 	}
+	queueOnly := NetDevRxFlowAction{Queue: flow.Action.Queue}
+	if flow.Action != queueOnly {
+		return 0, fmt.Errorf("netlink: RX flow insertion only supports direct queue actions: %w", ErrNotImplemented)
+	}
 	val, mask := flow.Match.serialize()
 	nfc := ethtoolRxnfc{
 		cmd: ETHTOOL_SRXCLSRLINS,
@@ -456,7 +465,7 @@ func NetDevRxFlowInsert(dev string, flow NetDevRxFlow) (uint32, error) {
 			flowType:   flow.Match.flowType(),
 			hU:         val,
 			mU:         mask,
-			ringCookie: uint64(flow.Queue) & ethtoolRxFlowSpecRing,
+			ringCookie: uint64(flow.Action.Queue) & ethtoolRxFlowSpecRing,
 			location:   flow.Location,
 		},
 	}
@@ -570,9 +579,71 @@ func parseNetDevRxFlowTable(nfc *ethtoolRxnfc) *NetDevRxFlowTable {
 	}
 }
 
+// NetDevRxFlowAction describes what an RX flow steering rule does with the
+// packets it matches, decoded from the ethtool_rxnfc UAPI in
+// include/uapi/linux/ethtool.h. See ethtool_rx_flow_rule_create() in
+// net/ethtool/ioctl.c for the kernel's corresponding action decoder.
+type NetDevRxFlowAction struct {
+	// Drop is set for rules that discard matching packets.
+	Drop bool
+	// WakeOnLAN is set for rules that use matching packets to wake the system.
+	WakeOnLAN bool
+	// VF is zero for rules that deliver to the device itself, or one more than
+	// the index of the virtual function that receives matching packets.
+	VF uint8
+	// Queue is the receive queue for matching packets, within the VF if VF is
+	// nonzero. If UsesRSSContext is set, Queue is added to the queue that
+	// RSSContext selects instead.
+	Queue uint32
+	// UsesRSSContext is set for rules that spread matching packets over the
+	// queues of RSSContext.
+	UsesRSSContext bool
+	RSSContext     uint32
+}
+
+// NetDevRxFlowActionGet returns the action of the RX flow steering rule at the
+// given location on dev, even if NetDevRxFlowGet does not support the rule's
+// match criteria. If the action uses an unsupported encoding, the returned
+// error wraps ErrNotImplemented.
+func NetDevRxFlowActionGet(dev string, location uint32) (*NetDevRxFlowAction, error) {
+	nfc := ethtoolRxnfc{
+		cmd: ETHTOOL_GRXCLSRULE,
+		fs:  ethtoolRxFlowSpec{location: location},
+	}
+	if err := ethtoolRxnfcIoctl(dev, &nfc); err != nil {
+		return nil, err
+	}
+	return parseNetDevRxFlowAction(&nfc)
+}
+
+func parseNetDevRxFlowAction(nfc *ethtoolRxnfc) (*NetDevRxFlowAction, error) {
+	switch nfc.fs.ringCookie {
+	case ethtoolRxClsFlowDisc:
+		return &NetDevRxFlowAction{Drop: true}, nil
+	case ethtoolRxClsFlowWake:
+		return &NetDevRxFlowAction{WakeOnLAN: true}, nil
+	}
+	// Queue/VF actions use the low 40 bits. Higher bits may encode unsupported
+	// actions, e.g. mlx4's direct QP attachment (EN_ETHTOOL_QP_ATTACH).
+	if nfc.fs.ringCookie>>40 != 0 {
+		return nil, fmt.Errorf("netlink: RX flow rule %d has unsupported action %#x: %w",
+			nfc.fs.location, nfc.fs.ringCookie, ErrNotImplemented)
+	}
+	action := &NetDevRxFlowAction{
+		VF:    uint8(nfc.fs.ringCookie >> 32),
+		Queue: uint32(nfc.fs.ringCookie & ethtoolRxFlowSpecRing),
+	}
+	if nfc.fs.flowType&ethtoolFlowRSS != 0 {
+		action.UsesRSSContext = true
+		action.RSSContext = nfc.ruleCntOrRssCtx
+	}
+	return action, nil
+}
+
 // NetDevRxFlowGet returns the RX flow steering rule at the given location on
-// dev. If the rule uses a flow type, match field, extension or action that
-// NetDevRxFlow cannot represent, the returned error wraps ErrNotImplemented.
+// dev. Only direct queue actions are currently supported. If the rule uses an
+// unsupported flow type, match field, extension or action, the returned error
+// wraps ErrNotImplemented.
 // Equivalent to: ethtool --show-ntuple <dev> rule <location>
 func NetDevRxFlowGet(dev string, location uint32) (*NetDevRxFlow, error) {
 	nfc := ethtoolRxnfc{
@@ -642,7 +713,7 @@ func parseNetDevRxFlow(fs *ethtoolRxFlowSpec) (*NetDevRxFlow, error) {
 
 	return &NetDevRxFlow{
 		Match:    match,
-		Queue:    uint32(fs.ringCookie),
+		Action:   NetDevRxFlowAction{Queue: uint32(fs.ringCookie)},
 		Location: fs.location,
 	}, nil
 }
