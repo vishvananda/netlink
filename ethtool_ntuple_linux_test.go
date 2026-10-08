@@ -109,7 +109,7 @@ func TestRxFlowSerializeTCP4(t *testing.T) {
 			DstPort:     80,
 			DstPortMask: 0xffff,
 		}},
-		Queue:    3,
+		Action:   NetDevRxFlowAction{Queue: 3},
 		Location: RX_CLS_LOC_ANY,
 	}
 	val, mask := flow.Match.serialize()
@@ -119,7 +119,7 @@ func TestRxFlowSerializeTCP4(t *testing.T) {
 			flowType:   flow.Match.flowType(),
 			hU:         val,
 			mU:         mask,
-			ringCookie: uint64(flow.Queue),
+			ringCookie: uint64(flow.Action.Queue),
 			location:   flow.Location,
 		},
 	}
@@ -252,7 +252,7 @@ func TestRxFlowSerializeEther(t *testing.T) {
 			DstMAC:     dst,
 			DstMACMask: net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		},
-		Queue:    7,
+		Action:   NetDevRxFlowAction{Queue: 7},
 		Location: RX_CLS_LOC_ANY,
 	}
 	val, mask := flow.Match.serialize()
@@ -262,7 +262,7 @@ func TestRxFlowSerializeEther(t *testing.T) {
 			flowType:   flow.Match.flowType(),
 			hU:         val,
 			mU:         mask,
-			ringCookie: uint64(flow.Queue),
+			ringCookie: uint64(flow.Action.Queue),
 			location:   flow.Location,
 		},
 	}
@@ -438,6 +438,38 @@ func TestValidateNetDevName(t *testing.T) {
 	}
 }
 
+func TestRxFlowInsertActions(t *testing.T) {
+	tests := []struct {
+		name        string
+		action      NetDevRxFlowAction
+		unsupported bool
+	}{
+		{"queue zero", NetDevRxFlowAction{}, false},
+		{"maximum queue", NetDevRxFlowAction{Queue: ^uint32(0)}, false},
+		{"drop", NetDevRxFlowAction{Drop: true}, true},
+		{"wake-on-LAN", NetDevRxFlowAction{WakeOnLAN: true}, true},
+		{"virtual function", NetDevRxFlowAction{VF: 1}, true},
+		{"RSS", NetDevRxFlowAction{UsesRSSContext: true}, true},
+		{"unused RSS context", NetDevRxFlowAction{RSSContext: 1}, true},
+		{"drop with queue", NetDevRxFlowAction{Drop: true, Queue: 3}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NetDevRxFlowInsert("", NetDevRxFlow{
+				Match:  TCP4Flow{},
+				Action: tt.action,
+			})
+			if tt.unsupported {
+				if !errors.Is(err, ErrNotImplemented) {
+					t.Fatalf("error = %v, want ErrNotImplemented before the ioctl", err)
+				}
+			} else if want := validateNetDevName(""); err == nil || err.Error() != want.Error() {
+				t.Fatalf("error = %v, want device-name validation after accepting the action: %v", err, want)
+			}
+		})
+	}
+}
+
 // TestRxFlowInsertReachesDriver checks the unsupported-device error path.
 // Loopback has no rxnfc operations, so the kernel may reject the request before
 // reading the full buffer. This does not validate the ioctl layout.
@@ -458,7 +490,7 @@ func TestRxFlowInsertReachesDriver(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			location, err := NetDevRxFlowInsert("lo", NetDevRxFlow{
 				Match:    test.match,
-				Queue:    0,
+				Action:   NetDevRxFlowAction{Queue: 0},
 				Location: RX_CLS_LOC_ANY,
 			})
 			switch {
@@ -522,13 +554,13 @@ func TestParseNetDevRxFlow(t *testing.T) {
 		}},
 	}
 	for i, match := range matches {
-		want := &NetDevRxFlow{Match: match, Queue: uint32(60 + i), Location: uint32(i)}
+		want := &NetDevRxFlow{Match: match, Action: NetDevRxFlowAction{Queue: uint32(60 + i)}, Location: uint32(i)}
 		val, mask := match.serialize()
 		got, err := parseNetDevRxFlow(&ethtoolRxFlowSpec{
 			flowType:   match.flowType(),
 			hU:         val,
 			mU:         mask,
-			ringCookie: uint64(want.Queue),
+			ringCookie: uint64(want.Action.Queue),
 			location:   want.Location,
 		})
 		if err != nil {
@@ -618,7 +650,7 @@ func TestParseNetDevRxFlowIgnoredExtensions(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := &NetDevRxFlow{Match: match, Queue: 3}
+			want := &NetDevRxFlow{Match: match, Action: NetDevRxFlowAction{Queue: 3}}
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("decoded %+v, want %+v", got, want)
 			}
@@ -664,6 +696,10 @@ func TestRxFlowGetUnsupported(t *testing.T) {
 		}},
 		{"table", func() error {
 			_, err := NetDevRxFlowTableGet("lo")
+			return err
+		}},
+		{"action", func() error {
+			_, err := NetDevRxFlowActionGet("lo", 0)
 			return err
 		}},
 	}
@@ -756,5 +792,76 @@ func TestNetDevRxFlowTableGet(t *testing.T) {
 				t.Fatalf("table = %+v, want %+v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestParseNetDevRxFlowAction(t *testing.T) {
+	tests := []struct {
+		name string
+		nfc  ethtoolRxnfc
+		want NetDevRxFlowAction
+	}{
+		{
+			name: "queue",
+			nfc:  ethtoolRxnfc{fs: ethtoolRxFlowSpec{flowType: TCP_V4_FLOW, ringCookie: 62}},
+			want: NetDevRxFlowAction{Queue: 62},
+		},
+		{
+			name: "queue for a rule NetDevRxFlow cannot represent",
+			nfc:  ethtoolRxnfc{fs: ethtoolRxFlowSpec{flowType: 0x0d | ethtoolFlowExt, ringCookie: 7}},
+			want: NetDevRxFlowAction{Queue: 7},
+		},
+		{
+			name: "drop",
+			nfc:  ethtoolRxnfc{fs: ethtoolRxFlowSpec{ringCookie: ethtoolRxClsFlowDisc}},
+			want: NetDevRxFlowAction{Drop: true},
+		},
+		{
+			name: "wake-on-LAN",
+			nfc:  ethtoolRxnfc{fs: ethtoolRxFlowSpec{ringCookie: ethtoolRxClsFlowWake}},
+			want: NetDevRxFlowAction{WakeOnLAN: true},
+		},
+		{
+			name: "virtual function",
+			nfc:  ethtoolRxnfc{fs: ethtoolRxFlowSpec{ringCookie: 255<<32 | 5}},
+			want: NetDevRxFlowAction{VF: 255, Queue: 5},
+		},
+		{
+			name: "RSS context",
+			nfc: ethtoolRxnfc{
+				fs:              ethtoolRxFlowSpec{flowType: UDP_V6_FLOW | ethtoolFlowRSS, ringCookie: 2},
+				ruleCntOrRssCtx: 4,
+			},
+			want: NetDevRxFlowAction{Queue: 2, UsesRSSContext: true, RSSContext: 4},
+		},
+		{
+			name: "drop with RSS flag",
+			nfc: ethtoolRxnfc{
+				fs:              ethtoolRxFlowSpec{flowType: TCP_V4_FLOW | ethtoolFlowRSS, ringCookie: ethtoolRxClsFlowDisc},
+				ruleCntOrRssCtx: 4,
+			},
+			want: NetDevRxFlowAction{Drop: true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseNetDevRxFlowAction(&tt.nfc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if *got != tt.want {
+				t.Errorf("got %+v, want %+v", *got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseNetDevRxFlowActionUnsupported(t *testing.T) {
+	for _, bit := range []uint{40, 63} {
+		nfc := ethtoolRxnfc{fs: ethtoolRxFlowSpec{ringCookie: uint64(1)<<bit | 62}}
+		got, err := parseNetDevRxFlowAction(&nfc)
+		if got != nil || !errors.Is(err, ErrNotImplemented) {
+			t.Errorf("bit %d: got %+v, error %v; want nil, ErrNotImplemented", bit, got, err)
+		}
 	}
 }
