@@ -45,6 +45,12 @@ const (
 // 32 bits); bits 32-39 hold an optional VF id which we leave zero.
 const ethtoolRxFlowSpecRing = 0x00000000FFFFFFFF
 
+// Special ring_cookie actions from include/uapi/linux/ethtool.h.
+const (
+	ethtoolRxClsFlowDisc = 0xffffffffffffffff // RX_CLS_FLOW_DISC (discard)
+	ethtoolRxClsFlowWake = 0xfffffffffffffffe // RX_CLS_FLOW_WAKE (Wake-on-LAN)
+)
+
 // Flags ORed into ethtoolRxFlowSpec.flowType (FLOW_EXT, FLOW_MAC_EXT and
 // FLOW_RSS in include/uapi/linux/ethtool.h).
 const (
@@ -568,6 +574,67 @@ func parseNetDevRxFlowTable(nfc *ethtoolRxnfc) *NetDevRxFlowTable {
 		Size:             data &^ RX_CLS_LOC_SPECIAL,
 		SpecialLocations: data&RX_CLS_LOC_SPECIAL != 0,
 	}
+}
+
+// NetDevRxFlowAction describes what an RX flow steering rule does with the
+// packets it matches, decoded from the ethtool_rxnfc UAPI in
+// include/uapi/linux/ethtool.h. See ethtool_rx_flow_rule_create() in
+// net/ethtool/ioctl.c for the kernel's corresponding action decoder.
+type NetDevRxFlowAction struct {
+	// Drop is set for rules that discard matching packets.
+	Drop bool
+	// WakeOnLAN is set for rules that use matching packets to wake the system.
+	WakeOnLAN bool
+	// VF is zero for rules that deliver to the device itself, or one more than
+	// the index of the virtual function that receives matching packets.
+	VF uint8
+	// Queue is the receive queue for matching packets, within the VF if VF is
+	// nonzero. If UsesRSSContext is set, Queue is added to the queue that
+	// RSSContext selects instead.
+	Queue uint32
+	// UsesRSSContext is set for rules that spread matching packets over the
+	// queues of RSSContext.
+	UsesRSSContext bool
+	RSSContext     uint32
+}
+
+// NetDevRxFlowActionGet returns the action of the RX flow steering rule at the
+// given location on dev, even if NetDevRxFlowGet does not support the rule's
+// match criteria. If the action uses an unsupported encoding, the returned
+// error wraps ErrNotImplemented.
+func NetDevRxFlowActionGet(dev string, location uint32) (*NetDevRxFlowAction, error) {
+	nfc := ethtoolRxnfc{
+		cmd: ETHTOOL_GRXCLSRULE,
+		fs:  ethtoolRxFlowSpec{location: location},
+	}
+	if err := ethtoolRxnfcIoctl(dev, &nfc); err != nil {
+		return nil, err
+	}
+	return parseNetDevRxFlowAction(&nfc)
+}
+
+func parseNetDevRxFlowAction(nfc *ethtoolRxnfc) (*NetDevRxFlowAction, error) {
+	switch nfc.fs.ringCookie {
+	case ethtoolRxClsFlowDisc:
+		return &NetDevRxFlowAction{Drop: true}, nil
+	case ethtoolRxClsFlowWake:
+		return &NetDevRxFlowAction{WakeOnLAN: true}, nil
+	}
+	// Queue/VF actions use the low 40 bits. Higher bits may encode unsupported
+	// actions, e.g. mlx4's direct QP attachment (EN_ETHTOOL_QP_ATTACH).
+	if nfc.fs.ringCookie>>40 != 0 {
+		return nil, fmt.Errorf("netlink: RX flow rule %d has unsupported action %#x: %w",
+			nfc.fs.location, nfc.fs.ringCookie, ErrNotImplemented)
+	}
+	action := &NetDevRxFlowAction{
+		VF:    uint8(nfc.fs.ringCookie >> 32),
+		Queue: uint32(nfc.fs.ringCookie & ethtoolRxFlowSpecRing),
+	}
+	if nfc.fs.flowType&ethtoolFlowRSS != 0 {
+		action.UsesRSSContext = true
+		action.RSSContext = nfc.ruleCntOrRssCtx
+	}
+	return action, nil
 }
 
 // NetDevRxFlowGet returns the RX flow steering rule at the given location on

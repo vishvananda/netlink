@@ -666,6 +666,10 @@ func TestRxFlowGetUnsupported(t *testing.T) {
 			_, err := NetDevRxFlowTableGet("lo")
 			return err
 		}},
+		{"action", func() error {
+			_, err := NetDevRxFlowActionGet("lo", 0)
+			return err
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -756,5 +760,76 @@ func TestNetDevRxFlowTableGet(t *testing.T) {
 				t.Fatalf("table = %+v, want %+v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestParseNetDevRxFlowAction(t *testing.T) {
+	tests := []struct {
+		name string
+		nfc  ethtoolRxnfc
+		want NetDevRxFlowAction
+	}{
+		{
+			name: "queue",
+			nfc:  ethtoolRxnfc{fs: ethtoolRxFlowSpec{flowType: TCP_V4_FLOW, ringCookie: 62}},
+			want: NetDevRxFlowAction{Queue: 62},
+		},
+		{
+			name: "queue for a rule NetDevRxFlow cannot represent",
+			nfc:  ethtoolRxnfc{fs: ethtoolRxFlowSpec{flowType: 0x0d | ethtoolFlowExt, ringCookie: 7}},
+			want: NetDevRxFlowAction{Queue: 7},
+		},
+		{
+			name: "drop",
+			nfc:  ethtoolRxnfc{fs: ethtoolRxFlowSpec{ringCookie: ethtoolRxClsFlowDisc}},
+			want: NetDevRxFlowAction{Drop: true},
+		},
+		{
+			name: "wake-on-LAN",
+			nfc:  ethtoolRxnfc{fs: ethtoolRxFlowSpec{ringCookie: ethtoolRxClsFlowWake}},
+			want: NetDevRxFlowAction{WakeOnLAN: true},
+		},
+		{
+			name: "virtual function",
+			nfc:  ethtoolRxnfc{fs: ethtoolRxFlowSpec{ringCookie: 255<<32 | 5}},
+			want: NetDevRxFlowAction{VF: 255, Queue: 5},
+		},
+		{
+			name: "RSS context",
+			nfc: ethtoolRxnfc{
+				fs:              ethtoolRxFlowSpec{flowType: UDP_V6_FLOW | ethtoolFlowRSS, ringCookie: 2},
+				ruleCntOrRssCtx: 4,
+			},
+			want: NetDevRxFlowAction{Queue: 2, UsesRSSContext: true, RSSContext: 4},
+		},
+		{
+			name: "drop with RSS flag",
+			nfc: ethtoolRxnfc{
+				fs:              ethtoolRxFlowSpec{flowType: TCP_V4_FLOW | ethtoolFlowRSS, ringCookie: ethtoolRxClsFlowDisc},
+				ruleCntOrRssCtx: 4,
+			},
+			want: NetDevRxFlowAction{Drop: true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseNetDevRxFlowAction(&tt.nfc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if *got != tt.want {
+				t.Errorf("got %+v, want %+v", *got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseNetDevRxFlowActionUnsupported(t *testing.T) {
+	for _, bit := range []uint{40, 63} {
+		nfc := ethtoolRxnfc{fs: ethtoolRxFlowSpec{ringCookie: uint64(1)<<bit | 62}}
+		got, err := parseNetDevRxFlowAction(&nfc)
+		if got != nil || !errors.Is(err, ErrNotImplemented) {
+			t.Errorf("bit %d: got %+v, error %v; want nil, ErrNotImplemented", bit, got, err)
+		}
 	}
 }
