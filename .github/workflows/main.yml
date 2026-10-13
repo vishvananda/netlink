@@ -9,7 +9,15 @@ on:
 jobs:
 
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          # netlink is Linux-only, but this ensures that netlink builds
+          # without error on macOS, which helps catch missing build tags.
+          - macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v7
 
@@ -18,27 +26,15 @@ jobs:
       with:
         go-version: 1.23
 
-    - name: Kernel Modules
-      run: ./.github/scripts/modprobe.sh
-      shell: bash
-
-    - name: Test
-      run: go test -exec 'sudo --preserve-env=CI,PATH -n' -v ./ ./nl
-
-  build-macos:
-    # netlink is Linux-only, but this ensures that netlink builds without error
-    # on macOS, which helps catch missing build tags.
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: Set up Go
-      uses: actions/setup-go@v7
-      with:
-        go-version: 1.23
-          
     - name: Build
       run: go build ./...
 
-    - name: Test
+    - name: Test (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        ./.github/scripts/modprobe.sh
+        go test -exec 'sudo --preserve-env=CI,PATH -n' -v ./ ./nl
+
+    - name: Test (non-Linux)
+      if: runner.os != 'Linux'
       run: go test ./...
