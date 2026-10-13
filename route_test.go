@@ -2473,12 +2473,22 @@ func TestRouteViaAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	link, err := LinkByName("lo")
+	// The IPv6 gateway must be reachable via a non-loopback device.
+	if err := LinkAdd(&Dummy{LinkAttrs{Name: "dummy0"}}); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("dummy0")
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+	addr := &Addr{
+		IPNet: &net.IPNet{IP: net.ParseIP("2001::2"), Mask: net.CIDRMask(64, 128)},
+		Flags: unix.IFA_F_NODAD,
+	}
+	if err := AddrAdd(link, addr); err != nil {
 		t.Fatal(err)
 	}
 
