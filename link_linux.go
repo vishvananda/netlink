@@ -1033,7 +1033,7 @@ func (h *Handle) LinkSetNsFd(link Link, fd int) error {
 // LinkSetXdpFd adds a bpf function to the driver. The fd must be a bpf
 // program loaded with bpf(type=BPF_PROG_TYPE_XDP)
 func LinkSetXdpFd(link Link, fd int) error {
-	return pkgHandle.LinkSetXdpFdWithFlags(link, fd, 0)
+	return pkgHandle().LinkSetXdpFdWithFlags(link, fd, 0)
 }
 
 func (h *Handle) LinkSetXdpFd(link Link, fd int) error {
@@ -1043,7 +1043,7 @@ func (h *Handle) LinkSetXdpFd(link Link, fd int) error {
 // LinkSetXdpFdWithFlags adds a bpf function to the driver with the given
 // options. The fd must be a bpf program loaded with bpf(type=BPF_PROG_TYPE_XDP)
 func LinkSetXdpFdWithFlags(link Link, fd, flags int) error {
-	return pkgHandle.LinkSetXdpFdWithFlags(link, fd, flags)
+	return pkgHandle().LinkSetXdpFdWithFlags(link, fd, flags)
 }
 
 // LinkSetXdpFdWithFlags adds a bpf function to the driver with the given
