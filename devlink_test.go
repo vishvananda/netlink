@@ -322,7 +322,7 @@ func TestDevlinkGetDeviceResources(t *testing.T) {
 // devlink device parameters can be tested with netdevsim
 // function will create netdevsim/netdevsim<random_id> virtual device that can be used for testing
 // netdevsim module should be loaded to run devlink param tests
-func setupDevlinkDeviceParamTest(t *testing.T) (string, string, func()) {
+func setupDevlinkDeviceParamTest(t *testing.T) (string, string) {
 	t.Helper()
 	skipUnlessRoot(t)
 	skipUnlessKModuleLoaded(t, "netdevsim")
@@ -330,14 +330,15 @@ func setupDevlinkDeviceParamTest(t *testing.T) (string, string, func()) {
 	err := os.WriteFile("/sys/bus/netdevsim/new_device", []byte(testDevID), 0755)
 	assert.NoError(t, err, "can't create netdevsim test device %s", testDevID)
 
-	return "netdevsim", "netdevsim" + testDevID, func() {
+	t.Cleanup(func() {
 		_ = os.WriteFile("/sys/bus/netdevsim/del_device", []byte(testDevID), 0755)
-	}
+	})
+
+	return "netdevsim", "netdevsim" + testDevID
 }
 
 func TestDevlinkGetDeviceParams(t *testing.T) {
-	busName, deviceName, cleanupFunc := setupDevlinkDeviceParamTest(t)
-	defer cleanupFunc()
+	busName, deviceName := setupDevlinkDeviceParamTest(t)
 	params, err := DevlinkGetDeviceParams(busName, deviceName)
 	assert.NoError(t, err, "failed to get device(%s/%s) parameters", busName, deviceName)
 	assert.NotEmpty(t, params, "parameters list is empty")
@@ -348,8 +349,7 @@ func TestDevlinkGetDeviceParams(t *testing.T) {
 }
 
 func TestDevlinkGetDeviceParamByName(t *testing.T) {
-	busName, deviceName, cleanupFunc := setupDevlinkDeviceParamTest(t)
-	defer cleanupFunc()
+	busName, deviceName := setupDevlinkDeviceParamTest(t)
 	param, err := DevlinkGetDeviceParamByName(busName, deviceName, "max_macs")
 	assert.NoError(t, err, "failed to get device(%s/%s) parameter max_macs", busName, deviceName)
 
@@ -357,8 +357,7 @@ func TestDevlinkGetDeviceParamByName(t *testing.T) {
 }
 
 func TestDevlinkSetDeviceParam(t *testing.T) {
-	busName, deviceName, cleanupFunc := setupDevlinkDeviceParamTest(t)
-	defer cleanupFunc()
+	busName, deviceName := setupDevlinkDeviceParamTest(t)
 	err := DevlinkSetDeviceParam(busName, deviceName, "max_macs", nl.DEVLINK_PARAM_CMODE_DRIVERINIT, uint32(8))
 	assert.NoError(t, err, "failed to set max_macs for device(%s/%s)", busName, deviceName)
 
