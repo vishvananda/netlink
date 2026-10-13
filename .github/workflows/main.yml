@@ -22,6 +22,11 @@ jobs:
           # netlink is Linux-only, but this ensures that netlink builds
           # without error on macOS, which helps catch missing build tags.
           - macos-latest
+        go: [stable]
+        include:
+          # Oldest supported Go version (as per go.mod).
+          - os: ubuntu-24.04
+            go: go.mod
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v7
@@ -29,7 +34,8 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: 1.23
+        go-version: ${{ matrix.go != 'go.mod' && matrix.go || '' }}
+        go-version-file: ${{ matrix.go == 'go.mod' && 'go.mod' || '' }}
 
     - name: Build
       run: go build ./...
