@@ -21,21 +21,21 @@ import (
 
 func TestDevLinkGetDeviceList(t *testing.T) {
 	minKernelRequired(t, 4, 12)
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
+	setUpNetlinkTestWithKModule(t, "devlink")
 	_, err := DevLinkGetDeviceList()
 	assert.NoError(t, err)
 }
 
 func TestDevLinkGetDeviceByName(t *testing.T) {
 	minKernelRequired(t, 4, 12)
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
+	setUpNetlinkTestWithKModule(t, "devlink")
 	_, err := DevLinkGetDeviceByName("foo", "bar")
 	assert.NoError(t, err)
 }
 
 func TestDevLinkSetEswitchMode(t *testing.T) {
 	minKernelRequired(t, 4, 12)
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
+	setUpNetlinkTestWithKModule(t, "devlink")
 	dev, err := DevLinkGetDeviceByName("foo", "bar")
 	assert.NoError(t, err)
 
@@ -303,7 +303,7 @@ func areInfoStructsEqual(first *DevlinkDeviceInfo, second *DevlinkDeviceInfo) bo
 
 func TestDevlinkGetDeviceResources(t *testing.T) {
 	minKernelRequired(t, 5, 11)
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "devlink"))
+	setUpNetlinkTestWithKModule(t, "devlink")
 
 	if bus == "" || device == "" {
 		//TODO: setup netdevsim device instead of getting device from flags

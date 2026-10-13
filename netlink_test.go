@@ -21,8 +21,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type tearDownNetlinkTest func()
-
 func skipUnlessRoot(t testing.TB) {
 	t.Helper()
 
@@ -64,7 +62,7 @@ func skipUnlessKModuleLoaded(t *testing.T, moduleNames ...string) {
 	}
 }
 
-func setUpNetlinkTest(t testing.TB) tearDownNetlinkTest {
+func setUpNetlinkTest(t testing.TB) {
 	skipUnlessRoot(t)
 	// Lock the OS thread, then record original namespace
 	runtime.LockOSThread()
@@ -82,7 +80,7 @@ func setUpNetlinkTest(t testing.TB) tearDownNetlinkTest {
 		t.Fatal("Failed to create new namespace:", err)
 	}
 
-	return func() {
+	t.Cleanup(func() {
 		// Close the new namespace handle
 		ns.Close()
 		// Restore the original namespace
@@ -92,11 +90,11 @@ func setUpNetlinkTest(t testing.TB) tearDownNetlinkTest {
 		_ = origNS.Close()
 		// Unlock the OS thread
 		runtime.UnlockOSThread()
-	}
+	})
 }
 
 // setUpNamedNetlinkTest create a temporary named names space with a random name
-func setUpNamedNetlinkTest(t *testing.T) (string, tearDownNetlinkTest) {
+func setUpNamedNetlinkTest(t *testing.T) string {
 	skipUnlessRoot(t)
 
 	origNS, err := netns.Get()
@@ -117,22 +115,21 @@ func setUpNamedNetlinkTest(t *testing.T) (string, tearDownNetlinkTest) {
 	}
 
 	runtime.LockOSThread()
-	cleanup := func() {
+	t.Cleanup(func() {
 		ns.Close()
 		netns.DeleteNamed(name)
 		netns.Set(origNS)
 		runtime.UnlockOSThread()
-	}
+	})
 
 	if err := netns.Set(ns); err != nil {
-		cleanup()
 		t.Fatal("Failed entering new namespace", err)
 	}
 
-	return name, cleanup
+	return name
 }
 
-func setUpNetlinkTestWithLoopback(t *testing.T) tearDownNetlinkTest {
+func setUpNetlinkTestWithLoopback(t *testing.T) {
 	skipUnlessRoot(t)
 
 	runtime.LockOSThread()
@@ -151,6 +148,16 @@ func setUpNetlinkTestWithLoopback(t *testing.T) tearDownNetlinkTest {
 		t.Fatal("Failed to create new netns:", err)
 	}
 
+	// Teardown: restore original namespace and thread state
+	t.Cleanup(func() {
+		ns.Close()
+		if err := netns.Set(origNS); err != nil {
+			t.Fatalf("Failed to restore original namespace: %v", err)
+		}
+		_ = origNS.Close()
+		runtime.UnlockOSThread()
+	})
+
 	// Bring up the loopback interface
 	link, err := LinkByName("lo")
 	if err != nil {
@@ -158,16 +165,6 @@ func setUpNetlinkTestWithLoopback(t *testing.T) tearDownNetlinkTest {
 	}
 	if err := LinkSetUp(link); err != nil {
 		t.Fatalf("Failed to bring up \"lo\" in new netns: %v", err)
-	}
-
-	// Teardown: restore original namespace and thread state
-	return func() {
-		ns.Close()
-		if err := netns.Set(origNS); err != nil {
-			t.Fatalf("Failed to restore original namespace: %v", err)
-		}
-		_ = origNS.Close()
-		runtime.UnlockOSThread()
 	}
 }
 
@@ -180,17 +177,16 @@ func setUpF(t *testing.T, path, value string) {
 	file.WriteString(value)
 }
 
-func setUpMPLSNetlinkTest(t *testing.T) tearDownNetlinkTest {
+func setUpMPLSNetlinkTest(t *testing.T) {
 	if _, err := os.Stat("/proc/sys/net/mpls/platform_labels"); err != nil {
 		t.Skip("Test requires MPLS support.")
 	}
-	f := setUpNetlinkTest(t)
+	setUpNetlinkTest(t)
 	setUpF(t, "/proc/sys/net/mpls/platform_labels", "1024")
 	setUpF(t, "/proc/sys/net/mpls/conf/lo/input", "1")
-	return f
 }
 
-func setUpSEG6NetlinkTest(t *testing.T) tearDownNetlinkTest {
+func setUpSEG6NetlinkTest(t *testing.T) {
 	// check if SEG6 options are enabled in Kernel Config
 	cmd := exec.Command("uname", "-r")
 	var out bytes.Buffer
@@ -217,14 +213,14 @@ func setUpSEG6NetlinkTest(t *testing.T) tearDownNetlinkTest {
 	// Add CONFIG_IPV6_SEG6_HMAC to support seg6_hamc
 	// key := string("CONFIG_IPV6_SEG6_HMAC=y")
 
-	return setUpNetlinkTest(t)
+	setUpNetlinkTest(t)
 }
 
-func setUpNetlinkTestWithKModule(t *testing.T, moduleNames ...string) tearDownNetlinkTest {
+func setUpNetlinkTestWithKModule(t *testing.T, moduleNames ...string) {
 	skipUnlessKModuleLoaded(t, moduleNames...)
-	return setUpNetlinkTest(t)
+	setUpNetlinkTest(t)
 }
-func setUpNamedNetlinkTestWithKModule(t *testing.T, moduleNames ...string) (string, tearDownNetlinkTest) {
+func setUpNamedNetlinkTestWithKModule(t *testing.T, moduleNames ...string) string {
 	file, err := ioutil.ReadFile("/proc/modules")
 	if err != nil {
 		t.Fatal("Failed to open /proc/modules", err)

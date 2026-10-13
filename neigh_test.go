@@ -68,7 +68,7 @@ func dumpContainsProxy(dump []Neigh, p proxyEntry) bool {
 }
 
 func TestNeighAddDelLLIPAddr(t *testing.T) {
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "ip_gre"))
+	setUpNetlinkTestWithKModule(t, "ip_gre")
 
 	dummy := Gretun{
 		LinkAttrs: LinkAttrs{Name: "neigh0"},
@@ -114,7 +114,7 @@ func TestNeighAddDelLLIPAddr(t *testing.T) {
 }
 
 func TestNeighAddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	dummy := Dummy{LinkAttrs{Name: "neigh0"}}
 	if err := LinkAdd(&dummy); err != nil {
@@ -189,7 +189,7 @@ func TestNeighAddDel(t *testing.T) {
 }
 
 func TestNeighAddDelProxy(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	dummy := Dummy{LinkAttrs{Name: "neigh0"}}
 	if err := LinkAdd(&dummy); err != nil {
@@ -289,7 +289,7 @@ func expectNeighUpdate(ch <-chan NeighUpdate, expected []NeighUpdate) bool {
 }
 
 func TestNeighSubscribe(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	dummy := &Dummy{LinkAttrs{Name: "neigh0"}}
 	if err := LinkAdd(dummy); err != nil {
@@ -339,7 +339,7 @@ func TestNeighSubscribe(t *testing.T) {
 }
 
 func TestNeighSubscribeWithOptions(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	ch := make(chan NeighUpdate)
 	done := make(chan struct{})
@@ -550,7 +550,7 @@ func TestNeighSubscribeListExisting(t *testing.T) {
 }
 
 func TestNeighListExecuteStateFilter(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// Create dummy iface
 	dummy := Dummy{LinkAttrs{Name: "neigh0"}}
