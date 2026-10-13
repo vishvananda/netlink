@@ -13,7 +13,12 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - ubuntu-26.04
+          - ubuntu-22.04-arm
+          - ubuntu-24.04-arm
+          - ubuntu-26.04-arm
           # netlink is Linux-only, but this ensures that netlink builds
           # without error on macOS, which helps catch missing build tags.
           - macos-latest
