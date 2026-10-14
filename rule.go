@@ -80,3 +80,9 @@ type RuleUIDRange struct {
 	Start uint32
 	End   uint32
 }
+
+// RuleUpdate is sent when a rule changes - type is RTM_NEWRULE or RTM_DELRULE.
+type RuleUpdate struct {
+	Type uint16
+	Rule
+}

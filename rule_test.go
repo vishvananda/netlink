@@ -5,9 +5,11 @@ package netlink
 
 import (
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
 
@@ -50,6 +52,9 @@ func TestRuleAddDel(t *testing.T) {
 	if len(rules) != len(rulesBegin)+1 {
 		t.Fatal("Rule not added properly")
 	}
+
+	// The kernel normalizes an unset (RTN_UNSPEC) type to RTN_UNICAST.
+	rule.Type = unix.RTN_UNICAST
 
 	// find this rule
 	found := ruleExists(rules, *rule)
@@ -586,6 +591,10 @@ func runRuleListFiltered(t *testing.T, family int, srcNet, dstNet *net.IPNet) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Cleanup(setUpNetlinkTest(t))
 			rule := tt.preRun()
+			if rule != nil && rule.Type == 0 {
+				// The kernel normalizes an unset (RTN_UNSPEC) type to RTN_UNICAST.
+				rule.Type = unix.RTN_UNICAST
+			}
 			wantRules, wantErr := tt.setupWant(rule)
 
 			rules, err := RuleListFiltered(family, tt.ruleFilter, tt.filterMask)
@@ -666,6 +675,219 @@ func TestRuleString(t *testing.T) {
 	}
 }
 
+func expectRuleUpdate(ch <-chan RuleUpdate, t uint16, want Rule) bool {
+	timeout := time.After(time.Minute)
+	for {
+		select {
+		case update, ok := <-ch:
+			if !ok {
+				return false
+			}
+			if update.Type != t {
+				continue
+			}
+			if update.Rule.Priority != want.Priority {
+				continue
+			}
+			if update.Rule.Table != want.Table {
+				continue
+			}
+			if (update.Rule.Src == nil) != (want.Src == nil) {
+				continue
+			}
+			if update.Rule.Src != nil && !update.Rule.Src.IP.Equal(want.Src.IP) {
+				continue
+			}
+			return true
+		case <-timeout:
+			return false
+		}
+	}
+}
+
+func TestRuleSubscribe(t *testing.T) {
+	skipUnlessRoot(t)
+	defer setUpNetlinkTest(t)()
+
+	ch := make(chan RuleUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	if err := RuleSubscribe(ch, done); err != nil {
+		t.Fatal(err)
+	}
+
+	src := &net.IPNet{
+		IP:   net.IPv4(192, 168, 1, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+	rule := NewRule()
+	rule.Src = src
+	rule.Table = unix.RT_TABLE_MAIN
+	rule.Priority = 1000
+	if err := RuleAdd(rule); err != nil {
+		t.Fatal(err)
+	}
+	if !expectRuleUpdate(ch, unix.RTM_NEWRULE, *rule) {
+		t.Fatal("Add update not received as expected")
+	}
+	if err := RuleDel(rule); err != nil {
+		t.Fatal(err)
+	}
+	if !expectRuleUpdate(ch, unix.RTM_DELRULE, *rule) {
+		t.Fatal("Del update not received as expected")
+	}
+}
+
+func TestRuleSubscribeWithOptions(t *testing.T) {
+	skipUnlessRoot(t)
+	defer setUpNetlinkTest(t)()
+
+	ch := make(chan RuleUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	var lastError atomic.Value
+	defer func() {
+		if err, ok := lastError.Load().(error); ok && err != nil {
+			t.Fatalf("Fatal error received during subscription: %v", err)
+		}
+	}()
+	if err := RuleSubscribeWithOptions(ch, done, RuleSubscribeOptions{
+		ErrorCallback: func(err error) {
+			lastError.Store(err)
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	src := &net.IPNet{
+		IP:   net.IPv4(192, 168, 2, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+	rule := NewRule()
+	rule.Src = src
+	rule.Table = unix.RT_TABLE_MAIN
+	rule.Priority = 1001
+	if err := RuleAdd(rule); err != nil {
+		t.Fatal(err)
+	}
+	if !expectRuleUpdate(ch, unix.RTM_NEWRULE, *rule) {
+		t.Fatal("Add update not received as expected")
+	}
+}
+
+func TestRuleSubscribeAt(t *testing.T) {
+	skipUnlessRoot(t)
+
+	newNs, err := netns.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer newNs.Close()
+
+	nh, err := NewHandleAt(newNs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nh.Close()
+
+	ch := make(chan RuleUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	if err := RuleSubscribeAt(newNs, ch, done); err != nil {
+		t.Fatal(err)
+	}
+
+	src := &net.IPNet{
+		IP:   net.IPv4(192, 169, 1, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+	rule := NewRule()
+	rule.Src = src
+	rule.Table = unix.RT_TABLE_MAIN
+	rule.Priority = 1002
+	if err := nh.RuleAdd(rule); err != nil {
+		t.Fatal(err)
+	}
+	if !expectRuleUpdate(ch, unix.RTM_NEWRULE, *rule) {
+		t.Fatal("Add update not received as expected")
+	}
+	if err := nh.RuleDel(rule); err != nil {
+		t.Fatal(err)
+	}
+	if !expectRuleUpdate(ch, unix.RTM_DELRULE, *rule) {
+		t.Fatal("Del update not received as expected")
+	}
+}
+
+func TestRuleSubscribeListExisting(t *testing.T) {
+	skipUnlessRoot(t)
+
+	newNs, err := netns.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer newNs.Close()
+
+	nh, err := NewHandleAt(newNs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nh.Close()
+
+	src := &net.IPNet{
+		IP:   net.IPv4(10, 10, 10, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+	rule10 := NewRule()
+	rule10.Src = src
+	rule10.Table = unix.RT_TABLE_MAIN
+	rule10.Priority = 1010
+	if err := nh.RuleAdd(rule10); err != nil {
+		t.Fatal(err)
+	}
+
+	ch := make(chan RuleUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	if err := RuleSubscribeWithOptions(ch, done, RuleSubscribeOptions{
+		Namespace:    &newNs,
+		ListExisting: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectRuleUpdate(ch, unix.RTM_NEWRULE, *rule10) {
+		t.Fatal("Existing add update not received as expected")
+	}
+
+	src2 := &net.IPNet{
+		IP:   net.IPv4(192, 169, 2, 0),
+		Mask: net.CIDRMask(24, 32),
+	}
+	rule := NewRule()
+	rule.Src = src2
+	rule.Table = unix.RT_TABLE_MAIN
+	rule.Priority = 1011
+	if err := nh.RuleAdd(rule); err != nil {
+		t.Fatal(err)
+	}
+	if !expectRuleUpdate(ch, unix.RTM_NEWRULE, *rule) {
+		t.Fatal("Add update not received as expected")
+	}
+	if err := nh.RuleDel(rule); err != nil {
+		t.Fatal(err)
+	}
+	if !expectRuleUpdate(ch, unix.RTM_DELRULE, *rule) {
+		t.Fatal("Del update not received as expected")
+	}
+	if err := nh.RuleDel(rule10); err != nil {
+		t.Fatal(err)
+	}
+	if !expectRuleUpdate(ch, unix.RTM_DELRULE, *rule10) {
+		t.Fatal("Del update not received as expected")
+	}
+}
+
 func ruleExists(rules []Rule, rule Rule) bool {
 	for i := range rules {
 		if ruleEquals(rules[i], rule) {
@@ -695,3 +917,4 @@ func ruleEquals(a, b Rule) bool {
 		(ptrEqual(a.Mask, b.Mask) || (a.Mark != 0 &&
 			(a.Mask == nil && *b.Mask == 0xFFFFFFFF || b.Mask == nil && *a.Mask == 0xFFFFFFFF)))
 }
+
