@@ -24,6 +24,8 @@ type (
 type LinkAttrs struct {
 	Index          int
 	MTU            int
+	MinMTU         int
+	MaxMTU         int
 	TxQLen         int // Transmit Queue Length
 	Name           string
 	HardwareAddr   net.HardwareAddr
