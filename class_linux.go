@@ -381,22 +381,22 @@ func parseTcStats2(data []byte) (*ClassStatistics, error) {
 		switch datum.Attr.Type {
 		case nl.TCA_STATS_BASIC:
 			if err := parseGnetStats(datum.Value, stats.Basic); err != nil {
-				return nil, fmt.Errorf("Failed to parse ClassStatistics.Basic with: %v\n%s",
+				return nil, fmt.Errorf("Failed to parse ClassStatistics.Basic with: %w\n%s",
 					err, hex.Dump(datum.Value))
 			}
 		case nl.TCA_STATS_QUEUE:
 			if err := parseGnetStats(datum.Value, stats.Queue); err != nil {
-				return nil, fmt.Errorf("Failed to parse ClassStatistics.Queue with: %v\n%s",
+				return nil, fmt.Errorf("Failed to parse ClassStatistics.Queue with: %w\n%s",
 					err, hex.Dump(datum.Value))
 			}
 		case nl.TCA_STATS_RATE_EST:
 			if err := parseGnetStats(datum.Value, stats.RateEst); err != nil {
-				return nil, fmt.Errorf("Failed to parse ClassStatistics.RateEst with: %v\n%s",
+				return nil, fmt.Errorf("Failed to parse ClassStatistics.RateEst with: %w\n%s",
 					err, hex.Dump(datum.Value))
 			}
 		case nl.TCA_STATS_BASIC_HW:
 			if err := parseGnetStats(datum.Value, stats.BasicHw); err != nil {
-				return nil, fmt.Errorf("Failed to parse ClassStatistics.BasicHw with: %v\n%s",
+				return nil, fmt.Errorf("Failed to parse ClassStatistics.BasicHw with: %w\n%s",
 					err, hex.Dump(datum.Value))
 			}
 		}
