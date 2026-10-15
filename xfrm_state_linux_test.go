@@ -226,7 +226,7 @@ func TestXfrmStateWithIfid(t *testing.T) {
 }
 
 func TestXfrmStateWithSADir(t *testing.T) {
-	minKernelRequired(t, 4, 19)
+	minKernelRequired(t, 6, 10)
 	t.Cleanup(setUpNetlinkTest(t))
 
 	state := getBaseState()
@@ -290,7 +290,7 @@ func TestXfrmStateWithPcpunumWithoutSADir(t *testing.T) {
 }
 
 func TestXfrmStateWithPcpunumWithSADir(t *testing.T) {
-	minKernelRequired(t, 4, 19)
+	minKernelRequired(t, 6, 13)
 	t.Cleanup(setUpNetlinkTest(t))
 
 	state := getBaseState()

@@ -9,36 +9,43 @@ on:
 jobs:
 
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - ubuntu-26.04
+          - ubuntu-22.04-arm
+          - ubuntu-24.04-arm
+          - ubuntu-26.04-arm
+          # netlink is Linux-only, but this ensures that netlink builds
+          # without error on macOS, which helps catch missing build tags.
+          - macos-latest
+        go: [stable]
+        include:
+          # Oldest supported Go version (as per go.mod).
+          - os: ubuntu-24.04
+            go: go.mod
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v7
       with:
-        go-version: 1.23
+        go-version: ${{ matrix.go != 'go.mod' && matrix.go || '' }}
+        go-version-file: ${{ matrix.go == 'go.mod' && 'go.mod' || '' }}
 
-    - name: Kernel Modules
-      run: ./.github/scripts/modprobe.sh
-      shell: bash
-
-    - name: Test
-      run: sudo -E env PATH=$PATH go test -v ./ ./nl
-
-  build-macos:
-    # netlink is Linux-only, but this ensures that netlink builds without error
-    # on macOS, which helps catch missing build tags.
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: 1.23
-          
     - name: Build
       run: go build ./...
 
-    - name: Test
+    - name: Test (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        ./.github/scripts/modprobe.sh
+        go test -exec 'sudo --preserve-env=CI,PATH -n' -v ./ ./nl
+
+    - name: Test (non-Linux)
+      if: runner.os != 'Linux'
       run: go test ./...
