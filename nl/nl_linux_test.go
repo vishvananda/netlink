@@ -63,6 +63,15 @@ func TestIfInfomsgDeserializeSerialize(t *testing.T) {
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
 
+// Truncated IfInfomsg (e.g. 4-byte NLMSG_DONE/ERROR payload) must not panic.
+func TestDeserializeIfInfomsgShortBuffer(t *testing.T) {
+	b := make([]byte, 4)
+	msg := DeserializeIfInfomsg(b)
+	if msg != nil {
+		t.Fatalf("expected nil for %d-byte IfInfomsg (need %d)", len(b), unix.SizeofIfInfomsg)
+	}
+}
+
 func TestIfSocketCloses(t *testing.T) {
 	nlSock, err := Subscribe(unix.NETLINK_ROUTE, unix.RTNLGRP_NEIGH)
 	if err != nil {
