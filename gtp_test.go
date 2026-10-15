@@ -9,7 +9,7 @@ import (
 )
 
 func TestPDPv0AddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "gtp"))
+	setUpNetlinkTestWithKModule(t, "gtp")
 
 	if err := LinkAdd(testGTPLink(t)); err != nil {
 		t.Fatal(err)
@@ -61,7 +61,7 @@ func TestPDPv0AddDel(t *testing.T) {
 }
 
 func TestPDPv1AddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "gtp"))
+	setUpNetlinkTestWithKModule(t, "gtp")
 
 	if err := LinkAdd(testGTPLink(t)); err != nil {
 		t.Fatal(err)

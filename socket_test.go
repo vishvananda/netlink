@@ -12,7 +12,7 @@ import (
 )
 
 func TestSocketGet(t *testing.T) {
-	t.Cleanup(setUpNetlinkTestWithLoopback(t))
+	setUpNetlinkTestWithLoopback(t)
 
 	type Addr struct {
 		IP   net.IP
@@ -102,7 +102,7 @@ func TestSocketGet(t *testing.T) {
 }
 
 func TestSocketDestroy(t *testing.T) {
-	t.Cleanup(setUpNetlinkTestWithLoopback(t))
+	setUpNetlinkTestWithLoopback(t)
 
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {

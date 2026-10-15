@@ -308,7 +308,7 @@ func TestValidateNetDevName(t *testing.T) {
 // netdevsim does NOT implement rxnfc, so a full insert->list->delete round trip
 // requires real hardware (bnxt/gve) and is not run here.
 func TestRxFlowInsertReachesDriver(t *testing.T) {
-	t.Cleanup(setUpNetlinkTestWithLoopback(t))
+	setUpNetlinkTestWithLoopback(t)
 
 	location, err := NetDevRxFlowInsert("lo", NetDevRxFlow{
 		Match:    TCP4Flow{TCPIP4Fields{DstPort: 80, DstPortMask: 0xffff}},

@@ -9,7 +9,7 @@ import (
 )
 
 func TestTbfAddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestTbfAddDel(t *testing.T) {
 }
 
 func TestHtbAddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestHtbAddDel(t *testing.T) {
 }
 
 func TestSfqAddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "sch_sfq"))
+	setUpNetlinkTestWithKModule(t, "sch_sfq")
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestSfqAddDel(t *testing.T) {
 }
 
 func TestPrioAddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestPrioAddDel(t *testing.T) {
 }
 
 func TestTbfAddHtbReplaceDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -326,7 +326,7 @@ func TestTbfAddHtbReplaceDel(t *testing.T) {
 }
 
 func TestTbfAddTbfChangeDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +416,7 @@ func TestTbfAddTbfChangeDel(t *testing.T) {
 func TestFqAddChangeDel(t *testing.T) {
 	minKernelRequired(t, 3, 11)
 
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -472,7 +472,7 @@ func TestFqAddChangeDel(t *testing.T) {
 func TestFqHorizon(t *testing.T) {
 	minKernelRequired(t, 5, 7)
 
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -528,7 +528,7 @@ func TestFqHorizon(t *testing.T) {
 func TestFqCodelAddChangeDel(t *testing.T) {
 	minKernelRequired(t, 3, 4)
 
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -579,7 +579,7 @@ func TestFqCodelAddChangeDel(t *testing.T) {
 }
 
 func TestIngressAddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}

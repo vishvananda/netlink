@@ -16,7 +16,7 @@ import (
 )
 
 func TestRouteAddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -153,7 +153,7 @@ func TestRouteAddDel(t *testing.T) {
 }
 
 func TestRouteUnreachableEmptyDst(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// Test adding unreachable/blackhole/prohibit routes with empty Dst.IP
 	// These route types don't need RTA_DST to be serialized
@@ -210,7 +210,7 @@ func TestRouteUnreachableEmptyDst(t *testing.T) {
 }
 
 func TestRoute6AddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// create dummy interface
 	// IPv6 route added to loopback interface will be unreachable
@@ -405,7 +405,7 @@ func TestRoute6AddDel(t *testing.T) {
 }
 
 func TestRouteChange(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -470,7 +470,7 @@ func TestRouteChange(t *testing.T) {
 }
 
 func TestRouteReplace(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -530,7 +530,7 @@ func TestRouteReplace(t *testing.T) {
 }
 
 func TestRouteAppend(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -593,7 +593,7 @@ func TestRouteAppend(t *testing.T) {
 }
 
 func TestRouteAddIncomplete(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -631,7 +631,7 @@ func expectRouteUpdate(ch <-chan RouteUpdate, t, f uint16, dst net.IP) bool {
 }
 
 func TestRouteSubscribe(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	ch := make(chan RouteUpdate)
 	done := make(chan struct{})
@@ -675,7 +675,7 @@ func TestRouteSubscribe(t *testing.T) {
 }
 
 func TestRouteSubscribeWithOptions(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	ch := make(chan RouteUpdate)
 	done := make(chan struct{})
@@ -863,7 +863,7 @@ func TestRouteSubscribeListExisting(t *testing.T) {
 }
 
 func TestRouteFilterAllTables(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -943,7 +943,7 @@ func TestRouteFilterAllTables(t *testing.T) {
 }
 
 func TestRouteFilterByFamily(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	const table int = 999
 
@@ -1015,7 +1015,7 @@ func TestRouteFilterByFamily(t *testing.T) {
 }
 
 func TestRouteFilterIterCanStop(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -1080,7 +1080,7 @@ func TestRouteFilterIterCanStop(t *testing.T) {
 }
 
 func BenchmarkRouteListFilteredNew(b *testing.B) {
-	b.Cleanup(setUpNetlinkTest(b))
+	setUpNetlinkTest(b)
 
 	link, err := setUpRoutesBench(b)
 
@@ -1102,7 +1102,7 @@ func BenchmarkRouteListFilteredNew(b *testing.B) {
 }
 
 func BenchmarkRouteListIter(b *testing.B) {
-	b.Cleanup(setUpNetlinkTest(b))
+	setUpNetlinkTest(b)
 
 	link, err := setUpRoutesBench(b)
 
@@ -1166,7 +1166,7 @@ func tableIDIn(ids []int, id int) bool {
 }
 
 func TestRouteExtraFields(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -1241,7 +1241,7 @@ func TestRouteExtraFields(t *testing.T) {
 }
 
 func TestRouteMultiPath(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -1417,7 +1417,7 @@ func TestRouteIifOption(t *testing.T) {
 }
 
 func TestRouteOifOption(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// setup two interfaces: eth0, eth1
 	err := LinkAdd(&Dummy{LinkAttrs{Name: "eth0"}})
@@ -1526,7 +1526,7 @@ func TestRouteOifOption(t *testing.T) {
 }
 
 func TestFilterDefaultRoute(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -1607,7 +1607,7 @@ func TestFilterDefaultRoute(t *testing.T) {
 }
 
 func TestMPLSRouteAddDel(t *testing.T) {
-	t.Cleanup(setUpMPLSNetlinkTest(t))
+	setUpMPLSNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -1658,7 +1658,7 @@ func TestIP6tnlRouteAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -2074,7 +2074,7 @@ func TestSEG6LocalEqual(t *testing.T) {
 func TestSEG6RouteAddDel(t *testing.T) {
 	// add/del routes with LWTUNNEL_SEG6 to/from interface.
 	// Test both seg6 modes: encap (IPv4) & inline (IPv6).
-	t.Cleanup(setUpSEG6NetlinkTest(t))
+	setUpSEG6NetlinkTest(t)
 
 	// loopback doesn't work on recent kernels, so use a dummy
 	err := LinkAdd(&Dummy{LinkAttrs{Name: "dummy0"}})
@@ -2173,7 +2173,7 @@ func TestSEG6RouteAddDel(t *testing.T) {
 // add/del routes with LWTUNNEL_ENCAP_SEG6_LOCAL to/from dummy interface.
 func TestSEG6LocalRoute6AddDel(t *testing.T) {
 	minKernelRequired(t, 4, 14)
-	t.Cleanup(setUpSEG6NetlinkTest(t))
+	setUpSEG6NetlinkTest(t)
 
 	// create dummy interface
 	// IPv6 route added to loopback interface will be unreachable
@@ -2303,7 +2303,7 @@ func TestMTURouteAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -2356,7 +2356,7 @@ func TestMTULockRouteAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -2413,7 +2413,7 @@ func TestRtoMinLockRouteAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	link, err := LinkByName("lo")
@@ -2466,7 +2466,7 @@ func TestRtoMinLockRouteAddDel(t *testing.T) {
 
 func TestRouteViaAddDel(t *testing.T) {
 	minKernelRequired(t, 5, 4)
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	_, err := RouteList(nil, FAMILY_V4)
 	if err != nil {
@@ -2534,7 +2534,7 @@ func TestRouteViaAddDel(t *testing.T) {
 // during encoding, preventing kernel invalid gateway rejections.
 func TestRouteMultiPathViaIPv4Mapped(t *testing.T) {
 	minKernelRequired(t, 5, 4)
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	link, err := LinkByName("lo")
 	if err != nil {
@@ -2625,7 +2625,7 @@ func TestViaEncodeIPv4Mapped(t *testing.T) {
 }
 
 func TestRouteUIDOption(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// setup eth0 so that network is reachable
 	err := LinkAdd(&Dummy{LinkAttrs{Name: "eth0"}})
@@ -2720,7 +2720,7 @@ func TestRouteUIDOption(t *testing.T) {
 }
 
 func TestRouteFWMarkOption(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// setup eth0 so that network is reachable
 	err := LinkAdd(&Dummy{LinkAttrs{Name: "eth0"}})
@@ -2864,7 +2864,7 @@ func TestRouteFWMarkOption(t *testing.T) {
 }
 
 func TestRouteGetFIBMatchOption(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	err := LinkAdd(&Dummy{LinkAttrs{Name: "eth0"}})
 	if err != nil {
@@ -2922,7 +2922,7 @@ func TestRouteGetFIBMatchOption(t *testing.T) {
 }
 
 func TestRouteNHID(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// create dummy interface
 	if err := LinkAdd(&Dummy{LinkAttrs: LinkAttrs{Name: "dummy0"}}); err != nil {

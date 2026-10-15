@@ -15,7 +15,7 @@ import (
 )
 
 func TestExecuteIterRetryInterruptedRetriesDumpInterrupted(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	const linkCount = 1000
 	links := make([]Link, 0, linkCount)
