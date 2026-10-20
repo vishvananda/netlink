@@ -2473,10 +2473,20 @@ func TestRouteViaAddDel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	link, err := LinkByName("lo")
+	// loopback doesn't work on recent kernels, so use a dummy
+	if err := LinkAdd(&Dummy{LinkAttrs{Name: "dummy0"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := LinkByName("dummy0")
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if err := LinkDel(link); err != nil {
+			t.Logf("failed to delete device: %v", err)
+		}
+	})
 
 	if err := LinkSetUp(link); err != nil {
 		t.Fatal(err)
@@ -2491,6 +2501,7 @@ func TestRouteViaAddDel(t *testing.T) {
 		MultiPath: []*NexthopInfo{
 			{
 				LinkIndex: link.Attrs().Index,
+				Flags:     int(FLAG_ONLINK),
 				Via: &Via{
 					AddrFamily: FAMILY_V6,
 					Addr:       net.ParseIP("2001::1"),
