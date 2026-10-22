@@ -863,6 +863,14 @@ func TestLinkAddDelGretap(t *testing.T) {
 		OKey:      0x101,
 		Local:     net.ParseIP("2001:db8:abcd::1"),
 		Remote:    net.ParseIP("2001:db8:ef33::2")})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "bar4"},
+		IKey:      0x101,
+		OKey:      0x202,
+		PMtuDisc:  1,
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 2)})
 }
 
 func TestLinkAddDelGretun(t *testing.T) {
