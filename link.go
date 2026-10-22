@@ -1305,6 +1305,7 @@ type Gretun struct {
 	EncapSport uint16
 	EncapDport uint16
 	FlowBased  bool
+	IgnoreDf   bool
 }
 
 func (gretun *Gretun) Attrs() *LinkAttrs {

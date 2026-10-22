@@ -594,6 +594,9 @@ func compareGretun(t *testing.T, expected, actual *Gretun) {
 	if actual.FlowBased != expected.FlowBased {
 		t.Fatal("Gretun.FlowBased doesn't match")
 	}
+	if actual.IgnoreDf != expected.IgnoreDf {
+		t.Fatal("Gretun.IgnoreDf doesn't match")
+	}
 }
 
 func compareVxlan(t *testing.T, expected, actual *Vxlan) {
@@ -899,6 +902,12 @@ func TestLinkAddDelGretun(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "foo6"},
 		Local:     net.ParseIP("2001:db8:abcd::1"),
 		Remote:    net.ParseIP("2001:db8:ef33::2")})
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "bar4"},
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 2),
+		IgnoreDf:  true})
 }
 
 func TestLinkAddDelGreLink(t *testing.T) {
@@ -966,6 +975,35 @@ func TestLinkModifyGreIgnoreDf(t *testing.T) {
 		t.Fatal(err)
 	}
 	compareGretap(t, gretap, link.(*Gretap))
+
+	gretun := &Gretun{
+		LinkAttrs: LinkAttrs{Name: "bar"},
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 3),
+		IgnoreDf:  true}
+	if err := LinkAdd(gretun); err != nil {
+		t.Fatal(err)
+	}
+
+	gretun.IgnoreDf = false
+	if err := LinkModify(gretun); err != nil {
+		t.Fatal(err)
+	}
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGretun(t, gretun, link.(*Gretun))
+
+	gretun.PMtuDisc = 1
+	if err := LinkModify(gretun); err != nil {
+		t.Fatal(err)
+	}
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGretun(t, gretun, link.(*Gretun))
 }
 
 func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
