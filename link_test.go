@@ -466,6 +466,10 @@ func compareGeneve(t *testing.T, expected, actual *Geneve) {
 }
 
 func compareGretap(t *testing.T, expected, actual *Gretap) {
+	if actual.Link != expected.Link {
+		t.Fatal("Gretap.Link doesn't match")
+	}
+
 	if actual.IKey != expected.IKey {
 		t.Fatal("Gretap.IKey doesn't match")
 	}
@@ -885,6 +889,39 @@ func TestLinkAddDelGretun(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "foo6"},
 		Local:     net.ParseIP("2001:db8:abcd::1"),
 		Remote:    net.ParseIP("2001:db8:ef33::2")})
+}
+
+func TestLinkAddDelGreLink(t *testing.T) {
+	t.Cleanup(setUpNetlinkTest(t))
+
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "bar4", ParentIndex: parent.Attrs().Index},
+		Link:      uint32(parent.Attrs().Index),
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 2)})
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "bar6", ParentIndex: parent.Attrs().Index},
+		Link:      uint32(parent.Attrs().Index),
+		Local:     net.ParseIP("2001:db8:abcd::1"),
+		Remote:    net.ParseIP("2001:db8:ef33::2")})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "baz4", ParentIndex: parent.Attrs().Index},
+		Link:      uint32(parent.Attrs().Index),
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 3)})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "baz6", ParentIndex: parent.Attrs().Index},
+		Link:      uint32(parent.Attrs().Index),
+		Local:     net.ParseIP("2001:db8:abcd::1"),
+		Remote:    net.ParseIP("2001:db8:ef33::3")})
 }
 
 func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
