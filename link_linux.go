@@ -3506,9 +3506,9 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 	gre := link.(*Gretap)
 	for _, datum := range data {
 		switch datum.Attr.Type {
-		case nl.IFLA_GRE_OKEY:
-			gre.IKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_IKEY:
+			gre.IKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_OKEY:
 			gre.OKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_LOCAL:
 			gre.Local = net.IP(datum.Value)
