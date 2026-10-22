@@ -3588,6 +3588,7 @@ func addGretunAttrs(gre *Gretun, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_FLAGS, nl.Uint16Attr(gre.EncapFlags))
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_SPORT, htons(gre.EncapSport))
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_DPORT, htons(gre.EncapDport))
+	data.AddRtAttr(nl.IFLA_GRE_IGNORE_DF, boolAttr(gre.IgnoreDf))
 }
 
 func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
@@ -3624,6 +3625,8 @@ func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.EncapDport = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_COLLECT_METADATA:
 			gre.FlowBased = true
+		case nl.IFLA_GRE_IGNORE_DF:
+			gre.IgnoreDf = datum.Value[0] != 0
 		}
 	}
 }
