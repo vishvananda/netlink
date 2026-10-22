@@ -3497,9 +3497,7 @@ func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_FLAGS, nl.Uint16Attr(gretap.EncapFlags))
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_SPORT, htons(gretap.EncapSport))
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_DPORT, htons(gretap.EncapDport))
-	if gretap.IgnoreDf != GRETAP_IGNORE_DF_FALSE {
-		data.AddRtAttr(nl.IFLA_GRE_IGNORE_DF, nl.Uint8Attr(uint8(gretap.IgnoreDf)))
-	}
+	data.AddRtAttr(nl.IFLA_GRE_IGNORE_DF, nl.Uint8Attr(uint8(gretap.IgnoreDf)))
 }
 
 func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
@@ -3536,6 +3534,8 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.EncapFlags = native.Uint16(datum.Value[0:2])
 		case nl.IFLA_GRE_COLLECT_METADATA:
 			gre.FlowBased = true
+		case nl.IFLA_GRE_IGNORE_DF:
+			gre.IgnoreDf = GretapIgnoreDf(datum.Value[0])
 		}
 	}
 }
