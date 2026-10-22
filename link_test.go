@@ -529,6 +529,10 @@ func compareGretap(t *testing.T, expected, actual *Gretap) {
 	if actual.FlowBased != expected.FlowBased {
 		t.Fatal("Gretap.FlowBased doesn't match")
 	}
+
+	if actual.IgnoreDf != expected.IgnoreDf {
+		t.Fatal("Gretap.IgnoreDf doesn't match")
+	}
 }
 
 func compareGretun(t *testing.T, expected, actual *Gretun) {
@@ -875,6 +879,12 @@ func TestLinkAddDelGretap(t *testing.T) {
 		PMtuDisc:  1,
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 2)})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "baz4"},
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 3),
+		IgnoreDf:  GRETAP_IGNORE_DF_TRUE})
 }
 
 func TestLinkAddDelGretun(t *testing.T) {
@@ -922,6 +932,40 @@ func TestLinkAddDelGreLink(t *testing.T) {
 		Link:      uint32(parent.Attrs().Index),
 		Local:     net.ParseIP("2001:db8:abcd::1"),
 		Remote:    net.ParseIP("2001:db8:ef33::3")})
+}
+
+func TestLinkModifyGreIgnoreDf(t *testing.T) {
+	t.Cleanup(setUpNetlinkTest(t))
+
+	gretap := &Gretap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 2),
+		IgnoreDf:  GRETAP_IGNORE_DF_TRUE}
+	if err := LinkAdd(gretap); err != nil {
+		t.Fatal(err)
+	}
+
+	gretap.IgnoreDf = GRETAP_IGNORE_DF_FALSE
+	if err := LinkModify(gretap); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGretap(t, gretap, link.(*Gretap))
+
+	// The kernel only accepts PMtuDisc once IgnoreDf has been cleared.
+	gretap.PMtuDisc = 1
+	if err := LinkModify(gretap); err != nil {
+		t.Fatal(err)
+	}
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGretap(t, gretap, link.(*Gretap))
 }
 
 func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {
