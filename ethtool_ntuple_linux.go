@@ -238,7 +238,13 @@ func nativeEthtoolRxnfcLayout() ethtoolRxnfcLayout {
 	return ethtoolRxnfcLayoutAligned8
 }
 
-func serializeEthtoolRxnfc(nfc *ethtoolRxnfc, layout ethtoolRxnfcLayout, ruleCapacity uint32) ([]byte, error) {
+func serializeEthtoolRxnfc(nfc *ethtoolRxnfc, layout ethtoolRxnfcLayout) ([]byte, error) {
+	var ruleCapacity uint32
+	// GRXCLSRLALL needs space for the fixed-size struct plus an array of rule
+	// locations, sized by rule_cnt. Other commands need only the struct.
+	if nfc.cmd == ETHTOOL_GRXCLSRLALL {
+		ruleCapacity = nfc.ruleCntOrRssCtx
+	}
 	bufLen := uint64(layout.size)
 	if ruleCapacity != 0 {
 		locsLen := uint64(layout.ruleLocsOffset) + uint64(ruleCapacity)*4
@@ -483,7 +489,7 @@ func NetDevRxFlowList(dev string) ([]uint32, error) {
 		cmd:             ETHTOOL_GRXCLSRLALL,
 		ruleCntOrRssCtx: n,
 	}
-	buf, err := serializeEthtoolRxnfc(&nfc, layout, n)
+	buf, err := serializeEthtoolRxnfc(&nfc, layout)
 	if err != nil {
 		return nil, err
 	}
@@ -642,10 +648,10 @@ func allZero(b []byte) bool {
 	return true
 }
 
-// ethtoolRxnfcIoctl runs SIOCETHTOOL with a fixed-size ethtool_rxnfc argument.
+// ethtoolRxnfcIoctl runs SIOCETHTOOL with an ethtool_rxnfc argument.
 func ethtoolRxnfcIoctl(dev string, nfc *ethtoolRxnfc) error {
 	layout := nativeEthtoolRxnfcLayout()
-	buf, err := serializeEthtoolRxnfc(nfc, layout, 0)
+	buf, err := serializeEthtoolRxnfc(nfc, layout)
 	if err != nil {
 		return err
 	}

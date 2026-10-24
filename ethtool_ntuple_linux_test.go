@@ -58,7 +58,7 @@ func TestEthtoolRxnfcLayouts(t *testing.T) {
 				fs:              ethtoolRxFlowSpec{ringCookie: 9, location: RX_CLS_LOC_ANY},
 				ruleCntOrRssCtx: 3,
 			}
-			buf, err := serializeEthtoolRxnfc(&nfc, tt.layout, 0)
+			buf, err := serializeEthtoolRxnfc(&nfc, tt.layout)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -125,7 +125,7 @@ func TestRxFlowSerializeTCP4(t *testing.T) {
 	}
 	for _, tt := range ethtoolRxnfcLayoutTests {
 		t.Run(tt.name, func(t *testing.T) {
-			b, err := serializeEthtoolRxnfc(&nfc, tt.layout, 0)
+			b, err := serializeEthtoolRxnfc(&nfc, tt.layout)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -199,7 +199,7 @@ func TestRxFlowSerializeTCPUDP6(t *testing.T) {
 			}
 			for _, layout := range ethtoolRxnfcLayoutTests {
 				t.Run(layout.name, func(t *testing.T) {
-					b, err := serializeEthtoolRxnfc(&nfc, layout.layout, 0)
+					b, err := serializeEthtoolRxnfc(&nfc, layout.layout)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -268,7 +268,7 @@ func TestRxFlowSerializeEther(t *testing.T) {
 	}
 	for _, tt := range ethtoolRxnfcLayoutTests {
 		t.Run(tt.name, func(t *testing.T) {
-			b, err := serializeEthtoolRxnfc(&nfc, tt.layout, 0)
+			b, err := serializeEthtoolRxnfc(&nfc, tt.layout)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -299,12 +299,16 @@ func TestParseNetDevRxFlowLocations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			nfc := ethtoolRxnfc{
 				cmd:             ETHTOOL_GRXCLSRLALL,
-				ruleCntOrRssCtx: 2,
+				ruleCntOrRssCtx: capacity,
 			}
-			buf, err := serializeEthtoolRxnfc(&nfc, tt.layout, capacity)
+			buf, err := serializeEthtoolRxnfc(&nfc, tt.layout)
 			if err != nil {
 				t.Fatal(err)
 			}
+			if want := max(tt.size, tt.ruleLocsOffset+int(capacity)*4); len(buf) != want {
+				t.Fatalf("buffer size = %d, want %d", len(buf), want)
+			}
+			native.PutUint32(buf[tt.ruleCntOrRssCtxOffset:], 2)
 			native.PutUint32(buf[tt.ruleLocsOffset:], 7)
 			native.PutUint32(buf[tt.ruleLocsOffset+4:], 9)
 			native.PutUint32(buf[tt.ruleLocsOffset+8:], 99)
