@@ -533,6 +533,15 @@ func compareGretap(t *testing.T, expected, actual *Gretap) {
 	if actual.IgnoreDf != expected.IgnoreDf {
 		t.Fatal("Gretap.IgnoreDf doesn't match")
 	}
+
+	if actual.FlowInfo != expected.FlowInfo {
+		t.Fatal("Gretap.FlowInfo doesn't match")
+	}
+
+	// The kernel adds its own capability bits to the flags it reports.
+	if actual.TnlFlags&expected.TnlFlags != expected.TnlFlags {
+		t.Fatal("Gretap.TnlFlags doesn't match")
+	}
 }
 
 func compareGretun(t *testing.T, expected, actual *Gretun) {
@@ -596,6 +605,13 @@ func compareGretun(t *testing.T, expected, actual *Gretun) {
 	}
 	if actual.IgnoreDf != expected.IgnoreDf {
 		t.Fatal("Gretun.IgnoreDf doesn't match")
+	}
+	if actual.FlowInfo != expected.FlowInfo {
+		t.Fatal("Gretun.FlowInfo doesn't match")
+	}
+	// The kernel adds its own capability bits to the flags it reports.
+	if actual.TnlFlags&expected.TnlFlags != expected.TnlFlags {
+		t.Fatal("Gretun.TnlFlags doesn't match")
 	}
 }
 
@@ -888,6 +904,13 @@ func TestLinkAddDelGretap(t *testing.T) {
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 3),
 		IgnoreDf:  GRETAP_IGNORE_DF_TRUE})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "baz6"},
+		Local:     net.ParseIP("2001:db8:abcd::1"),
+		Remote:    net.ParseIP("2001:db8:ef33::4"),
+		FlowInfo:  0x02012345,
+		TnlFlags:  IP6_TNL_F_USE_ORIG_TCLASS})
 }
 
 func TestLinkAddDelGretun(t *testing.T) {
@@ -908,6 +931,13 @@ func TestLinkAddDelGretun(t *testing.T) {
 		Local:     net.IPv4(127, 0, 0, 1),
 		Remote:    net.IPv4(127, 0, 0, 2),
 		IgnoreDf:  true})
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "bar6"},
+		Local:     net.ParseIP("2001:db8:abcd::1"),
+		Remote:    net.ParseIP("2001:db8:ef33::3"),
+		FlowInfo:  0x02012345,
+		TnlFlags:  IP6_TNL_F_USE_ORIG_TCLASS})
 }
 
 func TestLinkAddDelGreLink(t *testing.T) {

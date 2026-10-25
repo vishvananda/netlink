@@ -3498,6 +3498,12 @@ func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_SPORT, htons(gretap.EncapSport))
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_DPORT, htons(gretap.EncapDport))
 	data.AddRtAttr(nl.IFLA_GRE_IGNORE_DF, nl.Uint8Attr(uint8(gretap.IgnoreDf)))
+	if gretap.FlowInfo != 0 {
+		data.AddRtAttr(nl.IFLA_GRE_FLOWINFO, htonl(gretap.FlowInfo))
+	}
+	if gretap.TnlFlags != 0 {
+		data.AddRtAttr(nl.IFLA_GRE_FLAGS, nl.Uint32Attr(gretap.TnlFlags))
+	}
 }
 
 func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
@@ -3536,6 +3542,10 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.FlowBased = true
 		case nl.IFLA_GRE_IGNORE_DF:
 			gre.IgnoreDf = GretapIgnoreDf(datum.Value[0])
+		case nl.IFLA_GRE_FLOWINFO:
+			gre.FlowInfo = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_FLAGS:
+			gre.TnlFlags = native.Uint32(datum.Value[0:4])
 		}
 	}
 }
@@ -3588,6 +3598,12 @@ func addGretunAttrs(gre *Gretun, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_SPORT, htons(gre.EncapSport))
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_DPORT, htons(gre.EncapDport))
 	data.AddRtAttr(nl.IFLA_GRE_IGNORE_DF, boolAttr(gre.IgnoreDf))
+	if gre.FlowInfo != 0 {
+		data.AddRtAttr(nl.IFLA_GRE_FLOWINFO, htonl(gre.FlowInfo))
+	}
+	if gre.TnlFlags != 0 {
+		data.AddRtAttr(nl.IFLA_GRE_FLAGS, nl.Uint32Attr(gre.TnlFlags))
+	}
 }
 
 func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
@@ -3626,6 +3642,10 @@ func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.FlowBased = true
 		case nl.IFLA_GRE_IGNORE_DF:
 			gre.IgnoreDf = datum.Value[0] != 0
+		case nl.IFLA_GRE_FLOWINFO:
+			gre.FlowInfo = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_FLAGS:
+			gre.TnlFlags = native.Uint32(datum.Value[0:4])
 		}
 	}
 }

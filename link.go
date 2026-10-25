@@ -1143,6 +1143,8 @@ type Gretap struct {
 	Link       uint32
 	FlowBased  bool
 	IgnoreDf   GretapIgnoreDf
+	FlowInfo   uint32
+	TnlFlags   uint32
 }
 
 type GretapIgnoreDf uint8
@@ -1306,6 +1308,8 @@ type Gretun struct {
 	EncapDport uint16
 	FlowBased  bool
 	IgnoreDf   bool
+	FlowInfo   uint32
+	TnlFlags   uint32
 }
 
 func (gretun *Gretun) Attrs() *LinkAttrs {
