@@ -154,6 +154,10 @@ func TestClassAddDel(t *testing.T) {
 		CorruptProb: 10.0,
 		CorruptCorr: 10,
 		Rate64:      10 * 1024 * 1024,
+		GELossP:     5.0,
+		GELossR:     95.0,
+		GELossH:     20.0,
+		GELossK1:    2.0,
 	}
 	qdiscnetem := NewNetem(qattrs, nattrs)
 	if err := QdiscAdd(qdiscnetem); err != nil {
@@ -197,6 +201,18 @@ func TestClassAddDel(t *testing.T) {
 	}
 	if netem.Rate64 != qdiscnetem.Rate64 {
 		t.Fatalf("Rate64 does not match. Expected %d, got %d", netem.Rate64, qdiscnetem.Rate64)
+	}
+	if netem.GELossP != qdiscnetem.GELossP {
+		t.Fatalf("GELossP does not match. Expected %d, got %d", qdiscnetem.GELossP, netem.GELossP)
+	}
+	if netem.GELossR != qdiscnetem.GELossR {
+		t.Fatalf("GELossR does not match. Expected %d, got %d", qdiscnetem.GELossR, netem.GELossR)
+	}
+	if netem.GELossH != qdiscnetem.GELossH {
+		t.Fatalf("GELossH does not match. Expected %d, got %d", qdiscnetem.GELossH, netem.GELossH)
+	}
+	if netem.GELossK1 != qdiscnetem.GELossK1 {
+		t.Fatalf("GELossK1 does not match. Expected %d, got %d", qdiscnetem.GELossK1, netem.GELossK1)
 	}
 
 	// Deletion
