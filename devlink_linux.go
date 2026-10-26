@@ -765,7 +765,7 @@ func (h *Handle) DevlinkSetDeviceParam(bus string, device string, param string, 
 	// retrive the param type
 	p, err := h.DevlinkGetDeviceParamByName(bus, device, param)
 	if err != nil {
-		return fmt.Errorf("failed to get device param: %v", err)
+		return fmt.Errorf("failed to get device param: %w", err)
 	}
 	paramType := p.Type
 
