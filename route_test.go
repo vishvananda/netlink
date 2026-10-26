@@ -2071,6 +2071,104 @@ func TestSEG6LocalEqual(t *testing.T) {
 		}
 	}
 }
+
+func TestSEG6LocalEncapFlavors(t *testing.T) {
+	var flagsEnd [nl.SEG6_LOCAL_MAX]bool
+	flagsEnd[nl.SEG6_LOCAL_ACTION] = true
+
+	var flagsEndDt46 [nl.SEG6_LOCAL_MAX]bool
+	flagsEndDt46[nl.SEG6_LOCAL_ACTION] = true
+	flagsEndDt46[nl.SEG6_LOCAL_VRFTABLE] = true
+
+	var flagsEndFlavors [nl.SEG6_LOCAL_MAX]bool
+	flagsEndFlavors[nl.SEG6_LOCAL_ACTION] = true
+	flagsEndFlavors[nl.SEG6_LOCAL_FLAVORS] = true
+
+	testCases := []struct {
+		name       string
+		encap      *SEG6LocalEncap
+		wantString string
+	}{
+		{
+			name: "bare End action without flavors",
+			encap: &SEG6LocalEncap{
+				Flags:  flagsEnd,
+				Action: nl.SEG6_LOCAL_ACTION_END,
+			},
+			wantString: "action End",
+		},
+		{
+			name: "End.DT46 with vrftable only, no flavors",
+			encap: &SEG6LocalEncap{
+				Flags:    flagsEndDt46,
+				Action:   nl.SEG6_LOCAL_ACTION_END_DT46,
+				VrfTable: 50,
+			},
+			// SEG6LocalActionString has no case for END_DT46; this documents
+			// existing behavior, unrelated to flavors.
+			wantString: "action unknown vrftable 50",
+		},
+		{
+			name: "End with NEXT-CSID flavor, lblen 32 nflen 16",
+			encap: &SEG6LocalEncap{
+				Flags:  flagsEndFlavors,
+				Action: nl.SEG6_LOCAL_ACTION_END,
+				Flavors: SEG6LocalFlavors{
+					Operation:    nl.SEG6_LOCAL_FLV_OP_NEXT_CSID,
+					LcBlockBits:  32,
+					LcNodeFnBits: 16,
+				},
+			},
+			wantString: "action End flavors NEXT-CSID lblen 32 nflen 16",
+		},
+		{
+			name: "End with NEXT-CSID flavor, lblen 48 nflen 0",
+			encap: &SEG6LocalEncap{
+				Flags:  flagsEndFlavors,
+				Action: nl.SEG6_LOCAL_ACTION_END,
+				Flavors: SEG6LocalFlavors{
+					Operation:    nl.SEG6_LOCAL_FLV_OP_NEXT_CSID,
+					LcBlockBits:  48,
+					LcNodeFnBits: 0,
+				},
+			},
+			wantString: "action End flavors NEXT-CSID lblen 48 nflen 0",
+		},
+		{
+			// The kernel is the source of truth for which operation values are
+			// valid; Decode/Encode round-trip the raw value without validating it.
+			name: "End with an unsupported flavor operation",
+			encap: &SEG6LocalEncap{
+				Flags:  flagsEndFlavors,
+				Action: nl.SEG6_LOCAL_ACTION_END,
+				Flavors: SEG6LocalFlavors{
+					Operation: 99,
+				},
+			},
+			wantString: "action End flavors unknown lblen 0 nflen 0",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf, err := tc.encap.Encode()
+			if err != nil {
+				t.Fatal(err)
+			}
+			decoded := &SEG6LocalEncap{}
+			if err := decoded.Decode(buf); err != nil {
+				t.Fatal(err)
+			}
+			if !decoded.Equal(tc.encap) {
+				t.Fatalf("Decode(Encode(encap)) = %v, want %v", decoded, tc.encap)
+			}
+			if got := tc.encap.String(); got != tc.wantString {
+				t.Fatalf("String() = %q, want %q", got, tc.wantString)
+			}
+		})
+	}
+}
+
 func TestSEG6RouteAddDel(t *testing.T) {
 	// add/del routes with LWTUNNEL_SEG6 to/from interface.
 	// Test both seg6 modes: encap (IPv4) & inline (IPv6).
