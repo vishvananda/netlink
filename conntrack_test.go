@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -253,6 +254,201 @@ func TestConntrackTableList(t *testing.T) {
 	// Give a try also to the IPv6 version
 	_, err = h.ConntrackTableList(ConntrackTable, unix.AF_INET6)
 	CheckErrorFail(t, err)
+
+	// Switch back to the original namespace
+	netns.Set(*origns)
+}
+
+// udpFlowPackets returns the forward packet counter of every flow in flows
+// matching the udp flows created by udpFlowCreateProg, keyed by source port.
+func udpFlowPackets(flows []*ConntrackFlow, dstIP string, dstPort, srcPort, count int) map[uint16]uint64 {
+	packets := make(map[uint16]uint64)
+	for _, flow := range flows {
+		if flow.Forward.Protocol == unix.IPPROTO_UDP &&
+			flow.Forward.DstIP.Equal(net.ParseIP(dstIP)) &&
+			flow.Forward.DstPort == uint16(dstPort) &&
+			flow.Forward.SrcPort >= uint16(srcPort) &&
+			flow.Forward.SrcPort < uint16(srcPort+count) {
+			packets[flow.Forward.SrcPort] = flow.Forward.Packets
+		}
+	}
+	return packets
+}
+
+// TestConntrackTableListZeroCounters tests that ZeroCounters zeroes the flow
+// counters after reading them, and that a plain list leaves them alone.
+func TestConntrackTableListZeroCounters(t *testing.T) {
+	skipUnlessRoot(t)
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack"))
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink"))
+
+	// Creates a new namespace and bring up the loopback interface
+	origns, ns, h := nsCreateAndEnter(t)
+	defer netns.Set(*origns)
+	defer origns.Close()
+	defer ns.Close()
+	defer runtime.UnlockOSThread()
+
+	// Flush the table to start fresh
+	CheckErrorFail(t, h.ConntrackTableFlush(ConntrackTable))
+
+	// Create 5 udp flows. No further traffic is generated below, so the
+	// counters stay put until something explicitly zeroes them.
+	const (
+		flows   = 5
+		srcPort = 2000
+		dstIP   = "127.0.0.10"
+		dstPort = 3000
+	)
+	udpFlowCreateProg(t, flows, srcPort, dstIP, dstPort)
+
+	// A plain list reports the counters and must not reset them.
+	first, err := h.ConntrackTableList(ConntrackTable, unix.AF_INET)
+	CheckErrorFail(t, err)
+	firstPackets := udpFlowPackets(first, dstIP, dstPort, srcPort, flows)
+	if len(firstPackets) != flows {
+		t.Fatalf("Found only %d flows over %d", len(firstPackets), flows)
+	}
+	for port, packets := range firstPackets {
+		if packets == 0 {
+			t.Errorf("No packets counted for flow with source port %d", port)
+		}
+	}
+
+	second, err := h.ConntrackTableList(ConntrackTable, unix.AF_INET)
+	CheckErrorFail(t, err)
+	for port, packets := range udpFlowPackets(second, dstIP, dstPort, srcPort, flows) {
+		if packets != firstPackets[port] {
+			t.Errorf("Plain list changed the counters of flow with source port %d: %d != %d",
+				port, packets, firstPackets[port])
+		}
+	}
+
+	// Listing with ZeroCounters still reports the counters collected so far...
+	zeroed, err := h.ConntrackTableListWithOptions(ConntrackTable, unix.AF_INET,
+		ConntrackTableListOptions{ZeroCounters: true})
+	CheckErrorFail(t, err)
+	zeroedPackets := udpFlowPackets(zeroed, dstIP, dstPort, srcPort, flows)
+	if len(zeroedPackets) != flows {
+		t.Fatalf("Found only %d flows over %d when zeroing counters", len(zeroedPackets), flows)
+	}
+	for port, packets := range zeroedPackets {
+		if packets == 0 {
+			t.Errorf("No packets reported for flow with source port %d when zeroing counters", port)
+		}
+	}
+
+	// ...but the next read sees them reset, with the flows themselves intact.
+	after, err := h.ConntrackTableList(ConntrackTable, unix.AF_INET)
+	CheckErrorFail(t, err)
+	afterPackets := udpFlowPackets(after, dstIP, dstPort, srcPort, flows)
+	if len(afterPackets) != flows {
+		t.Fatalf("Zeroing the counters dropped flows: found only %d over %d", len(afterPackets), flows)
+	}
+	for port, packets := range afterPackets {
+		if packets != 0 {
+			t.Errorf("Counters of flow with source port %d were not zeroed: %d packets", port, packets)
+		}
+	}
+
+	// Switch back to the original namespace
+	netns.Set(*origns)
+}
+
+// TestConntrackTableListZeroCountersTableGuard tests that ZeroCounters is
+// rejected for any table other than ConntrackTable. Message type 3 only means
+// GET_CTRZERO in the conntrack subsystem: in the expect subsystem it is
+// EXP_GET_STATS_CPU, so honouring the option there would dump per-CPU stats
+// instead of flows.
+func TestConntrackTableListZeroCountersTableGuard(t *testing.T) {
+	skipUnlessRoot(t)
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack"))
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink"))
+
+	// Creates a new namespace and bring up the loopback interface
+	origns, ns, h := nsCreateAndEnter(t)
+	defer netns.Set(*origns)
+	defer origns.Close()
+	defer ns.Close()
+	defer runtime.UnlockOSThread()
+
+	// Rejected: the expect table has no counters to zero.
+	_, err := h.ConntrackTableListWithOptions(ConntrackExpectTable, unix.AF_INET,
+		ConntrackTableListOptions{ZeroCounters: true})
+	if err == nil {
+		t.Fatal("ERROR expected listing the expect table with ZeroCounters to fail")
+	}
+	if !strings.Contains(err.Error(), "ZeroCounters") {
+		t.Fatalf("ERROR expected a ZeroCounters error, got: %s", err)
+	}
+
+	// Accepted: the conntrack table with ZeroCounters.
+	_, err = h.ConntrackTableListWithOptions(ConntrackTable, unix.AF_INET,
+		ConntrackTableListOptions{ZeroCounters: true})
+	CheckError(t, err)
+
+	// Accepted: the expect table without ZeroCounters.
+	_, err = h.ConntrackTableListWithOptions(ConntrackExpectTable, unix.AF_INET,
+		ConntrackTableListOptions{})
+	CheckError(t, err)
+
+	// Switch back to the original namespace
+	netns.Set(*origns)
+}
+
+// TestConntrackTableListWithOptionsDefault tests that zero-value options behave
+// like ConntrackTableList, which is implemented in terms of them.
+func TestConntrackTableListWithOptionsDefault(t *testing.T) {
+	skipUnlessRoot(t)
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack"))
+	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink"))
+
+	// Creates a new namespace and bring up the loopback interface
+	origns, ns, h := nsCreateAndEnter(t)
+	defer netns.Set(*origns)
+	defer origns.Close()
+	defer ns.Close()
+	defer runtime.UnlockOSThread()
+
+	// Flush the table to start fresh
+	CheckErrorFail(t, h.ConntrackTableFlush(ConntrackTable))
+
+	const (
+		flows   = 5
+		srcPort = 4000
+		dstIP   = "127.0.0.20"
+		dstPort = 5000
+	)
+	udpFlowCreateProg(t, flows, srcPort, dstIP, dstPort)
+
+	plain, err := h.ConntrackTableList(ConntrackTable, unix.AF_INET)
+	CheckErrorFail(t, err)
+	withOptions, err := h.ConntrackTableListWithOptions(ConntrackTable, unix.AF_INET,
+		ConntrackTableListOptions{})
+	CheckErrorFail(t, err)
+
+	// Compare the flows found rather than the whole structures: timeouts tick
+	// down between the two dumps.
+	plainPackets := udpFlowPackets(plain, dstIP, dstPort, srcPort, flows)
+	if len(plainPackets) != flows {
+		t.Fatalf("Found only %d flows over %d", len(plainPackets), flows)
+	}
+	withOptionsPackets := udpFlowPackets(withOptions, dstIP, dstPort, srcPort, flows)
+	if len(withOptionsPackets) != len(plainPackets) {
+		t.Fatalf("Default options found %d flows, ConntrackTableList found %d",
+			len(withOptionsPackets), len(plainPackets))
+	}
+	for port, packets := range plainPackets {
+		got, ok := withOptionsPackets[port]
+		if !ok {
+			t.Errorf("Default options missed the flow with source port %d", port)
+			continue
+		}
+		// A plain list must not have zeroed anything.
+		if got != packets {
+			t.Errorf("Flow with source port %d has %d packets, expected %d", port, got, packets)
+		}
+	}
 
 	// Switch back to the original namespace
 	netns.Set(*origns)
