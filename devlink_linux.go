@@ -562,7 +562,7 @@ func parseDevLinkAllPortList(msgs [][]byte) ([]*DevlinkPort, error) {
 	return ports, nil
 }
 
-// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// DevLinkGetAllPortList provides a pointer to devlink ports and nil error,
 // otherwise returns an error code.
 // If the returned error is [ErrDumpInterrupted], results may be inconsistent
 // or incomplete.
@@ -589,12 +589,55 @@ func (h *Handle) DevLinkGetAllPortList() ([]*DevlinkPort, error) {
 	return ports, executeErr
 }
 
-// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// DevLinkGetAllPortList provides a pointer to devlink ports and nil error,
 // otherwise returns an error code.
 // If the returned error is [ErrDumpInterrupted], results may be inconsistent
 // or incomplete.
 func DevLinkGetAllPortList() ([]*DevlinkPort, error) {
 	return pkgHandle().DevLinkGetAllPortList()
+}
+
+// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// otherwise returns an error code. The ports are scoped to the provided
+// device.
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
+func (h *Handle) DevLinkGetPortList(Bus string, Device string) ([]*DevlinkPort, error) {
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PORT_GET, Bus, Device)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Flags |= unix.NLM_F_DUMP
+	msgs, executeErr := req.Execute(unix.NETLINK_GENERIC, 0)
+	if executeErr != nil && !errors.Is(executeErr, ErrDumpInterrupted) {
+		return nil, executeErr
+	}
+
+	ports, err := parseDevLinkAllPortList(msgs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Linux kernels prior to 6.6 ignored attributes passed to the dump command,
+	// leading to a full dump.
+	scoped := make([]*DevlinkPort, 0, len(ports))
+	for _, port := range ports {
+		if port.BusName == Bus && port.DeviceName == Device {
+			scoped = append(scoped, port)
+		}
+	}
+
+	return scoped, executeErr
+}
+
+// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// otherwise returns an error code. The ports are scoped to the provided
+// device.
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
+func DevLinkGetPortList(Bus string, Device string) ([]*DevlinkPort, error) {
+	return pkgHandle().DevLinkGetPortList(Bus, Device)
 }
 
 func parseDevlinkPortMsg(msgs [][]byte) (*DevlinkPort, error) {
@@ -610,7 +653,7 @@ func parseDevlinkPortMsg(msgs [][]byte) (*DevlinkPort, error) {
 	return port, nil
 }
 
-// DevLinkGetPortByIndexprovides a pointer to devlink device and nil error,
+// DevLinkGetPortByIndex provides a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func (h *Handle) DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint32) (*DevlinkPort, error) {
 

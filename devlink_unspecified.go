@@ -19,6 +19,10 @@ func DevLinkGetAllPortList() ([]*DevlinkPort, error) {
 	return nil, ErrNotImplemented
 }
 
+func DevLinkGetPortList(Bus string, Device string) ([]*DevlinkPort, error) {
+	return nil, ErrNotImplemented
+}
+
 func DevlinkGetDeviceResources(bus string, device string) (*DevlinkResources, error) {
 	return nil, ErrNotImplemented
 }
