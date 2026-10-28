@@ -511,6 +511,16 @@ func (port *DevlinkPort) parseAttributes(attrs []syscall.NetlinkRouteAttr) error
 					port.Fn.State = uint8(nested.Value[0])
 				case nl.DEVLINK_PORT_FN_ATTR_OPSTATE:
 					port.Fn.OpState = uint8(nested.Value[0])
+				case nl.DEVLINK_PORT_FN_ATTR_CAPS:
+					caps := nl.DeserializeUint32Bitfield(nested.Value)
+					port.Fn.RoCESupported = caps.Selector&nl.DEVLINK_PORT_FN_CAP_ROCE != 0
+					port.Fn.RoCE = port.Fn.RoCESupported && caps.Value&nl.DEVLINK_PORT_FN_CAP_ROCE != 0
+					port.Fn.MigratableSupported = caps.Selector&nl.DEVLINK_PORT_FN_CAP_MIGRATABLE != 0
+					port.Fn.Migratable = port.Fn.MigratableSupported && caps.Value&nl.DEVLINK_PORT_FN_CAP_MIGRATABLE != 0
+					port.Fn.IPsecCryptoSupported = caps.Selector&nl.DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO != 0
+					port.Fn.IPsecCrypto = port.Fn.IPsecCryptoSupported && caps.Value&nl.DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO != 0
+					port.Fn.IPsecPacketSupported = caps.Selector&nl.DEVLINK_PORT_FN_CAP_IPSEC_PACKET != 0
+					port.Fn.IPsecPacket = port.Fn.IPsecPacketSupported && caps.Value&nl.DEVLINK_PORT_FN_CAP_IPSEC_PACKET != 0
 				}
 			}
 		case nl.DEVLINK_ATTR_PORT_NUMBER:
@@ -905,6 +915,36 @@ func (h *Handle) DevlinkPortFnSet(Bus string, Device string, PortIndex uint32, F
 	if FnAttrs.StateValid {
 		fnAttr.AddRtAttr(nl.DEVLINK_PORT_FN_ATTR_STATE, nl.Uint8Attr(FnAttrs.FnAttrs.State))
 	}
+
+	var caps nl.Uint32Bitfield
+	if FnAttrs.RoCEValid {
+		caps.Selector |= nl.DEVLINK_PORT_FN_CAP_ROCE
+		if FnAttrs.FnAttrs.RoCE {
+			caps.Value |= nl.DEVLINK_PORT_FN_CAP_ROCE
+		}
+	}
+	if FnAttrs.MigratableValid {
+		caps.Selector |= nl.DEVLINK_PORT_FN_CAP_MIGRATABLE
+		if FnAttrs.FnAttrs.Migratable {
+			caps.Value |= nl.DEVLINK_PORT_FN_CAP_MIGRATABLE
+		}
+	}
+	if FnAttrs.IPsecCryptoValid {
+		caps.Selector |= nl.DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO
+		if FnAttrs.FnAttrs.IPsecCrypto {
+			caps.Value |= nl.DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO
+		}
+	}
+	if FnAttrs.IPsecPacketValid {
+		caps.Selector |= nl.DEVLINK_PORT_FN_CAP_IPSEC_PACKET
+		if FnAttrs.FnAttrs.IPsecPacket {
+			caps.Value |= nl.DEVLINK_PORT_FN_CAP_IPSEC_PACKET
+		}
+	}
+	if caps.Selector != 0 {
+		fnAttr.AddRtAttr(nl.DEVLINK_PORT_FN_ATTR_CAPS, caps.Serialize())
+	}
+
 	req.AddData(fnAttr)
 
 	_, err = req.Execute(unix.NETLINK_GENERIC, 0)
