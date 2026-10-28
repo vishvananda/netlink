@@ -466,6 +466,10 @@ func compareGeneve(t *testing.T, expected, actual *Geneve) {
 }
 
 func compareGretap(t *testing.T, expected, actual *Gretap) {
+	if actual.Link != expected.Link {
+		t.Fatal("Gretap.Link doesn't match")
+	}
+
 	if actual.IKey != expected.IKey {
 		t.Fatal("Gretap.IKey doesn't match")
 	}
@@ -524,6 +528,19 @@ func compareGretap(t *testing.T, expected, actual *Gretap) {
 
 	if actual.FlowBased != expected.FlowBased {
 		t.Fatal("Gretap.FlowBased doesn't match")
+	}
+
+	if actual.IgnoreDf != expected.IgnoreDf {
+		t.Fatal("Gretap.IgnoreDf doesn't match")
+	}
+
+	if actual.FlowInfo != expected.FlowInfo {
+		t.Fatal("Gretap.FlowInfo doesn't match")
+	}
+
+	// The kernel adds its own capability bits to the flags it reports.
+	if actual.TnlFlags&expected.TnlFlags != expected.TnlFlags {
+		t.Fatal("Gretap.TnlFlags doesn't match")
 	}
 }
 
@@ -585,6 +602,16 @@ func compareGretun(t *testing.T, expected, actual *Gretun) {
 	}
 	if actual.FlowBased != expected.FlowBased {
 		t.Fatal("Gretun.FlowBased doesn't match")
+	}
+	if actual.IgnoreDf != expected.IgnoreDf {
+		t.Fatal("Gretun.IgnoreDf doesn't match")
+	}
+	if actual.FlowInfo != expected.FlowInfo {
+		t.Fatal("Gretun.FlowInfo doesn't match")
+	}
+	// The kernel adds its own capability bits to the flags it reports.
+	if actual.TnlFlags&expected.TnlFlags != expected.TnlFlags {
+		t.Fatal("Gretun.TnlFlags doesn't match")
 	}
 }
 
@@ -863,6 +890,27 @@ func TestLinkAddDelGretap(t *testing.T) {
 		OKey:      0x101,
 		Local:     net.ParseIP("2001:db8:abcd::1"),
 		Remote:    net.ParseIP("2001:db8:ef33::2")})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "bar4"},
+		IKey:      0x101,
+		OKey:      0x202,
+		PMtuDisc:  1,
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 2)})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "baz4"},
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 3),
+		IgnoreDf:  GRETAP_IGNORE_DF_TRUE})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "baz6"},
+		Local:     net.ParseIP("2001:db8:abcd::1"),
+		Remote:    net.ParseIP("2001:db8:ef33::4"),
+		FlowInfo:  0x02012345,
+		TnlFlags:  IP6_TNL_F_USE_ORIG_TCLASS})
 }
 
 func TestLinkAddDelGretun(t *testing.T) {
@@ -877,6 +925,115 @@ func TestLinkAddDelGretun(t *testing.T) {
 		LinkAttrs: LinkAttrs{Name: "foo6"},
 		Local:     net.ParseIP("2001:db8:abcd::1"),
 		Remote:    net.ParseIP("2001:db8:ef33::2")})
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "bar4"},
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 2),
+		IgnoreDf:  true})
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "bar6"},
+		Local:     net.ParseIP("2001:db8:abcd::1"),
+		Remote:    net.ParseIP("2001:db8:ef33::3"),
+		FlowInfo:  0x02012345,
+		TnlFlags:  IP6_TNL_F_USE_ORIG_TCLASS})
+}
+
+func TestLinkAddDelGreLink(t *testing.T) {
+	t.Cleanup(setUpNetlinkTest(t))
+
+	parent := &Dummy{LinkAttrs{Name: "foo"}}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "bar4", ParentIndex: parent.Attrs().Index},
+		Link:      uint32(parent.Attrs().Index),
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 2)})
+
+	testLinkAddDel(t, &Gretun{
+		LinkAttrs: LinkAttrs{Name: "bar6", ParentIndex: parent.Attrs().Index},
+		Link:      uint32(parent.Attrs().Index),
+		Local:     net.ParseIP("2001:db8:abcd::1"),
+		Remote:    net.ParseIP("2001:db8:ef33::2")})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "baz4", ParentIndex: parent.Attrs().Index},
+		Link:      uint32(parent.Attrs().Index),
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 3)})
+
+	testLinkAddDel(t, &Gretap{
+		LinkAttrs: LinkAttrs{Name: "baz6", ParentIndex: parent.Attrs().Index},
+		Link:      uint32(parent.Attrs().Index),
+		Local:     net.ParseIP("2001:db8:abcd::1"),
+		Remote:    net.ParseIP("2001:db8:ef33::3")})
+}
+
+func TestLinkModifyGreIgnoreDf(t *testing.T) {
+	t.Cleanup(setUpNetlinkTest(t))
+
+	gretap := &Gretap{
+		LinkAttrs: LinkAttrs{Name: "foo"},
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 2),
+		IgnoreDf:  GRETAP_IGNORE_DF_TRUE}
+	if err := LinkAdd(gretap); err != nil {
+		t.Fatal(err)
+	}
+
+	gretap.IgnoreDf = GRETAP_IGNORE_DF_FALSE
+	if err := LinkModify(gretap); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGretap(t, gretap, link.(*Gretap))
+
+	// The kernel only accepts PMtuDisc once IgnoreDf has been cleared.
+	gretap.PMtuDisc = 1
+	if err := LinkModify(gretap); err != nil {
+		t.Fatal(err)
+	}
+	link, err = LinkByName("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGretap(t, gretap, link.(*Gretap))
+
+	gretun := &Gretun{
+		LinkAttrs: LinkAttrs{Name: "bar"},
+		Local:     net.IPv4(127, 0, 0, 1),
+		Remote:    net.IPv4(127, 0, 0, 3),
+		IgnoreDf:  true}
+	if err := LinkAdd(gretun); err != nil {
+		t.Fatal(err)
+	}
+
+	gretun.IgnoreDf = false
+	if err := LinkModify(gretun); err != nil {
+		t.Fatal(err)
+	}
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGretun(t, gretun, link.(*Gretun))
+
+	gretun.PMtuDisc = 1
+	if err := LinkModify(gretun); err != nil {
+		t.Fatal(err)
+	}
+	link, err = LinkByName("bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareGretun(t, gretun, link.(*Gretun))
 }
 
 func TestLinkAddDelGretunPointToMultiPoint(t *testing.T) {

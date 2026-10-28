@@ -3497,8 +3497,12 @@ func addGretapAttrs(gretap *Gretap, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_FLAGS, nl.Uint16Attr(gretap.EncapFlags))
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_SPORT, htons(gretap.EncapSport))
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_DPORT, htons(gretap.EncapDport))
-	if gretap.IgnoreDf != GRETAP_IGNORE_DF_FALSE {
-		data.AddRtAttr(nl.IFLA_GRE_IGNORE_DF, nl.Uint8Attr(uint8(gretap.IgnoreDf)))
+	data.AddRtAttr(nl.IFLA_GRE_IGNORE_DF, nl.Uint8Attr(uint8(gretap.IgnoreDf)))
+	if gretap.FlowInfo != 0 {
+		data.AddRtAttr(nl.IFLA_GRE_FLOWINFO, htonl(gretap.FlowInfo))
+	}
+	if gretap.TnlFlags != 0 {
+		data.AddRtAttr(nl.IFLA_GRE_FLAGS, nl.Uint32Attr(gretap.TnlFlags))
 	}
 }
 
@@ -3506,9 +3510,11 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 	gre := link.(*Gretap)
 	for _, datum := range data {
 		switch datum.Attr.Type {
-		case nl.IFLA_GRE_OKEY:
-			gre.IKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_LINK:
+			gre.Link = native.Uint32(datum.Value[0:4])
 		case nl.IFLA_GRE_IKEY:
+			gre.IKey = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_OKEY:
 			gre.OKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_LOCAL:
 			gre.Local = net.IP(datum.Value)
@@ -3534,6 +3540,12 @@ func parseGretapData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.EncapFlags = native.Uint16(datum.Value[0:2])
 		case nl.IFLA_GRE_COLLECT_METADATA:
 			gre.FlowBased = true
+		case nl.IFLA_GRE_IGNORE_DF:
+			gre.IgnoreDf = GretapIgnoreDf(datum.Value[0])
+		case nl.IFLA_GRE_FLOWINFO:
+			gre.FlowInfo = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_FLAGS:
+			gre.TnlFlags = native.Uint32(datum.Value[0:4])
 		}
 	}
 }
@@ -3585,12 +3597,21 @@ func addGretunAttrs(gre *Gretun, linkInfo *nl.RtAttr) {
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_FLAGS, nl.Uint16Attr(gre.EncapFlags))
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_SPORT, htons(gre.EncapSport))
 	data.AddRtAttr(nl.IFLA_GRE_ENCAP_DPORT, htons(gre.EncapDport))
+	data.AddRtAttr(nl.IFLA_GRE_IGNORE_DF, boolAttr(gre.IgnoreDf))
+	if gre.FlowInfo != 0 {
+		data.AddRtAttr(nl.IFLA_GRE_FLOWINFO, htonl(gre.FlowInfo))
+	}
+	if gre.TnlFlags != 0 {
+		data.AddRtAttr(nl.IFLA_GRE_FLAGS, nl.Uint32Attr(gre.TnlFlags))
+	}
 }
 
 func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
 	gre := link.(*Gretun)
 	for _, datum := range data {
 		switch datum.Attr.Type {
+		case nl.IFLA_GRE_LINK:
+			gre.Link = native.Uint32(datum.Value[0:4])
 		case nl.IFLA_GRE_IKEY:
 			gre.IKey = ntohl(datum.Value[0:4])
 		case nl.IFLA_GRE_OKEY:
@@ -3619,6 +3640,12 @@ func parseGretunData(link Link, data []syscall.NetlinkRouteAttr) {
 			gre.EncapDport = ntohs(datum.Value[0:2])
 		case nl.IFLA_GRE_COLLECT_METADATA:
 			gre.FlowBased = true
+		case nl.IFLA_GRE_IGNORE_DF:
+			gre.IgnoreDf = datum.Value[0] != 0
+		case nl.IFLA_GRE_FLOWINFO:
+			gre.FlowInfo = ntohl(datum.Value[0:4])
+		case nl.IFLA_GRE_FLAGS:
+			gre.TnlFlags = native.Uint32(datum.Value[0:4])
 		}
 	}
 }
