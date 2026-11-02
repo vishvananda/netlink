@@ -52,6 +52,12 @@ func ConntrackTableList(table ConntrackTableType, family InetFamily) ([]*Conntra
 	return pkgHandle().ConntrackTableList(table, family)
 }
 
+// ConntrackTableListIter calls the provided callback on all ConntrackFlows in the table of a specific family
+// conntrack -L [table] [options]          List conntrack or expectation table
+func ConntrackTableListIter(table ConntrackTableType, family InetFamily, f func(*ConntrackFlow) bool) error {
+	return pkgHandle().ConntrackTableListIter(table, family, f)
+}
+
 // ConntrackTableFlush flushes all the flows of a specified table
 // conntrack -F [table]            Flush table
 // The flush operation applies to all the family types
@@ -97,18 +103,38 @@ func ConntrackDeleteFilters(table ConntrackTableType, family InetFamily, filters
 // If the returned error is [ErrDumpInterrupted], results may be inconsistent
 // or incomplete.
 func (h *Handle) ConntrackTableList(table ConntrackTableType, family InetFamily) ([]*ConntrackFlow, error) {
-	res, executeErr := h.dumpConntrackTable(table, family)
-	if executeErr != nil && !errors.Is(executeErr, ErrDumpInterrupted) {
-		return nil, executeErr
-	}
-
-	// Deserialize all the flows
 	var result []*ConntrackFlow
-	for _, dataRaw := range res {
-		result = append(result, parseRawData(dataRaw))
-	}
+	executeErr := h.ConntrackTableListIter(table, family, func(flow *ConntrackFlow) bool {
+		result = append(result, flow)
+		return true
+	})
 
 	return result, executeErr
+}
+
+// ConntrackTableListIter calls the provided callback on all ConntrackFlows in the table of a specific family
+// conntrack -L [table] [options]          List conntrack or expectation table
+//
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
+//
+// Flows are normally parsed and passed to the callback as they are received, so
+// the whole table is never held in memory. If the handle was created with
+// RetryInterrupted, the dump is instead buffered in full before any flow
+// reaches the callback, so that an interrupted dump can be retried. Returning
+// false from the callback stops the iteration; the remaining messages are
+// drained and discarded.
+//
+// If the handle was created with a shared NETLINK_NETFILTER
+// socket, that socket stays locked for the duration of
+// the dump, so the callback must not call back into the netlink API on the same
+// handle. Collect the flows of interest and act on them after this returns.
+func (h *Handle) ConntrackTableListIter(table ConntrackTableType, family InetFamily, f func(*ConntrackFlow) bool) error {
+	executeErr := h.iterConntrackTable(table, family, func(msg []byte) bool {
+		return f(parseRawData(msg))
+	})
+
+	return executeErr
 }
 
 // ConntrackTableFlush flushes all the flows of a specified table using the netlink handle passed
@@ -234,6 +260,11 @@ func (h *Handle) newConntrackRequest(table ConntrackTableType, family InetFamily
 func (h *Handle) dumpConntrackTable(table ConntrackTableType, family InetFamily) ([][]byte, error) {
 	req := h.newConntrackRequest(table, family, nl.IPCTNL_MSG_CT_GET, unix.NLM_F_DUMP)
 	return req.Execute(unix.NETLINK_NETFILTER, 0)
+}
+
+func (h *Handle) iterConntrackTable(table ConntrackTableType, family InetFamily, f func([]byte) bool) error {
+	req := h.newConntrackRequest(table, family, nl.IPCTNL_MSG_CT_GET, unix.NLM_F_DUMP)
+	return req.ExecuteIter(unix.NETLINK_NETFILTER, 0, f)
 }
 
 // ProtoInfo wraps an L4-protocol structure - roughly corresponds to the
