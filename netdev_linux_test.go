@@ -64,10 +64,11 @@ func netDevTestNetkitName(t *testing.T) string {
 }
 
 // setupNetdevsim creates a netdevsim device with the requested number of rx/tx
-// queues and returns its netdev plus a cleanup function. netdevsim implements
-// the kernel's queue management ops, so it can act as a physical lease source
-// without real hardware. The test is skipped if netdevsim is unavailable.
-func setupNetdevsim(t *testing.T, queueCount int) (Link, func()) {
+// queues and returns its netdev; the device is removed on test cleanup.
+// netdevsim implements the kernel's queue management ops, so it can act as a
+// physical lease source without real hardware. The test is skipped if
+// netdevsim is unavailable.
+func setupNetdevsim(t *testing.T, queueCount int) Link {
 	t.Helper()
 	skipUnlessKModuleLoaded(t, "netdevsim")
 
@@ -99,9 +100,9 @@ func setupNetdevsim(t *testing.T, queueCount int) (Link, func()) {
 	}
 
 	busDev := fmt.Sprintf("netdevsim%d", id)
-	cleanup := func() {
+	t.Cleanup(func() {
 		_ = os.WriteFile("/sys/bus/netdevsim/del_device", []byte(fmt.Sprintf("%d", id)), 0o200)
-	}
+	})
 
 	// The netdev is created asynchronously and udev renames it to the
 	// predictable "eni<id>np1" form. Resolve it via netlink (LinkByName),
@@ -123,7 +124,6 @@ func setupNetdevsim(t *testing.T, queueCount int) (Link, func()) {
 			}
 		}
 		if time.Now().After(deadline) {
-			cleanup()
 			t.Skipf("netdevsim netdev %q did not appear", wantName)
 		}
 		time.Sleep(20 * time.Millisecond)
@@ -132,10 +132,9 @@ func setupNetdevsim(t *testing.T, queueCount int) (Link, func()) {
 	// queue-get only reports a queue once the device is up and its NAPI is
 	// attached, so bring the device up before returning it.
 	if err := LinkSetUp(link); err != nil {
-		cleanup()
 		t.Fatalf("failed to bring netdevsim %q up: %v", wantName, err)
 	}
-	return link, cleanup
+	return link
 }
 
 // TestNetDevQueueLeaseRoundTrip verifies the full encode and decode path: it
@@ -148,8 +147,7 @@ func TestNetDevQueueLeaseRoundTrip(t *testing.T) {
 	// netdevsim acts as the physical lease source; queue 1 is the real rx
 	// queue we lease (queueCount=2 gives rx queues 0 and 1).
 	const physQueueID = 1
-	sim, simCleanup := setupNetdevsim(t, 2)
-	defer simCleanup()
+	sim := setupNetdevsim(t, 2)
 	physIdx := sim.Attrs().Index
 
 	// netkit pair: only the non-primary (peer) device may lease, and it needs

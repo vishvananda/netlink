@@ -24,7 +24,7 @@ func TestNexthopGroupMemberAndResilientGroupTypes(t *testing.T) {
 }
 
 func TestNexthopAddListDelReplace(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// get loopback interface
 	loop, err := LinkByName("lo")

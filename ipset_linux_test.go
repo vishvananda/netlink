@@ -141,7 +141,7 @@ func TestParseIpsetListResult(t *testing.T) {
 }
 
 func TestIpsetCreateListAddDelDestroy(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	timeout := uint32(3)
 	err := IpsetCreate("my-test-ipset-1", "hash:ip", IpsetCreateOptions{
 		Replace:  true,
@@ -511,7 +511,7 @@ func TestIpsetCreateListAddDelDestroyWithTestCases(t *testing.T) {
 
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
-			t.Cleanup(setUpNetlinkTest(t))
+			setUpNetlinkTest(t)
 
 			err := IpsetCreate(tC.setname, tC.typename, tC.options)
 			if err != nil {
@@ -684,7 +684,7 @@ func TestIpsetBitmapCreateListWithTestCases(t *testing.T) {
 
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
-			t.Cleanup(setUpNetlinkTest(t))
+			setUpNetlinkTest(t)
 
 			err := IpsetCreate(tC.setname, tC.typename, tC.options)
 			if err != nil {
@@ -711,7 +711,7 @@ func TestIpsetBitmapCreateListWithTestCases(t *testing.T) {
 }
 
 func TestIpsetSwap(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	ipset1 := "my-test-ipset-swap-1"
 	ipset2 := "my-test-ipset-swap-2"
@@ -790,7 +790,7 @@ func nextIP(ip net.IP) {
 // TestIpsetMaxElements tests that we can create an ipset containing
 // 128k elements, which is double the default size (64k elements).
 func TestIpsetMaxElements(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	ipsetName := "my-test-ipset-max"
 	maxElements := uint32(128 << 10)
