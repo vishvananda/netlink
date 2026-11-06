@@ -1435,6 +1435,40 @@ func TestLinkAddDelNetkit(t *testing.T) {
 	testLinkAddDel(t, netkit)
 }
 
+func TestNetkitPeerAttrs(t *testing.T) {
+	nk := &Netkit{}
+	got := nk.PeerAttrs()
+	if got == nil {
+		t.Fatal("PeerAttrs returned nil for zero Netkit")
+	}
+	if got.Name != "" || got.MTU != 0 || got.HardwareAddr != nil {
+		t.Fatalf("expected zero peer attrs, got %+v", got)
+	}
+
+	peer := &LinkAttrs{
+		Name:         "bar",
+		MTU:          1400,
+		HardwareAddr: net.HardwareAddr{0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB},
+	}
+	nk.SetPeerAttrs(peer)
+
+	got = nk.PeerAttrs()
+	if got.Name != "bar" {
+		t.Errorf("expected peer name %q, got %q", "bar", got.Name)
+	}
+	if got.MTU != 1400 {
+		t.Errorf("expected peer MTU %d, got %d", 1400, got.MTU)
+	}
+	if !bytes.Equal(got.HardwareAddr, peer.HardwareAddr) {
+		t.Errorf("expected peer hardware addr %s, got %s", peer.HardwareAddr, got.HardwareAddr)
+	}
+
+	peer.Name = "changed"
+	if name := nk.PeerAttrs().Name; name != "bar" {
+		t.Errorf("expected peer name to remain %q after modifying source, got %q", "bar", name)
+	}
+}
+
 func TestLinkAddDelNetkitWithHeadroom(t *testing.T) {
 	minKernelRequired(t, 6, 14)
 	tearDown := setUpNetlinkTest(t)
