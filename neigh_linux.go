@@ -417,29 +417,28 @@ func neighSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- NeighUpdate, done <
 	}
 	if rcvTimeout != nil {
 		if err := s.SetReceiveTimeout(rcvTimeout); err != nil {
+			s.Close()
 			return err
 		}
 	}
 	if rcvbuf != 0 {
 		err = s.SetReceiveBufferSize(rcvbuf, rcvbufForce)
 		if err != nil {
+			s.Close()
 			return err
 		}
 	}
-	if done != nil {
-		go func() {
-			<-done
-			s.Close()
-		}()
-	}
+	stop := closeOnDone(s, done)
 	if listExisting {
 		if err := makeRequest(unix.AF_UNSPEC); err != nil {
+			stop()
 			return err
 		}
 		// We have to wait for NLMSG_DONE before making AF_BRIDGE request
 	}
 	go func() {
 		defer close(ch)
+		defer stop()
 		for {
 			msgs, from, err := s.Receive()
 			if err != nil {
