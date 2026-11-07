@@ -1838,32 +1838,31 @@ func routeSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- RouteUpdate, done <
 	}
 	if rcvTimeout != nil {
 		if err := s.SetReceiveTimeout(rcvTimeout); err != nil {
+			s.Close()
 			return err
 		}
 	}
 	if rcvbuf != 0 {
 		err = s.SetReceiveBufferSize(rcvbuf, rcvbufForce)
 		if err != nil {
+			s.Close()
 			return err
 		}
 	}
-	if done != nil {
-		go func() {
-			<-done
-			s.Close()
-		}()
-	}
+	stop := closeOnDone(s, done)
 	if listExisting {
 		req := pkgHandle().newNetlinkRequest(unix.RTM_GETROUTE,
 			unix.NLM_F_DUMP)
 		infmsg := nl.NewIfInfomsg(unix.AF_UNSPEC)
 		req.AddData(infmsg)
 		if err := s.Send(req); err != nil {
+			stop()
 			return err
 		}
 	}
 	go func() {
 		defer close(ch)
+		defer stop()
 		for {
 			msgs, from, err := s.Receive()
 			if err != nil {
