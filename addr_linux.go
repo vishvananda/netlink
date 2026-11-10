@@ -323,6 +323,7 @@ type AddrUpdate struct {
 	PreferedLft int
 	ValidLft    int
 	NewAddr     bool // true=added false=deleted
+	Protocol    int
 }
 
 // AddrSubscribe takes a chan down which notifications will be sent
@@ -446,7 +447,8 @@ func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-c
 					Flags:       addr.Flags,
 					Scope:       addr.Scope,
 					PreferedLft: addr.PreferedLft,
-					ValidLft:    addr.ValidLft}
+					ValidLft:    addr.ValidLft,
+					Protocol:    addr.Protocol}
 			}
 		}
 	}()
