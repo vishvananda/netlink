@@ -420,6 +420,13 @@ func (n *Netkit) SetPeerAttrs(Attrs *LinkAttrs) {
 	n.peerLinkAttrs = *Attrs
 }
 
+// PeerAttrs returns the peer link attributes set via SetPeerAttrs for use
+// when creating the netkit pair. They are not populated when the device is
+// retrieved from the kernel (e.g. via LinkByName or LinkList).
+func (n *Netkit) PeerAttrs() *LinkAttrs {
+	return &n.peerLinkAttrs
+}
+
 type Netkit struct {
 	LinkAttrs
 	Mode            NetkitMode
