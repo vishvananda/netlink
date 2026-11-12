@@ -20,7 +20,7 @@ var (
 	vdapTestReqModules = []string{"vdpa", "vdpa_sim", "vdpa_sim_net"}
 )
 
-func setupVDPATest(t *testing.T, reqCommands ...int) func() {
+func setupVDPATest(t *testing.T, reqCommands ...int) {
 	t.Helper()
 	skipUnlessRoot(t)
 	skipUnlessKModuleLoaded(t, vdapTestReqModules...)
@@ -39,13 +39,13 @@ func setupVDPATest(t *testing.T, reqCommands ...int) func() {
 			t.Skip("host doesn't support required VDPA command for the test")
 		}
 	}
-	return func() {
+	t.Cleanup(func() {
 		_ = VDPADelDev(vdpaTestDeviceName)
-	}
+	})
 }
 
 func TestVDPAGetMGMTDevList(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_MGMTDEV_GET)()
+	setupVDPATest(t, nl.VDPA_CMD_MGMTDEV_GET)
 	mgmtDevs, err := VDPAGetMGMTDevList()
 	if err != nil {
 		t.Fatalf("Failed to list VDPA mgmt devs: %v", err)
@@ -64,7 +64,7 @@ func TestVDPAGetMGMTDevList(t *testing.T) {
 }
 
 func TestVDPAGetMGMTDevByBusAndName(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_MGMTDEV_GET)()
+	setupVDPATest(t, nl.VDPA_CMD_MGMTDEV_GET)
 	mgmtDev, err := VDPAGetMGMTDevByBusAndName("", vdpaSimMGMTDev)
 	if err != nil {
 		t.Fatalf("Failed to get VDPA sim mgmt dev: %v", err)
@@ -76,7 +76,7 @@ func TestVDPAGetMGMTDevByBusAndName(t *testing.T) {
 }
 
 func TestVDPAGetMGMTDevByBusAndName_Unknown_Device(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_MGMTDEV_GET)()
+	setupVDPATest(t, nl.VDPA_CMD_MGMTDEV_GET)
 	_, err := VDPAGetMGMTDevByBusAndName("pci", "__should_not_exist")
 	if !errors.Is(err, syscall.ENODEV) {
 		t.Fatal("VDPAGetMGMTDevByBusAndName returns unexpected error for unknown device")
@@ -84,7 +84,7 @@ func TestVDPAGetMGMTDevByBusAndName_Unknown_Device(t *testing.T) {
 }
 
 func TestVDPANewDev(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_NEW)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_NEW)
 	if err := createVDPATestDev(); err != nil {
 		t.Fatalf("failed to create VDPA device: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestVDPANewDev(t *testing.T) {
 }
 
 func TestVDPANewDev_Already_Exist(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_NEW)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_NEW)
 	if err := createVDPATestDev(); err != nil {
 		t.Fatalf("failed to create VDPA device: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestVDPANewDev_Already_Exist(t *testing.T) {
 }
 
 func TestVDPANewDev_Unknown_MGMT_DEV(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_NEW)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_NEW)
 	err := VDPANewDev(vdpaTestDeviceName, "", "__should_not_exist", VDPANewDevParams{})
 	if !errors.Is(err, syscall.ENODEV) {
 		t.Fatal("VDPANewDev returns unexpected error for unknown mgmt device")
@@ -114,8 +114,8 @@ func TestVDPANewDev_Unknown_MGMT_DEV(t *testing.T) {
 }
 
 func TestVDPADelDev(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_DEL, nl.VDPA_CMD_DEV_NEW)()
-	defer setupVDPATest(t)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_DEL, nl.VDPA_CMD_DEV_NEW)
+	setupVDPATest(t)
 	if err := createVDPATestDev(); err != nil {
 		t.Fatalf("failed to create VDPA device: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestVDPADelDev(t *testing.T) {
 }
 
 func TestVDPADelDev_Unknown_Device(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_DEL)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_DEL)
 	err := VDPADelDev("__should_not_exist")
 	if !errors.Is(err, syscall.ENODEV) {
 		t.Fatal("VDPADelDev returns unexpected error for unknown device")
@@ -133,7 +133,7 @@ func TestVDPADelDev_Unknown_Device(t *testing.T) {
 }
 
 func TestVDPAGetDevList(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_NEW)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_NEW)
 	if err := createVDPATestDev(); err != nil {
 		t.Fatalf("failed to create VDPA device: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestVDPAGetDevList(t *testing.T) {
 }
 
 func TestVDPAGetDevByName(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_NEW)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_NEW)
 	if err := createVDPATestDev(); err != nil {
 		t.Fatalf("failed to create VDPA device: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestVDPAGetDevByName(t *testing.T) {
 }
 
 func TestVDPAGetDevByName_Unknown(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_GET)
 	_, err := VDPAGetDevByName("__should_not_exist")
 	if !errors.Is(err, syscall.ENODEV) {
 		t.Fatal("VDPAGetDevByName returns unexpected error for unknown device")
@@ -178,7 +178,7 @@ func TestVDPAGetDevByName_Unknown(t *testing.T) {
 }
 
 func TestVDPAGetDevConfigList(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET)
 	if err := createVDPATestDev(); err != nil {
 		t.Fatalf("failed to create VDPA device: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestVDPAGetDevConfigList(t *testing.T) {
 }
 
 func TestVDPAGetDevConfigByName(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET)
 	if err := createVDPATestDev(); err != nil {
 		t.Fatalf("failed to create VDPA device: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestVDPAGetDevConfigByName(t *testing.T) {
 }
 
 func TestVDPAGetDevConfigByName_Unknowm(t *testing.T) {
-	defer setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET)()
+	setupVDPATest(t, nl.VDPA_CMD_DEV_GET, nl.VDPA_CMD_DEV_CONFIG_GET)
 	_, err := VDPAGetDevConfigByName("__should_not_exist")
 	if !errors.Is(err, syscall.ENODEV) {
 		t.Fatal("VDPAGetDevConfigByName returns unexpected error for unknown device")

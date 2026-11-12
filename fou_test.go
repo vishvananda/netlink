@@ -79,7 +79,7 @@ func TestFouAddDel(t *testing.T) {
 	minKernelRequired(t, 3, 18)
 
 	// the fou module is usually not compiled in the kernel so we'll load it
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "fou"))
+	setUpNetlinkTestWithKModule(t, "fou")
 
 	fou := Fou{
 		Port:      5555,
@@ -133,7 +133,7 @@ func TestFouAddDel(t *testing.T) {
 
 func TestFouAddDelGUE(t *testing.T) {
 	minKernelRequired(t, 3, 18)
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "fou"))
+	setUpNetlinkTestWithKModule(t, "fou")
 
 	// GUE with Protocol=0 must succeed on all kernels (including ≥ 6.x which
 	// rejects FOU_ATTR_IPPROTO when encap type is GUE).

@@ -8,7 +8,7 @@ import (
 )
 
 func TestChainAddDel(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := LinkAdd(&Ifb{LinkAttrs{Name: "foo"}}); err != nil {
 		t.Fatal(err)
 	}
