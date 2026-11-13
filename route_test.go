@@ -2989,6 +2989,113 @@ func TestRouteNHID(t *testing.T) {
 	}
 }
 
+func TestRouteNHIDIPv6(t *testing.T) {
+	t.Cleanup(setUpNetlinkTest(t))
+
+	if err := LinkAdd(&Dummy{LinkAttrs: LinkAttrs{Name: "dummy0"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	link0, err := LinkByName("dummy0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = LinkSetUp(link0); err != nil {
+		t.Fatal(err)
+	}
+
+	nh := &Nexthop{
+		ID:      1,
+		OIF:     uint32(link0.Attrs().Index),
+		Gateway: net.ParseIP("fe80::1"),
+	}
+	if err = NexthopAdd(nh); err != nil {
+		t.Fatal(err)
+	}
+
+	_, dst, err := net.ParseCIDR("2001:db8::/64")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	route := Route{
+		Dst:  dst,
+		NHID: nh.ID,
+	}
+	if err = RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+
+	routes, err := RouteListFiltered(FAMILY_V6, &Route{Dst: dst}, RT_FILTER_DST)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatalf("Expected 1 route, got %d", len(routes))
+	}
+	if routes[0].NHID != nh.ID {
+		t.Fatalf("Expected route NHID %d, got %d", nh.ID, routes[0].NHID)
+	}
+
+	if err = RouteReplace(&route); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = RouteDel(&route); err != nil {
+		t.Fatal(err)
+	}
+
+	routes, err = RouteListFiltered(FAMILY_V6, &Route{Dst: dst}, RT_FILTER_DST)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 0 {
+		t.Fatalf("Expected no route, got %d", len(routes))
+	}
+}
+
+// TestPrepareRouteReqNHIDNoOIF verifies that RTA_OIF, which the kernel refuses
+// with a nexthop ID for IPv6 routes, is not sent for routes with a nexthop ID.
+func TestPrepareRouteReqNHIDNoOIF(t *testing.T) {
+	_, v6dst, err := net.ParseCIDR("2001:db8::/64")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hasOIF := func(req *nl.NetlinkRequest) bool {
+		for _, d := range req.Data {
+			if attr, ok := d.(*nl.RtAttr); ok && attr.Type == unix.RTA_OIF {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, tt := range []struct {
+		name    string
+		reqType int
+		route   *Route
+		wantOIF bool
+	}{
+		{"new route with NHID", unix.RTM_NEWROUTE, &Route{Dst: v6dst, NHID: 1}, false},
+		{"delete route with NHID", unix.RTM_DELROUTE, &Route{Dst: v6dst, NHID: 1}, false},
+		{"new route without NHID", unix.RTM_NEWROUTE, &Route{Dst: v6dst}, true},
+		{"new route with link and NHID", unix.RTM_NEWROUTE, &Route{Dst: v6dst, NHID: 1, LinkIndex: 2}, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req := nl.NewNetlinkRequest(tt.reqType, unix.NLM_F_ACK)
+			if err := (&Handle{}).prepareRouteReq(tt.route, req, nl.NewRtMsg()); err != nil {
+				t.Fatalf("prepareRouteReq: %v", err)
+			}
+
+			if got := hasOIF(req); got != tt.wantOIF {
+				t.Fatalf("RTA_OIF sent = %v, want %v", got, tt.wantOIF)
+			}
+		})
+	}
+}
+
 // findRtAttr returns the Data of the first top-level RtAttr of the given type
 // in req, failing the test if it is absent.
 func findRtAttr(t *testing.T, req *nl.NetlinkRequest, attrType uint16) []byte {
