@@ -2071,6 +2071,239 @@ func TestSEG6LocalEqual(t *testing.T) {
 		}
 	}
 }
+
+func TestSEG6LocalEncapFlavors(t *testing.T) {
+	var flagsEnd [nl.SEG6_LOCAL_MAX]bool
+	flagsEnd[nl.SEG6_LOCAL_ACTION] = true
+
+	var flagsEndDt46 [nl.SEG6_LOCAL_MAX]bool
+	flagsEndDt46[nl.SEG6_LOCAL_ACTION] = true
+	flagsEndDt46[nl.SEG6_LOCAL_VRFTABLE] = true
+
+	var flagsEndFlavors [nl.SEG6_LOCAL_MAX]bool
+	flagsEndFlavors[nl.SEG6_LOCAL_ACTION] = true
+	flagsEndFlavors[nl.SEG6_LOCAL_FLAVORS] = true
+
+	testCases := []struct {
+		name       string
+		encap      *SEG6LocalEncap
+		wantString string
+	}{
+		{
+			name: "bare End action without flavors",
+			encap: &SEG6LocalEncap{
+				Flags:  flagsEnd,
+				Action: nl.SEG6_LOCAL_ACTION_END,
+			},
+			wantString: "action End",
+		},
+		{
+			name: "End.DT46 with vrftable only, no flavors",
+			encap: &SEG6LocalEncap{
+				Flags:    flagsEndDt46,
+				Action:   nl.SEG6_LOCAL_ACTION_END_DT46,
+				VrfTable: 50,
+			},
+			// SEG6LocalActionString has no case for END_DT46; this documents
+			// existing behavior, unrelated to flavors.
+			wantString: "action unknown vrftable 50",
+		},
+		{
+			name: "End with NEXT-CSID flavor, lblen 32 nflen 16",
+			encap: &SEG6LocalEncap{
+				Flags:  flagsEndFlavors,
+				Action: nl.SEG6_LOCAL_ACTION_END,
+				Flavors: SEG6LocalFlavors{
+					Operation:    nl.SEG6_F_LOCAL_FLV_NEXT_CSID,
+					LcBlockBits:  32,
+					LcNodeFnBits: 16,
+				},
+			},
+			wantString: "action End flavors NEXT-CSID lblen 32 nflen 16",
+		},
+		{
+			name: "End with NEXT-CSID flavor, lblen 48 nflen 0",
+			encap: &SEG6LocalEncap{
+				Flags:  flagsEndFlavors,
+				Action: nl.SEG6_LOCAL_ACTION_END,
+				Flavors: SEG6LocalFlavors{
+					Operation:    nl.SEG6_F_LOCAL_FLV_NEXT_CSID,
+					LcBlockBits:  48,
+					LcNodeFnBits: 0,
+				},
+			},
+			wantString: "action End flavors NEXT-CSID lblen 48 nflen 0",
+		},
+		{
+			name: "End with multiple flavor operations",
+			encap: &SEG6LocalEncap{
+				Flags:  flagsEndFlavors,
+				Action: nl.SEG6_LOCAL_ACTION_END,
+				Flavors: SEG6LocalFlavors{
+					Operation: nl.SEG6_F_LOCAL_FLV_PSP | nl.SEG6_F_LOCAL_FLV_USD,
+				},
+			},
+			wantString: "action End flavors PSP,USD lblen 0 nflen 0",
+		},
+		{
+			// The kernel is the source of truth for which operation values are
+			// valid; Decode/Encode round-trip the raw value without validating it.
+			name: "End with an unsupported flavor operation",
+			encap: &SEG6LocalEncap{
+				Flags:  flagsEndFlavors,
+				Action: nl.SEG6_LOCAL_ACTION_END,
+				Flavors: SEG6LocalFlavors{
+					Operation: 1 << 20,
+				},
+			},
+			wantString: "action End flavors unknown lblen 0 nflen 0",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf, err := tc.encap.Encode()
+			if err != nil {
+				t.Fatal(err)
+			}
+			decoded := &SEG6LocalEncap{}
+			if err := decoded.Decode(buf); err != nil {
+				t.Fatal(err)
+			}
+			if !decoded.Equal(tc.encap) {
+				t.Fatalf("Decode(Encode(encap)) = %v, want %v", decoded, tc.encap)
+			}
+			if got := tc.encap.String(); got != tc.wantString {
+				t.Fatalf("String() = %q, want %q", got, tc.wantString)
+			}
+		})
+	}
+}
+
+func TestSEG6LocalEncapFlavorsWire(t *testing.T) {
+	// NEXT-CSID is carried as bit 4 of the operation mask, and the nest is
+	// flagged NLA_F_NESTED, as the kernel does in dumps.
+	flags := [nl.SEG6_LOCAL_MAX]bool{}
+	flags[nl.SEG6_LOCAL_ACTION] = true
+	flags[nl.SEG6_LOCAL_FLAVORS] = true
+	e := &SEG6LocalEncap{
+		Flags:   flags,
+		Action:  nl.SEG6_LOCAL_ACTION_END,
+		Flavors: SEG6LocalFlavors{Operation: nl.SEG6_F_LOCAL_FLV_NEXT_CSID, LcBlockBits: 32, LcNodeFnBits: 16},
+	}
+	buf, err := e.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	attrs, err := nl.ParseRouteAttr(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, a := range attrs {
+		if a.Attr.Type&nl.NLA_TYPE_MASK != nl.SEG6_LOCAL_FLAVORS {
+			continue
+		}
+		found = true
+		if a.Attr.Type&nl.NLA_F_NESTED == 0 {
+			t.Error("flavors attribute is not flagged NLA_F_NESTED")
+		}
+		inner, err := nl.ParseRouteAttr(a.Value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := native.Uint32(inner[0].Value); got != 1<<4 {
+			t.Errorf("operation mask = %#x, want %#x", got, 1<<4)
+		}
+	}
+	if !found {
+		t.Fatal("no flavors attribute encoded")
+	}
+
+	// Without NEXT-CSID the bit lengths are not sent.
+	e.Flavors = SEG6LocalFlavors{Operation: nl.SEG6_F_LOCAL_FLV_PSP}
+	buf, err = e.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	attrs, _ = nl.ParseRouteAttr(buf)
+	for _, a := range attrs {
+		if a.Attr.Type&nl.NLA_TYPE_MASK == nl.SEG6_LOCAL_FLAVORS {
+			inner, _ := nl.ParseRouteAttr(a.Value)
+			if len(inner) != 1 {
+				t.Errorf("got %d flavor sub-attributes, want 1", len(inner))
+			}
+		}
+	}
+}
+
+func TestSEG6LocalEncapFlavorsDecodeMalformed(t *testing.T) {
+	cases := map[string]*nl.RtAttr{
+		"short operation": nl.NewRtAttr(nl.SEG6_LOCAL_FLV_OPERATION, []byte{1}),
+		"empty lcblock":   nl.NewRtAttr(nl.SEG6_LOCAL_FLV_LCBLOCK_BITS, nil),
+		"empty lcnode":    nl.NewRtAttr(nl.SEG6_LOCAL_FLV_LCNODE_FN_BITS, nil),
+		"unknown":         nl.NewRtAttr(nl.SEG6_LOCAL_FLV_MAX+1, []byte{0}),
+	}
+	for name, inner := range cases {
+		t.Run(name, func(t *testing.T) {
+			outer := nl.NewRtAttr(unix.NLA_F_NESTED|nl.SEG6_LOCAL_FLAVORS, nil)
+			outer.AddChild(inner)
+			if err := (&SEG6LocalEncap{}).Decode(outer.Serialize()); err == nil {
+				t.Fatal("Decode succeeded on malformed flavors")
+			}
+		})
+	}
+}
+
+func TestSEG6LocalFlavorsRoute6AddDel(t *testing.T) {
+	minKernelRequired(t, 6, 1)
+	t.Cleanup(setUpSEG6NetlinkTest(t))
+
+	dummy := &Dummy{LinkAttrs: LinkAttrs{Name: "dummy_flv"}}
+	if err := LinkAdd(dummy); err != nil {
+		t.Fatal(err)
+	}
+	link, err := LinkByName("dummy_flv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	dst := &net.IPNet{IP: net.ParseIP("fc00:0:1:1::"), Mask: net.CIDRMask(64, 128)}
+	var flags [nl.SEG6_LOCAL_MAX]bool
+	flags[nl.SEG6_LOCAL_ACTION] = true
+	flags[nl.SEG6_LOCAL_FLAVORS] = true
+	e := &SEG6LocalEncap{
+		Flags:  flags,
+		Action: nl.SEG6_LOCAL_ACTION_END,
+		Flavors: SEG6LocalFlavors{
+			Operation:    nl.SEG6_F_LOCAL_FLV_NEXT_CSID,
+			LcBlockBits:  32,
+			LcNodeFnBits: 16,
+		},
+	}
+	route := Route{LinkIndex: link.Attrs().Index, Dst: dst, Encap: e}
+	if err := RouteAdd(&route); err != nil {
+		t.Fatal(err)
+	}
+
+	routes, err := RouteListFiltered(FAMILY_V6, &Route{Dst: dst}, RT_FILTER_DST)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != 1 {
+		t.Fatalf("found %d routes, want 1", len(routes))
+	}
+	if !e.Equal(routes[0].Encap) {
+		t.Fatalf("dumped encap %v does not match %v", routes[0].Encap, e)
+	}
+	if err := RouteDel(&route); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSEG6RouteAddDel(t *testing.T) {
 	// add/del routes with LWTUNNEL_SEG6 to/from interface.
 	// Test both seg6 modes: encap (IPv4) & inline (IPv6).
