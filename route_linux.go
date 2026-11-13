@@ -289,6 +289,7 @@ type SEG6LocalEncap struct {
 // flavor operation and, for NEXT-CSID, the locator block/node function
 // bit lengths.
 type SEG6LocalFlavors struct {
+	// Operation is a bitmask of nl.SEG6_F_LOCAL_FLV_* values.
 	Operation    uint32
 	LcBlockBits  uint8
 	LcNodeFnBits uint8
@@ -312,7 +313,7 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 		return err
 	}
 	for _, attr := range attrs {
-		switch attr.Attr.Type {
+		switch attr.Attr.Type & nl.NLA_TYPE_MASK {
 		case nl.SEG6_LOCAL_ACTION:
 			e.Action = int(native.Uint32(attr.Value[0:4]))
 			e.Flags[nl.SEG6_LOCAL_ACTION] = true
@@ -356,17 +357,29 @@ func (e *SEG6LocalEncap) Decode(buf []byte) error {
 		case nl.SEG6_LOCAL_FLAVORS:
 			var flvAttrs []syscall.NetlinkRouteAttr
 			flvAttrs, err = nl.ParseRouteAttr(attr.Value)
+			if err != nil {
+				return err
+			}
 			flavors := SEG6LocalFlavors{}
 			for _, flvAttr := range flvAttrs {
-				switch flvAttr.Attr.Type {
+				switch flvAttr.Attr.Type & nl.NLA_TYPE_MASK {
 				case nl.SEG6_LOCAL_FLV_OPERATION:
+					if len(flvAttr.Value) < 4 {
+						return fmt.Errorf("seg6local flavors decode: operation attribute too short: %d bytes", len(flvAttr.Value))
+					}
 					flavors.Operation = native.Uint32(flvAttr.Value)
 				case nl.SEG6_LOCAL_FLV_LCBLOCK_BITS:
+					if len(flvAttr.Value) < 1 {
+						return fmt.Errorf("seg6local flavors decode: lcblock bits attribute is empty")
+					}
 					flavors.LcBlockBits = flvAttr.Value[0]
 				case nl.SEG6_LOCAL_FLV_LCNODE_FN_BITS:
+					if len(flvAttr.Value) < 1 {
+						return fmt.Errorf("seg6local flavors decode: lcnode function bits attribute is empty")
+					}
 					flavors.LcNodeFnBits = flvAttr.Value[0]
 				default:
-					err = fmt.Errorf("seg6local flavors decode: unknown attribute: Type %d", flvAttr.Attr.Type)
+					return fmt.Errorf("seg6local flavors decode: unknown attribute: Type %d", flvAttr.Attr.Type&nl.NLA_TYPE_MASK)
 				}
 			}
 			e.Flavors = flavors
@@ -452,10 +465,12 @@ func (e *SEG6LocalEncap) Encode() ([]byte, error) {
 		res = append(res, attr.Serialize()...)
 	}
 	if e.Flags[nl.SEG6_LOCAL_FLAVORS] {
-		attr := nl.NewRtAttr(nl.SEG6_LOCAL_FLAVORS, []byte{})
+		attr := nl.NewRtAttr(unix.NLA_F_NESTED|nl.SEG6_LOCAL_FLAVORS, []byte{})
 		attr.AddRtAttr(nl.SEG6_LOCAL_FLV_OPERATION, nl.Uint32Attr(e.Flavors.Operation))
-		attr.AddRtAttr(nl.SEG6_LOCAL_FLV_LCBLOCK_BITS, nl.Uint8Attr(e.Flavors.LcBlockBits))
-		attr.AddRtAttr(nl.SEG6_LOCAL_FLV_LCNODE_FN_BITS, nl.Uint8Attr(e.Flavors.LcNodeFnBits))
+		if e.Flavors.Operation&nl.SEG6_F_LOCAL_FLV_NEXT_CSID != 0 {
+			attr.AddRtAttr(nl.SEG6_LOCAL_FLV_LCBLOCK_BITS, nl.Uint8Attr(e.Flavors.LcBlockBits))
+			attr.AddRtAttr(nl.SEG6_LOCAL_FLV_LCNODE_FN_BITS, nl.Uint8Attr(e.Flavors.LcNodeFnBits))
+		}
 		res = append(res, attr.Serialize()...)
 	}
 	return res, err
@@ -507,7 +522,7 @@ func (e *SEG6LocalEncap) String() string {
 	}
 	if e.Flags[nl.SEG6_LOCAL_FLAVORS] {
 		strs = append(strs, fmt.Sprintf("flavors %s lblen %d nflen %d",
-			nl.SEG6LocalFlavorOperationString(int(e.Flavors.Operation)), e.Flavors.LcBlockBits, e.Flavors.LcNodeFnBits))
+			nl.SEG6LocalFlavorOperationString(e.Flavors.Operation), e.Flavors.LcBlockBits, e.Flavors.LcNodeFnBits))
 	}
 	return strings.Join(strs, " ")
 }

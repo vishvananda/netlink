@@ -1,6 +1,6 @@
 package nl
 
-import ()
+import "strings"
 
 // seg6local parameters
 const (
@@ -45,6 +45,15 @@ const (
 )
 const (
 	SEG6_LOCAL_FLV_OP_MAX = __SEG6_LOCAL_FLV_OP_MAX - 1
+)
+
+// seg6local flavor operation masks. The SEG6_LOCAL_FLV_OPERATION attribute
+// carries a bitmask in which each operation occupies bit SEG6_LOCAL_FLV_OP_*.
+const (
+	SEG6_F_LOCAL_FLV_PSP       = 1 << SEG6_LOCAL_FLV_OP_PSP
+	SEG6_F_LOCAL_FLV_USP       = 1 << SEG6_LOCAL_FLV_OP_USP
+	SEG6_F_LOCAL_FLV_USD       = 1 << SEG6_LOCAL_FLV_OP_USD
+	SEG6_F_LOCAL_FLV_NEXT_CSID = 1 << SEG6_LOCAL_FLV_OP_NEXT_CSID
 )
 
 // seg6local actions
@@ -108,16 +117,28 @@ func SEG6LocalActionString(action int) string {
 	return "unknown"
 }
 
-func SEG6LocalFlavorOperationString(op int) string {
-	switch op {
-	case SEG6_LOCAL_FLV_OP_PSP:
-		return "PSP"
-	case SEG6_LOCAL_FLV_OP_USP:
-		return "USP"
-	case SEG6_LOCAL_FLV_OP_USD:
-		return "USD"
-	case SEG6_LOCAL_FLV_OP_NEXT_CSID:
-		return "NEXT-CSID"
+// SEG6LocalFlavorOperationString renders a SEG6_LOCAL_FLV_OPERATION bitmask as
+// a comma-separated list of operation names, or "unknown" if the mask is empty
+// or contains bits that are not defined.
+func SEG6LocalFlavorOperationString(ops uint32) string {
+	names := []struct {
+		mask uint32
+		name string
+	}{
+		{SEG6_F_LOCAL_FLV_PSP, "PSP"},
+		{SEG6_F_LOCAL_FLV_USP, "USP"},
+		{SEG6_F_LOCAL_FLV_USD, "USD"},
+		{SEG6_F_LOCAL_FLV_NEXT_CSID, "NEXT-CSID"},
 	}
-	return "unknown"
+	var strs []string
+	for _, n := range names {
+		if ops&n.mask != 0 {
+			strs = append(strs, n.name)
+			ops &^= n.mask
+		}
+	}
+	if len(strs) == 0 || ops != 0 {
+		return "unknown"
+	}
+	return strings.Join(strs, ",")
 }
