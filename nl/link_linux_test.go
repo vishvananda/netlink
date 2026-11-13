@@ -197,3 +197,32 @@ func TestVfRssQueryEnDeserializeSerialize(t *testing.T) {
 	msg := DeserializeVfRssQueryEn(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }
+
+func TestDeserializeVfStats(t *testing.T) {
+	// Attribute types are the kernel uapi values, including an empty
+	// IFLA_VF_STATS_PAD (6) as emitted by nla_put_u64_64bit() for alignment.
+	var b []byte
+	b = append(b, NewRtAttr(0, Uint64Attr(11)).Serialize()...) // IFLA_VF_STATS_RX_PACKETS
+	b = append(b, NewRtAttr(1, Uint64Attr(12)).Serialize()...) // IFLA_VF_STATS_TX_PACKETS
+	b = append(b, NewRtAttr(2, Uint64Attr(13)).Serialize()...) // IFLA_VF_STATS_RX_BYTES
+	b = append(b, NewRtAttr(3, Uint64Attr(14)).Serialize()...) // IFLA_VF_STATS_TX_BYTES
+	b = append(b, NewRtAttr(4, Uint64Attr(15)).Serialize()...) // IFLA_VF_STATS_BROADCAST
+	b = append(b, NewRtAttr(5, Uint64Attr(16)).Serialize()...) // IFLA_VF_STATS_MULTICAST
+	b = append(b, NewRtAttr(6, nil).Serialize()...)            // IFLA_VF_STATS_PAD
+	b = append(b, NewRtAttr(7, Uint64Attr(17)).Serialize()...) // IFLA_VF_STATS_RX_DROPPED
+	b = append(b, NewRtAttr(8, Uint64Attr(18)).Serialize()...) // IFLA_VF_STATS_TX_DROPPED
+
+	expected := VfStats{
+		RxPackets: 11,
+		TxPackets: 12,
+		RxBytes:   13,
+		TxBytes:   14,
+		Broadcast: 15,
+		Multicast: 16,
+		RxDropped: 17,
+		TxDropped: 18,
+	}
+	if got := DeserializeVfStats(b); got != expected {
+		t.Errorf("expected %+v, got %+v", expected, got)
+	}
+}
