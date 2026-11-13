@@ -23,16 +23,28 @@ type DevlinkDevice struct {
 
 // DevlinkPortFn represents port function and its attributes
 type DevlinkPortFn struct {
-	HwAddr  net.HardwareAddr
-	State   uint8
-	OpState uint8
+	HwAddr               net.HardwareAddr
+	State                uint8
+	OpState              uint8
+	RoCE                 bool
+	RoCESupported        bool
+	Migratable           bool
+	MigratableSupported  bool
+	IPsecCrypto          bool
+	IPsecCryptoSupported bool
+	IPsecPacket          bool
+	IPsecPacketSupported bool
 }
 
 // DevlinkPortFnSetAttrs represents attributes to set
 type DevlinkPortFnSetAttrs struct {
-	FnAttrs     DevlinkPortFn
-	HwAddrValid bool
-	StateValid  bool
+	FnAttrs          DevlinkPortFn
+	HwAddrValid      bool
+	StateValid       bool
+	RoCEValid        bool
+	MigratableValid  bool
+	IPsecCryptoValid bool
+	IPsecPacketValid bool
 }
 
 // DevlinkPort represents port and its attributes
