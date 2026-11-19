@@ -511,6 +511,16 @@ func (port *DevlinkPort) parseAttributes(attrs []syscall.NetlinkRouteAttr) error
 					port.Fn.State = uint8(nested.Value[0])
 				case nl.DEVLINK_PORT_FN_ATTR_OPSTATE:
 					port.Fn.OpState = uint8(nested.Value[0])
+				case nl.DEVLINK_PORT_FN_ATTR_CAPS:
+					caps := nl.DeserializeUint32Bitfield(nested.Value)
+					port.Fn.RoCESupported = caps.Selector&nl.DEVLINK_PORT_FN_CAP_ROCE != 0
+					port.Fn.RoCE = port.Fn.RoCESupported && caps.Value&nl.DEVLINK_PORT_FN_CAP_ROCE != 0
+					port.Fn.MigratableSupported = caps.Selector&nl.DEVLINK_PORT_FN_CAP_MIGRATABLE != 0
+					port.Fn.Migratable = port.Fn.MigratableSupported && caps.Value&nl.DEVLINK_PORT_FN_CAP_MIGRATABLE != 0
+					port.Fn.IPsecCryptoSupported = caps.Selector&nl.DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO != 0
+					port.Fn.IPsecCrypto = port.Fn.IPsecCryptoSupported && caps.Value&nl.DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO != 0
+					port.Fn.IPsecPacketSupported = caps.Selector&nl.DEVLINK_PORT_FN_CAP_IPSEC_PACKET != 0
+					port.Fn.IPsecPacket = port.Fn.IPsecPacketSupported && caps.Value&nl.DEVLINK_PORT_FN_CAP_IPSEC_PACKET != 0
 				}
 			}
 		case nl.DEVLINK_ATTR_PORT_NUMBER:
@@ -552,7 +562,7 @@ func parseDevLinkAllPortList(msgs [][]byte) ([]*DevlinkPort, error) {
 	return ports, nil
 }
 
-// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// DevLinkGetAllPortList provides a pointer to devlink ports and nil error,
 // otherwise returns an error code.
 // If the returned error is [ErrDumpInterrupted], results may be inconsistent
 // or incomplete.
@@ -579,12 +589,55 @@ func (h *Handle) DevLinkGetAllPortList() ([]*DevlinkPort, error) {
 	return ports, executeErr
 }
 
-// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// DevLinkGetAllPortList provides a pointer to devlink ports and nil error,
 // otherwise returns an error code.
 // If the returned error is [ErrDumpInterrupted], results may be inconsistent
 // or incomplete.
 func DevLinkGetAllPortList() ([]*DevlinkPort, error) {
 	return pkgHandle().DevLinkGetAllPortList()
+}
+
+// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// otherwise returns an error code. The ports are scoped to the provided
+// device.
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
+func (h *Handle) DevLinkGetPortList(Bus string, Device string) ([]*DevlinkPort, error) {
+	_, req, err := h.createCmdReq(nl.DEVLINK_CMD_PORT_GET, Bus, Device)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Flags |= unix.NLM_F_DUMP
+	msgs, executeErr := req.Execute(unix.NETLINK_GENERIC, 0)
+	if executeErr != nil && !errors.Is(executeErr, ErrDumpInterrupted) {
+		return nil, executeErr
+	}
+
+	ports, err := parseDevLinkAllPortList(msgs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Linux kernels prior to 6.6 ignored attributes passed to the dump command,
+	// leading to a full dump.
+	scoped := make([]*DevlinkPort, 0, len(ports))
+	for _, port := range ports {
+		if port.BusName == Bus && port.DeviceName == Device {
+			scoped = append(scoped, port)
+		}
+	}
+
+	return scoped, executeErr
+}
+
+// DevLinkGetPortList provides a pointer to devlink ports and nil error,
+// otherwise returns an error code. The ports are scoped to the provided
+// device.
+// If the returned error is [ErrDumpInterrupted], results may be inconsistent
+// or incomplete.
+func DevLinkGetPortList(Bus string, Device string) ([]*DevlinkPort, error) {
+	return pkgHandle().DevLinkGetPortList(Bus, Device)
 }
 
 func parseDevlinkPortMsg(msgs [][]byte) (*DevlinkPort, error) {
@@ -600,7 +653,7 @@ func parseDevlinkPortMsg(msgs [][]byte) (*DevlinkPort, error) {
 	return port, nil
 }
 
-// DevLinkGetPortByIndexprovides a pointer to devlink device and nil error,
+// DevLinkGetPortByIndex provides a pointer to devlink device and nil error,
 // otherwise returns an error code.
 func (h *Handle) DevLinkGetPortByIndex(Bus string, Device string, PortIndex uint32) (*DevlinkPort, error) {
 
@@ -905,6 +958,36 @@ func (h *Handle) DevlinkPortFnSet(Bus string, Device string, PortIndex uint32, F
 	if FnAttrs.StateValid {
 		fnAttr.AddRtAttr(nl.DEVLINK_PORT_FN_ATTR_STATE, nl.Uint8Attr(FnAttrs.FnAttrs.State))
 	}
+
+	var caps nl.Uint32Bitfield
+	if FnAttrs.RoCEValid {
+		caps.Selector |= nl.DEVLINK_PORT_FN_CAP_ROCE
+		if FnAttrs.FnAttrs.RoCE {
+			caps.Value |= nl.DEVLINK_PORT_FN_CAP_ROCE
+		}
+	}
+	if FnAttrs.MigratableValid {
+		caps.Selector |= nl.DEVLINK_PORT_FN_CAP_MIGRATABLE
+		if FnAttrs.FnAttrs.Migratable {
+			caps.Value |= nl.DEVLINK_PORT_FN_CAP_MIGRATABLE
+		}
+	}
+	if FnAttrs.IPsecCryptoValid {
+		caps.Selector |= nl.DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO
+		if FnAttrs.FnAttrs.IPsecCrypto {
+			caps.Value |= nl.DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO
+		}
+	}
+	if FnAttrs.IPsecPacketValid {
+		caps.Selector |= nl.DEVLINK_PORT_FN_CAP_IPSEC_PACKET
+		if FnAttrs.FnAttrs.IPsecPacket {
+			caps.Value |= nl.DEVLINK_PORT_FN_CAP_IPSEC_PACKET
+		}
+	}
+	if caps.Selector != 0 {
+		fnAttr.AddRtAttr(nl.DEVLINK_PORT_FN_ATTR_CAPS, caps.Serialize())
+	}
+
 	req.AddData(fnAttr)
 
 	_, err = req.Execute(unix.NETLINK_GENERIC, 0)
