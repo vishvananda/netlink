@@ -148,10 +148,12 @@ func TestSfqAddDel(t *testing.T) {
 
 	qdisc := Sfq{
 		QdiscAttrs: attrs,
-		Quantum:    2,
-		Perturb:    11,
-		Limit:      123,
-		Divisor:    4,
+		// Newer kernels raise any quantum below 256 bytes to 256, so use a value above
+		// that floor that is also not the MTU-derived default.
+		Quantum: 1000,
+		Perturb: 11,
+		Limit:   123,
+		Divisor: 4,
 	}
 	if err := QdiscAdd(&qdisc); err != nil {
 		t.Fatal(err)
