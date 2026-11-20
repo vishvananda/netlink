@@ -1229,7 +1229,9 @@ func (h *Handle) prepareRouteReq(route *Route, req *nl.NetlinkRequest, msg *nl.R
 		req.AddData(attr)
 	}
 
-	if (req.NlMsghdr.Type != unix.RTM_GETROUTE) || (req.NlMsghdr.Type == unix.RTM_GETROUTE && route.LinkIndex > 0) {
+	// The kernel refuses IPv6 routes carrying both a nexthop ID and RTA_OIF,
+	// even with a zero interface index, so it is not sent with a nexthop ID.
+	if route.LinkIndex > 0 || (req.NlMsghdr.Type != unix.RTM_GETROUTE && route.NHID == 0) {
 		b := make([]byte, 4)
 		native.PutUint32(b, uint32(route.LinkIndex))
 		req.AddData(nl.NewRtAttr(unix.RTA_OIF, b))
