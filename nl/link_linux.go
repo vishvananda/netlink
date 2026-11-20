@@ -344,6 +344,7 @@ const (
 	IFLA_VF_STATS_TX_BYTES
 	IFLA_VF_STATS_BROADCAST
 	IFLA_VF_STATS_MULTICAST
+	IFLA_VF_STATS_PAD
 	IFLA_VF_STATS_RX_DROPPED
 	IFLA_VF_STATS_TX_DROPPED
 	IFLA_VF_STATS_MAX = IFLA_VF_STATS_TX_DROPPED
@@ -480,6 +481,8 @@ func (msg *VfTxRate) Serialize() []byte {
 //	__u64 tx_bytes;
 //	__u64 broadcast;
 //	__u64 multicast;
+//	__u64 rx_dropped;
+//	__u64 tx_dropped;
 //};
 
 type VfStats struct {
@@ -501,8 +504,10 @@ func DeserializeVfStats(b []byte) VfStats {
 	}
 	var valueVar uint64
 	for _, stat := range stats {
+		// Skip attributes not carrying a u64 counter, like the
+		// IFLA_VF_STATS_PAD alignment padding, without discarding the rest.
 		if err := binary.Read(bytes.NewBuffer(stat.Value), NativeEndian(), &valueVar); err != nil {
-			break
+			continue
 		}
 		switch stat.Attr.Type {
 		case IFLA_VF_STATS_RX_PACKETS:
