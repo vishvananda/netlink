@@ -474,7 +474,7 @@ func TestRxFlowInsertActions(t *testing.T) {
 // Loopback has no rxnfc operations, so the kernel may reject the request before
 // reading the full buffer. This does not validate the ioctl layout.
 func TestRxFlowInsertReachesDriver(t *testing.T) {
-	t.Cleanup(setUpNetlinkTestWithLoopback(t))
+	setUpNetlinkTestWithLoopback(t)
 
 	tests := []struct {
 		name  string

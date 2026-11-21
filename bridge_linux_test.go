@@ -11,7 +11,7 @@ import (
 func TestBridgeVlan(t *testing.T) {
 	minKernelRequired(t, 3, 10)
 
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := remountSysfs(); err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestBridgeVlan(t *testing.T) {
 
 func TestBridgeVlanTunnelInfo(t *testing.T) {
 	minKernelRequired(t, 4, 11)
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	if err := remountSysfs(); err != nil {
 		t.Fatal(err)
@@ -206,7 +206,7 @@ func TestBridgeVlanTunnelInfo(t *testing.T) {
 
 func TestBridgeVni(t *testing.T) {
 	minKernelRequired(t, 5, 18)
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	vxlanName := "vxlan0"
 
@@ -356,7 +356,7 @@ func setupBridgeWithTwoVxlans(t *testing.T) (*Bridge, *Vxlan, *Vxlan) {
 
 func TestBridgeVlanTunnelShowDev(t *testing.T) {
 	minKernelRequired(t, 4, 11)
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	if err := remountSysfs(); err != nil {
 		t.Fatal(err)
@@ -426,7 +426,7 @@ func TestBridgeVlanTunnelShowDev(t *testing.T) {
 
 func TestBridgeGroupFwdMask(t *testing.T) {
 	minKernelRequired(t, 4, 15) //minimal release for per-port group_fwd_mask
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := remountSysfs(); err != nil {
 		t.Fatal(err)
 	}

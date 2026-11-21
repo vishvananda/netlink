@@ -87,7 +87,7 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.t = t
 
-			t.Cleanup(setUpNetlinkTest(t))
+			setUpNetlinkTest(t)
 
 			link, err := LinkByName("lo")
 			if err != nil {
@@ -170,7 +170,7 @@ func DoTestAddr(t *testing.T, FunctionUndertest func(Link, *Addr) error) {
 }
 
 func TestAddrAddReplace(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	for _, nilLink := range []bool{false, true} {
 		var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
@@ -249,7 +249,7 @@ func expectAddrUpdate(ch <-chan AddrUpdate, add bool, dst net.IP) bool {
 }
 
 func TestAddrSubscribeWithOptions(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	ch := make(chan AddrUpdate)
 	done := make(chan struct{})
@@ -286,7 +286,7 @@ func TestAddrSubscribeWithOptions(t *testing.T) {
 }
 
 func TestAddrSubscribeListExisting(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	ch := make(chan AddrUpdate)
 	done := make(chan struct{})
@@ -327,7 +327,7 @@ func TestAddrSubscribeListExisting(t *testing.T) {
 func TestAddrProtocol(t *testing.T) {
 	// IFA_PROTO requires kernel 5.18+. On older kernels, the attribute
 	// is silently ignored when setting and will be 0 when reading.
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	link, err := LinkByName("lo")
 	if err != nil {

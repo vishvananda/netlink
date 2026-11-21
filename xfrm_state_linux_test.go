@@ -21,7 +21,7 @@ func TestXfrmStateAddGetDel(t *testing.T) {
 }
 
 func testXfrmStateAddGetDel(t *testing.T, state *XfrmState) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 	if err := XfrmStateAdd(state); err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func testXfrmStateAddGetDel(t *testing.T, state *XfrmState) {
 }
 
 func TestXfrmStateAllocSpi(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	state := getBaseState()
 	state.Spi = 0
@@ -86,7 +86,7 @@ func TestXfrmStateAllocSpi(t *testing.T) {
 }
 
 func TestXfrmStateFlush(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	state1 := getBaseState()
 	state2 := getBaseState()
@@ -137,7 +137,7 @@ func TestXfrmStateFlush(t *testing.T) {
 }
 
 func TestXfrmStateUpdateLimits(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// Program state with limits
 	state := getBaseState()
@@ -185,7 +185,7 @@ func TestXfrmStateUpdateLimits(t *testing.T) {
 }
 
 func TestXfrmStateStats(t *testing.T) {
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	// Program state and record time
 	state := getBaseState()
@@ -206,7 +206,7 @@ func TestXfrmStateStats(t *testing.T) {
 
 func TestXfrmStateWithIfid(t *testing.T) {
 	minKernelRequired(t, 4, 19)
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	state := getBaseState()
 	state.Ifid = 54321
@@ -227,7 +227,7 @@ func TestXfrmStateWithIfid(t *testing.T) {
 
 func TestXfrmStateWithSADir(t *testing.T) {
 	minKernelRequired(t, 4, 19)
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	state := getBaseState()
 	state.SADir = XFRM_SA_DIR_IN
@@ -259,7 +259,7 @@ func TestXfrmStateWithPcpunumWithoutSADir(t *testing.T) {
 		t.Skipf("Host Kernel (%d.%d) does not meet test's minimum required version: (%d.%d)",
 			k, m, minKernel, minMajor)
 	}
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	state := getBaseState()
 	pcpuNum := uint32(1)
@@ -291,7 +291,7 @@ func TestXfrmStateWithPcpunumWithoutSADir(t *testing.T) {
 
 func TestXfrmStateWithPcpunumWithSADir(t *testing.T) {
 	minKernelRequired(t, 4, 19)
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	state := getBaseState()
 	state.SADir = XFRM_SA_DIR_IN
@@ -314,7 +314,7 @@ func TestXfrmStateWithPcpunumWithSADir(t *testing.T) {
 
 func TestXfrmStateWithOutputMark(t *testing.T) {
 	minKernelRequired(t, 4, 14)
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	state := getBaseState()
 	state.OutputMark = &XfrmMark{
@@ -337,7 +337,7 @@ func TestXfrmStateWithOutputMark(t *testing.T) {
 
 func TestXfrmStateWithOutputMarkAndMask(t *testing.T) {
 	minKernelRequired(t, 4, 19)
-	t.Cleanup(setUpNetlinkTest(t))
+	setUpNetlinkTest(t)
 
 	state := getBaseState()
 	state.OutputMark = &XfrmMark{

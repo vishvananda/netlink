@@ -175,8 +175,8 @@ func applyFilterv4v6(flowList []ConntrackFlow, ipv4Filter *ConntrackFilter, ipv6
 // TestConntrackSocket test the opening of a NETFILTER family socket
 func TestConntrackSocket(t *testing.T) {
 	skipUnlessRoot(t)
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack"))
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink"))
+	setUpNetlinkTestWithKModule(t, "nf_conntrack")
+	setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink")
 
 	h, err := NewHandle(unix.NETLINK_NETFILTER)
 	CheckErrorFail(t, err)
@@ -197,11 +197,11 @@ func TestConntrackTableList(t *testing.T) {
 	// conntrack l3proto was unified since 4.19
 	// https://github.com/torvalds/linux/commit/a0ae2562c6c4b2721d9fddba63b7286c13517d9f
 	if k < 4 || k == 4 && m < 19 {
-		t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv4"))
-		t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv6"))
+		setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv4")
+		setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv6")
 	}
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack"))
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink"))
+	setUpNetlinkTestWithKModule(t, "nf_conntrack")
+	setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink")
 
 	// Creates a new namespace and bring up the loopback interface
 	origns, ns, h := nsCreateAndEnter(t)
@@ -363,8 +363,8 @@ func TestConntrackTableListByZone(t *testing.T) {
 // Creates some flows and then call the table flush
 func TestConntrackTableFlush(t *testing.T) {
 	skipUnlessRoot(t)
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack"))
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink"))
+	setUpNetlinkTestWithKModule(t, "nf_conntrack")
+	setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink")
 	k, m, err := KernelVersion()
 	if err != nil {
 		t.Fatal(err)
@@ -372,9 +372,9 @@ func TestConntrackTableFlush(t *testing.T) {
 	// conntrack l3proto was unified since 4.19
 	// https://github.com/torvalds/linux/commit/a0ae2562c6c4b2721d9fddba63b7286c13517d9f
 	if k < 4 || k == 4 && m < 19 {
-		t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv4"))
+		setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv4")
 	}
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack"))
+	setUpNetlinkTestWithKModule(t, "nf_conntrack")
 	// Creates a new namespace and bring up the loopback interface
 	origns, ns, h := nsCreateAndEnter(t)
 	defer netns.Set(*origns)
@@ -445,7 +445,7 @@ func TestConntrackTableDelete(t *testing.T) {
 		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
 	}
 
-	t.Cleanup(setUpNetlinkTestWithKModule(t, requiredModules...))
+	setUpNetlinkTestWithKModule(t, requiredModules...)
 
 	// Creates a new namespace and bring up the loopback interface
 	origns, ns, h := nsCreateAndEnter(t)
@@ -1205,8 +1205,7 @@ func TestConntrackUpdateV4(t *testing.T) {
 		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
 	}
 	// Implicitly skips test if not root:
-	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
-	t.Cleanup(teardown)
+	nsStr := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
 
 	ns, err := netns.GetFromName(nsStr)
 	if err != nil {
@@ -1340,8 +1339,7 @@ func TestConntrackUpdateV6(t *testing.T) {
 		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
 	}
 	// Implicitly skips test if not root:
-	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
-	t.Cleanup(teardown)
+	nsStr := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
 
 	ns, err := netns.GetFromName(nsStr)
 	if err != nil {
@@ -1473,8 +1471,7 @@ func TestConntrackCreateV4(t *testing.T) {
 		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
 	}
 	// Implicitly skips test if not root:
-	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
-	t.Cleanup(teardown)
+	nsStr := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
 
 	ns, err := netns.GetFromName(nsStr)
 	if err != nil {
@@ -1569,8 +1566,7 @@ func TestConntrackCreateV6(t *testing.T) {
 		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
 	}
 	// Implicitly skips test if not root:
-	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
-	t.Cleanup(teardown)
+	nsStr := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
 
 	ns, err := netns.GetFromName(nsStr)
 	if err != nil {
@@ -1670,8 +1666,7 @@ func TestConntrackDeleteV4(t *testing.T) {
 		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
 	}
 	// Implicitly skips test if not root:
-	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
-	t.Cleanup(teardown)
+	nsStr := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
 
 	ns, err := netns.GetFromName(nsStr)
 	if err != nil {
@@ -1778,8 +1773,7 @@ func TestConntrackDeleteV6(t *testing.T) {
 		requiredModules = append(requiredModules, "nf_conntrack_ipv4")
 	}
 	// Implicitly skips test if not root:
-	nsStr, teardown := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
-	t.Cleanup(teardown)
+	nsStr := setUpNamedNetlinkTestWithKModule(t, requiredModules...)
 
 	ns, err := netns.GetFromName(nsStr)
 	if err != nil {
@@ -1873,8 +1867,8 @@ func TestConntrackDeleteV6(t *testing.T) {
 // Creates some flows and then checks the labels associated
 func TestConntrackLabels(t *testing.T) {
 	skipUnlessRoot(t)
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack"))
-	t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink"))
+	setUpNetlinkTestWithKModule(t, "nf_conntrack")
+	setUpNetlinkTestWithKModule(t, "nf_conntrack_netlink")
 	k, m, err := KernelVersion()
 	if err != nil {
 		t.Fatal(err)
@@ -1882,7 +1876,7 @@ func TestConntrackLabels(t *testing.T) {
 	// conntrack l3proto was unified since 4.19
 	// https://github.com/torvalds/linux/commit/a0ae2562c6c4b2721d9fddba63b7286c13517d9f
 	if k < 4 || k == 4 && m < 19 {
-		t.Cleanup(setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv4"))
+		setUpNetlinkTestWithKModule(t, "nf_conntrack_ipv4")
 	}
 	// Creates a new namespace and bring up the loopback interface
 	origns, ns, h := nsCreateAndEnter(t)
