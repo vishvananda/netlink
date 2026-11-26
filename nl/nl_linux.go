@@ -67,6 +67,22 @@ var EnableErrorMessageReporting bool = false
 // indicating that the results may be incomplete or inconsistent.
 var ErrDumpInterrupted = errDumpInterrupted{}
 
+// ErrMessageTruncated reports a datagram that exceeded the receive buffer.
+// The datagram has been consumed; callers must treat the results as incomplete.
+var ErrMessageTruncated = errors.New("netlink message truncated")
+
+// ReplyMismatchError reports an unexpected sequence, header pid, or sender in
+// ExecuteIterStrict. Field is "sequence", "pid", or "sender".
+type ReplyMismatchError struct {
+	Field string
+	Got   uint32
+	Want  uint32
+}
+
+func (e *ReplyMismatchError) Error() string {
+	return fmt.Sprintf("unexpected netlink %s %d, expected %d", e.Field, e.Got, e.Want)
+}
+
 // errDumpInterrupted is an error type, used to report that NLM_F_DUMP_INTR was
 // set in a netlink response.
 type errDumpInterrupted struct{}
@@ -543,7 +559,7 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 		err := req.executeIter(sockType, resType, func(msg []byte) bool {
 			res = append(res, msg)
 			return true
-		})
+		}, false)
 		if err == nil {
 			return res, nil
 		}
@@ -572,7 +588,7 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 // received and then passed to the callback after the socket lock is released.
 func (req *NetlinkRequest) ExecuteIter(sockType int, resType uint16, f func(msg []byte) bool) error {
 	if !req.RetryInterrupted {
-		return req.executeIter(sockType, resType, f)
+		return req.executeIter(sockType, resType, f, false)
 	}
 
 	msgs, err := req.Execute(sockType, resType)
@@ -584,7 +600,19 @@ func (req *NetlinkRequest) ExecuteIter(sockType int, resType uint16, f func(msg 
 	return err
 }
 
-func (req *NetlinkRequest) executeIter(sockType int, resType uint16, f func(msg []byte) bool) error {
+// ExecuteIterStrict works like ExecuteIter, but returns a ReplyMismatchError
+// instead of skipping replies with an unexpected sequence or header pid.
+// It executes one transaction, ignoring RetryInterrupted, so ErrDumpInterrupted
+// is returned rather than retried. Callbacks run while the socket lock is held.
+// Use a dedicated, unsubscribed socket in req.Sockets to avoid unrelated replies.
+// The caller retains ownership of that socket and may cancel a blocked operation
+// with Close or bound it with SetReceiveTimeout. After a mismatch, truncation, or
+// receive error, close the socket rather than reusing its unread replies.
+func (req *NetlinkRequest) ExecuteIterStrict(sockType int, resType uint16, f func(msg []byte) bool) error {
+	return req.executeIter(sockType, resType, f, true)
+}
+
+func (req *NetlinkRequest) executeIter(sockType int, resType uint16, f func(msg []byte) bool, strict bool) error {
 	var (
 		s   *NetlinkSocket
 		err error
@@ -630,6 +658,15 @@ func (req *NetlinkRequest) executeIter(sockType int, resType uint16, f func(msg 
 		return err
 	}
 
+	return req.receiveIter(s, resType, pid, sharedSocket, strict, f)
+}
+
+type netlinkReceiver interface {
+	Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetlink, error)
+}
+
+// receiveIter consumes a complete transaction, even when f stops iteration.
+func (req *NetlinkRequest) receiveIter(s netlinkReceiver, resType uint16, pid uint32, sharedSocket, strict bool, f func([]byte) bool) error {
 	dumpIntr := false
 
 done:
@@ -639,16 +676,25 @@ done:
 			return err
 		}
 		if from.Pid != PidKernel {
+			if strict {
+				return &ReplyMismatchError{Field: "sender", Got: from.Pid, Want: PidKernel}
+			}
 			return fmt.Errorf("Wrong sender portid %d, expected %d", from.Pid, PidKernel)
 		}
 		for _, m := range msgs {
 			if m.Header.Seq != req.Seq {
+				if strict {
+					return &ReplyMismatchError{Field: "sequence", Got: m.Header.Seq, Want: req.Seq}
+				}
 				if sharedSocket {
 					continue
 				}
 				return fmt.Errorf("Wrong Seq nr %d, expected %d", m.Header.Seq, req.Seq)
 			}
 			if m.Header.Pid != pid {
+				if strict {
+					return &ReplyMismatchError{Field: "pid", Got: m.Header.Pid, Want: pid}
+				}
 				continue
 			}
 
@@ -975,6 +1021,7 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 		fromAddr *unix.SockaddrNetlink
 		rb       [RECEIVE_BUFFER_SIZE]byte
 		nr       int
+		flags    int
 		from     unix.Sockaddr
 		innerErr error
 	)
@@ -986,7 +1033,7 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 		return nil, nil, err
 	}
 	err = rawConn.Read(func(fd uintptr) (done bool) {
-		nr, from, innerErr = unix.Recvfrom(int(fd), rb[:], 0)
+		nr, _, flags, from, innerErr = unix.Recvmsg(int(fd), rb[:], nil, 0)
 		return innerErr != unix.EWOULDBLOCK
 	})
 	if innerErr != nil {
@@ -999,6 +1046,9 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 			return nil, nil, unix.EAGAIN
 		}
 		return nil, nil, err
+	}
+	if flags&unix.MSG_TRUNC != 0 {
+		return nil, nil, ErrMessageTruncated
 	}
 	fromAddr, ok := from.(*unix.SockaddrNetlink)
 	if !ok {
