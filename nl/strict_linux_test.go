@@ -2,6 +2,7 @@ package nl
 
 import (
 	"errors"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -35,10 +36,10 @@ func TestStrictReplyMismatch(t *testing.T) {
 		name      string
 		seq, pid  uint32
 		sender    uint32
-		field     string
+		field     ReplyMismatchField
 		got, want uint32
 	}{
-		{"sequence", 8, 10, 0, "sequence", 8, 7}, {"pid", 7, 11, 0, "pid", 11, 10}, {"sender", 7, 10, 12, "sender", 12, 0},
+		{"sequence", 8, 10, 0, ReplyMismatchSequence, 8, 7}, {"pid", 7, 11, 0, ReplyMismatchHeaderPID, 11, 10}, {"sender", 7, 10, 12, ReplyMismatchSender, 12, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req := &NetlinkRequest{NlMsghdr: unix.NlMsghdr{Seq: 7}}
@@ -176,34 +177,79 @@ func TestExecuteIterStrictCallerSocket(t *testing.T) {
 	}
 }
 
-func TestStrictReceiveCancellation(t *testing.T) {
-	for _, closeSocket := range []bool{false, true} {
-		s, err := getNetlinkSocket(unix.NETLINK_ROUTE)
-		if err != nil {
-			t.Fatal(err)
-		}
-		req := NewNetlinkRequest(unix.RTM_GETLINK, 0)
-		if !closeSocket {
-			timeout := unix.NsecToTimeval(int64(10 * time.Millisecond))
-			s.SetReceiveTimeout(&timeout)
-		}
-		done := make(chan error, 1)
-		go func() { done <- req.receiveIter(s, 0, 0, true, true, func([]byte) bool { return true }) }()
-		if closeSocket {
-			// Let Receive enter the blocking poll before closing the socket.
-			time.Sleep(10 * time.Millisecond)
-			s.Close()
-		}
-		defer s.Close()
-		select {
-		case err := <-done:
-			if err == nil {
-				t.Error("cancellation returned nil")
+// observedReceiver keeps the real netlink socket and recvmsg/poller behavior;
+// only the raw-read callback is wrapped to observe its first would-block result.
+type observedReceiver struct {
+	socket  *NetlinkSocket
+	waiting chan struct{}
+	once    sync.Once
+}
+
+func (s *observedReceiver) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetlink, error) {
+	raw, err := s.socket.file.SyscallConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.socket.receive(func(f func(uintptr) bool) error {
+		return raw.Read(func(fd uintptr) bool {
+			done := f(fd)
+			if !done {
+				s.once.Do(func() { close(s.waiting) })
 			}
-		case <-time.After(time.Second):
-			s.Close()
-			t.Fatal("receive did not cancel")
+			return done
+		})
+	})
+}
+
+func TestStrictReceiveCancellation(t *testing.T) {
+	s, err := getNetlinkSocket(unix.NETLINK_ROUTE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	receiver := &observedReceiver{socket: s, waiting: make(chan struct{})}
+	req := NewNetlinkRequest(unix.RTM_GETLINK, 0)
+	done := make(chan error, 1)
+	go func() { done <- req.receiveIter(receiver, 0, 0, true, true, func([]byte) bool { return true }) }()
+	select {
+	case <-receiver.waiting:
+		// Receive has attempted recvmsg and is waiting for data on the real socket.
+	case err := <-done:
+		t.Fatalf("receive returned before blocking: %v", err)
+	case <-time.After(time.Second):
+		t.Fatal("receive never reached would-block")
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("close cancellation returned nil")
 		}
+	case <-time.After(time.Second):
+		t.Fatal("close did not cancel the blocked receive")
+	}
+}
+
+func TestStrictReceiveTimeout(t *testing.T) {
+	s, err := getNetlinkSocket(unix.NETLINK_ROUTE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	timeout := unix.NsecToTimeval(int64(10 * time.Millisecond))
+	s.SetReceiveTimeout(&timeout)
+	req := NewNetlinkRequest(unix.RTM_GETLINK, 0)
+	done := make(chan error, 1)
+	go func() { done <- req.receiveIter(s, 0, 0, true, true, func([]byte) bool { return true }) }()
+	select {
+	case err := <-done:
+		if !errors.Is(err, unix.EAGAIN) {
+			t.Fatalf("timeout returned %v, want EAGAIN", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("receive timeout did not cancel")
 	}
 }
 
@@ -224,7 +270,7 @@ func TestExecuteIterStrictRejectsStaleReply(t *testing.T) {
 	req.Sockets = map[int]*SocketHandle{unix.NETLINK_ROUTE: {Socket: s}}
 	err = req.ExecuteIterStrict(unix.NETLINK_ROUTE, unix.RTM_NEWLINK, func([]byte) bool { t.Error("stale reply delivered"); return true })
 	var mismatch *ReplyMismatchError
-	if !errors.As(err, &mismatch) || mismatch.Field != "sequence" || mismatch.Got != 99 || mismatch.Want != 1 {
+	if !errors.As(err, &mismatch) || mismatch.Field != ReplyMismatchSequence || mismatch.Got != 99 || mismatch.Want != 1 {
 		t.Fatalf("got %v, want stale sequence error", err)
 	}
 }
@@ -257,5 +303,32 @@ func TestExecuteIterStrictIgnoresRetryInterrupted(t *testing.T) {
 	}
 	if !req.RetryInterrupted {
 		t.Fatal("strict execution changed caller retry setting")
+	}
+}
+
+func TestLegacyReplyMismatchErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		seq, sender uint32
+		shared      bool
+	}{
+		{"nonshared_sequence", 8, 0, false},
+		{"nonkernel_sender", 7, 12, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &NetlinkRequest{NlMsghdr: unix.NlMsghdr{Seq: 7}}
+			s := &scriptedReplies{sender: tc.sender, replies: [][]syscall.NetlinkMessage{{reply(tc.seq, 10, 20, unix.NLM_F_MULTI)}}}
+			err := req.receiveIter(s, 20, 10, tc.shared, false, func([]byte) bool { t.Error("mismatched reply delivered"); return true })
+			if err == nil {
+				t.Fatal("legacy mismatch accepted")
+			}
+			var mismatch *ReplyMismatchError
+			if errors.As(err, &mismatch) {
+				t.Fatalf("legacy error changed to strict type: %v", err)
+			}
+			if errors.Is(err, unix.EAGAIN) || s.reads != 1 {
+				t.Fatalf("legacy mismatch skipped: err=%v reads=%d", err, s.reads)
+			}
+		})
 	}
 }

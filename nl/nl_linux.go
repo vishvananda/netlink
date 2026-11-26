@@ -71,10 +71,22 @@ var ErrDumpInterrupted = errDumpInterrupted{}
 // The datagram has been consumed; callers must treat the results as incomplete.
 var ErrMessageTruncated = errors.New("netlink message truncated")
 
-// ReplyMismatchError reports an unexpected sequence, header pid, or sender in
-// ExecuteIterStrict. Field is "sequence", "pid", or "sender".
+// ReplyMismatchField identifies the part of a reply that failed strict validation.
+type ReplyMismatchField string
+
+const (
+	// ReplyMismatchSequence identifies a reply sequence that differs from the request.
+	ReplyMismatchSequence ReplyMismatchField = "sequence"
+	// ReplyMismatchHeaderPID identifies a header PID that differs from the socket PID.
+	ReplyMismatchHeaderPID ReplyMismatchField = "pid"
+	// ReplyMismatchSender identifies a sender port ID other than the kernel.
+	ReplyMismatchSender ReplyMismatchField = "sender"
+)
+
+// ReplyMismatchError reports an unexpected sequence, header PID, or sender in
+// ExecuteIterStrict.
 type ReplyMismatchError struct {
-	Field string
+	Field ReplyMismatchField
 	Got   uint32
 	Want  uint32
 }
@@ -605,9 +617,12 @@ func (req *NetlinkRequest) ExecuteIter(sockType int, resType uint16, f func(msg 
 // It executes one transaction, ignoring RetryInterrupted, so ErrDumpInterrupted
 // is returned rather than retried. Callbacks run while the socket lock is held.
 // Use a dedicated, unsubscribed socket in req.Sockets to avoid unrelated replies.
-// The caller retains ownership of that socket and may cancel a blocked operation
-// with Close or bound it with SetReceiveTimeout. After a mismatch, truncation, or
-// receive error, close the socket rather than reusing its unread replies.
+// The caller retains ownership of that socket. Configure both SetSendTimeout and
+// SetReceiveTimeout before execution to bound blocked I/O on caller-owned sockets.
+// The receive timeout applies to each Receive call, not the entire multipart
+// transaction. To enforce a total deadline or cancel the operation, close the
+// dedicated socket from the caller's deadline/cancellation owner. After a mismatch,
+// truncation, or receive error, close the socket rather than reusing unread replies.
 func (req *NetlinkRequest) ExecuteIterStrict(sockType int, resType uint16, f func(msg []byte) bool) error {
 	return req.executeIter(sockType, resType, f, true)
 }
@@ -677,14 +692,14 @@ done:
 		}
 		if from.Pid != PidKernel {
 			if strict {
-				return &ReplyMismatchError{Field: "sender", Got: from.Pid, Want: PidKernel}
+				return &ReplyMismatchError{Field: ReplyMismatchSender, Got: from.Pid, Want: PidKernel}
 			}
 			return fmt.Errorf("Wrong sender portid %d, expected %d", from.Pid, PidKernel)
 		}
 		for _, m := range msgs {
 			if m.Header.Seq != req.Seq {
 				if strict {
-					return &ReplyMismatchError{Field: "sequence", Got: m.Header.Seq, Want: req.Seq}
+					return &ReplyMismatchError{Field: ReplyMismatchSequence, Got: m.Header.Seq, Want: req.Seq}
 				}
 				if sharedSocket {
 					continue
@@ -693,7 +708,7 @@ done:
 			}
 			if m.Header.Pid != pid {
 				if strict {
-					return &ReplyMismatchError{Field: "pid", Got: m.Header.Pid, Want: pid}
+					return &ReplyMismatchError{Field: ReplyMismatchHeaderPID, Got: m.Header.Pid, Want: pid}
 				}
 				continue
 			}
@@ -1016,6 +1031,10 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 	if err != nil {
 		return nil, nil, err
 	}
+	return s.receive(rawConn.Read)
+}
+
+func (s *NetlinkSocket) receive(read func(func(uintptr) bool) error) ([]syscall.NetlinkMessage, *unix.SockaddrNetlink, error) {
 	var (
 		deadline time.Time
 		fromAddr *unix.SockaddrNetlink
@@ -1032,7 +1051,7 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, *unix.SockaddrNetli
 	if err := s.file.SetReadDeadline(deadline); err != nil {
 		return nil, nil, err
 	}
-	err = rawConn.Read(func(fd uintptr) (done bool) {
+	err := read(func(fd uintptr) (done bool) {
 		nr, _, flags, from, innerErr = unix.Recvmsg(int(fd), rb[:], nil, 0)
 		return innerErr != unix.EWOULDBLOCK
 	})
